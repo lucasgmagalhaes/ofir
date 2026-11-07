@@ -12,7 +12,7 @@ pub copy enum TokenKind {
     ByteStr, FormatSpec, DocComment, ModuleDoc, Newline, Invalid, Eof
 
     // reserved keywords (contextual keywords are lexed as Ident)
-    As, Break, Const, Continue, Copy, Dyn, Else, Enum, Extern, False, Fn, For
+    As, Break, Comptime, Const, Continue, Copy, Dyn, Else, Enum, Extern, False, Fn, For
     If, Import, In, Interface, Let, Match, Mut, Pub, Return, SelfValue, SelfType
     Struct, True, Unsafe
 
