@@ -1,0 +1,67 @@
+/**
+ * @module
+ * `std.meta`: compile-time descriptions of types (spec 15.2, ADR 0035).
+ * Each function is replaced by a constant of the instance being compiled;
+ * in the condition of a `comptime if`, the predicates narrow the type
+ * parameters they name (spec 15.3).
+ */
+
+extern "intrinsic" {
+    /**
+     * Whether `T` is an integer type: `i8` ... `i64`, `u8` ... `u64`, `int`.
+     *
+     * @typeParam T the type to classify
+     * @returns true for an integer type
+     */
+    pub fn isInteger<T>() bool
+
+    /**
+     * Whether `T` is a signed integer type: `i8` ... `i64`, `int`.
+     *
+     * @typeParam T the type to classify
+     * @returns true for a signed integer type
+     */
+    pub fn isSigned<T>() bool
+
+    /**
+     * Whether `T` is a float type: `f32` or `f64`.
+     *
+     * @typeParam T the type to classify
+     * @returns true for a float type
+     */
+    pub fn isFloat<T>() bool
+
+    /**
+     * Whether `T` is a struct.
+     *
+     * @typeParam T the type to classify
+     * @returns true for a struct
+     */
+    pub fn isStruct<T>() bool
+
+    /**
+     * Whether `T` is an enum.
+     *
+     * @typeParam T the type to classify
+     * @returns true for an enum
+     */
+    pub fn isEnum<T>() bool
+
+    /**
+     * Whether `T` satisfies the interface `I` (spec 9.6), or the built-in
+     * bound `I` (`Eq`, `Ord`, `Hash`, `Clone`, `Copy`, `Debug`).
+     *
+     * @typeParam T the type to classify
+     * @typeParam I the interface
+     * @returns true if `T` satisfies it
+     */
+    pub fn implements<T, I>() bool
+
+    /**
+     * The name of `T`, as written in messages: `int`, `List<str>`.
+     *
+     * @typeParam T the type to name
+     * @returns its name
+     */
+    pub fn nameOf<T>() str
+}
