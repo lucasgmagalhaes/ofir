@@ -14,6 +14,14 @@ import sema.check.itemOf
 import sema.check.noGenerics
 import sema.check_box.autoDeref
 import sema.check_closure.checkClosure
+import sema.check_comptime.BOUND_FLOAT
+import sema.check_comptime.BOUND_INT
+import sema.check_comptime.BOUND_NUMBER
+import sema.check_comptime.BOUND_SIGNED
+import sema.check_comptime.checkComptimeExpr
+import sema.check_comptime.checkImplements
+import sema.check_comptime.metaCall
+import sema.check_comptime.numeric
 import sema.check_dyn.boxesDyn
 import sema.check_dyn.coerceToDyn
 import sema.check_generic.checkGenericArgs
@@ -127,6 +135,9 @@ fn intFits(c: Checker, ty: int, value: u64, negative: bool) bool {
 // An integer literal takes the expected integer or float type, else `int`.
 fn intLiteral(c: mut Checker, e: &Expr, value: u64, expected: int, negative: bool) int {
     const kind = c.types.kind(expected)
+    if kind == TyKind.Param && value <= 127 && numeric(c, expected) != 0 {
+        return expected   // fits every integer type (spec 15.3)
+    }
     const ty = if kind == TyKind.Int || kind == TyKind.Float { expected } else { I64 }
     if c.types.kind(ty) == TyKind.Int && !intFits(c, ty, value, negative) {
         c.error("E0312", e.span, "integer literal out of range for `{c.typeName(ty)}`")
@@ -162,7 +173,7 @@ fn interpolates(c: Checker, ty: int) bool {
     const kind = c.types.kind(ty)
     return kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Bool ||
            kind == TyKind.Str ||
-           kind == TyKind.Error
+           kind == TyKind.Error || numeric(c, ty) != 0
 }
 
 // A union interpolates when each of its members does (spec 17.5).
@@ -187,10 +198,11 @@ fn checkFormatSpec(c: mut Checker, part: &Expr, ty: int, text: str) {
         c.error("E0357", part.span, "invalid format specifier `{text}`")
         return
     }
-    const kind = c.types.kind(ty)
-    const number = kind == TyKind.Int || kind == TyKind.Float
-    const fits = (f.precision < 0 || kind == TyKind.Float) &&
-                 (f.radix == 10 || kind == TyKind.Int) && (!f.zero || number)
+    const bits = numeric(c, ty)
+    const isInt = c.types.kind(ty) == TyKind.Int || bits & BOUND_INT != 0
+    const isFloat = c.types.kind(ty) == TyKind.Float || bits & BOUND_FLOAT != 0
+    const number = isInt || isFloat || bits & BOUND_NUMBER != 0
+    const fits = (f.precision < 0 || isFloat) && (f.radix == 10 || isInt) && (!f.zero || number)
     if !fits {
         c.error("E0357", part.span, "the format specifier `{text}` does not apply to a value of "
                 + "type `{c.typeName(ty)}`")
@@ -330,10 +342,12 @@ fn unary(c: mut Checker, p: Program, e: &Expr, op: Op, operand: &Expr, expected:
         ty = checkExpr(c, p, operand, expected)
     }
     const t = c.types.get(ty)
+    const bits = numeric(c, ty)
     const ok = if op == Op.Neg {
-        t.kind == TyKind.Float || (t.kind == TyKind.Int && t.data <= 3)
+        t.kind == TyKind.Float || (t.kind == TyKind.Int && t.data <= 3) ||
+        bits & BOUND_FLOAT != 0 || bits & (BOUND_INT | BOUND_SIGNED) == BOUND_INT | BOUND_SIGNED
     } else {
-        t.kind == TyKind.Bool || t.kind == TyKind.Int
+        t.kind == TyKind.Bool || t.kind == TyKind.Int || bits & BOUND_INT != 0
     }
     return if ok || t.kind == TyKind.Error { ty } else { operatorError(c, e.span, ty) }
 }
@@ -341,10 +355,14 @@ fn unary(c: mut Checker, p: Program, e: &Expr, op: Op, operand: &Expr, expected:
 // Which operand types an operator accepts.
 fn operandOk(c: mut Checker, p: Program, ty: int, op: Op) bool {
     const kind = c.types.kind(ty)
+    const bits = numeric(c, ty)   // a parameter narrowed to numbers (spec 15.3)
     return match op {
-        Op.Add => kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Str
-        Op.Sub | Op.Mul | Op.Div | Op.Rem => kind == TyKind.Int || kind == TyKind.Float
-        Op.And | Op.Or | Op.Xor | Op.Shl | Op.Shr => kind == TyKind.Int
+        Op.Add => kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Str ||
+                  bits & BOUND_NUMBER != 0
+        Op.Sub | Op.Mul | Op.Div => kind == TyKind.Int || kind == TyKind.Float ||
+                                    bits & BOUND_NUMBER != 0
+        Op.Rem => kind == TyKind.Int || kind == TyKind.Float || bits & BOUND_INT != 0
+        Op.And | Op.Or | Op.Xor | Op.Shl | Op.Shr => kind == TyKind.Int || bits & BOUND_INT != 0
         Op.Eq | Op.Ne => equatable(c, p, ty)   // derived for tuples, structs, enums (spec 9.9)
         Op.Lt | Op.Le | Op.Gt | Op.Ge => orderable(c, p, ty)
         Op.LogicalAnd | Op.LogicalOr => kind == TyKind.Bool
@@ -394,7 +412,9 @@ fn cast(c: mut Checker, p: Program, e: &Expr, value: &Expr, to: &TypeExpr) int {
     if pointerCast(c, from, target, e.span) {
         return target
     }
-    const ok = (c.types.isNumeric(from) && c.types.isNumeric(target)) || from == target ||
+    const fromNumber = c.types.isNumeric(from) || numeric(c, from) != 0
+    const toNumber = c.types.isNumeric(target) || numeric(c, target) != 0
+    const ok = (fromNumber && toNumber) || from == target ||
                from == ERROR || target == ERROR
     if !ok {
         c.error("E0313", e.span, "cannot cast `{c.typeName(from)}` to `{c.typeName(target)}`")
@@ -536,7 +556,11 @@ fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
     const none = noTypes()
     const explicit = match callee.kind {
         ExprKind.Generic(_, list) => &list
+        ExprKind.Field(_, _, list) => &list   // `module.f<T>()`
         _ => &none
+    }
+    if metaCall(c, p, e) == "implements" {
+        return checkImplements(c, p, e, explicit)
     }
     const kind = c.def(id).kind
     if kind == DefKind.Builtin && explicit.len() == 0 {
@@ -579,7 +603,14 @@ fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
     }
     return match e.kind {
         ExprKind.Int(value) => intLiteral(c, e, value, expected, false)
-        ExprKind.Float(_) => if c.types.kind(expected) == TyKind.Float { expected } else { F64 }
+        ExprKind.Float(_) => {
+            const fits = c.types.kind(expected) == TyKind.Float ||
+                         numeric(c, expected) & BOUND_FLOAT != 0
+            match fits {
+                true => expected
+                false => F64
+            }
+        }
         ExprKind.Byte(_) => U8
         ExprKind.Bool(_) => BOOL
         ExprKind.Str(_) => STR
@@ -593,6 +624,7 @@ fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
         ExprKind.If(_, _, _, _) => checkIf(c, p, e, expected, true)
         ExprKind.Block(block) => checkBlock(c, p, &block, expected, true)
         ExprKind.Unsafe(block) => checkUnsafeBlock(c, p, &block, expected, true)
+        ExprKind.Comptime(inner) => checkComptimeExpr(c, p, e, &*inner)
         ExprKind.Tuple(elems) => tuple(c, p, &elems, expected)
         ExprKind.SelfType => match c.res(e.id.0) {   // `Self` as a value: the type's name
             Res.Def(id) => defValue(c, p, id, e.span, ERROR)

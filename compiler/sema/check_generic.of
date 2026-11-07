@@ -21,6 +21,7 @@ import sema.check.BOUND_ORD
 import sema.check.BOUND_SEND
 import sema.check.BOUND_SYNC
 import sema.check.Checker
+import sema.check_comptime.BOUND_NUMBER
 import sema.check.Generics
 import sema.check.fnGenericsIn
 import sema.check.fnOf
@@ -464,7 +465,7 @@ pub fn equatable(c: mut Checker, p: Program, ty: int) bool {
         return true
     }
     if kind == TyKind.Param {
-        return paramBounds(c, ty) & BOUND_EQ != 0
+        return paramBounds(c, ty) & (BOUND_EQ | BOUND_NUMBER) != 0   // NUMBER: spec 15.3
     }
     if kind == TyKind.Tuple {
         const elems = c.types.get(ty).args.clone()
@@ -500,7 +501,7 @@ pub fn orderable(c: mut Checker, p: Program, ty: int) bool {
     }
     return kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Str ||
            kind == TyKind.Error ||
-           (kind == TyKind.Param && paramBounds(c, ty) & BOUND_ORD != 0) ||
+           (kind == TyKind.Param && paramBounds(c, ty) & (BOUND_ORD | BOUND_NUMBER) != 0) ||
            (kind == TyKind.Adt && adtSatisfies(c, p, ty, BOUND_ORD))
 }
 

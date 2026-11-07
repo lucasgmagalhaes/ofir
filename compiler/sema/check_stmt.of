@@ -8,6 +8,10 @@ import base.intern.Symbol
 import base.span.Span
 import sema.check.Checker
 import sema.check_closure.noteWrite
+import sema.check_comptime.DEPENDS
+import sema.check_comptime.checkComptimeCond
+import sema.check_comptime.ifNarrowing
+import sema.check_comptime.narrow
 import sema.check_list.checkForCollection
 import sema.check_option.checkUnusedResult
 import sema.check_pattern.checkPattern
@@ -384,14 +388,18 @@ fn mismatchedBranches(c: mut Checker, span: Span, expected: int, first: int, oth
  */
 pub fn checkIf(c: mut Checker, p: Program, e: &Expr, expected: int, asValue: bool) int {
     match e.kind {
-        ExprKind.If(letPattern, cond, then, otherwise) => {
+        ExprKind.If(letPattern, cond, _, otherwise) => {
+            let known = DEPENDS
             if const Option.Some(pattern) = letPattern {
                 const ty = checkExpr(c, p, &*cond, ERROR)
                 checkPattern(c, p, &pattern, ty)
+            } else if const ExprKind.Comptime(inner) = cond.kind {
+                known = checkComptimeCond(c, p, &*inner)
+                c.setType(cond.id.0, BOOL)
             } else {
                 coerce(c, p, &*cond, BOOL)
             }
-            const thenType = checkBlock(c, p, &then, expected, asValue)
+            const thenType = if known == 0 { NEVER } else { checkThen(c, p, e, expected, asValue) }
             if otherwise.isNone() {
                 return UNIT   // as a value, `if` without `else` is ()
             }
@@ -399,12 +407,18 @@ pub fn checkIf(c: mut Checker, p: Program, e: &Expr, expected: int, asValue: boo
                 Option.Some(o) => &*o
                 Option.None => e
             }
+            if known == 1 {
+                return thenType   // the `else` branch is not compiled (spec 15.3)
+            }
             const otherType = match other.kind {
                 ExprKind.If(_, _, _, _) => checkIf(c, p, other, expected, asValue)
                 ExprKind.Block(block) => checkBlock(c, p, &block, expected, asValue)
                 _ => checkExpr(c, p, other, expected)
             }
             c.setType(other.id.0, otherType)
+            if known == 0 {
+                return otherType
+            }
             if !asValue {
                 return if thenType == NEVER && otherType == NEVER { NEVER } else { UNIT }
             }
@@ -413,6 +427,23 @@ pub fn checkIf(c: mut Checker, p: Program, e: &Expr, expected: int, asValue: boo
         _ => {
             return ERROR
         }
+    }
+}
+
+// The `then` block of `e`, with the type parameters narrowed by a `comptime`
+// condition (spec 15.3).
+fn checkThen(c: mut Checker, p: Program, e: &Expr, expected: int, asValue: bool) int {
+    return match e.kind {
+        ExprKind.If(_, cond, then, _) => match ifNarrowing(c, p, &*cond) {
+            Option.Some(n) => {
+                const saved = narrow(c, &n)
+                const ty = checkBlock(c, p, &then, expected, asValue)
+                c.enterGenerics(saved)
+                ty
+            }
+            Option.None => checkBlock(c, p, &then, expected, asValue)
+        }
+        _ => ERROR
     }
 }
 
