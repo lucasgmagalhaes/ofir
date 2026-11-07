@@ -46,6 +46,9 @@ import air.lower_pattern.placeChild
 import air.lower_pattern.variantValue
 import air.lower_pattern.widenUnion
 import air.air.VARIANT_STEP
+import sema.check_comptime.comptimeValue
+import sema.check_comptime.metaCall
+import sema.check_comptime.panicMessage
 import sema.check_methods.methodAt
 import sema.check_methods.methodCount
 import air.lower_pattern.enumEquality
@@ -492,8 +495,9 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
     const ty = c.typeOf(e.id.0)
     return match e.kind {
         ExprKind.Int(value) => {
-            if c.types.kind(ty) == TyKind.Float {   // `let x: float = 0`
-                opFloat(value as float, ty)
+            const concrete = concreteType(l, c, ty)   // `0` as a narrowed `T` (spec 15.3)
+            if c.types.kind(concrete) == TyKind.Float {   // `let x: float = 0`
+                opFloat(value as float, concrete)
             } else {
                 opInt(value, ty)
             }
@@ -509,6 +513,7 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Cast(value, _) => castExpr(l, c, p, &*value, ty, e.span)
         ExprKind.Call(callee, args) => call(l, c, p, e, &*callee, &args)
         ExprKind.If(_, _, _, _) => lowerIf(l, c, p, e)
+        ExprKind.Comptime(inner) => comptimePanic(l, c, p, e, &*inner)
         ExprKind.Block(block) | ExprKind.Unsafe(block) => lowerBlock(l, c, p, &block,
                                                                      typeIsValue(ty))
         ExprKind.Field(base, member, _) => {
@@ -690,6 +695,9 @@ fn lowerIntrinsic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, id: int,
                   args: &List<Arg>) Operand {
     const name = c.text(fnOf(p, c.loc(id)).name).toOwned()
     const ty = c.typeOf(e.id.0)
+    if metaCall(c, p, e) != "" {
+        return metaConstant(l, c, p, e)
+    }
     if name == "sizeOf" || name == "alignOf" {
         const kind = if name == "sizeOf" { RvalueKind.SizeOf } else { RvalueKind.AlignOf }
         let rv = rvalue(kind, Op.Add, unit(), unit())
@@ -1945,8 +1953,104 @@ pub fn lowerCondition(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Oper
     return result
 }
 
+// ---------------------------------------------------------------------------
+// Compile-time code (spec 15, ADR 0035)
+
+// The type arguments of the instance being lowered.
+fn instanceArgs(l: Lowerer, c: Checker) List<int> {
+    if isGlue(l.body.def) || l.body.targs == UNIT {
+        return []
+    }
+    return c.types.get(l.body.targs).args.clone()
+}
+
+// A `std.meta` call: a constant of the instance.
+fn metaConstant(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
+    if metaCall(c, p, e) == "nameOf" {
+        return opStr(c.typeName(concreteType(l, c, callTypeArg(c, e))), STR)
+    }
+    const targs = instanceArgs(l, c)
+    return opBool(comptimeValue(c, p, e, &targs) == 1, BOOL)
+}
+
+// The branch of a `comptime if` the instance keeps: 1 `then`, 0 `else`, or
+// -1 for an `if` that is not `comptime`.
+fn comptimeBranch(l: Lowerer, c: mut Checker, p: Program, e: &Expr) int {
+    return match e.kind {
+        ExprKind.If(_, cond, _, _) => match cond.kind {
+            ExprKind.Comptime(inner) => {
+                const targs = instanceArgs(l, c)
+                comptimeValue(c, p, &*inner, &targs)
+            }
+            _ => -1
+        }
+        _ => -1
+    }
+}
+
+// Lowers only the branch of a `comptime if` that the instance keeps.
+fn lowerComptimeIf(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, taken: int,
+                   hasValue: bool) Operand {
+    return match e.kind {
+        ExprKind.If(_, _, then, otherwise) => {
+            if taken == 1 {
+                lowerBlock(l, c, p, &then, hasValue)
+            } else {
+                match otherwise {
+                    Option.Some(branchBox) => match branchBox.kind {
+                        ExprKind.If(_, _, _, _) => lowerIf(l, c, p, &*branchBox)
+                        ExprKind.Block(block) => lowerBlock(l, c, p, &block, hasValue)
+                        _ => unit()
+                    }
+                    Option.None => unit()
+                }
+            }
+        }
+        _ => unit()
+    }
+}
+
+// `comptime panic(message)` kept by an instance: E0814 at the call that
+// created the instance, with the message.
+fn comptimePanic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, inner: &Expr) Operand {
+    let text = ""
+    match panicMessage(c, inner) {
+        Option.Some(message) => match message.kind {
+            ExprKind.Str(value) => {
+                text = value.toOwned()
+            }
+            ExprKind.Interp(parts, _) => {
+                for i in 0..parts.len() {
+                    match parts[i].kind {
+                        ExprKind.Str(value) => {
+                            text = text + value
+                        }
+                        _ => {
+                            text = text + c.typeName(concreteType(l, c, callTypeArg(c, &parts[i])))
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        Option.None => {}
+    }
+    const key = l.body.def * 4294967296 + l.body.targs
+    const span = match l.origins.get(key) {
+        Option.Some(origin) => *origin
+        Option.None => e.span
+    }
+    c.error("E0814", span, text)
+    terminate(l, terminator(TermKind.Unreachable))
+    return unit()
+}
+
 fn lowerIf(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
     const ty = c.typeOf(e.id.0)
+    const taken = comptimeBranch(l, c, p, e)
+    if taken >= 0 {
+        return lowerComptimeIf(l, c, p, e, taken, typeIsValue(ty))
+    }
     const hasValue = typeIsValue(ty)
     const dest = if hasValue { newTemp(l, ty) } else { 0 }
     match e.kind {
@@ -2218,12 +2322,18 @@ fn unary(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, op: Op, operand: 
         return placeOperand(&lowerPlace(l, c, p, operand), OperandKind.Addr, ty)
     }
     let value = lowerExpr(l, c, p, operand)
-    if op == Op.Neg && c.types.kind(ty) == TyKind.Int {
+    const concrete = concreteType(l, c, ty)   // a narrowed parameter (spec 15.3)
+    if op == Op.Neg && c.types.kind(concrete) == TyKind.Int {
         if value.kind == OperandKind.Int {   // a negative literal, already range checked
             value.bits = (0 as u64).wrappingSub(value.bits)
             return value
         }
-        return checked(l, Op.Sub, ty, opInt(0, ty), value, e.span)
+        value.ty = concrete
+        return checked(l, Op.Sub, concrete, opInt(0, concrete), value, e.span)
+    }
+    if op == Op.Neg && c.types.kind(concrete) == TyKind.Float {
+        value.ty = concrete
+        return tempValue(l, concrete, rvalue(RvalueKind.Unary, op, value, unit()))
     }
     return tempValue(l, ty, rvalue(RvalueKind.Unary, op, value, unit()))
 }
@@ -2272,8 +2382,9 @@ fn castExpr(l: mut Lowerer, c: mut Checker, p: Program, value: &Expr, ty: int,
             }
         }
     }
-    const v = lowerExpr(l, c, p, value)
-    return lowerCast(l, c, v, ty, span)
+    let v = lowerExpr(l, c, p, value)
+    v.ty = concreteType(l, c, v.ty)   // a narrowed parameter (spec 15.3)
+    return lowerCast(l, c, v, concreteType(l, c, ty), span)
 }
 
 pub fn lowerCast(l: mut Lowerer, c: Checker, value: move Operand, to: int, span: Span) Operand {
@@ -2333,6 +2444,7 @@ fn interpolation(l: mut Lowerer, c: mut Checker, p: Program, parts: &List<Expr>,
     const dest = emitTemp(l, STR, rvUse(opStr("", STR)))
     for i in 0..parts.len() {
         let part = lowerExpr(l, c, p, &parts[i])
+        part.ty = concreteType(l, c, part.ty)   // a narrowed parameter (spec 15.3)
         if specs[i].len() == 0 && unionMembers(c, part.ty).len() > 0 {
             pushUnion(l, c, p, dest, part, false)
         } else if specs[i].len() == 0 {
