@@ -312,7 +312,8 @@ pub fn parsePrimary(p: mut Parser) Expr {
         TokenKind.LParen => if closureAt(p) { closure(p) } else { parenthesized(p) }
         TokenKind.LBracket => array(p)
         TokenKind.Dot => variantShorthand(p)
-        TokenKind.LBrace | TokenKind.If | TokenKind.Match | TokenKind.Unsafe => parseControl(p)
+        TokenKind.LBrace | TokenKind.If | TokenKind.Match | TokenKind.Unsafe |
+        TokenKind.Comptime => parseControl(p)
         _ => {
             p.unexpected("an expression")
             newExpr(p, ExprKind.Tuple([]), start)
