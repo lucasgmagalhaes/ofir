@@ -14,6 +14,7 @@ import sema.borrows.carriedSince
 import sema.borrows.dropCarry
 import sema.borrows.killHolder
 import sema.check.Checker
+import sema.check_comptime.knownCondition
 import sema.check_dyn.boxesDyn
 import sema.check_pattern.testedDyn
 import sema.check_union.unionMembers
@@ -219,7 +220,8 @@ fn scrutinee(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State,
 }
 
 /**
- * `if cond {...} else {...}` and `if const pattern = value {...}`.
+ * `if cond {...} else {...}` and `if const pattern = value {...}`. A
+ * `comptime if` whose condition is known walks only the taken branch.
  *
  * @param m the analysis
  * @param c the checker
@@ -231,6 +233,19 @@ fn scrutinee(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State,
 pub fn movesIf(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State, use: Use) {
     match e.kind {
         ExprKind.If(letPattern, cond, then, otherwise) => {
+            const known = knownCondition(c, p, &*cond)
+            if known == 1 {
+                m.binding = []
+                movesBlock(m, c, p, &then, s, use)
+                return
+            }
+            if known == 0 {
+                m.binding = []
+                if const Option.Some(branch) = otherwise {
+                    movesNode(m, c, p, &*branch, s, use)
+                }
+                return
+            }
             let borrowed = false
             match letPattern {
                 Option.Some(pattern) => {
