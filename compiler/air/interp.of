@@ -252,7 +252,7 @@ fn pointer(place: Place) Value {
     return v
 }
 
-fn operand(it: mut Interp, c: Checker, frame: int, o: Operand) Value {
+fn operand(it: mut Interp, c: mut Checker, frame: int, o: Operand) Value {
     return match o.kind {
         OperandKind.Copy => {
             const place = placeOf(it, frame, o.local, o.path)
@@ -289,7 +289,7 @@ fn operand(it: mut Interp, c: Checker, frame: int, o: Operand) Value {
 }
 
 // The value an operand points to, for the str arguments of the runtime.
-fn pointee(it: mut Interp, c: Checker, frame: int, o: Operand) Value {
+fn pointee(it: mut Interp, c: mut Checker, frame: int, o: Operand) Value {
     const v = operand(it, c, frame, o)
     if v.kind != ValueKind.Ptr {
         return v
@@ -298,23 +298,23 @@ fn pointee(it: mut Interp, c: Checker, frame: int, o: Operand) Value {
     return read(it, place)
 }
 
-fn isFloat(c: Checker, ty: int) bool {
+fn isFloat(c: mut Checker, ty: int) bool {
     return c.types.kind(ty) == TyKind.Float
 }
 
-fn isF32(c: Checker, ty: int) bool {
+fn isF32(c: mut Checker, ty: int) bool {
     return c.types.get(ty).data == 32
 }
 
 // `x` as a value of the float type `ty`: an f32 is rounded.
-fn rounded(c: Checker, ty: int, x: float) Value {
+fn rounded(c: mut Checker, ty: int, x: float) Value {
     if isF32(c, ty) {
         return floatValue((x as f32) as float)
     }
     return floatValue(x)
 }
 
-fn floatBinary(it: mut Interp, c: Checker, op: Op, x: float, y: float, ty: int) Value {
+fn floatBinary(it: mut Interp, c: mut Checker, op: Op, x: float, y: float, ty: int) Value {
     return match op {
         Op.Add => rounded(c, ty, x + y)
         Op.Sub => rounded(c, ty, x - y)
@@ -333,7 +333,7 @@ fn floatBinary(it: mut Interp, c: Checker, op: Op, x: float, y: float, ty: int) 
     }
 }
 
-fn binary(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+fn binary(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
     const a = operand(it, c, frame, r.a)
     const b = operand(it, c, frame, r.b)
     if it.failed {
@@ -398,7 +398,7 @@ fn divide(it: mut Interp, x: u64, y: u64, signed: bool, quotient: bool) u64 {
 }
 
 // `a op b` for + - *, with the overflow bit stored into the local `flag`.
-fn checked(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+fn checked(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
     const a = operand(it, c, frame, r.a)
     const b = operand(it, c, frame, r.b)
     if it.failed {
@@ -436,7 +436,7 @@ fn checked(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
     return intValue(normalize(c, ty, raw))
 }
 
-fn unary(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+fn unary(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
     const a = operand(it, c, frame, r.a)
     if it.failed {
         return blank(ValueKind.Uninit)
@@ -463,7 +463,7 @@ fn pow2(n: int) float {
 }
 
 // Whether `x as to` is out of the range of the int type `to`.
-fn floatCastFails(c: Checker, x: float, to: int) bool {
+fn floatCastFails(c: mut Checker, x: float, to: int) bool {
     if x.isNan() {
         return true
     }
@@ -479,21 +479,21 @@ fn floatCastFails(c: Checker, x: float, to: int) bool {
 }
 
 // The bits of the float `x`, in range, converted to the int type `to`.
-fn floatToInt(c: Checker, x: float, to: int) u64 {
+fn floatToInt(c: mut Checker, x: float, to: int) u64 {
     if isSigned(c, to) {
         return normalize(c, to, (x as int).wrappingCast<u64>())
     }
     return normalize(c, to, x as u64)
 }
 
-fn minBits(c: Checker, to: int) u64 {
+fn minBits(c: mut Checker, to: int) u64 {
     if !isSigned(c, to) {
         return 0
     }
     return ONES << (intBits(c.types.get(to).data) - 1) as u64
 }
 
-fn maxBits(c: Checker, to: int) u64 {
+fn maxBits(c: mut Checker, to: int) u64 {
     const t = intBits(c.types.get(to).data)
     const one: u64 = 1
     if isSigned(c, to) {
@@ -513,7 +513,7 @@ fn bitsOf(v: Value) u64 {
     return v.bits
 }
 
-fn cast(it: mut Interp, c: Checker, v: Value, from: int, to: int) Value {
+fn cast(it: mut Interp, c: mut Checker, v: Value, from: int, to: int) Value {
     const source = c.types.kind(from)
     const target = c.types.kind(to)
     if target == TyKind.Int {
@@ -549,14 +549,14 @@ fn cast(it: mut Interp, c: Checker, v: Value, from: int, to: int) Value {
     return blank(ValueKind.Uninit)
 }
 
-fn castFailsValue(c: Checker, v: Value, from: int, to: int) Value {
+fn castFailsValue(c: mut Checker, v: Value, from: int, to: int) Value {
     if c.types.kind(from) == TyKind.Float {
         return boolValue(floatCastFails(c, v.float, to))
     }
     return boolValue(castFails(c, from, to, v.bits))
 }
 
-fn saturate(c: Checker, v: Value, from: int, to: int) Value {
+fn saturate(c: mut Checker, v: Value, from: int, to: int) Value {
     if c.types.kind(from) == TyKind.Float {
         const x = v.float
         if x.isNan() {
@@ -574,7 +574,7 @@ fn saturate(c: Checker, v: Value, from: int, to: int) Value {
     return intValue(normalize(c, to, v.bits))
 }
 
-fn floatFn(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+fn floatFn(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
     const a = operand(it, c, frame, r.a)
     const x = a.float
     const ty = r.a.ty
@@ -588,7 +588,7 @@ fn floatFn(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
     }
 }
 
-fn ptrAdd(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+fn ptrAdd(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
     let p = operand(it, c, frame, r.a)
     const n = operand(it, c, frame, r.b).bits.wrappingCast<i64>()
     if it.failed {
@@ -608,7 +608,7 @@ fn ptrAdd(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
     return p
 }
 
-fn evaluate(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+fn evaluate(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
     return match r.kind {
         RvalueKind.Use => operand(it, c, frame, r.a)
         RvalueKind.Binary => binary(it, c, frame, r)
@@ -660,7 +660,7 @@ fn assign(it: mut Interp, frame: int, s: AirStmt, x: move Value) {
 }
 
 // Appends `text` to the str that the operand `target` points to.
-fn push(it: mut Interp, c: Checker, frame: int, target: Operand, text: str) {
+fn push(it: mut Interp, c: mut Checker, frame: int, target: Operand, text: str) {
     const p = operand(it, c, frame, target)
     if it.failed || p.kind != ValueKind.Ptr {
         unsupported(it, "this str")
@@ -679,7 +679,7 @@ fn boolText(bits: u64) str {
     return if bits == 1 { "true" } else { "false" }
 }
 
-fn runtime(it: mut Interp, c: Checker, frame: int, s: AirStmt) {
+fn runtime(it: mut Interp, c: mut Checker, frame: int, s: AirStmt) {
     match s.rt {
         RuntimeFn.StrPushStr => {
             const v = pointee(it, c, frame, s.args[1])
@@ -743,7 +743,7 @@ fn cannotPrint(it: mut Interp) {
 
 // Whether `def` is a method of `str`: the interpreter keeps a str as its
 // text, so the methods that work on its bytes run natively.
-fn isStrMethod(c: Checker, def: int) bool {
+fn isStrMethod(c: mut Checker, def: int) bool {
     const owner = c.r.lang[STR]
     if owner == 0 || def == owner {
         return false
@@ -751,11 +751,11 @@ fn isStrMethod(c: Checker, def: int) bool {
     return c.def(def).module == c.def(owner).module && c.def(def).item == c.def(owner).item
 }
 
-fn strArg(it: mut Interp, c: Checker, frame: int, s: AirStmt, i: int) str {
+fn strArg(it: mut Interp, c: mut Checker, frame: int, s: AirStmt, i: int) str {
     return pointee(it, c, frame, s.args[i]).text.clone()
 }
 
-fn intArg(it: mut Interp, c: Checker, frame: int, s: AirStmt, i: int) int {
+fn intArg(it: mut Interp, c: mut Checker, frame: int, s: AirStmt, i: int) int {
     return operand(it, c, frame, s.args[i]).bits.wrappingCast<i64>()
 }
 
@@ -765,7 +765,7 @@ fn isBoundary(text: str, i: int) bool {
 }
 
 // Replaces the str that `self` (argument 0) points to.
-fn setSelf(it: mut Interp, c: Checker, frame: int, s: AirStmt, text: move str) {
+fn setSelf(it: mut Interp, c: mut Checker, frame: int, s: AirStmt, text: move str) {
     const p = operand(it, c, frame, s.args[0])
     if it.failed || p.kind != ValueKind.Ptr {
         unsupported(it, "this str")
@@ -779,7 +779,7 @@ fn setSelf(it: mut Interp, c: Checker, frame: int, s: AirStmt, text: move str) {
 
 // Runs the `str` method `s.callee` natively; false when it is not one of
 // those, to run its body.
-fn strMethod(it: mut Interp, c: Checker, frame: int, s: AirStmt) bool {
+fn strMethod(it: mut Interp, c: mut Checker, frame: int, s: AirStmt) bool {
     const name = c.text(c.def(s.callee).name)
     if name == "new" || name == "withCapacity" {
         assign(it, frame, s, strValue(""))
@@ -906,7 +906,7 @@ fn copySlots(it: mut Interp, dst: Value, src: Value, n: int) {
 
 // A heap function of std (`isHeap`). A block holds whole elements, so the
 // sizes passed in, which `sizeOf` makes, count elements (spec 15.5).
-fn heapCall(it: mut Interp, c: Checker, frame: int, s: AirStmt, name: str) {
+fn heapCall(it: mut Interp, c: mut Checker, frame: int, s: AirStmt, name: str) {
     if name == "ofir_alloc" || name == "ofir_alloc_aligned" {
         it.heap.push(blank(ValueKind.Agg))
         assign(it, frame, s, heapPointer(it.heap.len() - 1))
@@ -953,13 +953,13 @@ fn heapCall(it: mut Interp, c: Checker, frame: int, s: AirStmt, name: str) {
 }
 
 // A call of a function with no body: an `extern` function.
-fn noBody(it: mut Interp, c: Checker, p: Program, frame: int, s: AirStmt) {
+fn noBody(it: mut Interp, c: mut Checker, p: &Program, frame: int, s: AirStmt) {
     const def = s.callee
     if def <= 0 || c.def(def).kind != DefKind.Fn || c.def(def).member < 0 {
         unsupported(it, "this call")
         return
     }
-    const isExtern = match itemOf(p, c.loc(def)).kind {
+    const isExtern = match itemOf(*p, c.loc(def)).kind {
         ItemKind.Extern(_, _) => true
         _ => false
     }
@@ -973,7 +973,7 @@ fn noBody(it: mut Interp, c: Checker, p: Program, frame: int, s: AirStmt) {
     }
 }
 
-fn call(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: int,
+fn call(it: mut Interp, c: mut Checker, p: &Program, out: List<AirBody>, frame: int,
         s: AirStmt) {
     if s.callee == GLUE_DROP {
         return
@@ -1018,7 +1018,7 @@ fn call(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: i
     }
 }
 
-fn exec(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: int,
+fn exec(it: mut Interp, c: mut Checker, p: &Program, out: List<AirBody>, frame: int,
         s: AirStmt) {
     if s.kind == StmtKind.Assign {
         const v = evaluate(it, c, frame, s.value)
@@ -1032,7 +1032,7 @@ fn exec(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: i
     }
 }
 
-fn panicText(it: mut Interp, c: Checker, frame: int, t: Terminator) str {
+fn panicText(it: mut Interp, c: mut Checker, frame: int, t: Terminator) str {
     return match t.panic {
         PanicKind.Overflow => "arithmetic overflow"
         PanicKind.DivZero => "division by zero"
@@ -1048,7 +1048,7 @@ fn panicText(it: mut Interp, c: Checker, frame: int, t: Terminator) str {
 }
 
 // The block after `t`, or -1 when the call returns or fails.
-fn follow(it: mut Interp, c: Checker, frame: int, t: Terminator) int {
+fn follow(it: mut Interp, c: mut Checker, frame: int, t: Terminator) int {
     return match t.kind {
         TermKind.Goto => t.target
         TermKind.Branch => {
@@ -1089,7 +1089,7 @@ fn tick(it: mut Interp) {
 
 // Runs body `b` in `frame` from block `start` until it returns or reaches
 // block `stop`.
-fn run(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, b: int, frame: int,
+fn run(it: mut Interp, c: mut Checker, p: &Program, out: List<AirBody>, b: int, frame: int,
        start: int, stop: int) {
     let block = start
     for block >= 0 && block != stop && !it.failed {
@@ -1132,7 +1132,7 @@ fn withStep(path: List<int>, step: int) List<int> {
 
 // Appends to `stores` the assignments that write `v`, a value of `ty`, at
 // `path` of `dest`. Returns false for a type a constant cannot have.
-fn constStores(c: mut Checker, p: Program, dest: int, ty: int, v: Value, path: List<int>,
+fn constStores(c: mut Checker, p: &Program, dest: int, ty: int, v: Value, path: List<int>,
                stores: mut List<AirStmt>, span: Span) bool {
     const kind = c.types.kind(ty)
     if kind == TyKind.Unit {
@@ -1180,7 +1180,7 @@ fn constStores(c: mut Checker, p: Program, dest: int, ty: int, v: Value, path: L
     if c.def(def).kind == DefKind.Struct {
         const n = fieldsOf(c, def).types.len()
         for i in 0..n {
-            const field = structFieldType(c, p, ty, i)
+            const field = structFieldType(c, *p, ty, i)
             if !constStores(c, p, dest, field, part(v, i), withStep(path, i), stores, span) {
                 return false
             }
@@ -1190,7 +1190,7 @@ fn constStores(c: mut Checker, p: Program, dest: int, ty: int, v: Value, path: L
     return enumStores(c, p, dest, ty, v, path, stores, span)
 }
 
-fn enumStores(c: mut Checker, p: Program, dest: int, ty: int, v: Value, path: List<int>,
+fn enumStores(c: mut Checker, p: &Program, dest: int, ty: int, v: Value, path: List<int>,
               stores: mut List<AirStmt>, span: Span) bool {
     const def = c.types.get(ty).data
     const tag = bitsOf(v)
@@ -1207,7 +1207,7 @@ fn enumStores(c: mut Checker, p: Program, dest: int, ty: int, v: Value, path: Li
     const payload = part(v, found + 1)
     const fields = variantsOf(c, def).variants[found].types.len()
     for i in 0..fields {
-        const field = variantFieldType(c, p, ty, found, i)
+        const field = variantFieldType(c, *p, ty, found, i)
         const at = withStep(withStep(path, VARIANT_STEP + found), i)
         if !constStores(c, p, dest, field, part(payload, i), at, stores, span) {
             return false
@@ -1257,12 +1257,12 @@ pub fn evalComptimes(l: mut Lowerer, c: mut Checker, p: Program) {
     for r in 0..l.comptimes.len() {
         const b = regionBody(l, r)
         if b >= 0 {
-            evalRegion(l, c, p, it, r, b)
+            evalRegion(l, c, &p, it, r, b)
         }
     }
 }
 
-fn evalRegion(l: mut Lowerer, c: mut Checker, p: Program, it: mut Interp, r: int, b: int) {
+fn evalRegion(l: mut Lowerer, c: mut Checker, p: &Program, it: mut Interp, r: int, b: int) {
     const start = l.comptimes[r].start
     const after = l.comptimes[r].after
     const dest = l.comptimes[r].dest
