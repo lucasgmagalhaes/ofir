@@ -538,8 +538,16 @@ fn movesStmt(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, s: mut State
             movesNode(m, c, p, &target, s, Use.Assign)
             m.binding = []
         }
-        StmtKind.For(_, _, _, _, _, _) => {
-            loopBody(m, c, p, stmt, s)
+        StmtKind.For(kind, _, _, _, _, body) => {
+            if kind == ForKind.Comptime {   // unrolled: once per key, each a different field
+                const local = c.localAt(stmt.id.0)
+                if local >= 0 {
+                    s.initPart(&Part{local: local, fields: []})
+                }
+                movesBlock(m, c, p, &body, s, Use.Read)
+            } else {
+                loopBody(m, c, p, stmt, s)
+            }
         }
         StmtKind.Return(value) => {
             if const Option.Some(v) = value {
