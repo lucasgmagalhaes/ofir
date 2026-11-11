@@ -25,10 +25,16 @@ import sema.check_generic.satisfies
 import sema.check_unsafe.isIntrinsic
 import sema.const_eval.constEval
 import sema.def.DefKind
+import sema.enums.enumVariants
+import sema.enums.variantsOf
 import sema.def.Res
 import sema.expr_check.checkExpr
 import sema.interfaces.unsatisfied
 import sema.program.Program
+import sema.structs.fieldsOf
+import sema.structs.structFieldType
+import sema.structs.structFields
+import sema.structs.variantFieldType
 import sema.types.BOOL
 import sema.types.ERROR
 import sema.types.NEVER
@@ -495,20 +501,30 @@ pub fn knownCondition(c: mut Checker, p: Program, cond: &Expr) int {
 // `comptime panic`
 
 /**
- * Checks `comptime e`: `comptime panic("message")`, whose message is a
- * string literal interpolating compile-time `str` values (spec 15.3).
+ * Checks `comptime e`: either `comptime panic("message")`, whose message is
+ * a string literal interpolating compile-time `str` values (spec 15.3), or
+ * an expression the compiler evaluates (spec 15.1), whose value must be
+ * plain data (E0818).
  *
  * @param c the checker
  * @param p the program
  * @param e the `comptime` expression
  * @param inner what follows `comptime`
- * @returns `never`
+ * @param expected the type the context expects, or `ERROR`
+ * @returns `never` for a panic, else the type of `inner`
  */
-pub fn checkComptimeExpr(c: mut Checker, p: Program, e: &Expr, inner: &Expr) int {
+pub fn checkComptimeExpr(c: mut Checker, p: Program, e: &Expr, inner: &Expr,
+        expected: int) int {
     const Option.Some(message) = panicMessage(c, inner) else {
-        c.error("E0363", e.span, "only `comptime if` and `comptime panic(\"message\")` are "
-                + "supported here")
-        return ERROR
+        c.comptimeDepth += 1
+        const ty = checkExpr(c, p, inner, expected)
+        c.comptimeDepth -= 1
+        if !comptimeValueType(c, p, ty, 0) {
+            c.error("E0818", e.span, "the value of a `comptime` expression cannot be a "
+                    + "`{c.typeName(ty)}`: it must be a number, `bool`, `str`, array, tuple, "
+                    + "struct or enum of those")
+        }
+        return ty
     }
     c.setType(inner.id.0, NEVER)
     match message.kind {
@@ -527,6 +543,70 @@ pub fn checkComptimeExpr(c: mut Checker, p: Program, e: &Expr, inner: &Expr) int
         }
     }
     return NEVER
+}
+
+/**
+ * Whether a value of a type can leave compile-time code (spec 15.5): a
+ * number, `bool`, `str`, array, tuple, struct or enum of those.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @param depth how many types enclose it
+ * @returns whether it can
+ */
+fn comptimeValueType(c: mut Checker, p: Program, ty: int, depth: int) bool {
+    if depth > 32 {
+        return false
+    }
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Array {
+        return comptimeValueType(c, p, c.types.get(ty).inner, depth + 1)
+    }
+    if kind == TyKind.Tuple {
+        const args = c.types.get(ty).args.clone()
+        for i in 0..args.len() {
+            if !comptimeValueType(c, p, args[i], depth + 1) {
+                return false
+            }
+        }
+        return true
+    }
+    if kind == TyKind.Adt {
+        return comptimeAdt(c, p, ty, depth)
+    }
+    return (kind == TyKind.Error || kind == TyKind.Unit || kind == TyKind.Never
+            || kind == TyKind.Bool || kind == TyKind.Int || kind == TyKind.Float
+            || kind == TyKind.Str || kind == TyKind.Param)
+}
+
+fn comptimeAdt(c: mut Checker, p: Program, ty: int, depth: int) bool {
+    const def = c.types.get(ty).data
+    if c.def(def).kind == DefKind.Struct {
+        if !structFields(c, p, def) {
+            return false
+        }
+        for i in 0..fieldsOf(c, def).types.len() {
+            if !comptimeValueType(c, p, structFieldType(c, p, ty, i), depth + 1) {
+                return false
+            }
+        }
+        return true
+    }
+    if c.def(def).kind == DefKind.Enum {
+        if !enumVariants(c, p, def) {
+            return false
+        }
+        for v in 0..variantsOf(c, def).variants.len() {
+            for i in 0..variantsOf(c, def).variants[v].types.len() {
+                if !comptimeValueType(c, p, variantFieldType(c, p, ty, v, i), depth + 1) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+    return false
 }
 
 /**

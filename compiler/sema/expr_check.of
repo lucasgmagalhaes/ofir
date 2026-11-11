@@ -632,7 +632,7 @@ fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
         ExprKind.If(_, _, _, _) => checkIf(c, p, e, expected, true)
         ExprKind.Block(block) => checkBlock(c, p, &block, expected, true)
         ExprKind.Unsafe(block) => checkUnsafeBlock(c, p, &block, expected, true)
-        ExprKind.Comptime(inner) => checkComptimeExpr(c, p, e, &*inner)
+        ExprKind.Comptime(inner) => checkComptimeExpr(c, p, e, &*inner, expected)
         ExprKind.Keys(_) => c.unsupported(e.span, "`keys T` outside of `comptime for` is")
         ExprKind.Tuple(elems) => tuple(c, p, &elems, expected)
         ExprKind.SelfType => match c.res(e.id.0) {   // `Self` as a value: the type's name
