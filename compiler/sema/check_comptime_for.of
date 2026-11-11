@@ -27,6 +27,7 @@ import sema.check_keys.keyofType
 import sema.check_keys.paramKey
 import sema.check_keys.useIndexNames
 import sema.check_mapped.isMappedStruct
+import sema.check_mapped.substType
 import sema.check_stmt.checkBlock
 import sema.check_types.resolveType
 import sema.def.Res
@@ -398,12 +399,12 @@ pub fn comptimeKeys(c: mut Checker, p: Program, info: ComptimeInfo,
     if info.variants {
         return variantNames(c, p, info, targs)
     }
-    const bound = c.types.subst(info.bound, targs.clone())
+    const bound = substType(c, info.bound, targs.clone())
     if c.types.kind(bound) != TyKind.Key {
         return []
     }
     let names = c.types.keyNames(bound)
-    const base = if info.base == 0 { 0 } else { c.types.subst(info.base, targs.clone()) }
+    const base = if info.base == 0 { 0 } else { substType(c, info.base, targs.clone()) }
     if base == 0 || c.types.get(base).hasParam {
         return names
     }
@@ -432,7 +433,7 @@ pub fn comptimeKeys(c: mut Checker, p: Program, info: ComptimeInfo,
 // order, or none while they depend on a parameter.
 fn variantNames(c: mut Checker, p: Program, info: ComptimeInfo, targs: &List<int>) List<int> {
     let names: List<int> = []
-    const base = c.types.subst(info.base, targs.clone())
+    const base = substType(c, info.base, targs.clone())
     if c.types.get(base).hasParam {
         return names
     }
@@ -530,7 +531,7 @@ pub fn comptimeAttribute(c: mut Checker, p: Program, info: ComptimeInfo,
     if info.param >= targs.len() || info.base == 0 {
         return Option.None
     }
-    const base = c.types.subst(info.base, targs.clone())
+    const base = substType(c, info.base, targs.clone())
     const id = c.types.get(base).data
     if c.types.kind(base) != TyKind.Adt || (!info.variants && isMappedStruct(c, p, id)) {
         return Option.None

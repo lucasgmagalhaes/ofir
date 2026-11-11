@@ -36,6 +36,7 @@ import sema.check_keys.keyLiteralType
 import sema.check_keys.resolveKeyed
 import sema.check_list.coerceToSlice
 import sema.check_list.hashable
+import sema.check_mapped.substType
 import sema.check_methods.isCloneable
 import sema.check_types.resolveType
 import sema.check_union.coerceToUnion
@@ -53,6 +54,7 @@ import sema.send.isSync
 import sema.structs.isCopy
 import sema.types.ERROR
 import sema.types.NEVER
+import sema.types.Ty
 import sema.types.TyKind
 import sema.types.kindNumber
 import syntax.ast.Arg
@@ -207,6 +209,10 @@ pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
         inferFrom(c, inf, pt.args[0], c.types.value(at.data))
         return
     }
+    if pt.kind == TyKind.Mapped && at.kind == TyKind.Adt {
+        inferMapped(c, inf, &pt, at.data)
+        return
+    }
     if at.kind != pt.kind || at.args.len() != pt.args.len() ||
        (pt.kind == TyKind.Adt && at.data != pt.data) {
         return   // a mismatch, reported when the argument is checked
@@ -216,6 +222,19 @@ pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
     }
     for i in 0..pt.args.len() {
         inferFrom(c, inf, pt.args[i], at.args[i])
+    }
+}
+
+// `Partial<T>` given the struct of `Partial<Config>`: from its arguments.
+fn inferMapped(c: mut Checker, inf: mut Infer, pt: &Ty, def: int) {
+    if const Option.Some(found) = c.mappedArgs.get(def) {
+        const alias = found.0
+        const args = c.types.get(found.1).args.clone()
+        if alias == pt.data && args.len() == pt.args.len() {
+            for i in 0..args.len() {
+                inferFrom(c, inf, pt.args[i], args[i])
+            }
+        }
     }
 }
 
@@ -259,7 +278,7 @@ pub fn inferHint(c: mut Checker, inf: &Infer, pattern: int) int {
  * @returns the type
  */
 pub fn inferApply(c: mut Checker, inf: &Infer, pattern: int) int {
-    const ty = c.types.subst(pattern, inf.args)
+    const ty = substType(c, pattern, inf.args)
     return resolveKeyed(c, ty)
 }
 
@@ -624,7 +643,7 @@ fn checkInterfaceBounds(c: mut Checker, p: Program, params: &Generics, i: int,
     const arg = args[i]
     const wanted = params.ifaces[i].clone()
     for k in 0..wanted.len() {
-        const ifaceArgs = c.types.subst(params.ifaceArgs[i][k], args.clone())
+        const ifaceArgs = substType(c, params.ifaceArgs[i][k], args.clone())
         if anyError(c, ifaceArgs) {
             continue   // reported where it was inferred
         }
