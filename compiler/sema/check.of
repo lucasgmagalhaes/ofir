@@ -862,19 +862,26 @@ pub const COMPTIME_NAME: int = 1
 pub const COMPTIME_INDEX: int = 2
 /** `field.attribute(key)`. */
 pub const COMPTIME_ATTRIBUTE: int = 3
+/** `variant.matches(value)`. */
+pub const COMPTIME_MATCHES: int = 4
 
 /**
  * A `comptime for` loop, or a member of its variable.
  */
 pub copy struct ComptimeInfo {
-    /** `COMPTIME_LOOP`, `COMPTIME_NAME`, `COMPTIME_INDEX` or `COMPTIME_ATTRIBUTE`. */
+    /**
+     * `COMPTIME_LOOP`, `COMPTIME_NAME`, `COMPTIME_INDEX`, `COMPTIME_ATTRIBUTE`
+     * or `COMPTIME_MATCHES`.
+     */
     pub kind: int
     /** The loop variable's local. */
     pub local: int
     /** The index of the key parameter it stands for. */
     pub param: int
-    /** The struct or tuple type whose fields it goes over, or 0. */
+    /** The struct, tuple or enum type whose fields or variants it goes over, or 0. */
     pub base: int
+    /** Whether it goes over the variants of an enum, `meta.variantsOf<T>()`. */
+    pub variants: bool
     /** The key type it goes over. */
     pub bound: int
     /** The symbol of the key of `field.attribute(key)`, or 0. */

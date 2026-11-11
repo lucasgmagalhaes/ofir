@@ -73,4 +73,13 @@ extern "intrinsic" {
      * @typeParam T a struct
      */
     pub fn fieldsOf<T>()
+
+    /**
+     * The variants of enum `T`, in declaration order: only the iterable of a
+     * `comptime for`, whose variable has `name`, `index`, `attribute(key)`
+     * and `matches(value)` (spec 15.3).
+     *
+     * @typeParam T an enum
+     */
+    pub fn variantsOf<T>()
 }

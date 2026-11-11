@@ -1,0 +1,13 @@
+// requires: stage1
+// Only `@tag` applies to an enum variant (spec 15.4).
+
+enum Color {
+    @tag("json", "red")
+    Red
+    @inline   // error[E0808]: the attribute `@inline` does not apply to a variant
+    Green
+}
+
+fn main() {
+    const _ = Color.Red
+}

@@ -545,8 +545,8 @@ fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
         _ => false
     }
     if isField {
-        const member = comptimeMethod(c, e, callee, args)
-        if member != 0 {   // `field.attribute("json")` in a `comptime for`
+        const member = comptimeMethod(c, p, e, callee, args)
+        if member >= 0 {   // `field.attribute("json")` in a `comptime for`
             return member
         }
         return checkMethodCall(c, p, e, callee, args, expected)

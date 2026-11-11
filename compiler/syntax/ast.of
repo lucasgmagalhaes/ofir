@@ -462,6 +462,8 @@ pub struct VariantField {
  * A variant of an enum.
  */
 pub struct Variant {
+    /** Its attributes: `@tag` (spec 15.4). */
+    pub attributes: List<Attribute>
     /** Its name. */
     pub name: Symbol
     /** Its fields. */
