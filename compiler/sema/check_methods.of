@@ -668,7 +668,7 @@ pub fn checkIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, index: &Exp
 // parameter, a tuple or a struct other than a list's.
 fn keyedBase(c: Checker, ty: int) bool {
     const kind = c.types.kind(ty)
-    if kind == TyKind.Param || kind == TyKind.Tuple {
+    if kind == TyKind.Param || kind == TyKind.Tuple || kind == TyKind.Mapped {
         return true
     }
     if kind != TyKind.Adt || sequenceElem(c, ty).isSome() {

@@ -8,6 +8,7 @@ import base.intern.Symbol
 import base.span.Span
 import sema.check.Checker
 import sema.check.Generics
+import sema.check_mapped.mappedIndexType
 import sema.check_methods.checkVisible
 import sema.check_types.resolveType
 import sema.check_union.unionType
@@ -245,6 +246,12 @@ pub fn paramIndexType(c: mut Checker, p: Program, base: int, key: int, bound: in
     }
     if b.kind == TyKind.Key && !c.types.get(base).hasParam {
         return keysType(c, p, base, bound, span, span)   // the same for every instance
+    }
+    if c.types.kind(base) == TyKind.Mapped {
+        const field = mappedIndexType(c, base, key, bound)
+        if field != 0 {
+            return field
+        }
     }
     c.error("E0341", span, "the keys of `{c.typeName(key)}` may not be keys of "
             + "`{c.typeName(base)}`: bound it by `keyof {c.typeName(base)}`")
