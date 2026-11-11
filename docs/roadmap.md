@@ -278,7 +278,7 @@ These gaps remain:
 | 6.7b | `comptime for` over keys (spec 16.6) and the standard aliases in `std.core` (16.7), moved from 5.19: it needs 6.7a, mapped and conditional types over type parameters, and type operators that stage 0 can load in `std.core`; done when `merge(base, patch)` is written in Ofir | M |
 | 6.7b1 | Mapped types over type parameters: `Partial<T>` in a generic signature, `patch[key]` in `comptime for key in keyof T`, inference from an instance; `merge(base, patch)` (spec 16.6) runs with a local alias; **done** | M |
 | 6.7b2 | The standard aliases in `std.core` (spec 16.7): stage 0 loads type operator aliases as opaque (E0901 on use); in an alias body, the using module's private fields are keys too; **done** | S |
-| 6.7b3 | Filters, `Pick`/`Omit` and conditional types over type parameters (`Pick<T, K>`, `Unwrap<T>` in a generic signature) | M |
+| 6.7b3 | Filters, `Pick`/`Omit` and conditional types over type parameters (`Pick<T, K>`, `Unwrap<T>` in a generic signature) | M; **done** |
 | 6.8 | Windows support | L |
 | 6.9 | Scheduled CI job for the auditable bootstrap path | S |
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |
