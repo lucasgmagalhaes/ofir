@@ -81,6 +81,11 @@ project uses [Semantic Versioning](https://semver.org/).
   `field.attribute("json")`, the value of a `@tag("json", "...")` on the
   field; `fieldsOf` needs a struct (E0364), and the unrolled loop has no
   `break` or `continue` (spec 15.3, roadmap 6.7a3, stage 1).
+- `comptime for variant in meta.variantsOf<T>()` expands its body once
+  per variant of an enum, with `variant.name`, `variant.index`,
+  `variant.attribute("json")` (from a `@tag` on the variant) and
+  `variant.matches(value)`, tested at run time (spec 15.3, roadmap 6.7a4,
+  stage 1).
 
 ### Changed
 
