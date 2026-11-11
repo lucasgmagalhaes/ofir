@@ -61,9 +61,34 @@ static void value_item(Parser *p, Item *item) {
     }
 }
 
+// True when the alias body after `=` is a mapped or conditional type
+// (spec 16.4, 16.5): `{ [K in ...]: ... }` or `if A is B { X } else { Y }`.
+static bool at_type_operator(const Parser *p) {
+    for (size_t ahead = 0;; ahead++) {
+        TokenKind k = peek_at(p, ahead);
+        if (k == TOK_NEWLINE || k == TOK_EOF) {
+            return false;
+        }
+        if (k == TOK_EQ) {
+            TokenKind body = peek_at(p, ahead + 1);
+            return body == TOK_LBRACE || body == TOK_KW_IF;
+        }
+    }
+}
+
 static void type_alias(Parser *p, Item *item) {
     const Token *name = expect(p, TOK_IDENT, "a type name");
     item->name = name ? name->as.symbol : (Symbol){0};
+    if (at_type_operator(p)) {
+        // Stage 0 keeps a type operator alias opaque: a use of it is E0901.
+        int depth = 0;
+        while (!at(p, TOK_EOF) && (depth > 0 || !at(p, TOK_NEWLINE))) {
+            TokenKind k = advance(p)->kind;
+            depth += k == TOK_LBRACE || k == TOK_LBRACKET || k == TOK_LPAREN;
+            depth -= (k == TOK_RBRACE || k == TOK_RBRACKET || k == TOK_RPAREN) && depth > 0;
+        }
+        return;
+    }
     WhereVec bounds = {0};
     item->as.alias.type_params = parse_type_params(p, &bounds);
     if (bounds.len) {
