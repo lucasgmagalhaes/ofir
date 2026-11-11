@@ -271,7 +271,8 @@ These gaps remain:
 | 6.7a2 | `comptime` keyword, `std.meta` predicates and `nameOf`, `comptime if` with narrowing (bounds and numeric operators), `comptime panic` (E0363, E0814); **done** | M |
 | 6.7a3 | `comptime for` over `keyof T` and `meta.fieldsOf<T>()`, `@tag` and `field.attribute`; done when `toJson` (spec 15.3) runs (E0364); **done** | M |
 | 6.7a4 | `meta.variantsOf<T>()`: `variant.name`, `index`, `attribute(key)` and `matches(value)`, `@tag` on variants; **done** | S |
-| 6.7a5 | AIR interpreter: `comptime` expressions, `comptime fn`, the step budget and `@comptimeBudget` (E0815-E0818) | M |
+| 6.7a5 | AIR interpreter: `comptime` expressions, `comptime fn`, the step budget and `@comptimeBudget` (E0815-E0818); **done** | M |
+| 6.7a6 | Module-level `const X = comptime f()` and compile-time heap allocation (`List`, `Map`) inside `comptime` code | S |
 | 6.7b | `comptime for` over keys (spec 16.6) and the standard aliases in `std.core` (16.7), moved from 5.19: it needs 6.7a, mapped and conditional types over type parameters, and type operators that stage 0 can load in `std.core`; done when `merge(base, patch)` is written in Ofir | M |
 | 6.8 | Windows support | L |
 | 6.9 | Scheduled CI job for the auditable bootstrap path | S |
