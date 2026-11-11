@@ -58,6 +58,20 @@ copy enum Ordering { Less  Equal  Greater }
 Methods: `isLt()`, `isEq()`, `isGt()`, `reverse()`, and
 `then(other: Ordering) Ordering` for lexicographic comparison.
 
+## Type operator aliases
+
+The aliases of spec 16.7, in `std.core.types` (stage 1 only; stage 0 keeps
+them opaque and rejects a use of them with E0901):
+
+```ofir
+type Unwrap<T> = if T is Option<infer U> { U } else { T }
+type Partial<T> = { [K in keyof T]?: T[K] }
+type Required<T> = { [K in keyof T]: Unwrap<T[K]> }
+type Pick<T, K: keyof T> = { [P in K]: T[P] }
+type Omit<T, K: keyof T> = { [P in keyof T - K]: T[P] }
+type Record<K, V> = { [P in K]: V }
+```
+
 ## Interfaces
 
 Defined in spec chapter 9.9: `Eq`, `Ord`, `Hash`, `Clone`, `Display`,
