@@ -471,11 +471,12 @@ struct Printer {
                 text.push(if v.fields.len() > 0 { ")" } else { "()" })
             }
             self.line("variant {text}")
+            self.depth += 1
+            self.attributes(v.attributes, names)
             if const Option.Some(value) = v.discriminant {
-                self.depth += 1
                 self.expr(&value, names)
-                self.depth -= 1
             }
+            self.depth -= 1
         }
     }
 

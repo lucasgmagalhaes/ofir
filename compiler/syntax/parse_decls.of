@@ -19,6 +19,7 @@ import syntax.ast.VariantField
 import syntax.parse_control.parseBlock
 import syntax.parse_exprs.parseExpr
 import syntax.parse_items.ItemHeader
+import syntax.parse_items.parseAttributes
 import syntax.parse_items.parseItemHeader
 import syntax.parse_types.canStartType
 import syntax.parse_types.parseBounds
@@ -263,6 +264,7 @@ fn tupleStructBody(p: mut Parser, fields: mut List<FieldDecl>, methods: mut List
 }
 
 fn variant(p: mut Parser) Variant {
+    const attributes = parseAttributes(p)
     const start = p.here()
     const name = p.expectName("a variant name") ?? Symbol(0)
     let fields: List<VariantField> = []
@@ -285,7 +287,7 @@ fn variant(p: mut Parser) Variant {
     if p.accept(TokenKind.Eq) {
         discriminant = Option.Some(parseExpr(p))
     }
-    return Variant{name, fields, hasFields, discriminant, span: p.spanSince(start)}
+    return Variant{attributes, name, fields, hasFields, discriminant, span: p.spanSince(start)}
 }
 
 // `: Shape + Display` after a struct or enum name: the interfaces it asserts
