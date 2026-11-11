@@ -13,6 +13,7 @@
 
 import air.air_print.AirPrinter
 import air.fold.foldChecks
+import air.interp.evalComptimes
 import air.lower.lowerProgram
 import base.intern.Interner
 import base.span.SourceMap
@@ -363,6 +364,10 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     let l = lowerProgram(c, program)
     if l.unsupported {
         driverError(opts.format, "E0901", "stage 1 does not compile {l.missing} yet")
+        return false
+    }
+    evalComptimes(l, c, program)
+    if c.r.diags.hasErrors() {
         return false
     }
     for i in 0..l.out.len() {
