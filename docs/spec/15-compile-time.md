@@ -7,9 +7,9 @@ generic code, it is type-checked once, at its definition, and expanded for
 each instance (ADR 0035). Stage 1 implements the `std.meta` predicates,
 `meta.nameOf`, `comptime if`, `comptime panic` and `comptime for` over
 `keyof T`, `meta.fieldsOf<T>()` and `meta.variantsOf<T>()` with `@tag`,
-and `comptime` expressions and `comptime fn` inside functions, run by an
-AIR interpreter (15.5); a module-level `const X = comptime f()` and
-compile-time heap allocation are planned (roadmap 6.7a6).
+`comptime` expressions, `comptime fn` and module-level
+`const X = comptime f()`, run by an AIR interpreter (15.5); compile-time
+heap allocation is planned (roadmap 6.7a7).
 
 Goals:
 
@@ -34,6 +34,13 @@ comptime fn crc32Table() [u32; 256] { ... }    // usable only at compile time
 A `comptime fn` can run only at compile time; an ordinary function can be
 called from `comptime` code if its body only does what compile-time code
 allows.
+
+A constant whose initializer is a `comptime` expression may have any value
+a `comptime` expression may have (15.5), not only a number, `bool` or `str`.
+The interpreter computes it after type checking, so its value cannot be
+used in another constant's initializer or as an array length (E0801). Each
+use of the constant in a function is computed there; a constant that is
+never used is never computed.
 
 ## 15.2 Type information
 
