@@ -57,8 +57,15 @@ fn declaredFlags(p: Program, at: Loc) (bool, int) {
     }
 }
 
-// Variant `i` as written.
-fn variantDeclAt(p: Program, at: Loc, i: int) &Variant {
+/**
+ * Variant `i` of an enum, as written.
+ *
+ * @param p the program
+ * @param at where the enum is
+ * @param i the variant's position
+ * @returns its declaration
+ */
+pub fn variantDeclAt(p: Program, at: Loc, i: int) &Variant {
     return match itemOf(p, at).kind {
         ItemKind.Enum(_, _, variants, _) => &variants[i]
         _ => {
