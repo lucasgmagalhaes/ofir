@@ -29,14 +29,15 @@ def objects(home: Path) -> dict[Path, bytes]:
     return {p: p.read_bytes() for p in sorted((home / "cache" / "objects").glob("*/*.o"))}
 
 
-def build(compiler: str, env: dict[str, str], exe: Path, *flags: str) -> None:
-    cmd = [compiler, "build", str(PROGRAM), "-o", str(exe), *flags]
-    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+def build(compiler: str, env: dict[str, str], exe: Path, *flags: str) -> str:
+    cmd = [compiler, "build", PROGRAM.relative_to(ROOT).as_posix(), "-o", str(exe), *flags]
+    result = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True)
     if result.returncode != 0:
         sys.exit(f"error: {' '.join(cmd)} failed:\n{result.stdout}{result.stderr}")
     output = subprocess.run([str(exe)], capture_output=True, text=True).stdout
     if output.replace("\r\n", "\n") != EXPECTED:
         sys.exit(f"error: {exe} printed:\n{output}")
+    return result.stderr
 
 
 def check(ok: bool, what: str) -> None:
@@ -62,8 +63,10 @@ def main() -> None:
         check(len(first) > 1, "the first build caches an object per unit")
         check(not list(home.glob("cache/objects/*/*.tmp")), "no temporary object is left")
 
-        build(compiler, env, exe)
+        report = build(compiler, env, exe, "--time-passes")
         check(objects(home) == first, "a second build reuses every object")
+        check(all(f"time: {phase} " in report for phase in ("hash", "objects", "link", "total")),
+              "--time-passes reports the compiler and cache phases")
 
         bad = next(iter(first))
         bad.write_bytes(b"junk")

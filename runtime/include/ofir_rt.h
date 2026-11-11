@@ -117,6 +117,8 @@ const uint8_t *ofir_env(const uint8_t *name, int64_t len, int64_t *value_len);  
 _Noreturn void ofir_exit(int64_t code);
 int64_t ofir_test_index(void);   // the test `ofir test` asked for, or -1
 int64_t ofir_now_ns(void);       // a monotonic clock, in nanoseconds
+void ofir_sha256_parts(const uint8_t *first, int64_t first_len, const uint8_t *second,
+                       int64_t second_len, uint8_t digest[32]);
 
 // Tasks (task.c, spec 14.2): std.task defines ofir_task_entry.
 void *ofir_task_spawn(void *job);   // starts a thread that runs the job
