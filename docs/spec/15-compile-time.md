@@ -4,7 +4,8 @@ Ofir has **no macros**. Code that must adapt to the shape of a type
 (serialization, debug printing, comparisons, builders) is written as
 ordinary generic code that inspects types **at compile time**. Like other
 generic code, it is type-checked once, at its definition, and expanded for
-each instance (ADR 0035). The implementation is planned for stage 1
+each instance (ADR 0035). Stage 1 implements the `std.meta` predicates,
+`meta.nameOf`, `comptime if` and `comptime panic`; the rest is planned
 (roadmap 6.7a).
 
 Goals:
@@ -98,7 +99,7 @@ fn sum<T>(items: &[T]) T {
     comptime if meta.isInteger<T>() || meta.isFloat<T>() {
         let total: T = 0 as T
         for x in items {
-            total += *x
+            total += x
         }
         return total
     } else {
