@@ -58,6 +58,7 @@ import air.lower_pattern.lowerMatch
 import air.lower_pattern.lowerPattern
 import air.lower_pattern.ownsBox
 import air.lower.Lowerer
+import air.lower.ComptimeRegion
 import air.lower_closure.lowerClosure
 import air.lower.Place
 import air.lower.Temp
@@ -115,6 +116,7 @@ import base.span.Span
 import diag.noSpan
 import sema.check.Checker
 import sema.check.fnOf
+import sema.resolve.findAttribute
 import sema.check.itemOf
 import sema.check.itemTypeParams
 import sema.interfaces.isInterfaceMethod
@@ -518,7 +520,7 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
             Option.None => call(l, c, p, e, &*callee, &args)
         }
         ExprKind.If(_, _, _, _) => lowerIf(l, c, p, e)
-        ExprKind.Comptime(inner) => comptimePanic(l, c, p, e, &*inner)
+        ExprKind.Comptime(inner) => comptimeExpr(l, c, p, e, &*inner)
         ExprKind.Block(block) | ExprKind.Unsafe(block) => lowerBlock(l, c, p, &block,
                                                                      typeIsValue(ty))
         ExprKind.Field(base, member, _) => {
@@ -2025,6 +2027,59 @@ fn lowerComptimeIf(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, taken: 
         }
         _ => unit()
     }
+}
+
+const DEFAULT_BUDGET: int = 10000000   // spec 15.5
+
+// The step budget of compile-time code in the function being lowered:
+// `@comptimeBudget(n)` on it, else the default.
+fn comptimeBudget(c: mut Checker, p: Program, def: int) int {
+    if def <= 0 {
+        return DEFAULT_BUDGET
+    }
+    const decl = fnOf(p, c.loc(def))
+    const Option.Some(at) = findAttribute(c.r, decl.attributes, "comptimeBudget") else {
+        return DEFAULT_BUDGET
+    }
+    return match decl.attributes[at].args[0].kind {
+        ExprKind.Int(value) => value.wrappingCast<i64>()
+        _ => DEFAULT_BUDGET
+    }
+}
+
+// `comptime e` (spec 15.1): its value is computed in blocks of its own,
+// which `air.interp` runs once lowering is done and replaces with the
+// constant.
+fn comptimeExpr(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, inner: &Expr) Operand {
+    if panicMessage(c, inner).isSome() {
+        return comptimePanic(l, c, p, e, inner)
+    }
+    const ty = concreteType(l, c, c.typeOf(e.id.0))
+    const start = l.body.newBlock()
+    emitGoto(l, start)
+    switchTo(l, start)
+    const dest = newTemp(l, ty)
+    tempScopeEnter(l)
+    l.forward = true
+    const value = lowerExpr(l, c, p, inner)
+    emitAssign(l, dest, rvUse(value))
+    tempScopeLeave(l, c, p)
+    const after = l.body.newBlock()
+    emitGoto(l, after)
+    switchTo(l, after)
+    let closure = -1
+    match l.body.closure.take() {
+        Option.Some(body) => {
+            closure = body.id
+            l.body.closure = Option.Some(body)
+        }
+        Option.None => {}
+    }
+    const budget = comptimeBudget(c, p, l.fnDef)
+    l.comptimes.push(ComptimeRegion{def: l.body.def, targs: l.body.targs, closure: closure,
+                                    start: start, after: after, dest: dest,
+                                    budget: budget, span: e.span})
+    return opCopy(dest, ty)
 }
 
 // `comptime panic(message)` kept by an instance: E0814 at the call that
