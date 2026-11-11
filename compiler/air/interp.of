@@ -1,0 +1,1067 @@
+// Compile-time evaluation (spec 15, ADR 0035). The blocks of each
+// `comptime` expression run on an interpreter of the AIR; they are then
+// replaced by stores of the value into the expression's local, so the code
+// generator never sees them.
+
+import air.air.AirBody
+import air.air.AirStmt
+import air.air.FieldPath
+import air.air.FloatFn
+import air.air.GLUE_CLONE
+import air.air.GLUE_DROP
+import air.air.Operand
+import air.air.OperandKind
+import air.air.PanicKind
+import air.air.Rvalue
+import air.air.RvalueKind
+import air.air.RuntimeFn
+import air.air.StmtKind
+import air.air.TermKind
+import air.air.Terminator
+import air.air.VARIANT_STEP
+import air.air.jump
+import air.air.opBool
+import air.air.opFloat
+import air.air.opInt
+import air.air.opStr
+import air.air.runtimeName
+import air.air.rvUse
+import air.air.terminator
+import air.fold.ONES
+import air.fold.castFails
+import air.fold.compare
+import air.fold.intBits
+import air.fold.isSigned
+import air.fold.normalize
+import air.lower.Lowerer
+import base.span.Span
+import sema.check.Checker
+import sema.check.itemOf
+import sema.def.DefKind
+import sema.enums.variantsOf
+import sema.program.Program
+import sema.structs.fieldsOf
+import sema.structs.structFieldType
+import sema.structs.variantFieldType
+import sema.types.I32
+import sema.types.TyKind
+import syntax.ast.ItemKind
+import syntax.ast.Op
+
+/** Calls deeper than this are E0816: each one takes about 32 KiB of the compiler's stack. */
+const MAX_DEPTH: int = 128
+
+copy enum ValueKind {
+    /** Not written yet. */
+    Uninit
+    Unit
+    /** An integer of any width, sign- or zero-extended to 64 bits. */
+    Int
+    Float
+    Bool
+    Str
+    /** A struct, tuple or array: its parts; an enum: its tag, then each variant's fields. */
+    Agg
+    /** The address of a part of a local: `frame`, `local` and `path`. */
+    Ptr
+}
+
+/** A value of the interpreter. */
+struct Value {
+    kind: ValueKind
+    bits: u64
+    float: float
+    text: str
+    items: List<Value>
+    frame: int
+    local: int
+    path: List<int>
+    /** A pointer to an element: `PtrAdd` moves its last step. */
+    elem: bool
+}
+
+fn blank(kind: ValueKind) Value {
+    return Value{kind: kind, bits: 0, float: 0.0, text: "", items: [], frame: 0, local: 0,
+                 path: [], elem: false}
+}
+
+fn intValue(bits: u64) Value {
+    let v = blank(ValueKind.Int)
+    v.bits = bits
+    return v
+}
+
+fn boolValue(truth: bool) Value {
+    let v = blank(ValueKind.Bool)
+    v.bits = if truth { 1 as u64 } else { 0 as u64 }
+    return v
+}
+
+fn floatValue(x: float) Value {
+    let v = blank(ValueKind.Float)
+    v.float = x
+    return v
+}
+
+fn strValue(text: str) Value {
+    let v = blank(ValueKind.Str)
+    v.text = text.toOwned()
+    return v
+}
+
+// The part of an aggregate that a step of a field path names: step 0 of an
+// enum is its tag, `VARIANT_STEP + v` the fields of variant `v`.
+fn slot(step: int) int {
+    if step >= VARIANT_STEP {
+        return step - VARIANT_STEP + 1
+    }
+    return step
+}
+
+// The part of `v` at `path` from `at`. A str is `{ptr, len, cap}`: only its
+// length can be read.
+fn fetch(v: Value, path: List<int>, at: int) Value {
+    if at == path.len() {
+        return v.clone()
+    }
+    if v.kind == ValueKind.Str {
+        if path[at] == 1 && at + 1 == path.len() {
+            return intValue(v.text.len() as u64)
+        }
+        return blank(ValueKind.Uninit)
+    }
+    const k = slot(path[at])
+    if v.kind != ValueKind.Agg || k >= v.items.len() {
+        return blank(ValueKind.Uninit)
+    }
+    return fetch(v.items[k], path, at + 1)
+}
+
+// Writes `x` at `path` from `at` into `v`, making the parts it needs.
+// Returns false for a write into a str's fields.
+fn store(v: mut Value, path: List<int>, at: int, x: move Value) bool {
+    if at == path.len() {
+        v = x
+        return true
+    }
+    if v.kind == ValueKind.Str {
+        return false
+    }
+    if v.kind != ValueKind.Agg {
+        v = blank(ValueKind.Agg)
+    }
+    const k = slot(path[at])
+    for v.items.len() <= k {
+        v.items.push(blank(ValueKind.Uninit))
+    }
+    return store(v.items[k], path, at + 1, x)
+}
+
+/** A part of a local of a frame. */
+struct Place {
+    frame: int
+    local: int
+    path: List<int>
+}
+
+/** The state of an evaluation. */
+struct Interp {
+    /** The bodies by function and type arguments: their index in the output. */
+    bodies: Map<int, int>
+    /** The locals of each active call; frame 0 is the enclosing function's. */
+    frames: List<List<Value>>
+    steps: int
+    budget: int
+    failed: bool
+    code: str
+    message: str
+    /** The names of the enclosing function's locals, empty for temporaries. */
+    outer: List<str>
+}
+
+fn fail(it: mut Interp, code: str, message: move str) {
+    if !it.failed {
+        it.failed = true
+        it.code = code.toOwned()
+        it.message = message
+    }
+}
+
+fn unsupported(it: mut Interp, what: str) {
+    fail(it, "E0901", "stage 1 does not evaluate {what} at compile time yet")
+}
+
+fn evalFailed(it: mut Interp, why: str) {
+    fail(it, "E0816", "compile-time evaluation failed: {why}")
+}
+
+// The place of `local` with `path` in `frame`, through the address the
+// local holds when the path is a `deref`.
+fn placeOf(it: mut Interp, frame: int, local: int, path: FieldPath) Place {
+    let place = Place{frame: frame, local: local, path: []}
+    if path.deref {
+        if it.frames[frame][local].kind != ValueKind.Ptr {
+            unsupported(it, "this pointer")
+            return place
+        }
+        place.frame = it.frames[frame][local].frame
+        place.local = it.frames[frame][local].local
+        place.path = it.frames[frame][local].path.clone()
+    }
+    for i in 0..path.fields.len() {
+        place.path.push(path.fields[i])
+    }
+    return place
+}
+
+fn read(it: Interp, place: Place) Value {
+    return fetch(it.frames[place.frame][place.local], place.path, 0)
+}
+
+fn write(it: mut Interp, place: Place, x: move Value) {
+    if !store(it.frames[place.frame][place.local], place.path, 0, x) {
+        unsupported(it, "a write into the fields of a str")
+    }
+}
+
+fn pointer(place: Place) Value {
+    let v = blank(ValueKind.Ptr)
+    v.frame = place.frame
+    v.local = place.local
+    v.path = place.path.clone()
+    return v
+}
+
+fn operand(it: mut Interp, c: Checker, frame: int, o: Operand) Value {
+    return match o.kind {
+        OperandKind.Copy => {
+            const place = placeOf(it, frame, o.local, o.path)
+            if it.failed {
+                return blank(ValueKind.Uninit)
+            }
+            const v = read(it, place)
+            if v.kind == ValueKind.Uninit {
+                if c.types.kind(o.ty) == TyKind.Unit {
+                    return blank(ValueKind.Unit)
+                }
+                const named = place.local < it.outer.len() && it.outer[place.local].len() > 0
+                if place.frame == 0 && named {
+                    const name = it.outer[place.local].clone()
+                    fail(it, "E0815",
+                         "compile-time code cannot read `{name}`: its value exists only at run time")
+                } else {
+                    unsupported(it, "a read of this value")
+                }
+            }
+            v
+        }
+        OperandKind.Addr => {
+            const place = placeOf(it, frame, o.local, o.path)
+            pointer(place)
+        }
+        OperandKind.Int => intValue(normalize(c, o.ty, o.bits))
+        OperandKind.Float => floatValue(o.float)
+        OperandKind.Bool => boolValue(o.truth)
+        OperandKind.Str => strValue(o.text)
+        OperandKind.Unit => blank(ValueKind.Unit)
+    }
+}
+
+// The value an operand points to, for the str arguments of the runtime.
+fn pointee(it: mut Interp, c: Checker, frame: int, o: Operand) Value {
+    const v = operand(it, c, frame, o)
+    if v.kind != ValueKind.Ptr {
+        return v
+    }
+    const place = Place{frame: v.frame, local: v.local, path: v.path.clone()}
+    return read(it, place)
+}
+
+fn isFloat(c: Checker, ty: int) bool {
+    return c.types.kind(ty) == TyKind.Float
+}
+
+fn isF32(c: Checker, ty: int) bool {
+    return c.types.get(ty).data == 32
+}
+
+// `x` as a value of the float type `ty`: an f32 is rounded.
+fn rounded(c: Checker, ty: int, x: float) Value {
+    if isF32(c, ty) {
+        return floatValue((x as f32) as float)
+    }
+    return floatValue(x)
+}
+
+fn floatBinary(it: mut Interp, c: Checker, op: Op, x: float, y: float, ty: int) Value {
+    return match op {
+        Op.Add => rounded(c, ty, x + y)
+        Op.Sub => rounded(c, ty, x - y)
+        Op.Mul => rounded(c, ty, x * y)
+        Op.Div => rounded(c, ty, x / y)
+        Op.Eq => boolValue(x == y)
+        Op.Ne => boolValue(x != y)
+        Op.Lt => boolValue(x < y)
+        Op.Le => boolValue(x <= y)
+        Op.Gt => boolValue(x > y)
+        Op.Ge => boolValue(x >= y)
+        _ => {
+            unsupported(it, "this float operation")
+            blank(ValueKind.Uninit)
+        }
+    }
+}
+
+fn binary(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+    const a = operand(it, c, frame, r.a)
+    const b = operand(it, c, frame, r.b)
+    if it.failed {
+        return blank(ValueKind.Uninit)
+    }
+    const ty = r.a.ty
+    if isFloat(c, ty) {
+        return floatBinary(it, c, r.op, a.float, b.float, ty)
+    }
+    const signed = c.types.kind(ty) == TyKind.Int && isSigned(c, ty)
+    match compare(r.op, a.bits, b.bits, signed) {
+        Option.Some(truth) => {
+            return boolValue(truth)
+        }
+        Option.None => {}
+    }
+    const x = a.bits
+    const y = b.bits
+    const raw = match r.op {
+        Op.Add => x.wrappingAdd(y)
+        Op.Sub => x.wrappingSub(y)
+        Op.Mul => x.wrappingMul(y)
+        Op.And => x & y
+        Op.Or => x | y
+        Op.Xor => x ^ y
+        Op.Shl => x << (y & 63)
+        Op.Shr => {
+            if signed {
+                (x.wrappingCast<i64>() >> (y & 63).wrappingCast<i64>()).wrappingCast<u64>()
+            } else {
+                x >> (y & 63)
+            }
+        }
+        Op.Div => divide(it, x, y, signed, true)
+        Op.Rem => divide(it, x, y, signed, false)
+        _ => {
+            unsupported(it, "this operation")
+            0 as u64
+        }
+    }
+    return intValue(normalize(c, ty, raw))
+}
+
+// `x / y` or `x % y`.
+fn divide(it: mut Interp, x: u64, y: u64, signed: bool, quotient: bool) u64 {
+    if y == 0 {
+        evalFailed(it, "division by zero")
+        return 0
+    }
+    if !signed {
+        return if quotient { x / y } else { x % y }
+    }
+    const a = x.wrappingCast<i64>()
+    const b = y.wrappingCast<i64>()
+    if b == -1 {
+        return if quotient { (0 as u64).wrappingSub(x) } else { 0 }
+    }
+    return if quotient { (a / b).wrappingCast<u64>() } else { (a % b).wrappingCast<u64>() }
+}
+
+// `a op b` for + - *, with the overflow bit stored into the local `flag`.
+fn checked(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+    const a = operand(it, c, frame, r.a)
+    const b = operand(it, c, frame, r.b)
+    if it.failed {
+        return blank(ValueKind.Uninit)
+    }
+    const ty = r.a.ty
+    const x = a.bits
+    const y = b.bits
+    const raw = match r.op {
+        Op.Add => x.wrappingAdd(y)
+        Op.Sub => x.wrappingSub(y)
+        _ => x.wrappingMul(y)
+    }
+    let overflow = false
+    if intBits(c.types.get(ty).data) < 64 {
+        overflow = normalize(c, ty, raw) != raw
+    } else if isSigned(c, ty) {
+        const i = x.wrappingCast<i64>()
+        const j = y.wrappingCast<i64>()
+        const result = match r.op {
+            Op.Add => i.checkedAdd(j)
+            Op.Sub => i.checkedSub(j)
+            _ => i.checkedMul(j)
+        }
+        overflow = result.isNone()
+    } else {
+        const result = match r.op {
+            Op.Add => x.checkedAdd(y)
+            Op.Sub => x.checkedSub(y)
+            _ => x.checkedMul(y)
+        }
+        overflow = result.isNone()
+    }
+    it.frames[frame][r.flag] = boolValue(overflow)
+    return intValue(normalize(c, ty, raw))
+}
+
+fn unary(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+    const a = operand(it, c, frame, r.a)
+    if it.failed {
+        return blank(ValueKind.Uninit)
+    }
+    const ty = r.a.ty
+    if r.op == Op.Neg {
+        return rounded(c, ty, 0.0 - a.float)
+    }
+    if c.types.kind(ty) == TyKind.Bool {
+        return boolValue(a.bits == 0)
+    }
+    return intValue(normalize(c, ty, ONES ^ a.bits))
+}
+
+// 2 to the `n`, as a float.
+fn pow2(n: int) float {
+    let x = 1.0
+    let i = 0
+    for i < n {
+        x = x * 2.0
+        i += 1
+    }
+    return x
+}
+
+// Whether `x as to` is out of the range of the int type `to`.
+fn floatCastFails(c: Checker, x: float, to: int) bool {
+    if x.isNan() {
+        return true
+    }
+    const t = intBits(c.types.get(to).data)
+    if !isSigned(c, to) {
+        return !(x > -1.0 && x < pow2(t))
+    }
+    const hi = pow2(t - 1)
+    if t == 64 {
+        return !(x >= 0.0 - hi && x < hi)
+    }
+    return !(x > 0.0 - hi - 1.0 && x < hi)
+}
+
+// The bits of the float `x`, in range, converted to the int type `to`.
+fn floatToInt(c: Checker, x: float, to: int) u64 {
+    if isSigned(c, to) {
+        return normalize(c, to, (x as int).wrappingCast<u64>())
+    }
+    return normalize(c, to, x as u64)
+}
+
+fn minBits(c: Checker, to: int) u64 {
+    if !isSigned(c, to) {
+        return 0
+    }
+    return ONES << (intBits(c.types.get(to).data) - 1) as u64
+}
+
+fn maxBits(c: Checker, to: int) u64 {
+    const t = intBits(c.types.get(to).data)
+    const one: u64 = 1
+    if isSigned(c, to) {
+        return (one << (t - 1) as u64) - 1
+    }
+    if t == 64 {
+        return ONES
+    }
+    return (one << t as u64) - 1
+}
+
+// The tag of an enum value, or the bits of a number.
+fn bitsOf(v: Value) u64 {
+    if v.kind == ValueKind.Agg && v.items.len() > 0 {
+        return v.items[0].bits
+    }
+    return v.bits
+}
+
+fn cast(it: mut Interp, c: Checker, v: Value, from: int, to: int) Value {
+    const source = c.types.kind(from)
+    const target = c.types.kind(to)
+    if target == TyKind.Int {
+        if source == TyKind.Float {
+            if floatCastFails(c, v.float, to) {
+                evalFailed(it, "a cast out of range")
+                return blank(ValueKind.Uninit)
+            }
+            return intValue(floatToInt(c, v.float, to))
+        }
+        if source == TyKind.Int || source == TyKind.Bool || source == TyKind.Adt {
+            return intValue(normalize(c, to, bitsOf(v)))
+        }
+    }
+    if target == TyKind.Float {
+        if source == TyKind.Float {
+            return rounded(c, to, v.float)
+        }
+        if source == TyKind.Int && isSigned(c, from) {
+            return rounded(c, to, v.bits.wrappingCast<i64>() as float)
+        }
+        if source == TyKind.Int {
+            return rounded(c, to, v.bits as float)
+        }
+    }
+    if (target == TyKind.Ptr || target == TyKind.Ref) && v.kind == ValueKind.Ptr {
+        return v.clone()
+    }
+    unsupported(it, "this cast")
+    return blank(ValueKind.Uninit)
+}
+
+fn castFailsValue(c: Checker, v: Value, from: int, to: int) Value {
+    if c.types.kind(from) == TyKind.Float {
+        return boolValue(floatCastFails(c, v.float, to))
+    }
+    return boolValue(castFails(c, from, to, v.bits))
+}
+
+fn saturate(c: Checker, v: Value, from: int, to: int) Value {
+    if c.types.kind(from) == TyKind.Float {
+        const x = v.float
+        if x.isNan() {
+            return intValue(0)
+        }
+        if floatCastFails(c, x, to) {
+            return intValue(if x < 0.0 { minBits(c, to) } else { maxBits(c, to) })
+        }
+        return intValue(floatToInt(c, x, to))
+    }
+    if castFails(c, from, to, v.bits) {
+        const negative = isSigned(c, from) && v.bits.wrappingCast<i64>() < 0
+        return intValue(if negative { minBits(c, to) } else { maxBits(c, to) })
+    }
+    return intValue(normalize(c, to, v.bits))
+}
+
+fn floatFn(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+    const a = operand(it, c, frame, r.a)
+    const x = a.float
+    const ty = r.a.ty
+    return match r.floatFn {
+        FloatFn.Sqrt => rounded(c, ty, x.sqrt())
+        FloatFn.Fabs => rounded(c, ty, x.abs())
+        FloatFn.Floor => rounded(c, ty, x.floor())
+        FloatFn.Ceil => rounded(c, ty, x.ceil())
+        FloatFn.Minnum => rounded(c, ty, x.min(operand(it, c, frame, r.b).float))
+        FloatFn.Maxnum => rounded(c, ty, x.max(operand(it, c, frame, r.b).float))
+    }
+}
+
+fn ptrAdd(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+    let p = operand(it, c, frame, r.a)
+    const n = operand(it, c, frame, r.b).bits.wrappingCast<i64>()
+    if it.failed {
+        return blank(ValueKind.Uninit)
+    }
+    if p.kind != ValueKind.Ptr {
+        unsupported(it, "this pointer")
+        return blank(ValueKind.Uninit)
+    }
+    if p.elem {
+        const last = p.path.len() - 1
+        p.path[last] = p.path[last] + n
+    } else {
+        p.path.push(n)
+        p.elem = true
+    }
+    return p
+}
+
+fn evaluate(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
+    return match r.kind {
+        RvalueKind.Use => operand(it, c, frame, r.a)
+        RvalueKind.Binary => binary(it, c, frame, r)
+        RvalueKind.Checked => checked(it, c, frame, r)
+        RvalueKind.Unary => unary(it, c, frame, r)
+        RvalueKind.Cast => {
+            const v = operand(it, c, frame, r.a)
+            cast(it, c, v, r.a.ty, r.to)
+        }
+        RvalueKind.CastFails => castFailsValue(c, operand(it, c, frame, r.a), r.a.ty, r.to)
+        RvalueKind.Saturate => saturate(c, operand(it, c, frame, r.a), r.a.ty, r.to)
+        RvalueKind.StrLen => intValue(pointee(it, c, frame, r.a).text.len() as u64)
+        RvalueKind.StrByte => {
+            const s = pointee(it, c, frame, r.a)
+            const i = operand(it, c, frame, r.b).bits.wrappingCast<i64>()
+            if i < 0 || i >= s.text.len() {
+                evalFailed(it, "an index out of bounds")
+                blank(ValueKind.Uninit)
+            } else {
+                intValue(s.text[i] as u64)
+            }
+        }
+        RvalueKind.FloatFn => floatFn(it, c, frame, r)
+        RvalueKind.Aggregate => {
+            let v = blank(ValueKind.Agg)
+            for i in 0..r.items.len() {
+                v.items.push(operand(it, c, frame, r.items[i]))
+            }
+            v
+        }
+        RvalueKind.PtrAdd => ptrAdd(it, c, frame, r)
+        _ => {
+            unsupported(it, "this operation")
+            blank(ValueKind.Uninit)
+        }
+    }
+}
+
+fn assign(it: mut Interp, frame: int, s: AirStmt, x: move Value) {
+    if !s.hasDest && s.kind == StmtKind.Call {
+        return
+    }
+    const place = placeOf(it, frame, s.dest, s.destPath)
+    if !it.failed {
+        write(it, place, x)
+    }
+}
+
+// Appends `text` to the str that the operand `target` points to.
+fn push(it: mut Interp, c: Checker, frame: int, target: Operand, text: str) {
+    const p = operand(it, c, frame, target)
+    if it.failed || p.kind != ValueKind.Ptr {
+        unsupported(it, "this str")
+        return
+    }
+    const place = Place{frame: p.frame, local: p.local, path: p.path.clone()}
+    let s = read(it, place)
+    if s.kind != ValueKind.Str {
+        s = strValue("")
+    }
+    s.text.push(text)
+    write(it, place, s)
+}
+
+fn boolText(bits: u64) str {
+    return if bits == 1 { "true" } else { "false" }
+}
+
+fn runtime(it: mut Interp, c: Checker, frame: int, s: AirStmt) {
+    match s.rt {
+        RuntimeFn.StrPushStr => {
+            const v = pointee(it, c, frame, s.args[1])
+            push(it, c, frame, s.args[0], v.text)
+        }
+        RuntimeFn.StrPushInt => {
+            const v = operand(it, c, frame, s.args[1])
+            push(it, c, frame, s.args[0], "{v.bits.wrappingCast<i64>()}")
+        }
+        RuntimeFn.StrPushUint => {
+            const v = operand(it, c, frame, s.args[1])
+            push(it, c, frame, s.args[0], "{v.bits}")
+        }
+        RuntimeFn.StrPushBool => {
+            const v = operand(it, c, frame, s.args[1])
+            push(it, c, frame, s.args[0], boolText(v.bits))
+        }
+        RuntimeFn.StrPushFloat => {
+            const v = operand(it, c, frame, s.args[1])
+            push(it, c, frame, s.args[0], "{v.float}")
+        }
+        RuntimeFn.StrPushF32 => {
+            const v = operand(it, c, frame, s.args[1])
+            push(it, c, frame, s.args[0], "{v.float as f32}")
+        }
+        RuntimeFn.StrConcat => {
+            const a = pointee(it, c, frame, s.args[1])
+            const b = pointee(it, c, frame, s.args[2])
+            const p = operand(it, c, frame, s.args[0])
+            if !it.failed && p.kind == ValueKind.Ptr {
+                const place = Place{frame: p.frame, local: p.local, path: p.path.clone()}
+                write(it, place, strValue(a.text + b.text))
+            }
+        }
+        RuntimeFn.StrEq => {
+            const a = pointee(it, c, frame, s.args[0])
+            const b = pointee(it, c, frame, s.args[1])
+            assign(it, frame, s, boolValue(a.text == b.text))
+        }
+        RuntimeFn.StrCmp => {
+            const a = pointee(it, c, frame, s.args[0])
+            const b = pointee(it, c, frame, s.args[1])
+            const order: int = if a.text < b.text { -1 } else if a.text == b.text { 0 } else { 1 }
+            assign(it, frame, s, intValue(order.wrappingCast<u64>()))
+        }
+        RuntimeFn.Free => {}
+        RuntimeFn.PrintStr => cannotPrint(it)
+        RuntimeFn.PrintInt => cannotPrint(it)
+        RuntimeFn.PrintUint => cannotPrint(it)
+        RuntimeFn.PrintFloat => cannotPrint(it)
+        RuntimeFn.PrintF32 => cannotPrint(it)
+        RuntimeFn.PrintBool => cannotPrint(it)
+        RuntimeFn.PrintNewline => cannotPrint(it)
+        _ => unsupported(it, "`{runtimeName(s.rt)}`")
+    }
+}
+
+fn cannotPrint(it: mut Interp) {
+    fail(it, "E0815", "compile-time code cannot print: it does no I/O (spec 15.5)")
+}
+
+// Whether an `extern` function is one of the heap functions of std.
+fn isHeap(name: str) bool {
+    return name == "ofir_alloc" || name == "ofir_realloc" || name == "ofir_alloc_aligned" ||
+           name == "ofir_realloc_aligned" || name == "ofir_free" || name == "memmove" ||
+           name == "memcpy" || name == "memcmp"
+}
+
+// A call of a function with no body: an `extern` function.
+fn noBody(it: mut Interp, c: Checker, p: Program, def: int) {
+    if def <= 0 || c.def(def).kind != DefKind.Fn || c.def(def).member < 0 {
+        unsupported(it, "this call")
+        return
+    }
+    const isExtern = match itemOf(p, c.loc(def)).kind {
+        ItemKind.Extern(_, _) => true
+        _ => false
+    }
+    const name = c.text(c.def(def).name)
+    if !isExtern {
+        unsupported(it, "this call")
+    } else if isHeap(name) {
+        unsupported(it, "heap memory")
+    } else {
+        fail(it, "E0815", "compile-time code cannot call the extern function `{name}`")
+    }
+}
+
+fn call(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: int,
+        s: AirStmt) {
+    if s.callee == GLUE_DROP {
+        return
+    }
+    if s.callee == GLUE_CLONE {
+        const v = operand(it, c, frame, s.args[0])
+        assign(it, frame, s, v)
+        return
+    }
+    const index = match it.bodies.get(s.callee * 4294967296 + s.targs) {
+        Option.Some(i) => *i
+        Option.None => -1
+    }
+    if index < 0 {
+        noBody(it, c, p, s.callee)
+        return
+    }
+    if it.frames.len() > MAX_DEPTH {
+        evalFailed(it, "calls nested more than {MAX_DEPTH} deep")
+        return
+    }
+    let locals: List<Value> = [blank(ValueKind.Uninit)]
+    for i in 0..s.args.len() {
+        locals.push(operand(it, c, frame, s.args[i]))
+    }
+    for locals.len() < out[index].locals.len() {
+        locals.push(blank(ValueKind.Uninit))
+    }
+    if it.failed {
+        return
+    }
+    it.frames.push(locals)
+    const callee = it.frames.len() - 1
+    run(it, c, p, out, index, callee, 0, -1)
+    const result = it.frames[callee][0].clone()
+    it.frames.truncate(callee)
+    if !it.failed {
+        assign(it, frame, s, result)
+    }
+}
+
+fn exec(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: int,
+        s: AirStmt) {
+    if s.kind == StmtKind.Assign {
+        const v = evaluate(it, c, frame, s.value)
+        if !it.failed {
+            assign(it, frame, s, v)
+        }
+    } else if s.runtime {
+        runtime(it, c, frame, s)
+    } else {
+        call(it, c, p, out, frame, s)
+    }
+}
+
+fn panicText(it: mut Interp, c: Checker, frame: int, t: Terminator) str {
+    return match t.panic {
+        PanicKind.Overflow => "arithmetic overflow"
+        PanicKind.DivZero => "division by zero"
+        PanicKind.Shift => "a shift by more than the width"
+        PanicKind.Cast => "a cast out of range"
+        PanicKind.Bounds => {
+            const i = operand(it, c, frame, t.index).bits.wrappingCast<i64>()
+            const n = operand(it, c, frame, t.len).bits.wrappingCast<i64>()
+            "index {i} out of bounds for length {n}"
+        }
+        PanicKind.Assert => "an assertion failed"
+    }
+}
+
+// The block after `t`, or -1 when the call returns or fails.
+fn follow(it: mut Interp, c: Checker, frame: int, t: Terminator) int {
+    return match t.kind {
+        TermKind.Goto => t.target
+        TermKind.Branch => {
+            if operand(it, c, frame, t.cond).bits == 1 {
+                t.target
+            } else {
+                t.other
+            }
+        }
+        TermKind.Assert => {
+            if operand(it, c, frame, t.cond).bits == 1 {
+                const why = panicText(it, c, frame, t)
+                evalFailed(it, why)
+                -1
+            } else {
+                t.target
+            }
+        }
+        TermKind.Return => -1
+        TermKind.Panic => {
+            const message = pointee(it, c, frame, t.cond)
+            evalFailed(it, "it panicked: {message.text}")
+            -1
+        }
+        _ => {
+            evalFailed(it, "it reached unreachable code")
+            -1
+        }
+    }
+}
+
+fn tick(it: mut Interp) {
+    it.steps += 1
+    if it.steps > it.budget {
+        evalFailed(it, "it ran out of its budget of {it.budget} steps (`@comptimeBudget(n)`)")
+    }
+}
+
+// Runs body `b` in `frame` from block `start` until it returns or reaches
+// block `stop`.
+fn run(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, b: int, frame: int,
+       start: int, stop: int) {
+    let block = start
+    for block >= 0 && block != stop && !it.failed {
+        for i in 0..out[b].blocks[block].stmts.len() {
+            tick(it)
+            if it.failed {
+                return
+            }
+            exec(it, c, p, out, frame, out[b].blocks[block].stmts[i])
+            if it.failed {
+                return
+            }
+        }
+        tick(it)
+        if !it.failed {
+            block = follow(it, c, frame, out[b].blocks[block].term)
+        }
+    }
+}
+
+fn constStmt(dest: int, path: List<int>, value: move Operand, span: Span) AirStmt {
+    return AirStmt{kind: StmtKind.Assign, dest: dest,
+                   destPath: FieldPath{fields: path.clone(), deref: false}, hasDest: true,
+                   value: rvUse(value), runtime: false, rt: RuntimeFn.PrintStr, callee: 0,
+                   targs: 0, args: [], span: span}
+}
+
+fn part(v: Value, k: int) Value {
+    if v.kind == ValueKind.Agg && k < v.items.len() {
+        return v.items[k].clone()
+    }
+    return blank(ValueKind.Uninit)
+}
+
+fn withStep(path: List<int>, step: int) List<int> {
+    let next = path.clone()
+    next.push(step)
+    return next
+}
+
+// Appends to `stores` the assignments that write `v`, a value of `ty`, at
+// `path` of `dest`. Returns false for a type a constant cannot have.
+fn constStores(c: mut Checker, p: Program, dest: int, ty: int, v: Value, path: List<int>,
+               stores: mut List<AirStmt>, span: Span) bool {
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Unit {
+        return true
+    }
+    if kind == TyKind.Bool {
+        stores.push(constStmt(dest, path, opBool(v.bits == 1, ty), span))
+        return true
+    }
+    if kind == TyKind.Int {
+        stores.push(constStmt(dest, path, opInt(v.bits, ty), span))
+        return true
+    }
+    if kind == TyKind.Float {
+        stores.push(constStmt(dest, path, opFloat(v.float, ty), span))
+        return true
+    }
+    if kind == TyKind.Str {
+        stores.push(constStmt(dest, path, opStr(v.text, ty), span))
+        return true
+    }
+    if kind == TyKind.Array {
+        const n = c.types.get(ty).data
+        const elem = c.types.get(ty).inner
+        for i in 0..n {
+            if !constStores(c, p, dest, elem, part(v, i), withStep(path, i), stores, span) {
+                return false
+            }
+        }
+        return true
+    }
+    if kind == TyKind.Tuple {
+        const items = c.types.get(ty).args.clone()
+        for i in 0..items.len() {
+            if !constStores(c, p, dest, items[i], part(v, i), withStep(path, i), stores, span) {
+                return false
+            }
+        }
+        return true
+    }
+    if kind != TyKind.Adt {
+        return false
+    }
+    const def = c.types.get(ty).data
+    if c.def(def).kind == DefKind.Struct {
+        const n = fieldsOf(c, def).types.len()
+        for i in 0..n {
+            const field = structFieldType(c, p, ty, i)
+            if !constStores(c, p, dest, field, part(v, i), withStep(path, i), stores, span) {
+                return false
+            }
+        }
+        return true
+    }
+    return enumStores(c, p, dest, ty, v, path, stores, span)
+}
+
+fn enumStores(c: mut Checker, p: Program, dest: int, ty: int, v: Value, path: List<int>,
+              stores: mut List<AirStmt>, span: Span) bool {
+    const def = c.types.get(ty).data
+    const tag = bitsOf(v)
+    const count = variantsOf(c, def).variants.len()
+    let found = -1
+    for i in 0..count {
+        if variantsOf(c, def).variants[i].discriminant == tag.wrappingCast<i64>() {
+            found = i
+        }
+    }
+    if found < 0 {
+        return false
+    }
+    const payload = part(v, found + 1)
+    const fields = variantsOf(c, def).variants[found].types.len()
+    for i in 0..fields {
+        const field = variantFieldType(c, p, ty, found, i)
+        const at = withStep(withStep(path, VARIANT_STEP + found), i)
+        if !constStores(c, p, dest, field, part(payload, i), at, stores, span) {
+            return false
+        }
+    }
+    stores.push(constStmt(dest, withStep(path, 0), opInt(tag, I32), span))
+    return true
+}
+
+// The body a region was lowered into, or -1.
+fn regionBody(l: Lowerer, r: int) int {
+    const region = &l.comptimes[r]
+    for i in 0..l.out.len() {
+        if l.out[i].def == region.def && l.out[i].targs == region.targs {
+            const id = match l.out[i].closure {
+                Option.Some(body) => body.id
+                Option.None => -1
+            }
+            if id == region.closure {
+                return i
+            }
+        }
+    }
+    return -1
+}
+
+/**
+ * Evaluates the `comptime` expressions of a lowered program (spec 15): the
+ * blocks of each are replaced by stores of its value. A failure is E0815
+ * or E0816, at the expression.
+ *
+ * @param l the lowering, with its bodies and regions
+ * @param c the checker
+ * @param p the program
+ */
+pub fn evalComptimes(l: mut Lowerer, c: mut Checker, p: Program) {
+    if l.comptimes.len() == 0 {
+        return
+    }
+    let it = Interp{bodies: Map.new(), frames: [], steps: 0, budget: 0, failed: false, code: "",
+                    message: "", outer: []}
+    for i in 0..l.out.len() {
+        if l.out[i].closure.isNone() {
+            it.bodies.insert(l.out[i].def * 4294967296 + l.out[i].targs, i)
+        }
+    }
+    for r in 0..l.comptimes.len() {
+        const b = regionBody(l, r)
+        if b >= 0 {
+            evalRegion(l, c, p, it, r, b)
+        }
+    }
+}
+
+fn evalRegion(l: mut Lowerer, c: mut Checker, p: Program, it: mut Interp, r: int, b: int) {
+    const start = l.comptimes[r].start
+    const after = l.comptimes[r].after
+    const dest = l.comptimes[r].dest
+    const span = l.comptimes[r].span
+    let locals: List<Value> = []
+    for locals.len() < l.out[b].locals.len() {
+        locals.push(blank(ValueKind.Uninit))
+    }
+    it.frames = [locals]
+    it.outer = []
+    for i in 0..l.out[b].locals.len() {
+        const name = match l.out[b].locals[i].name {
+            Option.Some(sym) => c.text(sym).toOwned()
+            Option.None => "".toOwned()
+        }
+        it.outer.push(name)
+    }
+    it.steps = 0
+    it.budget = l.comptimes[r].budget
+    it.failed = false
+    run(it, c, p, l.out, b, 0, start, after)
+    if it.failed {
+        c.error(it.code, span, it.message.clone())
+        return
+    }
+    const value = it.frames[0][dest].clone()
+    const ty = l.out[b].locals[dest].ty
+    let stores: List<AirStmt> = []
+    if !constStores(c, p, dest, ty, value, [], stores, span) {
+        c.error("E0901", span, "stage 1 does not evaluate a value of this type yet".toOwned())
+        return
+    }
+    l.out[b].blocks[start].stmts = stores
+    l.out[b].blocks[start].term = jump(after)
+    for k in start + 1..after {
+        l.out[b].blocks[k].stmts = []
+        l.out[b].blocks[k].term = terminator(TermKind.Unreachable)
+    }
+}
