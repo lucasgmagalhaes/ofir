@@ -1,0 +1,217 @@
+/**
+ * @module
+ * Lowering of `comptime for` (spec 15.3): the body once per key, in
+ * declaration order, with the key as the loop's type argument. Stage 0
+ * does not have it.
+ */
+
+import air.air.AirStmt
+import air.air.Operand
+import air.air.OperandKind
+import air.air.RvalueKind
+import air.air.StmtKind
+import air.air.isGlue
+import air.air.opCopy
+import air.air.opInt
+import air.air.opStr
+import air.air.rvUse
+import air.lower.AirRange
+import air.lower.Lowerer
+import air.lower.airRangeNow
+import air.lower.emitAssign
+import air.lower.flagParts
+import air.lower.substFrom
+import air.lower_expr.lowerBlock
+import air.lower_expr.variantNamed
+import air.lower_pattern.variantValue
+import sema.check.COMPTIME_ATTRIBUTE
+import sema.check.COMPTIME_INDEX
+import sema.check.COMPTIME_LOOP
+import sema.check.COMPTIME_NAME
+import sema.check.Checker
+import sema.check.ComptimeInfo
+import sema.check_comptime_for.comptimeAttribute
+import sema.check_comptime_for.comptimeIndex
+import sema.check_comptime_for.comptimeKey
+import sema.check_comptime_for.comptimeKeys
+import sema.program.Program
+import sema.types.BOOL
+import sema.types.I64
+import sema.types.STR
+import sema.types.UNIT
+import base.intern.Symbol
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.Stmt
+
+// The record of a `comptime for` or of a member of its variable.
+fn infoOf(c: Checker, id: int) Option<ComptimeInfo> {
+    return match c.comptimeInfo.get(comptimeKey(c, id)) {
+        Option.Some(info) => Option.Some(*info)
+        Option.None => Option.None
+    }
+}
+
+// The type arguments of the instance being lowered.
+fn argsNow(l: Lowerer, c: Checker) List<int> {
+    if isGlue(l.body.def) || l.body.targs == UNIT {
+        return []
+    }
+    return c.types.get(l.body.targs).args.clone()
+}
+
+/**
+ * Lowers `comptime for`: its body once per key.
+ *
+ * @param l the lowering
+ * @param c the checker
+ * @param p the program
+ * @param stmt the loop
+ * @param body its body
+ */
+pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt, body: &Block) {
+    const info = match infoOf(c, stmt.id.0) {
+        Option.Some(found) => found
+        Option.None => {
+            return
+        }
+    }
+    if info.kind != COMPTIME_LOOP {
+        return
+    }
+    const outer = l.body.targs
+    let args = argsNow(l, c)
+    const keys = comptimeKeys(c, info, &args)
+    const variable = info.local + 1
+    for args.len() <= info.param {
+        args.push(UNIT)
+    }
+    let probe = args.clone()
+    probe[info.param] = l.body.locals[variable].ty   // the loop's key parameter
+    let depends: List<int> = []   // the locals whose type has the key
+    for i in 1..l.body.locals.len() {
+        const ty = l.body.locals[i].ty
+        if i != variable && c.types.get(ty).hasParam &&
+           c.types.subst(ty, args.clone()) != c.types.subst(ty, probe.clone()) {
+            depends.push(i)
+        }
+    }
+    for k in 0..keys.len() {
+        args[info.param] = c.types.keys([keys[k]])
+        l.body.targs = c.types.tuple(args.clone())
+        const range = airRangeNow(l)
+        newPartFlags(l, c)
+        const _ = lowerBlock(l, c, p, body, false)
+        for d in 0..depends.len() {
+            const local = depends[d]
+            let twin = l.body.locals[local].clone()
+            twin.ty = c.types.subst(twin.ty, args.clone())
+            l.body.locals.push(twin)
+            renameIn(l, range, local, l.body.locals.len() - 1)
+        }
+        substFrom(l, c, &args, range)
+        l.body.targs = outer
+    }
+    l.body.locals[variable].ty = UNIT
+    for d in 0..depends.len() {
+        l.body.locals[depends[d]].ty = UNIT   // each iteration has its own copy
+    }
+}
+
+// The flags of the parts a key of this iteration names, set like their
+// locals' flags.
+fn newPartFlags(l: mut Lowerer, c: mut Checker) {
+    for local in 1..l.flags.len() {
+        if l.flags[local] != 0 {
+            const before = l.partFlags.len()
+            flagParts(l, c, local)
+            for i in before..l.partFlags.len() {
+                const flag = l.partFlags[i].flag
+                emitAssign(l, flag, rvUse(opCopy(l.flags[local], BOOL)))
+            }
+        }
+    }
+}
+
+// Renames local `from` to `to` in what the body gained.
+fn renameIn(l: mut Lowerer, range: AirRange, from: int, to: int) {
+    if range.open >= 0 {
+        renameBlock(l, range.open, range.stmt, from, to)
+    }
+    for b in range.block..l.body.blocks.len() {
+        renameBlock(l, b, 0, from, to)
+    }
+}
+
+fn renameBlock(l: mut Lowerer, b: int, first: int, from: int, to: int) {
+    for i in first..l.body.blocks[b].stmts.len() {
+        renameStmt(l.body.blocks[b].stmts[i], from, to)
+    }
+    renameOperand(l.body.blocks[b].term.cond, from, to)
+    renameOperand(l.body.blocks[b].term.index, from, to)
+    renameOperand(l.body.blocks[b].term.len, from, to)
+}
+
+fn renameStmt(s: mut AirStmt, from: int, to: int) {
+    if s.hasDest && s.dest == from {
+        s.dest = to
+    }
+    renameOperand(s.value.a, from, to)
+    renameOperand(s.value.b, from, to)
+    for k in 0..s.value.items.len() {
+        renameOperand(s.value.items[k], from, to)
+    }
+    if s.kind == StmtKind.Assign && s.value.kind == RvalueKind.Checked && s.value.flag == from {
+        s.value.flag = to
+    }
+    for k in 0..s.args.len() {
+        renameOperand(s.args[k], from, to)
+    }
+}
+
+fn renameOperand(o: mut Operand, from: int, to: int) {
+    if (o.kind == OperandKind.Copy || o.kind == OperandKind.Addr) && o.local == from {
+        o.local = to
+    }
+}
+
+/**
+ * The value of a member of a `comptime for` variable in this iteration:
+ * `field.name`, `field.index` or `field.attribute(key)`.
+ *
+ * @param l the lowering
+ * @param c the checker
+ * @param p the program
+ * @param e the member or the call
+ * @param ty its type
+ * @returns the value, if `e` is such a member
+ */
+pub fn comptimeMemberValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
+                           ty: int) Option<Operand> {
+    if c.comptimeInfo.len() == 0 {
+        return Option.None
+    }
+    const info = match infoOf(c, e.id.0) {
+        Option.Some(found) => found
+        Option.None => {
+            return Option.None
+        }
+    }
+    const args = argsNow(l, c)
+    if info.kind == COMPTIME_NAME && info.param < args.len() {
+        const name = c.types.get(args[info.param]).data
+        return Option.Some(opStr(c.text(Symbol(name)), STR))
+    }
+    if info.kind == COMPTIME_INDEX {
+        const index = comptimeIndex(c, info, &args)
+        return Option.Some(opInt(index.wrappingCast<u64>(), I64))
+    }
+    if info.kind == COMPTIME_ATTRIBUTE {
+        return Option.Some(match comptimeAttribute(c, p, info, &args) {
+            Option.Some(value) => variantValue(l, c, p, ty, variantNamed(c, p, ty, "Some"),
+                                               [opStr(value, STR)])
+            Option.None => variantValue(l, c, p, ty, variantNamed(c, p, ty, "None"), [])
+        })
+    }
+    return Option.None
+}
