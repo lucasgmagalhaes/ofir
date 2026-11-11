@@ -1,3 +1,4 @@
+// requires: stage1
 // Constants computed by `comptime` code in another module (spec 15.1).
 
 fn squares() [int; 5] {
