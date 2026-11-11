@@ -1,0 +1,8 @@
+// requires: stage0
+// Stage 0 loads the prelude's type operator aliases (spec 16.7) but rejects a use of them.
+struct Point {
+    x: float
+}
+type Local<T> = { [K in keyof T]?: T[K] }
+fn patch(p: Partial<Point>) {}   // error[E0901]: mapped and conditional types in stage 0 are not supported yet
+fn local(p: Local<Point>) {}   // error[E0901]: mapped and conditional types in stage 0 are not supported yet
