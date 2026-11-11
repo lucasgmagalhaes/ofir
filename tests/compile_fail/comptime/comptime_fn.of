@@ -1,0 +1,16 @@
+// requires: stage1
+// A `comptime fn` runs only at compile time (spec 15.1, 15.5, E0817).
+
+comptime fn square(n: int) int {
+    return n * n
+}
+
+comptime fn fourth(n: int) int {
+    return square(n) * square(n)
+}
+
+fn main() {
+    const a = comptime fourth(2)
+    const b = square(3)   // error[E0817]: `square` is a `comptime fn`: it can only be called from compile-time code
+    println("{a} {b}")
+}
