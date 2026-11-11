@@ -771,6 +771,14 @@ pub fn coerce(c: mut Checker, p: Program, e: &Expr, expected: int) int {
     return found
 }
 
+// `comptime e`: an initializer whose value the interpreter computes.
+fn isComptime(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Comptime(_) => true
+        _ => false
+    }
+}
+
 /**
  * The type of a constant or global, and a constant's value, computed once.
  *
@@ -803,7 +811,9 @@ pub fn checkConst(c: mut Checker, p: Program, id: int) int {
                 ty = checkExpr(c, p, &value, ERROR)
             }
             c.info[id].ty = ty
-            if isConst {
+            if isConst && isComptime(&value) {   // run by the interpreter (spec 15.1)
+                c.info[id].byComptime = true
+            } else if isConst {
                 c.info[id].value = constEval(c, p, &value)   // while `checking`: catches cycles
             } else if ty != ERROR && !c.types.isNumeric(ty) && ty != BOOL {
                 c.unsupported(item.span, "mutable globals of type `{c.typeName(ty)}` are")

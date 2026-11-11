@@ -1,0 +1,15 @@
+// requires: stage1
+// A constant computed by `comptime` code has its value only after type
+// checking (spec 15.1, E0801).
+
+fn five() int {
+    return 5
+}
+
+const N: int = comptime five()
+const M = N + 1   // error[E0801]: `N` is computed by `comptime` code, which runs after type checking: its value cannot be used in a constant or an array length
+
+fn main() {
+    const a: [int; N] = [0; 5]   // error[E0801]: `N` is computed by `comptime` code, which runs after type checking: its value cannot be used in a constant or an array length
+    println("{a.len()} {M}")
+}

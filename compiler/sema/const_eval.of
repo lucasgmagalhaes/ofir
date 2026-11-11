@@ -387,6 +387,18 @@ fn eval(c: mut Checker, p: Program, ev: mut Eval, e: &Expr) Option<ConstValue> {
 }
 
 // The value of a named constant.
+/**
+ * Why the constant `id`, computed by `comptime` code, has no value yet.
+ *
+ * @param c the checker
+ * @param id its `DefId`
+ * @returns the message
+ */
+pub fn byComptimeMessage(c: Checker, id: int) str {
+    return ("`{c.text(c.def(id).name)}` is computed by `comptime` code, which runs after "
+            + "type checking: its value cannot be used in a constant or an array length")
+}
+
 fn constant(c: mut Checker, ev: mut Eval, e: &Expr) Option<ConstValue> {
     const id = match c.res(e.id.0) {
         Res.Def(id) => id
@@ -397,6 +409,9 @@ fn constant(c: mut Checker, ev: mut Eval, e: &Expr) Option<ConstValue> {
         found = c.info[id].value.clone()
     }
     const Option.Some(value) = found else {
+        if id != 0 && c.info[id].byComptime {
+            return fail(c, ev, "E0801", e.span, byComptimeMessage(c, id))
+        }
         return fail(c, ev, "E0801", e.span, "only constants can be used in a constant")
     }
     let out = value

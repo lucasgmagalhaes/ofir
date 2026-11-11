@@ -1,0 +1,12 @@
+// requires: stage1
+// Constants computed by `comptime` code in another module (spec 15.1).
+
+fn squares() [int; 5] {
+    let t: [int; 5] = [0, 0, 0, 0, 0]
+    for i in 0..5 {
+        t[i] = i * i
+    }
+    return t
+}
+
+pub const SQUARES = comptime squares()

@@ -81,6 +81,8 @@ pub struct DefInfo {
     pub variants: Option<Box<EnumInfo>>
     /** A constant's value, when it could be computed. */
     pub value: Option<ConstValue>
+    /** A constant whose value `comptime` code computes, after checking. */
+    pub byComptime: bool
     /** A function that returns a reference (spec 5.6). */
     pub returnsBorrow: bool
     /** The parameter it borrows from; -1 for `self`. */
@@ -959,7 +961,7 @@ pub fn emptyInfo() DefInfo {
     return DefInfo{ty: ERROR, typed: false, checking: false, fields: Option.None,
                    variants: Option.None,
                    value: Option.None, returnsBorrow: false, borrowSource: -1, sourceByRef: false,
-                   cellParams: 0}
+                   cellParams: 0, byComptime: false}
 }
 
 /**
