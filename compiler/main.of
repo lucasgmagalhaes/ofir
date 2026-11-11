@@ -74,6 +74,7 @@ fn printUsage() {
              + "  --release                 optimize the program (as one LLVM module)\n"
              + "  --codegen-units=1         compile the program as one LLVM module\n"
              + "  -j N, --jobs N            run at most N clang processes (default: the cores)\n"
+             + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
              + "  --no-cache                compile every unit, without the object cache\n"
              + "  -g                        write debug info (DWARF: functions, lines)\n"
              + "  --deny-warnings           treat warnings as errors\n"
@@ -112,6 +113,8 @@ struct Options {
     oneUnit: bool
     /** `-j N` or `--jobs N`: at most N clang processes; 0 is the number of cores. */
     jobs: int
+    /** `--test-jobs N`: at most N concurrent tests; 0 uses up to four cores. */
+    testJobs: int
     /** `--no-cache`: neither read nor write the object cache. */
     noCache: bool
     /** `--message-format=human`, `short` or `json`. */
@@ -121,7 +124,8 @@ struct Options {
 fn parseOptions(args: &List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
                        stopAfter: "", release: false, debugInfo: false, deny: false,
-                       locked: false, offline: false, oneUnit: false, jobs: 0, noCache: false,
+                       locked: false, offline: false, oneUnit: false, jobs: 0, testJobs: 0,
+                       noCache: false,
                        format: Format.Human}
     let hasInput = false
     let i = 2
@@ -142,6 +146,13 @@ fn parseOptions(args: &List<str>) Option<Options> {
             } else if (arg == "-j" || arg == "--jobs") && i + 1 < args.len() {
                 opts.jobs = parseCount(args[i + 1])
                 if opts.jobs == 0 {
+                    eprintln("error: `{arg}` needs a positive number, not `{args[i + 1]}`")
+                    return Option.None
+                }
+                i += 1
+            } else if arg == "--test-jobs" && i + 1 < args.len() {
+                opts.testJobs = parseCount(args[i + 1])
+                if opts.testJobs == 0 {
                     eprintln("error: `{arg}` needs a positive number, not `{args[i + 1]}`")
                     return Option.None
                 }
@@ -771,17 +782,56 @@ fn testName(module: str, name: str) str {
     return "{block} (doc test)"
 }
 
-// Each test runs in its own process: the program runs the test whose
-// index it is given. A doc test marked `no_run` was only compiled.
-fn runTests(exe: str, tests: &List<str>) int {
+// A started test, with its output passed on in test declaration order.
+fn waitTest(exe: str, child: move os.Child) int {
+    return match child.wait() {
+        Result.Ok(out) => {
+            print(out.stdout)
+            eprint(out.stderr)
+            const status = if out.status < 0 { 1 } else { out.status }
+            status
+        }
+        Result.Err(_) => {
+            eprintln("error[E0902]: cannot run `{exe}`")
+            1
+        }
+    }
+}
+
+// Each test runs in its own process. Up to `jobs` run together, while their
+// captured output is reported in declaration order. A `no_run` doc test was
+// only compiled.
+fn runTests(exe: str, tests: &List<str>, testJobs: int) int {
+    const cores = os.cpuCount()
+    const jobs = if testJobs > 0 { testJobs } else if cores < 4 { cores } else { 4 }
+    let pending: List<Option<os.Child>> = []
+    let next = 0
     let failed = 0
     for i in 0..tests.len() {
+        for next < tests.len() && pending.len() < jobs {
+            if tests[next].endsWith("(doc test, not run)") {
+                pending.push(Option.None)
+            } else {
+                pending.push(match os.spawn(exe, ["{next}"]) {
+                    Result.Ok(child) => Option.Some(child)
+                    Result.Err(_) => Option.None
+                })
+            }
+            next += 1
+        }
         print("test {tests[i]} ... ")
+        const child = pending.remove(0)
         if tests[i].endsWith("(doc test, not run)") {
             println("ok")
             continue
         }
-        const status = runProgram(exe, ["{i}"])
+        const status = match child {
+            Option.Some(started) => waitTest(exe, started)
+            Option.None => {
+                eprintln("error[E0902]: cannot run `{exe}`")
+                1
+            }
+        }
         if status == 0 {
             println("ok")
         } else {
@@ -823,7 +873,7 @@ fn finish(diags: Diagnostics, map: SourceMap, pipeline: &Pipeline) int {
         const empty: List<str> = []
         status = runProgram(pipeline.exe, empty)
     } else if pipeline.opts.command == "test" {
-        status = runTests(pipeline.exe, &pipeline.tests)
+        status = runTests(pipeline.exe, &pipeline.tests, pipeline.opts.testJobs)
     } else if pipeline.opts.command == "bench" {
         status = runBenches(pipeline.exe, &pipeline.tests)
     }

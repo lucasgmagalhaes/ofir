@@ -102,6 +102,9 @@ fn addWorks() {
 
 - `ofir test` compiles the project with all `@test` functions and runs
   each one in a separate process, so a panic fails only that test.
+- Stage 1 runs up to four tests concurrently by default (or fewer when there
+  are fewer processors). `--test-jobs N` sets the limit; `--test-jobs 1` runs
+  them sequentially. Test output is reported in test declaration order.
 - Tests are excluded from normal builds: test files are not loaded, and a
   `@test` function written in an ordinary file (allowed, but not the
   convention) is not even checked, except for its signature (E0205).
