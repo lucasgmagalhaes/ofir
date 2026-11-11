@@ -75,6 +75,12 @@ project uses [Semantic Versioning](https://semver.org/).
   type; `meta.nameOf<T>()` names a type and `comptime panic("...")` fails
   the instances that keep it (E0363, E0814; spec 15, ADR 0035, roadmap
   6.7a2, stage 1).
+- `comptime for field in meta.fieldsOf<T>()` (or `key in keyof T`)
+  expands its body once per field, in declaration order, with
+  `field.name`, `field.index`, `field.get(value)` and
+  `field.attribute("json")`, the value of a `@tag("json", "...")` on the
+  field; `fieldsOf` needs a struct (E0364), and the unrolled loop has no
+  `break` or `continue` (spec 15.3, roadmap 6.7a3, stage 1).
 
 ### Changed
 
