@@ -1,0 +1,63 @@
+// requires: stage1
+// `comptime for` over `meta.variantsOf<T>()` (spec 15.3): `variant.name`,
+// `variant.index`, `variant.attribute(key)` and `variant.matches(value)`.
+
+import std.meta
+
+enum Color {
+    @tag("json", "red")
+    Red
+    Green
+    @tag("json", "blue")
+    Blue(int)
+}
+
+enum Shape<T> {
+    Dot
+    Circle(T)
+    Rect(T, T)
+}
+
+fn describe<T>(value: &T) str {
+    comptime if meta.isEnum<T>() {
+        comptime for variant in meta.variantsOf<T>() {
+            if variant.matches(value) {
+                return "{variant.index}:{variant.name}:{variant.attribute("json") ?? "-"}"
+            }
+        }
+        return "?"
+    } else {
+        comptime panic("describe: not an enum")
+    }
+}
+
+fn count<T>() int {
+    let n = 0
+    comptime if meta.isEnum<T>() {
+        comptime for _variant in meta.variantsOf<T>() {
+            n += 1
+        }
+    }
+    return n
+}
+
+fn names() {
+    comptime for v in meta.variantsOf<Color>() {
+        comptime if v.index > 0 {
+            print(",")
+        }
+        print(v.name)
+    }
+    println("")
+}
+
+fn main() {
+    println(describe(&Color.Red))
+    println(describe(&Color.Green))
+    const blue = Color.Blue(4)
+    println(describe(&blue))
+    println(describe(&Shape.Rect(1, 2)))
+    println(describe(&Shape.Circle(1.5)))
+    println("{count<Color>()} {count<Shape<str>>()} {count<int>()}")
+    names()
+}
