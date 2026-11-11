@@ -21,7 +21,7 @@ fn config() Config {
     return Config{name: "release-{fib(10)}", level: 3, verbose: false}
 }
 
-const FIB: int = comptime fib(25)
+const FIB: int = comptime fib(15)
 const CONFIG = comptime config()
 const PAIR = comptime (fib(5), "five")
 
