@@ -97,7 +97,8 @@ gets the objects, the runtime and the `@link` libraries.
 
 **The object cache.** The object of a unit is cached in
 `$OFIR_HOME/cache/objects/<hh>/<hash>.o`, where `<hash>` is the SHA-256
-(`driver.sha256`) of everything clang's output depends on:
+of everything clang's output depends on. The runtime hashes the two
+input parts without copying the generated LLVM text:
 
 - the unit's text;
 - the flags given to clang (profile, `-g`, target);
@@ -125,9 +126,9 @@ once for each set of instances.
 **Not in this decision.** The front end still checks and lowers the whole
 program on each build. Caching it, and checking modules on several
 threads, wait until the compiler can use closures, and until the cost of
-the front end is measured again after the back end work. The
-`--time-passes` report of stage 1, which stage 1 accepts but does not
-print yet, is part of the measurement work.
+the front end is measured again after the back end work. The stage 1
+`--time-passes` report measures the front end, lowering, code generation,
+cache hashing and writing, object compilation, and link.
 
 ## Consequences
 
