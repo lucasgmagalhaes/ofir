@@ -1,0 +1,6 @@
+0 id int
+1 name str
+2 home Address
+str
+city 0
+zip 1
