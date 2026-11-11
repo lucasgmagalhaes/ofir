@@ -135,3 +135,14 @@ Wall times include process startup; ratios are relative to C in this run.
 
 This is a CI snapshot, not a release measurement. At each release, append
 results from a fixed machine with the toolchain versions and run count.
+
+## Stage 1 object-cache hashing (local Windows measurement)
+
+Self-build of `compiler/main.of`, warm cache, 32 logical CPUs, clang with
+the MinGW target, debug profile. `--time-passes` showed that computing the
+SHA-256 keys of all codegen units took 3,892 ms before moving this cache
+hash to the C runtime, and a median of 116 ms after (five runs). The
+complete build took 12,633 and 12,742 ms before, and a median of 8,880 ms
+after (five runs). These runs are on one machine; the cache tests and hash
+vectors passed, but a cross-platform benchmark is needed before treating
+the wall-time ratio as a general result.

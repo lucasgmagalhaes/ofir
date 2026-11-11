@@ -47,6 +47,10 @@ import syntax.lexer.tokenize
 import syntax.parser.parse
 import syntax.token_print.printTokens
 
+extern "C" {
+    fn ofir_now_ns() i64
+}
+
 const VERSION: str = "0.5.0"
 
 fn printUsage() {
@@ -117,6 +121,8 @@ struct Options {
     testJobs: int
     /** `--no-cache`: neither read nor write the object cache. */
     noCache: bool
+    /** `--time-passes`: report compilation phase durations. */
+    timePasses: bool
     /** `--message-format=human`, `short` or `json`. */
     format: Format
 }
@@ -125,7 +131,7 @@ fn parseOptions(args: &List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
                        stopAfter: "", release: false, debugInfo: false, deny: false,
                        locked: false, offline: false, oneUnit: false, jobs: 0, testJobs: 0,
-                       noCache: false,
+                       noCache: false, timePasses: false,
                        format: Format.Human}
     let hasInput = false
     let i = 2
@@ -173,7 +179,9 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.format = Format.Human
             } else if arg.startsWith("--stop-after=") && knownPhase(arg.sliceFrom(13)) {
                 opts.stopAfter = arg.sliceFrom(13).toOwned()
-            } else if arg != "--time-passes" {
+            } else if arg == "--time-passes" {
+                opts.timePasses = true
+            } else {
                 eprintln("error: unknown option `{arg}`")
                 return Option.None
             }
@@ -283,6 +291,22 @@ struct Pipeline {
     exe: str
     /** The names of the `@test` (or `@bench`) functions, for `ofir test` (or `bench`). */
     tests: List<str>
+    /** Start of compilation, excluding execution of the compiled program. */
+    totalStart: i64
+}
+
+fn timerStart(enabled: bool) i64 {
+    return if enabled { unsafe { ofir_now_ns() } } else { 0 }
+}
+
+fn timerReport(enabled: bool, phase: str, start: i64) {
+    if enabled {
+        timerReportNanos(phase, unsafe { ofir_now_ns() } - start)
+    }
+}
+
+fn timerReportNanos(phase: str, nanos: i64) {
+    eprintln("time: {phase} {nanos / 1_000_000} ms")
 }
 
 // Writes the diagnostics in the requested format.
@@ -303,16 +327,22 @@ fn driverError(format: Format, code: str, message: str) {
 // exit status.
 fn build(given: move Options) int {
     let opts = given
+    const totalStart = timerStart(opts.timePasses)
     opts.input = testRoot(&opts)
-    let pipeline = Pipeline{opts: opts.clone(), exe: "", tests: []}
+    let pipeline = Pipeline{opts: opts.clone(), exe: "", tests: [], totalStart: totalStart}
     let front = Front{map: SourceMap.new(), names: Interner.new(), diags: Diagnostics.new(),
                       overlays: Map.new(), locked: opts.locked, offline: opts.offline}
     front.diags.denyWarnings = opts.deny
+    let phaseStart = timerStart(opts.timePasses)
     const Option.Some(file) = front.load(opts.input) else {
         driverError(opts.format, "E0900", "cannot read `{opts.input}`")
+        timerReport(opts.timePasses, "total", totalStart)
         return 1
     }
+    timerReport(opts.timePasses, "load", phaseStart)
+    phaseStart = timerStart(opts.timePasses)
     const tokens = tokenize(front.map.file(file).text, file, front.names, front.diags)
+    timerReport(opts.timePasses, "lex", phaseStart)
     if opts.emit == "tokens" {
         print(printTokens(tokens, *front.map.file(file), front.names))
     }
@@ -322,7 +352,9 @@ fn build(given: move Options) int {
     }
     const names = mem.replace(front.names, Interner.new())
     const diags = mem.replace(front.diags, Diagnostics.new())
+    phaseStart = timerStart(opts.timePasses)
     const parsed = parse(file, front.map.file(file).text, tokens, names, diags)
+    timerReport(opts.timePasses, "parse", phaseStart)
     front.names = parsed.names
     front.diags = parsed.diags
     if opts.emit == "ast" {
@@ -338,12 +370,16 @@ fn build(given: move Options) int {
                              bench: benching}
     // Doc tests change the program: not under `--emit`, so that it is stage 0's.
     const docTests = testing && opts.emit == ""
+    phaseStart = timerStart(opts.timePasses)
     let program = loadProgram(opts.input, parsed.module, front, target, docTests)
+    timerReport(opts.timePasses, "modules", phaseStart)
     if front.diags.hasErrors() {
         return finish(front.diags, front.map, &pipeline)
     }
+    phaseStart = timerStart(opts.timePasses)
     let r = resolveProgram(program, front.names, front.diags, front.map, opts.emit == "names",
                            testing || benching, benching, false, "")
+    timerReport(opts.timePasses, "resolve", phaseStart)
     if opts.emit == "names" {
         print(r.trace.out)
         return finish(r.diags, r.map, &pipeline)
@@ -351,8 +387,10 @@ fn build(given: move Options) int {
     if r.diags.hasErrors() {
         return finish(r.diags, r.map, &pipeline)
     }
+    phaseStart = timerStart(opts.timePasses)
     desugarInterfaceParams(program, r)
     let c = checkProgram(program, r)
+    timerReport(opts.timePasses, "check", phaseStart)
     if opts.emit == "types" {
         print(traceTypes(c, program))
         return finish(c.r.diags, c.r.map, &pipeline)
@@ -363,6 +401,7 @@ fn build(given: move Options) int {
     const ok = backend(c, program, pipeline)
     if !ok && !c.r.diags.hasErrors() {
         render(c.r.diags, c.r.map, opts.format)
+        timerReport(opts.timePasses, "total", totalStart)
         return 1
     }
     return finish(c.r.diags, c.r.map, &pipeline)
@@ -372,6 +411,7 @@ fn build(given: move Options) int {
 // LLVM IR and links it with clang. Returns false if a step failed.
 fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     const opts = pipeline.opts.clone()
+    let phaseStart = timerStart(opts.timePasses)
     let l = lowerProgram(c, program)
     if l.unsupported {
         driverError(opts.format, "E0901", "stage 1 does not compile {l.missing} yet")
@@ -384,6 +424,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     for i in 0..l.out.len() {
         foldChecks(c, l.out[i])
     }
+    timerReport(opts.timePasses, "lower", phaseStart)
     for i in 0..l.tests.len() {
         const def = c.def(l.tests[i])
         pipeline.tests.push(testName(c.r.moduleNames[def.module], c.text(def.name)))
@@ -403,7 +444,10 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     if opts.emit == "llvm" || opts.oneUnit || opts.release {
         const ll = "{exe}.ll"
         files.push(ll.clone())
+        phaseStart = timerStart(opts.timePasses)
         const text = generate(c, program, &l.out, opts.debugInfo, opts.release)
+        timerReport(opts.timePasses, "codegen", phaseStart)
+        phaseStart = timerStart(opts.timePasses)
         const salt = if opts.noCache || opts.emit == "llvm" {
             "".toOwned()
         } else {
@@ -416,24 +460,43 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
             driverError(opts.format, "E0902", "cannot write `{ll}`")
             return false
         }
+        timerReport(opts.timePasses, "cache+write", phaseStart)
     } else {   // a module for each codegen unit (ADR 0033)
+        phaseStart = timerStart(opts.timePasses)
         const units = generateUnits(c, program, &l.out, opts.debugInfo, opts.release)
+        timerReport(opts.timePasses, "codegen", phaseStart)
+        phaseStart = timerStart(opts.timePasses)
+        let hashNanos: i64 = 0
+        let writeNanos: i64 = 0
         const salt = if opts.noCache || opts.emit == "llvm" || units.len() < 2 {
             "".toOwned()
         } else {
             object_cache.cacheSalt(clangPath(), &clangFlags(&opts))
         }
         for k in 0..units.len() {
+            const hashStart = timerStart(opts.timePasses)
             if salt.len() > 0 {
                 cached.push(object_cache.objectPath(salt, units[k].text))
             }
+            if opts.timePasses {
+                hashNanos += unsafe { ofir_now_ns() } - hashStart
+            }
             const ll = "{exe}.{k}.ll"
             files.push(ll.clone())
+            const writeStart = timerStart(opts.timePasses)
             if fs.writeString(ll, units[k].text).isErr() {
                 driverError(opts.format, "E0902", "cannot write `{ll}`")
                 removeFiles(&files)
                 return false
             }
+            if opts.timePasses {
+                writeNanos += unsafe { ofir_now_ns() } - writeStart
+            }
+        }
+        timerReport(opts.timePasses, "cache+write", phaseStart)
+        if opts.timePasses {
+            timerReportNanos("hash", hashNanos)
+            timerReportNanos("write", writeNanos)
         }
     }
     if c.r.diags.hasErrors() {   // the lowering reported errors
@@ -543,6 +606,7 @@ fn runtimeLibrary() Option<str> {
 // where the object of each unit is cached (ADR 0033).
 fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
         libraries: List<str>) bool {
+    let phaseStart = timerStart(opts.timePasses)
     const Option.Some(runtime) = runtimeLibrary() else {
         const message = "cannot find the runtime library libofir_rt.a (set OFIR_RUNTIME)"
         driverError(opts.format, "E0902", message)
@@ -554,11 +618,14 @@ fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
     if files.len() > 1 || cached.len() > 0 {   // compiled apart, then linked (ADR 0033)
         const tag = object_cache.tempTag(exe)
         if !compileUnits(opts, clang, files, cached, tag, objects, hits) {
+            timerReport(opts.timePasses, "objects", phaseStart)
             removeObjects(&objects, cached)
             driverError(opts.format, "E0902", "clang failed to compile the generated code")
             return false
         }
     }
+    timerReport(opts.timePasses, "objects", phaseStart)
+    phaseStart = timerStart(opts.timePasses)
     let inputs = if objects.len() > 0 { objects.clone() } else { files.clone() }
     let ok = linkObjects(opts, clang, &inputs, runtime, &libraries, exe, hits.len() > 0)
     if !ok && hits.len() > 0 {   // a cached object may be bad: compile those units again
@@ -581,6 +648,7 @@ fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
         }
         removeFiles(&fresh)
     }
+    timerReport(opts.timePasses, "link", phaseStart)
     removeObjects(&objects, cached)
     if !ok {
         driverError(opts.format, "E0902", "clang failed to compile the generated code")
@@ -862,6 +930,7 @@ fn runBenches(exe: str, benches: &List<str>) int {
 // The diagnostics, then the program or its tests.
 fn finish(diags: Diagnostics, map: SourceMap, pipeline: &Pipeline) int {
     render(diags, map, pipeline.opts.format)
+    timerReport(pipeline.opts.timePasses, "total", pipeline.totalStart)
     if diags.hasErrors() {
         return 1
     }
