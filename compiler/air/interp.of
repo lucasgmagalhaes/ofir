@@ -52,6 +52,9 @@ import syntax.ast.Op
 /** Calls deeper than this are E0816: each one takes about 32 KiB of the compiler's stack. */
 const MAX_DEPTH: int = 128
 
+/** The `frame` of a pointer into the compile-time heap; `local` is its block, -1 when null. */
+const HEAP: int = -1
+
 copy enum ValueKind {
     /** Not written yet. */
     Uninit
@@ -139,14 +142,15 @@ fn fetch(v: Value, path: List<int>, at: int) Value {
 }
 
 // Writes `x` at `path` from `at` into `v`, making the parts it needs.
-// Returns false for a write into a str's fields.
+// Returns false for a write into a str's fields other than its capacity,
+// which a borrow sets to 0 and the interpreter does not keep.
 fn store(v: mut Value, path: List<int>, at: int, x: move Value) bool {
     if at == path.len() {
         v = x
         return true
     }
     if v.kind == ValueKind.Str {
-        return false
+        return path[at] == 2 && at + 1 == path.len()
     }
     if v.kind != ValueKind.Agg {
         v = blank(ValueKind.Agg)
@@ -178,6 +182,8 @@ struct Interp {
     message: str
     /** The names of the enclosing function's locals, empty for temporaries. */
     outer: List<str>
+    /** The blocks that `ofir_alloc` made: each an aggregate of its elements. */
+    heap: List<Value>
 }
 
 fn fail(it: mut Interp, code: str, message: move str) {
@@ -205,6 +211,10 @@ fn placeOf(it: mut Interp, frame: int, local: int, path: FieldPath) Place {
             unsupported(it, "this pointer")
             return place
         }
+        if it.frames[frame][local].frame == HEAP && it.frames[frame][local].local < 0 {
+            evalFailed(it, "a read through a null pointer")
+            return place
+        }
         place.frame = it.frames[frame][local].frame
         place.local = it.frames[frame][local].local
         place.path = it.frames[frame][local].path.clone()
@@ -216,10 +226,19 @@ fn placeOf(it: mut Interp, frame: int, local: int, path: FieldPath) Place {
 }
 
 fn read(it: Interp, place: Place) Value {
+    if place.frame == HEAP {
+        return fetch(it.heap[place.local], place.path, 0)
+    }
     return fetch(it.frames[place.frame][place.local], place.path, 0)
 }
 
 fn write(it: mut Interp, place: Place, x: move Value) {
+    if place.frame == HEAP {
+        if !store(it.heap[place.local], place.path, 0, x) {
+            unsupported(it, "a write into the fields of a str")
+        }
+        return
+    }
     if !store(it.frames[place.frame][place.local], place.path, 0, x) {
         unsupported(it, "a write into the fields of a str")
     }
@@ -319,6 +338,9 @@ fn binary(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
     const b = operand(it, c, frame, r.b)
     if it.failed {
         return blank(ValueKind.Uninit)
+    }
+    if a.kind == ValueKind.Ptr || b.kind == ValueKind.Ptr {
+        return pointerBinary(it, r.op, a, b)
     }
     const ty = r.a.ty
     if isFloat(c, ty) {
@@ -520,6 +542,9 @@ fn cast(it: mut Interp, c: Checker, v: Value, from: int, to: int) Value {
     if (target == TyKind.Ptr || target == TyKind.Ref) && v.kind == ValueKind.Ptr {
         return v.clone()
     }
+    if target == TyKind.Ptr && source == TyKind.Int && v.bits == 0 {
+        return heapPointer(-1)
+    }
     unsupported(it, "this cast")
     return blank(ValueKind.Uninit)
 }
@@ -615,6 +640,8 @@ fn evaluate(it: mut Interp, c: Checker, frame: int, r: Rvalue) Value {
             v
         }
         RvalueKind.PtrAdd => ptrAdd(it, c, frame, r)
+        RvalueKind.SizeOf => intValue(1 as u64)   // the heap counts elements (spec 15.5)
+        RvalueKind.AlignOf => intValue(1 as u64)
         _ => {
             unsupported(it, "this operation")
             blank(ValueKind.Uninit)
@@ -829,8 +856,105 @@ fn isHeap(name: str) bool {
            name == "memcpy" || name == "memcmp"
 }
 
+// A pointer to the first element of heap block `block`, or null for -1.
+fn heapPointer(block: int) Value {
+    let v = blank(ValueKind.Ptr)
+    v.frame = HEAP
+    v.local = block
+    v.path = [0]
+    v.elem = true
+    return v
+}
+
+// `==` and `!=` of two pointers: the same part of the same local or block.
+fn pointerBinary(it: mut Interp, op: Op, a: Value, b: Value) Value {
+    let same = a.kind == b.kind && a.frame == b.frame && a.local == b.local &&
+               a.path.len() == b.path.len()
+    for i in 0..a.path.len() {
+        if same && a.path[i] != b.path[i] {
+            same = false
+        }
+    }
+    return match op {
+        Op.Eq => boolValue(same)
+        Op.Ne => boolValue(!same)
+        _ => {
+            unsupported(it, "this pointer operation")
+            blank(ValueKind.Uninit)
+        }
+    }
+}
+
+// The place of element `i` after the one that the element pointer `p` names.
+fn elemPlace(p: Value, i: int) Place {
+    let place = Place{frame: p.frame, local: p.local, path: p.path.clone()}
+    const last = place.path.len() - 1
+    place.path[last] = place.path[last] + i
+    return place
+}
+
+// Copies `n` elements from `src` to `dst`; the ranges may overlap.
+fn copySlots(it: mut Interp, dst: Value, src: Value, n: int) {
+    let values: List<Value> = []
+    for i in 0..n {
+        values.push(read(it, elemPlace(src, i)))
+    }
+    for i in 0..n {
+        write(it, elemPlace(dst, i), values[i].clone())
+    }
+}
+
+// A heap function of std (`isHeap`). A block holds whole elements, so the
+// sizes passed in, which `sizeOf` makes, count elements (spec 15.5).
+fn heapCall(it: mut Interp, c: Checker, frame: int, s: AirStmt, name: str) {
+    if name == "ofir_alloc" || name == "ofir_alloc_aligned" {
+        it.heap.push(blank(ValueKind.Agg))
+        assign(it, frame, s, heapPointer(it.heap.len() - 1))
+        return
+    }
+    const first = operand(it, c, frame, s.args[0])
+    if it.failed {
+        return
+    }
+    if first.kind != ValueKind.Ptr || first.frame != HEAP || !first.elem {
+        unsupported(it, "this pointer")
+        return
+    }
+    if name == "ofir_realloc" || name == "ofir_realloc_aligned" {
+        if first.local < 0 {
+            it.heap.push(blank(ValueKind.Agg))
+            assign(it, frame, s, heapPointer(it.heap.len() - 1))
+        } else {
+            assign(it, frame, s, first)   // a block grows as it is written
+        }
+        return
+    }
+    if name == "ofir_free" {
+        if first.local >= 0 {
+            it.heap[first.local] = blank(ValueKind.Uninit)
+        }
+        return
+    }
+    if name == "memmove" || name == "memcpy" {
+        const src = operand(it, c, frame, s.args[1])
+        const n = operand(it, c, frame, s.args[2]).bits.wrappingCast<i64>()
+        if it.failed {
+            return
+        }
+        if src.kind != ValueKind.Ptr || src.frame != HEAP || !src.elem {
+            unsupported(it, "this pointer")
+            return
+        }
+        copySlots(it, first, src, n)
+        assign(it, frame, s, first)
+        return
+    }
+    unsupported(it, "`{name}`")
+}
+
 // A call of a function with no body: an `extern` function.
-fn noBody(it: mut Interp, c: Checker, p: Program, def: int) {
+fn noBody(it: mut Interp, c: Checker, p: Program, frame: int, s: AirStmt) {
+    const def = s.callee
     if def <= 0 || c.def(def).kind != DefKind.Fn || c.def(def).member < 0 {
         unsupported(it, "this call")
         return
@@ -843,7 +967,7 @@ fn noBody(it: mut Interp, c: Checker, p: Program, def: int) {
     if !isExtern {
         unsupported(it, "this call")
     } else if isHeap(name) {
-        unsupported(it, "heap memory")
+        heapCall(it, c, frame, s, name)
     } else {
         fail(it, "E0815", "compile-time code cannot call the extern function `{name}`")
     }
@@ -854,11 +978,6 @@ fn call(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: i
     if s.callee == GLUE_DROP {
         return
     }
-    if s.callee == GLUE_CLONE {
-        const v = pointee(it, c, frame, s.args[0])
-        assign(it, frame, s, v)
-        return
-    }
     if s.callee > 0 && isStrMethod(c, s.callee) && strMethod(it, c, frame, s) {
         return
     }
@@ -866,8 +985,13 @@ fn call(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: i
         Option.Some(i) => *i
         Option.None => -1
     }
+    if s.callee == GLUE_CLONE && index < 0 {   // plain data: a copy
+        const v = pointee(it, c, frame, s.args[0])
+        assign(it, frame, s, v)
+        return
+    }
     if index < 0 {
-        noBody(it, c, p, s.callee)
+        noBody(it, c, p, frame, s)
         return
     }
     if it.frames.len() > MAX_DEPTH {
@@ -1124,7 +1248,7 @@ pub fn evalComptimes(l: mut Lowerer, c: mut Checker, p: Program) {
         return
     }
     let it = Interp{bodies: Map.new(), frames: [], steps: 0, budget: 0, failed: false, code: "",
-                    message: "", outer: []}
+                    message: "", outer: [], heap: []}
     for i in 0..l.out.len() {
         if l.out[i].closure.isNone() {
             it.bodies.insert(l.out[i].def * 4294967296 + l.out[i].targs, i)
@@ -1159,6 +1283,7 @@ fn evalRegion(l: mut Lowerer, c: mut Checker, p: Program, it: mut Interp, r: int
     it.steps = 0
     it.budget = l.comptimes[r].budget
     it.failed = false
+    it.heap = []
     run(it, c, p, l.out, b, 0, start, after)
     if it.failed {
         c.error(it.code, span, it.message.clone())

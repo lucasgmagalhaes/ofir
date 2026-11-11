@@ -8,8 +8,8 @@ each instance (ADR 0035). Stage 1 implements the `std.meta` predicates,
 `meta.nameOf`, `comptime if`, `comptime panic` and `comptime for` over
 `keyof T`, `meta.fieldsOf<T>()` and `meta.variantsOf<T>()` with `@tag`,
 `comptime` expressions, `comptime fn` and module-level
-`const X = comptime f()`, run by an AIR interpreter (15.5); compile-time
-heap allocation is planned (roadmap 6.7a7).
+`const X = comptime f()`, run by an AIR interpreter (15.5), with heap
+allocation (`List`, `Map`, `Box`, `str`) inside `comptime` code.
 
 Goals:
 
@@ -190,6 +190,10 @@ meanings of chapter 12.1.
 - The value of a `comptime` expression is a number, `bool`, `str`, array,
   tuple, struct or enum of those (E0818); what its functions allocate does
   not escape.
+- `comptime` code may allocate: `List`, `Map`, `Box` and `str` work as at
+  run time. The compiler's heap holds values, not bytes, so there
+  `sizeOf<T>()` and `alignOf<T>()` are 1 for every type, and the sizes
+  passed to the allocation functions of std count elements.
 - Compile-time execution has a step budget (default 10 million operations,
   configurable with `@comptimeBudget(n)` on the enclosing declaration), so
   a buggy loop is a compile error instead of a hang. A panic, an

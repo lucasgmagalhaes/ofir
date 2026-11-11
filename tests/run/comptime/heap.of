@@ -1,0 +1,86 @@
+// requires: stage1
+// Compile-time heap allocation (spec 15.5): `List`, `Map` and `Box` work
+// inside `comptime` code; only plain data leaves it.
+
+fn primes(n: int) [int; 5] {
+    let found: List<int> = []
+    let k = 2
+    for found.len() < n {
+        let prime = true
+        for i in 0..found.len() {
+            if k % found[i] == 0 {
+                prime = false
+            }
+        }
+        if prime {
+            found.push(k)
+        }
+        k += 1
+    }
+    let out: [int; 5] = [0, 0, 0, 0, 0]
+    for i in 0..5 {
+        out[i] = found[i]
+    }
+    return out
+}
+
+fn sorted() (int, int) {
+    let xs = [9, 3, 7, 1]
+    xs.sort()
+    xs.insert(2, 5)
+    return (xs[0], xs[2])
+}
+
+fn words() str {
+    let ws: List<str> = []
+    ws.push("b".toOwned())
+    ws.push("a".toOwned())
+    ws.insert(0, "c".toOwned())
+    ws.sort()
+    let out = "".toOwned()
+    for w in ws.iter() {
+        out.push(w)
+    }
+    return out
+}
+
+fn counts() (int, int) {
+    let m: Map<str, int> = Map.new()
+    for w in ["x", "y", "x", "z", "x"] {
+        const k = *(m.get(w) ?? &0) + 1
+        m.insert(w.toOwned(), k)
+    }
+    return (*(m.get("x") ?? &0), m.len())
+}
+
+fn grid() int {
+    let rows: List<List<int>> = []
+    for i in 0..3 {
+        let row: List<int> = []
+        for j in 0..3 {
+            row.push(i * j)
+        }
+        rows.push(row)
+    }
+    const twin = rows.clone()
+    rows[2][2] = 100
+    return rows[2][2] + twin[2][2]
+}
+
+fn boxed() int {
+    const b = Box.new(41)
+    return *b + 1
+}
+
+const PRIMES = comptime primes(5)
+const SORTED = comptime sorted()
+const WORDS = comptime words()
+const COUNTS = comptime counts()
+
+fn main() {
+    println("{PRIMES[0]} {PRIMES[4]}")
+    println("{SORTED.0} {SORTED.1}")
+    println(WORDS)
+    println("{COUNTS.0} {COUNTS.1}")
+    println("{comptime grid()} {comptime boxed()}")
+}
