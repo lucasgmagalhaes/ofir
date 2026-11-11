@@ -20,6 +20,7 @@ import sema.check.itemTypeParams
 import sema.check_box.autoDeref
 import sema.check_box.methodReceiver
 import sema.check_comptime_for.comptimeMember
+import sema.check_comptime_for.comptimeVariantGet
 import sema.check_keys.keyIndex
 import sema.check_keys.paramKey
 import sema.check_generic.checkGenericArgs
@@ -588,7 +589,7 @@ fn builtinConst(c: Checker, ty: int, name: Symbol) bool {
 pub fn checkField(c: mut Checker, p: Program, e: &Expr, base: &Expr, name: Symbol,
                   expected: int) int {
     const member = comptimeMember(c, e, base, name)
-    if member != 0 {   // `field.name` in a `comptime for`
+    if member >= 0 {   // `field.name` in a `comptime for`
         return member
     }
     const owner = typeNameOf(c, base)
@@ -631,6 +632,10 @@ pub fn checkField(c: mut Checker, p: Program, e: &Expr, base: &Expr, name: Symbo
 pub fn checkIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, index: &Expr) int {
     if const ExprKind.Range(_, _, _) = index.kind {
         return checkRangeIndex(c, p, e, base, index)
+    }
+    if comptimeVariantGet(c, e, index) {
+        checkExpr(c, p, base, ERROR)
+        return ERROR
     }
     const found = checkExpr(c, p, base, ERROR)
     const ty = autoDeref(c, p, base, found)
