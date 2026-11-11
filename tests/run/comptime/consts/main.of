@@ -1,0 +1,46 @@
+// requires: stage1
+// `const X = comptime f()` (spec 15.1): the interpreter computes the
+// value, which may be any `comptime` value, not only a scalar.
+
+import tables
+
+struct Config {
+    name: str
+    level: int
+    verbose: bool
+}
+
+fn fib(n: int) int {
+    if n < 2 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+fn config() Config {
+    return Config{name: "release-{fib(10)}", level: 3, verbose: false}
+}
+
+const FIB: int = comptime fib(25)
+const CONFIG = comptime config()
+const PAIR = comptime (fib(5), "five")
+
+comptime fn doubled() int {
+    return FIB * 2
+}
+
+fn total() int {
+    let sum = 0
+    for i in 0..5 {
+        sum += tables.SQUARES[i]
+    }
+    return sum
+}
+
+fn main() {
+    println("{FIB}")
+    println("{CONFIG.name} {CONFIG.level} {CONFIG.verbose}")
+    println("{PAIR.0} {PAIR.1}")
+    println("{comptime doubled()}")
+    println("{total()} {tables.SQUARES[4]}")
+}
