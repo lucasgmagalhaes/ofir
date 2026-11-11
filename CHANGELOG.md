@@ -67,6 +67,14 @@ project uses [Semantic Versioning](https://semver.org/).
 - Labeled loops: `name: for ...`, left from an inner loop with
   `break name` or `continue name`; E0323 and E0324 report a label that no
   enclosing loop has or that one already uses (roadmap 6.7, stage 1).
+- Compile-time code, first step: `comptime if` keeps the branch whose
+  condition holds for each instance of a generic function, and narrows
+  its type parameters with the `std.meta` predicates (`isInteger`,
+  `isSigned`, `isFloat`, `isStruct`, `isEnum`, `implements<T, I>`), so a
+  numeric `T` takes the operators, literals and casts of its concrete
+  type; `meta.nameOf<T>()` names a type and `comptime panic("...")` fails
+  the instances that keep it (E0363, E0814; spec 15, ADR 0035, roadmap
+  6.7a2, stage 1).
 
 ### Changed
 
