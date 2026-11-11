@@ -1,0 +1,35 @@
+// requires: stage1
+// `comptime for` over `meta.fieldsOf<T>()` with `field.attribute`: the
+// `toJson` of spec 15.3.
+
+import std.meta
+
+pub fn toJson<T>(value: T, out: mut str) {
+    comptime if meta.isInteger<T>() || meta.isFloat<T>() {
+        out.push("{value}")
+    } else comptime if meta.isStruct<T>() {
+        out.push("\{")
+        comptime for field in meta.fieldsOf<T>() {
+            comptime if field.index > 0 {
+                out.push(",")
+            }
+            out.push("\"{field.attribute("json") ?? field.name}\":")
+            toJson(field.get(value), out)
+        }
+        out.push("\}")
+    } else {
+        comptime panic("toJson: unsupported type {meta.nameOf<T>()}")
+    }
+}
+
+struct User {
+    @tag("json", "user_id")
+    id: int
+    age: int
+}
+
+fn main() {
+    let out = ""
+    toJson(User{id: 7, age: 30}, out)
+    println(out)
+}
