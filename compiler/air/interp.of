@@ -249,7 +249,8 @@ fn operand(it: mut Interp, c: Checker, frame: int, o: Operand) Value {
                 if place.frame == 0 && named {
                     const name = it.outer[place.local].clone()
                     fail(it, "E0815",
-                         "compile-time code cannot read `{name}`: its value exists only at run time")
+                         "compile-time code cannot read `{name}`: " +
+                         "its value exists only at run time")
                 } else {
                     unsupported(it, "a read of this value")
                 }
