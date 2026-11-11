@@ -61,6 +61,8 @@ pub struct Parser {
     pub typeBounds: List<WherePred>
     /** The interfaces asserted by the struct or enum being parsed. */
     pub typeAsserts: List<TypeExpr>
+    /** The variables of the enclosing `comptime for` loops: `field.get(v)` is `v[field]`. */
+    pub comptimeNames: List<Symbol>
 
     /**
      * Numbers a new node.
@@ -423,7 +425,7 @@ pub fn parseFrom(file: FileId, src: str, tokens: move List<Token>, names: move I
                         infer: names.find("infer"), send: names.find("Send")}
     let p = Parser{tokens: kept, pos: 0, src: src.sliceFrom(0), noStructLiteral: false,
                    typeTests: false, recovering: false, names, diags, words, nextId: firstId,
-                   typeBounds: [], typeAsserts: []}
+                   typeBounds: [], typeAsserts: [], comptimeNames: []}
     const items = if docTest { docTestItems(p) } else { moduleItems(p) }
     const module = Module{file, nodeCount: p.nextId, docs, items}
     return ParseResult{module, names: p.names, diags: p.diags}
