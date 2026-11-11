@@ -115,7 +115,7 @@ The values of a mapped type are built and read field by field with
 compile-time loops over keys (chapter 15):
 
 ```ofir
-fn merge<T>(base: T, patch: Partial<T>) T {
+fn merge<T>(base: move T, patch: move Partial<T>) T {
     let out = base
     comptime for key in keyof T {
         if const Option.Some(value) = patch[key] {

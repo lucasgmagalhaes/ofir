@@ -18,6 +18,7 @@ import base.span.Span
 import diag.noSpan
 import sema.c_symbols.checkCSymbols
 import sema.call_args.checkDefaults
+import sema.check_mapped.MappedTpl
 import sema.check_ref.checkBorrowSource
 import sema.check_stmt.checkBlock
 import sema.check_unsafe.checkCSignature
@@ -555,6 +556,11 @@ pub struct Checker {
     /** The struct of each instance of a mapped type (spec 16.4), by the mapped type's
      * file and offset and a tuple of the types in scope. */
     pub mapped: Map<(int, int, int), int>
+    /** The mapped type aliases used over type parameters, by `DefId`. */
+    pub mappedTpls: Map<int, MappedTpl>
+    /** The alias and arguments of each struct of a mapped type, as a tuple type, by
+     * `DefId`: for inference. */
+    pub mappedArgs: Map<int, (int, int)>
     /** The names of the `infer` placeholders of the pattern being resolved (spec 16.5). */
     pub inferNames: List<Symbol>
     /** Whether a pattern of a conditional type is being resolved. */
@@ -848,6 +854,12 @@ pub struct Checker {
                 out.push("]")
             }
             TyKind.Value => out.push("{t.data}")
+            TyKind.Mapped => {
+                out.push(self.text(self.def(t.data).name))
+                out.push("<")
+                self.appendList(out, &t.args, qualified)
+                out.push(">")
+            }
         }
     }
 }
@@ -1021,7 +1033,8 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
                    fnNode: -1, fnDef: 0,
                    shorthandSpan: noSpan(), closures: [], closureMoves: [], capturesMut,
                    boundArgs: Map.new(), typeVars: [], typeVarTypes: [], aliasDef: 0,
-                   mapped: Map.new(), inferNames: [], inferring: false, unions: Map.new(),
+                   mapped: Map.new(), mappedTpls: Map.new(),
+                   mappedArgs: Map.new(), inferNames: [], inferring: false, unions: Map.new(),
                    unionDefs: Map.new(), comptimeInfo: Map.new(), comptimeLoops: []}
 }
 

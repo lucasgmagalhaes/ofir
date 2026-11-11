@@ -21,8 +21,24 @@ import sema.structs.StructInfo
 import sema.types.ERROR
 import sema.types.KeyFields
 import sema.types.TyKind
+import std.mem
 import syntax.ast.ItemKind
 import syntax.ast.TypeExpr
+
+/**
+ * A mapped type alias over its own parameters, expanded for each instance
+ * whose arguments have a parameter (spec 16.4).
+ */
+pub copy struct MappedTpl {
+    /** The mapped type: with the arguments, the key of its instances in `Checker.mapped`. */
+    pub span: Span
+    /** `Keys`, over the alias parameters. */
+    pub keys: int
+    /** The field type, over the alias parameters and `K` after them. */
+    pub field: int
+    /** `?:`: each field defaults to `Option.None`. */
+    pub optional: bool
+}
 
 /**
  * `{ [K in Keys]: F }`: the struct of this instance, made once.
@@ -47,7 +63,7 @@ pub fn mappedType(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys:
         return ERROR
     }
     if c.types.get(keyType).hasParam {
-        return c.unsupported(t.span, "mapped types over type parameters are")
+        return deferred(c, p, t, param, keys, filter, optional, field, keyType)
     }
     if c.types.kind(keyType) != TyKind.Key {
         c.error("E0340", keys.span, "a mapped type needs a key type, found "
@@ -92,7 +108,7 @@ pub fn mappedType(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys:
         info.types.push(ty)
         info.defaults.push(optional)
     }
-    const id = mappedStruct(c, t, &scope)
+    const id = mappedStruct(c, c.aliasDef, t.span, &scope)
     let pubs: List<bool> = []
     for _ in 0..fieldNames.len() {
         pubs.push(true)
@@ -101,7 +117,158 @@ pub fn mappedType(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys:
                                     types: info.types.clone()})
     c.info[id].fields = Option.Some(Box.new(info))
     c.mapped.insert(cacheKey, id)
+    if c.typeVarTypes.len() == 0 {
+        c.mappedArgs.insert(id, (c.aliasDef, cacheKey.2))
+    }
     return c.types.adt(id, [])
+}
+
+// An instance whose keys have a parameter: a `Mapped` type, expanded once its
+// arguments are known. Only an alias whose whole body is the mapped type, with
+// no filter, over `keyof` of its parameters.
+fn deferred(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &TypeExpr,
+            filter: &Option<Box<TypeExpr>>, optional: bool, field: &TypeExpr,
+            keyType: int) int {
+    const alias = c.aliasDef
+    const body = match itemOf(p, c.loc(alias)).kind {
+        ItemKind.TypeAlias(_, aliased) => aliased.span
+        _ => t.span
+    }
+    const whole = body.file.0 == t.span.file.0 && body.start == t.span.start
+    const nested = c.typeVarTypes.len() > 0
+    if !whole || filter.isSome() || nested || c.types.kind(keyType) != TyKind.KeyOf {
+        return c.unsupported(t.span, "mapped types over type parameters are")
+    }
+    if c.mappedTpls.get(alias).isNone() {
+        const tpl = template(c, p, t, param, keys, optional, field)
+        if tpl.keys == ERROR || tpl.field == ERROR {
+            return ERROR
+        }
+        c.mappedTpls.insert(alias, tpl)
+    }
+    const args = c.generics.aliasArgs.clone()
+    return c.types.intern(TyKind.Mapped, alias, 0, args)
+}
+
+// The keys and field type of a mapped type over the alias parameters: `K` is
+// the parameter after them, bounded by the keys.
+fn template(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &TypeExpr,
+            optional: bool, field: &TypeExpr) MappedTpl {
+    const savedArgs = mem.replace(c.generics.aliasArgs, [])
+    const n = c.generics.owner.len()
+    const savedKeys = mem.replace(c.generics.keys, List.filled(0, n + 1))
+    const keysTpl = resolveType(c, p, keys)
+    c.generics.keys[n] = keysTpl
+    c.typeVars.push(param)
+    c.typeVarTypes.push(c.types.param(n, param.0))
+    let fieldTpl = resolveType(c, p, field)
+    c.typeVars.pop()
+    c.typeVarTypes.pop()
+    c.generics.keys = savedKeys
+    c.generics.aliasArgs = savedArgs
+    if optional && fieldTpl != ERROR {
+        fieldTpl = c.types.adt(c.r.langItems[2], [fieldTpl])
+    }
+    return MappedTpl{span: t.span, keys: keysTpl, field: fieldTpl, optional}
+}
+
+/**
+ * The struct of a `Mapped` type whose arguments have no parameter, made
+ * once: the same struct as the alias applied to them directly.
+ *
+ * @param c the checker
+ * @param mapped the `Mapped` type
+ * @returns the struct type, or ERROR
+ */
+pub fn expandMapped(c: mut Checker, mapped: int) int {
+    const known = c.types.expandedOf(mapped)
+    if known != 0 {
+        return known
+    }
+    const alias = c.types.get(mapped).data
+    const args = c.types.get(mapped).args.clone()
+    if c.mappedTpls.get(alias).isNone() {
+        return ERROR
+    }
+    const tpl = *c.mappedTpls.get(alias).unwrap()
+    const cacheKey = (tpl.span.file.0, tpl.span.start, c.types.tuple(args.clone()))
+    if const Option.Some(id) = c.mapped.get(cacheKey) {
+        const ty = c.types.adt(*id, [])
+        c.types.setExpanded(mapped, ty)
+        return ty
+    }
+    const keyType = c.types.subst(tpl.keys, args.clone())
+    if c.types.kind(keyType) != TyKind.Key {
+        return ERROR
+    }
+    let info = StructInfo{names: [], types: [], defaults: [], isTuple: false, isCopy: false}
+    const names = c.types.keyNames(keyType)
+    let pubs: List<bool> = []
+    for i in 0..names.len() {
+        let fieldArgs = args.clone()
+        fieldArgs.push(c.types.keys([names[i]]))
+        const ty = c.types.subst(tpl.field, fieldArgs)
+        info.names.push(Symbol(names[i]))
+        info.types.push(ty)
+        info.defaults.push(tpl.optional)
+        pubs.push(true)
+    }
+    const id = mappedStruct(c, alias, tpl.span, &args)
+    c.types.setFields(id, KeyFields{module: c.def(alias).module, isTuple: false,
+                                    names: names.clone(), pubs, types: info.types.clone()})
+    c.info[id].fields = Option.Some(Box.new(info))
+    c.mapped.insert(cacheKey, id)
+    c.mappedArgs.insert(id, (alias, cacheKey.2))
+    const ty = c.types.adt(id, [])
+    c.types.setExpanded(mapped, ty)
+    return ty
+}
+
+/**
+ * `subst`, expanding the mapped types it makes known.
+ *
+ * @param c the checker
+ * @param ty a type
+ * @param args the type arguments
+ * @returns the substituted type
+ */
+pub fn substType(c: mut Checker, ty: int, args: [int]) int {
+    const out = c.types.subst(ty, args)
+    if !c.types.hasPending() {
+        return out
+    }
+    for c.types.hasPending() {
+        const pending = c.types.takePending()
+        for i in 0..pending.len() {
+            expandMapped(c, pending[i])
+        }
+    }
+    return c.types.subst(ty, args)
+}
+
+/**
+ * `M[K]` for an instance of a mapped type with a parameter, when `K` is
+ * bounded by its keys.
+ *
+ * @param c the checker
+ * @param base `M`, a `Mapped` type
+ * @param key `K`
+ * @param bound the key bound of `K`
+ * @returns the field type, or 0
+ */
+pub fn mappedIndexType(c: mut Checker, base: int, key: int, bound: int) int {
+    const alias = c.types.get(base).data
+    if c.mappedTpls.get(alias).isNone() {
+        return 0
+    }
+    const tpl = *c.mappedTpls.get(alias).unwrap()
+    const args = c.types.get(base).args.clone()
+    if c.types.subst(tpl.keys, args.clone()) != bound {
+        return 0
+    }
+    let fieldArgs = args
+    fieldArgs.push(key)
+    return c.types.subst(tpl.field, fieldArgs)
 }
 
 // Whether a mapped type keeps the current key: 1, 0, or -1 after an error.
@@ -118,8 +285,7 @@ fn keep(c: mut Checker, p: Program, filter: &Option<Box<TypeExpr>>) int {
 
 // A new struct declaration for an instance, named by its alias and the types
 // in scope: `Partial<Point>`.
-fn mappedStruct(c: mut Checker, t: &TypeExpr, scope: &List<int>) int {
-    const alias = c.aliasDef
+fn mappedStruct(c: mut Checker, alias: int, span: Span, scope: &List<int>) int {
     let name = c.text(c.def(alias).name).toOwned()
     if scope.len() > 0 {
         name.push("<")
@@ -135,7 +301,7 @@ fn mappedStruct(c: mut Checker, t: &TypeExpr, scope: &List<int>) int {
     const module = c.def(alias).module
     const item = c.def(alias).item
     const isPub = c.def(alias).isPub
-    c.r.defs.push(Def{kind: DefKind.Struct, name: symbol, span: t.span, isPub, inPrelude: false,
+    c.r.defs.push(Def{kind: DefKind.Struct, name: symbol, span, isPub, inPrelude: false,
                       lang: false, module, item, member: -1, target: 0, primitive: 0})
     c.info.push(emptyInfo())
     return c.r.defs.len() - 1

@@ -3,6 +3,8 @@
 struct Point {
     x: float
 }
-type Partial<T> = { [K in keyof T]?: T[K] }   // error[E0901]: mapped types over type parameters are not supported yet
-fn generic<T>(p: Partial<T>) {}
+type Pick<T, K: keyof T> = { [P in K]: T[P] }   // error[E0901]: mapped types over type parameters are not supported yet
+type Ints<T> = { [K in keyof T if T[K] is int]: T[K] }   // error[E0901]: mapped types over type parameters are not supported yet
+fn generic<T, K: keyof T>(p: Pick<T, K>) {}
+fn filtered<T>(p: Ints<T>) {}
 fn inline(p: { [K in .a]: int }) {}   // error[E0901]: mapped types outside a type alias are not supported yet

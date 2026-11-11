@@ -102,6 +102,9 @@ project uses [Semantic Versioning](https://semver.org/).
   roadmap 6.7a7, stage 1).
 - A faster `comptime` interpreter: ten million steps now take about 2.5
   seconds instead of 15 (roadmap 6.7a8, stage 1).
+- Mapped types over type parameters: `fn merge<T>(base: move T, patch:
+  move Partial<T>) T` merges a patch field by field with `comptime for`
+  (spec 16.6, roadmap 6.7b1, stage 1).
 
 ### Changed
 

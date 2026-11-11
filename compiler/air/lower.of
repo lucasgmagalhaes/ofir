@@ -59,6 +59,7 @@ import diag.noSpan
 import sema.check.Checker
 import sema.check.checkLate
 import sema.check.fnOf
+import sema.check_mapped.substType
 import sema.check_types.fnSignature
 import sema.def.DefKind
 import sema.types.I64
@@ -449,7 +450,7 @@ pub fn concreteType(l: Lowerer, c: mut Checker, ty: int) int {
         return ty
     }
     const args = c.types.get(l.body.targs).args.clone()
-    return c.types.subst(ty, args)
+    return substType(c, ty, args)
 }
 
 /**
@@ -1065,7 +1066,7 @@ fn reachGlue(l: mut Lowerer, glue: int, targs: int) {
 }
 
 fn substOperand(c: mut Checker, o: mut Operand, args: &List<int>) {
-    o.ty = c.types.subst(o.ty, args.clone())
+    o.ty = substType(c, o.ty, args.clone())
     substPath(c, o.path, args)
 }
 
@@ -1078,8 +1079,8 @@ fn resolveKeys(c: mut Checker, fields: mut List<int>, args: &List<int>) {
     for i in 0..fields.len() {
         const index = keyFieldType(fields[i])
         if index >= 0 {
-            const base = c.types.subst(c.types.get(index).inner, args.clone())
-            const key = c.types.subst(c.types.get(index).args[0], args.clone())
+            const base = substType(c, c.types.get(index).inner, args.clone())
+            const key = substType(c, c.types.get(index).args[0], args.clone())
             if !c.types.get(key).hasParam {   // a `comptime for` key: per iteration
                 fields[i] = c.types.keyPosition(base, key)
             }
@@ -1137,7 +1138,7 @@ pub fn airRangeNow(l: Lowerer) AirRange {
  */
 pub fn substFrom(l: mut Lowerer, c: mut Checker, args: &List<int>, range: AirRange) {
     for i in range.local..l.body.locals.len() {
-        l.body.locals[i].ty = c.types.subst(l.body.locals[i].ty, args.clone())
+        l.body.locals[i].ty = substType(c, l.body.locals[i].ty, args.clone())
     }
     if range.open >= 0 {
         substBlock(l, c, args, range.open, range.stmt)
@@ -1154,7 +1155,7 @@ fn substBlock(l: mut Lowerer, c: mut Checker, args: &List<int>, b: int, first: i
         if s.kind == StmtKind.Assign {
             substOperand(c, s.value.a, args)
             substOperand(c, s.value.b, args)
-            s.value.to = c.types.subst(s.value.to, args.clone())
+            s.value.to = substType(c, s.value.to, args.clone())
             for k in 0..s.value.items.len() {
                 substOperand(c, s.value.items[k], args)
             }
@@ -1162,7 +1163,7 @@ fn substBlock(l: mut Lowerer, c: mut Checker, args: &List<int>, b: int, first: i
             for k in 0..s.args.len() {
                 substOperand(c, s.args[k], args)
             }
-            s.targs = c.types.subst(s.targs, args.clone())
+            s.targs = substType(c, s.targs, args.clone())
         }
     }
     substOperand(c, l.body.blocks[b].term.cond, args)

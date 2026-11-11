@@ -6,6 +6,8 @@
  * fixed ids `ERROR` to `STR`.
  */
 
+import std.mem
+
 /**
  * The forms of a type.
  */
@@ -63,6 +65,11 @@ pub copy enum TyKind {
     Index
     /** The argument of a const parameter (spec 8.7); `data` is the integer. */
     Value
+    /**
+     * A mapped type alias applied to types with a parameter (spec 16.4):
+     * `data` is the alias, `args` its arguments; a struct once they are known.
+     */
+    Mapped
 }
 
 /**
@@ -144,6 +151,8 @@ pub struct TypeTable {
     slots: List<int>   // open addressing: type id + 1, 0 when empty
     fields: List<Option<KeyFields>>   // by `DefId`
     indexNames: List<int>   // the symbols of `0`, `1`, ...: tuple keys
+    expanded: List<int>   // by type id: the struct of a known `Mapped`, or 0
+    pending: List<int>   // the known `Mapped` types with no struct yet
 
     /**
      * A table with the built-in types, in the order of their ids.
@@ -152,7 +161,7 @@ pub struct TypeTable {
      */
     pub fn new() TypeTable {
         let table = TypeTable{types: [], slots: List.filled(0, 256), fields: [],
-                              indexNames: []}
+                              indexNames: [], expanded: [], pending: []}
         table.intern(TyKind.Error, 0, 0, [])
         table.intern(TyKind.Unit, 0, 0, [])
         table.intern(TyKind.Never, 0, 0, [])
@@ -441,7 +450,8 @@ pub struct TypeTable {
             return if data < args.len() { args[data] } else { ty }
         }
         let inner = self.types[ty].inner
-        if kind != TyKind.Tuple && kind != TyKind.Adt && kind != TyKind.Dyn {
+        const keepsInner = kind == TyKind.Tuple || kind == TyKind.Adt || kind == TyKind.Dyn
+        if !keepsInner && kind != TyKind.Mapped {
             inner = self.subst(inner, args)   // ref, ptr, slice, array, fn
         }
         let items: List<int> = []
@@ -461,7 +471,56 @@ pub struct TypeTable {
         if kind == TyKind.Array && items.len() == 1 && !self.types[items[0]].hasParam {
             return ERROR   // a type given for `N`: E0362
         }
-        return self.intern(kind, data, inner, items)
+        const result = self.intern(kind, data, inner, items)
+        if kind == TyKind.Mapped && !self.types[result].hasParam {
+            if result < self.expanded.len() && self.expanded[result] != 0 {
+                return self.expanded[result]
+            }
+            self.pending.push(result)
+        }
+        return result
+    }
+
+    /**
+     * Records the struct of a `Mapped` type with no parameter: `subst`
+     * returns it from now on.
+     *
+     * @param mapped the `Mapped` type
+     * @param adt its struct type
+     */
+    pub fn setExpanded(mut self, mapped: int, adt: int) {
+        for self.expanded.len() <= mapped {
+            self.expanded.push(0)
+        }
+        self.expanded[mapped] = adt
+    }
+
+    /**
+     * The struct of a `Mapped` type, or 0 before `setExpanded`.
+     *
+     * @param mapped the `Mapped` type
+     * @returns the struct type, or 0
+     */
+    pub fn expandedOf(self, mapped: int) int {
+        return if mapped < self.expanded.len() { self.expanded[mapped] } else { 0 }
+    }
+
+    /**
+     * Whether `subst` made `Mapped` types known since the last `takePending`.
+     *
+     * @returns true when there are some
+     */
+    pub fn hasPending(self) bool {
+        return self.pending.len() > 0
+    }
+
+    /**
+     * The `Mapped` types `subst` made known since the last call.
+     *
+     * @returns them, in order
+     */
+    pub fn takePending(mut self) List<int> {
+        return mem.replace(self.pending, [])
     }
 
     /**
@@ -709,6 +768,7 @@ pub fn kindNumber(kind: TyKind) int {
         TyKind.KeyOf => 17
         TyKind.Index => 18
         TyKind.Value => 19
+        TyKind.Mapped => 20
     }
 }
 
