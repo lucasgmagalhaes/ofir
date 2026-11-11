@@ -70,14 +70,6 @@ fn ruleArgs(rule: int) int {
     return args[rule]
 }
 
-// The attributes this compiler implements: `@inline`, `@cold`, `@test`, `@lang`,
-// `@repr`, `@packed`, `@align` (sema/layout_attrs.of), `@link`, `@export`,
-// `@deprecated`, `@bench` (air/lower.of), `@cfg` (driver/cfg.of), `@allow`,
-// `@threadsafe` (sema/send.of).
-fn ruleSupported(rule: int) bool {
-    return rule != 13   // all but `@tag`
-}
-
 fn ruleUsage(rule: int) str {
     const usage = ["`@inline` or `@inline(never)`", "`@cold`", "`@test`", "`@lang(\"type\")`",
                    "`@repr(C)`", "`@packed`", "`@align(N)`, N a power of two up to 4096",
@@ -256,8 +248,6 @@ fn checkList(r: mut Resolver, attributes: &List<Attribute>, target: int, span: S
                 } else if !argsMatch(r, ruleArgs(rule), a) {
                     r.error("E0809", a.span,
                             "invalid arguments for `@{name}`: write {ruleUsage(rule)}")
-                } else if !ruleSupported(rule) {
-                    r.error("E0901", a.span, "the attribute `@{name}` is not supported yet")
                 } else if name == "deprecated" {
                     r.diags.allow("W0006", span)   // a deprecated declaration may use others
                 } else if name == "allow" {
