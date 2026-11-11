@@ -420,6 +420,7 @@ struct Printer {
     fn fnDecl(mut self, f: &FnDecl, names: Interner) {
         let flags = if f.isPub { " pub" } else { "" }
         flags.push(if f.isUnsafe { " unsafe" } else { "" })
+        flags.push(if f.isComptime { " comptime" } else { "" })
         flags.push(if f.abi.len() > 0 { " extern" } else { "" })
         self.line("fn {names.name(f.name)}{flags}")
         self.depth += 1
