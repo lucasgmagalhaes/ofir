@@ -61,18 +61,22 @@ def main() -> int:
     parser.add_argument("--compiler", type=executable, required=True)
     parser.add_argument("--stage", type=int, default=0,
                         help="the compiler's stage: stage 0 skips `// requires: stage1` modules")
-    parser.add_argument("-j", "--jobs", type=int, default=min(4, os.cpu_count() or 1),
-                        help="maximum concurrent compiler processes (default: up to 4)")
+    parser.add_argument("-j", "--jobs", type=int, default=min(8, os.cpu_count() or 1),
+                        help="maximum concurrent compiler processes (default: up to 8)")
     args = parser.parse_args()
     if args.jobs < 1:
         parser.error("--jobs must be at least 1")
     failed = []
     total = 0
     paths = modules_with_tests(args.stage)
+    std_paths = std_modules_to_check(args.stage)
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
         results = pool.map(lambda path: subprocess.run(
             [args.compiler, "test", str(path), "--deny-warnings"],
             capture_output=True, text=True), paths)
+        checked_results = pool.map(lambda path: subprocess.run(
+            [args.compiler, "build", str(path), "--stop-after=check", "--deny-warnings"],
+            capture_output=True, text=True), std_paths)
         for path, result in zip(paths, results):
             total += sum(1 for line in result.stdout.splitlines() if line.startswith("test "))
             if result.returncode != 0:
@@ -81,7 +85,7 @@ def main() -> int:
                 sys.stderr.write(result.stderr)
         print(f"unit tests (std, compiler): {total} tests in {len(paths)} modules, "
               f"{len(failed)} modules with failures")
-        checked = check_std_whole(args.compiler, pool, args.stage)
+        checked = check_std_whole(std_paths, checked_results)
     fixtures = check_fixtures(args.compiler, "ofir_test")
     if args.stage > 0:
         fixtures = check_fixtures(args.compiler, "ofir_doctest") and fixtures
@@ -94,16 +98,14 @@ def requires_stage1(path: Path) -> bool:
     return any(line.startswith("// requires: stage1") for line in path.read_text().splitlines())
 
 
-def check_std_whole(compiler: str, pool: concurrent.futures.ThreadPoolExecutor,
-                    stage: int) -> bool:
-    """Checks each std module as the root, where every body is checked: a
-    program checks only the std bodies it uses (sema_check_late)."""
+def std_modules_to_check(stage: int) -> list[Path]:
+    return [p for p in sorted((ROOT / "std").rglob("*.of"))
+            if not p.stem.endswith("_test") and (stage > 0 or not requires_stage1(p))]
+
+
+def check_std_whole(paths: list[Path], results) -> bool:
+    """Reports the root checks, where every body must be checked."""
     ok = True
-    paths = [p for p in sorted((ROOT / "std").rglob("*.of"))
-             if not p.stem.endswith("_test") and (stage > 0 or not requires_stage1(p))]
-    results = pool.map(lambda path: subprocess.run(
-        [compiler, "build", str(path), "--stop-after=check", "--deny-warnings"],
-        capture_output=True, text=True), paths)
     for path, result in zip(paths, results):
         if result.returncode != 0:
             ok = False
