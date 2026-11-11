@@ -6,8 +6,8 @@ ordinary generic code that inspects types **at compile time**. Like other
 generic code, it is type-checked once, at its definition, and expanded for
 each instance (ADR 0035). Stage 1 implements the `std.meta` predicates,
 `meta.nameOf`, `comptime if`, `comptime panic` and `comptime for` over
-`keyof T` and `meta.fieldsOf<T>()` with `@tag`; the rest is planned
-(roadmap 6.7a).
+`keyof T`, `meta.fieldsOf<T>()` and `meta.variantsOf<T>()` with `@tag`;
+the rest is planned (roadmap 6.7a).
 
 Goals:
 
@@ -40,7 +40,7 @@ The module `std.meta` exposes compile-time descriptions of types:
 | Function | Returns |
 |----------|---------|
 | `meta.fieldsOf<T>()` | the fields of struct `T`: `name`, `type`, `index`, attributes |
-| `meta.variantsOf<T>()` | the variants of enum `T` and their fields |
+| `meta.variantsOf<T>()` | the variants of enum `T`: `name`, `index`, attributes |
 | `meta.nameOf<T>()` | the type's name, as a constant `str` |
 | `meta.isStruct<T>()`, `isEnum`, `isInteger`, `isSigned`, `isFloat`, ... | type classification |
 | `meta.implements<T, I>()` | whether `T` satisfies interface `I` |
@@ -145,6 +145,25 @@ struct User {
 - `field.get(value)` is `value[K]`: its type is `T[K]`, the field's type in
   each instance. `toJson(field.get(value), out)` calls the instance of
   `toJson` for that type.
+- Over `meta.variantsOf<T>()`, the loop variable stands for one variant of
+  `T`, in declaration order: `variant.name`, `variant.index` and
+  `variant.attribute(key)` are as for fields, and `variant.matches(value)`
+  is a `bool`, whether `value` (a `T` or a `&T`) is that variant, decided
+  at run time. A variant has no `get`: its fields are reached with `match`.
+
+```ofir
+fn variantName<T>(value: &T) str {
+    comptime if meta.isEnum<T>() {
+        comptime for variant in meta.variantsOf<T>() {
+            if variant.matches(value) {
+                return variant.attribute("json") ?? variant.name
+            }
+        }
+    }
+    return "?"
+}
+```
+
 - `comptime panic(...)` has type `never`. Its message is a string literal
   whose interpolations are compile-time `str` values. Expanding an instance
   that keeps it is a compile error at the call that created the instance,
