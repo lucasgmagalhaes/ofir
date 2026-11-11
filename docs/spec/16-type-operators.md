@@ -26,7 +26,10 @@ type Both = .x | .y              // the same keys as keyof Point
   `A - B` the keys of `A` not in `B`. A `|` between other types is a
   union type (chapter 17).
 - `keyof` applies to structs and tuples only (E0340). Outside the module of
-  a struct, its private fields are not keys.
+  a struct, its private fields are not keys. In the body of a type alias,
+  the module that uses the alias also counts as inside: `Partial<Point>`
+  from the prelude has a field for each private field of `Point` in the
+  module of `Point`.
 - A key type with one key is a **single key**; with none it is the empty
   key type `keyof ()`.
 
