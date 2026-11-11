@@ -874,6 +874,24 @@ pub struct Checker {
                 self.appendList(out, &t.args, qualified)
                 out.push(">")
             }
+            TyKind.KeyOp => {
+                self.appendType(out, t.args[0], qualified)
+                out.push(if t.data == 1 { " & " } else { " - " })
+                self.appendType(out, t.args[1], qualified)
+            }
+            TyKind.Cond => {
+                out.push("if ")
+                self.appendType(out, t.args[0], qualified)
+                if t.data == 1 {
+                    out.push(" is ")
+                    self.appendType(out, t.args[1], qualified)
+                }
+                out.push(" \{ ")
+                self.appendType(out, t.args[2], qualified)
+                out.push(" \} else \{ ")
+                self.appendType(out, t.args[3], qualified)
+                out.push(" \}")
+            }
         }
     }
 }
