@@ -100,6 +100,8 @@ project uses [Semantic Versioning](https://semver.org/).
 - Heap allocation in `comptime` code: `List`, `Map`, `Box` and `str`
   work there as at run time, and `clone` copies them deeply (spec 15.5,
   roadmap 6.7a7, stage 1).
+- A faster `comptime` interpreter: ten million steps now take about 2.5
+  seconds instead of 15 (roadmap 6.7a8, stage 1).
 
 ### Changed
 
