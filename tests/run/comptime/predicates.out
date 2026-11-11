@@ -1,0 +1,7 @@
+signed signed unsigned float
+struct enum other struct
+Point named point
+List<int> [1, 2]
+Option<str> Some("a")
+Map<str, List<u8>> (int, bool)
+taken

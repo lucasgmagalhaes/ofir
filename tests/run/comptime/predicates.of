@@ -1,0 +1,65 @@
+// requires: stage1
+// `comptime if` on the `std.meta` predicates, and `meta.nameOf` (spec 15.2, 15.3).
+
+import std.meta
+
+struct Point {
+    x: int
+    y: int
+
+    fn name(self) str {
+        return "point"
+    }
+}
+
+enum Shape {
+    Circle(int)
+    Square(int)
+}
+
+interface Named {
+    fn name(self) str
+}
+
+fn kind<T>() str {
+    comptime if meta.isInteger<T>() && meta.isSigned<T>() {
+        return "signed"
+    } else comptime if meta.isInteger<T>() {
+        return "unsigned"
+    } else comptime if meta.isFloat<T>() {
+        return "float"
+    } else comptime if meta.isStruct<T>() {
+        return "struct"
+    } else comptime if meta.isEnum<T>() {
+        return "enum"
+    } else {
+        return "other"
+    }
+}
+
+fn describe<T>(x: T) str {
+    comptime if meta.implements<T, Named>() {
+        return "{meta.nameOf<T>()} named {x.name()}"
+    } else comptime if meta.implements<T, Debug>() {
+        return "{meta.nameOf<T>()} {x:?}"
+    } else {
+        return meta.nameOf<T>()
+    }
+}
+
+fn main() {
+    println("{kind<int>()} {kind<i8>()} {kind<u64>()} {kind<f32>()}")
+    println("{kind<Point>()} {kind<Shape>()} {kind<str>()} {kind<List<int>>()}")
+    println(describe(Point{x: 1, y: 2}))
+    println(describe([1, 2]))
+    println(describe(Option.Some("a")))
+    println("{meta.nameOf<Map<str, List<u8>>>()} {meta.nameOf<(int, bool)>()}")
+    comptime if true {
+        println("taken")
+    } else {
+        println("not taken")
+    }
+    comptime if false || !true {
+        println("not taken")
+    }
+}
