@@ -1,0 +1,27 @@
+// requires: stage1
+// `meta.fieldsOf<T>()` needs a struct, or `T` narrowed to one (spec 15.2,
+// E0364); `comptime for` is unrolled, so it has no `break` (E0309).
+
+import std.meta
+
+fn count<T>(value: &T) int {
+    let n = 0
+    comptime for _field in meta.fieldsOf<T>() {   // error[E0364]: `meta.fieldsOf<T>()` needs a struct: narrow `T` with `comptime if meta.isStruct<T>()`
+        n += 1
+    }
+    return n
+}
+
+fn first<T>(value: &T) {
+    comptime if meta.isStruct<T>() {
+        comptime for _field in meta.fieldsOf<T>() {
+            break   // error[E0309]: `break` inside `comptime for`, which is unrolled
+        }
+    }
+}
+
+fn main() {
+    comptime for field in meta.fieldsOf<int>() {   // error[E0364]: `meta.fieldsOf` needs a struct, found `int`
+        println(field.name)
+    }
+}

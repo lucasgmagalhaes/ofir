@@ -37,6 +37,8 @@ import air.lower_derive.adtHash
 import air.lower_derive.equalityCalls
 import air.lower_derive.orderCalls
 import air.lower_derive.orderedBy
+import air.lower_comptime_for.comptimeMemberValue
+import air.lower_comptime_for.lowerComptimeFor
 import air.lower_pattern.boxRest
 import air.lower_pattern.buildVariant
 import air.lower_pattern.isVariant
@@ -511,12 +513,18 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Unary(op, operand) => unary(l, c, p, e, op, &*operand, ty)
         ExprKind.Binary(op, lhs, rhs) => binary(l, c, p, e, op, &*lhs, &*rhs)
         ExprKind.Cast(value, _) => castExpr(l, c, p, &*value, ty, e.span)
-        ExprKind.Call(callee, args) => call(l, c, p, e, &*callee, &args)
+        ExprKind.Call(callee, args) => match comptimeMemberValue(l, c, p, e, ty) {
+            Option.Some(value) => value
+            Option.None => call(l, c, p, e, &*callee, &args)
+        }
         ExprKind.If(_, _, _, _) => lowerIf(l, c, p, e)
         ExprKind.Comptime(inner) => comptimePanic(l, c, p, e, &*inner)
         ExprKind.Block(block) | ExprKind.Unsafe(block) => lowerBlock(l, c, p, &block,
                                                                      typeIsValue(ty))
         ExprKind.Field(base, member, _) => {
+            if const Option.Some(value) = comptimeMemberValue(l, c, p, e, ty) {
+                return value   // `field.name`, `field.index`
+            }
             if moduleMember(c, e) {   // `u.LIMIT`
                 name(l, c, p, e, ty)
             } else if fieldOf(c, e) >= 0 {
@@ -1831,7 +1839,7 @@ fn lowerForList(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt, expr: &
 // ---------------------------------------------------------------------------
 // `?` and `??` (stage 0: lower_option.c)
 
-fn variantNamed(c: mut Checker, p: Program, ty: int, name: str) int {
+pub fn variantNamed(c: mut Checker, p: Program, ty: int, name: str) int {
     const id = c.types.get(ty).data
     enumVariants(c, p, id)
     const count = variantsOf(c, id).variants.len()
@@ -2924,6 +2932,8 @@ fn lowerStmt(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt) {
                     }
                     Option.None => {}
                 }
+            } else if kind == ForKind.Comptime {
+                lowerComptimeFor(l, c, p, stmt, &body)
             } else if kind == ForKind.Cond {
                 match expr {
                     Option.Some(e) => lowerWhile(l, c, p, Option.Some(&e), &body, stmt.label)

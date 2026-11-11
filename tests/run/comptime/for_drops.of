@@ -1,0 +1,50 @@
+// requires: stage1
+// A field `comptime for` moves out with `field.get(value)` is dropped by its
+// new owner; the fields it does not move drop with the rest of `value`.
+
+import std.meta
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+struct Pair {
+    a: Noisy
+    b: Noisy
+    n: int
+}
+
+fn take<U>(x: move U) {
+    println("take {meta.nameOf<U>()}")
+}
+
+fn first<T>(value: move T) {
+    comptime if meta.isStruct<T>() {
+        comptime for field in meta.fieldsOf<T>() {
+            comptime if field.index == 0 {
+                take(field.get(value))
+            }
+        }
+    }
+    println("end first")
+}
+
+fn all<T>(value: move T) {
+    comptime if meta.isStruct<T>() {
+        comptime for field in meta.fieldsOf<T>() {
+            const item = field.get(value)
+            println("{field.name}")
+            take(item)
+        }
+    }
+    println("end all")
+}
+
+fn main() {
+    first(Pair{a: Noisy{name: "a1"}, b: Noisy{name: "b1"}, n: 1})
+    all(Pair{a: Noisy{name: "a2"}, b: Noisy{name: "b2"}, n: 2})
+}

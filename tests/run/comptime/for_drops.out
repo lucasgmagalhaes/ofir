@@ -1,0 +1,13 @@
+take Noisy
+drop a1
+end first
+drop b1
+a
+take Noisy
+drop a2
+b
+take Noisy
+drop b2
+n
+take int
+end all

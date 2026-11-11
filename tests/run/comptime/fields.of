@@ -1,0 +1,53 @@
+// requires: stage1
+// `comptime for` runs its body once per field or key, in declaration order,
+// with `field.name`, `field.index` and `field.get(value)` (spec 15.3).
+
+import std.meta
+
+fn show<U>(x: move U) {
+    println(meta.nameOf<U>())
+}
+
+fn each<T>(value: move T) {
+    comptime if meta.isStruct<T>() {
+        comptime for field in meta.fieldsOf<T>() {
+            const item = field.get(value)
+            print("{field.index} {field.name} ")
+            show(item)
+        }
+    }
+}
+
+fn second<T>(value: move T) {
+    comptime if meta.isStruct<T>() {
+        comptime for field in meta.fieldsOf<T>() {
+            comptime if field.index == 1 {
+                show(field.get(value))
+            }
+        }
+    }
+}
+
+fn names<T>(v: &T) {
+    comptime for key in keyof T {
+        println("{key.name} {key.index}")
+    }
+}
+
+struct Address {
+    city: str
+    zip: int
+}
+
+struct User {
+    id: int
+    name: str
+    home: Address
+}
+
+fn main() {
+    each(User{id: 7, name: "Ana", home: Address{city: "Rio", zip: 2}})
+    second(User{id: 7, name: "Ana", home: Address{city: "Rio", zip: 2}})
+    names(&Address{city: "x", zip: 1})
+    each((1, "two"))
+}

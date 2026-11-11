@@ -1,0 +1,440 @@
+/**
+ * @module
+ * `comptime for` (spec 15.3): a loop over `keyof T`, a key type or
+ * `meta.fieldsOf<T>()`. Its body is checked once, with the variable standing
+ * for an implicit key parameter `K: keyof T`; the lowering expands it once
+ * per key of each instance, in declaration order. `field.get(v)` is parsed
+ * as `v[field]`; `field.name`, `field.index` and `field.attribute(key)` are
+ * recorded here for the lowering.
+ */
+
+import base.intern.Symbol
+import sema.check.BOUND_COPY
+import sema.check.COMPTIME_ATTRIBUTE
+import sema.check.COMPTIME_INDEX
+import sema.check.COMPTIME_LOOP
+import sema.check.COMPTIME_NAME
+import sema.check.Checker
+import sema.check.ComptimeInfo
+import sema.check_comptime.BOUND_STRUCT
+import sema.check_comptime.metaCall
+import sema.check_generic.paramBounds
+import sema.check_keys.keyofType
+import sema.check_keys.paramKey
+import sema.check_keys.useIndexNames
+import sema.check_mapped.isMappedStruct
+import sema.check_stmt.checkBlock
+import sema.check_types.resolveType
+import sema.def.Res
+import sema.program.Program
+import sema.struct_exprs.structDef
+import sema.structs.fieldDeclAt
+import sema.structs.fieldsOf
+import sema.structs.structFields
+import sema.types.ERROR
+import sema.types.I64
+import sema.types.STR
+import sema.types.TyKind
+import sema.types.UNIT
+import syntax.ast.Arg
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.Stmt
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
+
+/**
+ * The key of a node of the current module in `Checker.comptimeInfo`.
+ *
+ * @param c the checker
+ * @param id the node's number
+ * @returns `module * 2^32 + id`
+ */
+pub fn comptimeKey(c: Checker, id: int) int {
+    return c.module() * 4294967296 + id
+}
+
+/**
+ * Checks `comptime for name in iterable { body }`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param s the loop
+ * @param name its variable
+ * @param iterable what it goes over
+ * @param body its body
+ * @returns `()`
+ */
+pub fn checkComptimeFor(c: mut Checker, p: Program, s: &Stmt, name: Symbol, iterable: &Expr,
+                        body: &Block) int {
+    const range = iterated(c, p, iterable)   // on an error, the body still has its members
+    const local = c.localAt(s.id.0)
+    const index = c.generics.bounds.len()
+    const param = c.types.param(index, name.0)
+    const saved = c.generics.clone()
+    c.generics.fnParams.push(name)
+    c.generics.bounds.push(BOUND_COPY)
+    c.generics.ifaces.push([])
+    c.generics.ifaceArgs.push([])
+    c.generics.keys.push(range.0)
+    if local >= 0 {
+        c.localTypes[local] = param
+    }
+    const info = ComptimeInfo{kind: COMPTIME_LOOP, local: local, param: index, base: range.1,
+                              bound: range.0, key: 0, loops: c.loops.len()}
+    c.comptimeInfo.insert(comptimeKey(c, s.id.0), info)
+    c.comptimeLoops.push(info)
+    checkBlock(c, p, body, ERROR, false)
+    const _ = c.comptimeLoops.pop()
+    c.enterGenerics(saved)
+    return UNIT
+}
+
+// The key type a `comptime for` goes over and the type whose fields those
+// are (or 0), or ERROR after an error.
+fn iterated(c: mut Checker, p: Program, iterable: &Expr) (int, int) {
+    match iterable.kind {
+        ExprKind.Keys(ty) => {
+            match ty.kind {
+                TypeKind.KeyOf(inner) => {
+                    const bound = keyofType(c, p, &*inner, ty.span)
+                    if bound == ERROR {
+                        return (ERROR, 0)
+                    }
+                    return (bound, resolveType(c, p, &*inner))
+                }
+                _ => {}
+            }
+            const key = resolveType(c, p, &ty)
+            if key == ERROR {
+                return (ERROR, 0)
+            }
+            if c.types.kind(key) == TyKind.Key {
+                return (key, 0)
+            }
+            const bound = paramKey(c, key)
+            if bound == 0 {
+                c.error("E0340", ty.span, "`comptime for` needs a key type, found "
+                        + "`{c.typeName(key)}`")
+                return (ERROR, 0)
+            }
+            const t = c.types.get(bound)
+            return (bound, if t.kind == TyKind.KeyOf { t.inner } else { 0 })
+        }
+        _ => {}
+    }
+    const meta = metaCall(c, p, iterable)
+    if meta == "fieldsOf" {
+        return fieldsOfType(c, p, iterable)
+    }
+    if meta == "variantsOf" {
+        c.unsupported(iterable.span, "`comptime for` over `meta.variantsOf` is")
+        return (ERROR, 0)
+    }
+    c.error("E0300", iterable.span, "`comptime for` goes over `keyof T`, a key type or "
+            + "`meta.fieldsOf<T>()`")
+    return (ERROR, 0)
+}
+
+// The keys of `meta.fieldsOf<T>()`: `T` must be a struct, or narrowed to one
+// (E0364).
+fn fieldsOfType(c: mut Checker, p: Program, call: &Expr) (int, int) {
+    const typeArgs = metaTypeArgs(call)
+    if typeArgs.len() != 1 {
+        c.error("E0302", call.span, "`meta.fieldsOf` takes one type argument".toOwned())
+        return (ERROR, 0)
+    }
+    const ty = resolveType(c, p, &typeArgs[0])
+    if ty == ERROR {
+        return (ERROR, 0)
+    }
+    if c.types.kind(ty) == TyKind.Param {
+        if (paramBounds(c, ty) & BOUND_STRUCT) == 0 {
+            c.error("E0364", call.span, "`meta.fieldsOf<{c.typeName(ty)}>()` needs a struct: "
+                    + "narrow `{c.typeName(ty)}` with `comptime if meta.isStruct<"
+                    + "{c.typeName(ty)}>()`")
+            return (ERROR, 0)
+        }
+        useIndexNames(c)
+        return (c.types.intern(TyKind.KeyOf, c.module(), ty, []), ty)
+    }
+    const id = if c.types.kind(ty) == TyKind.Adt { structDef(c, ty) } else { 0 }
+    if id == 0 || !structFields(c, p, id) || fieldsOf(c, id).isTuple {
+        c.error("E0364", call.span, "`meta.fieldsOf` needs a struct, found "
+                + "`{c.typeName(ty)}`")
+        return (ERROR, 0)
+    }
+    return (keyofType(c, p, &typeArgs[0], call.span), ty)
+}
+
+// The type arguments written on the callee of a call.
+fn metaTypeArgs(call: &Expr) List<TypeExpr> {
+    const callee = match call.kind {
+        ExprKind.Call(f, _) => &*f
+        _ => {
+            return []
+        }
+    }
+    return match callee.kind {
+        ExprKind.Field(_, _, typeArgs) => typeArgs.clone()
+        ExprKind.Generic(_, typeArgs) => typeArgs.clone()
+        _ => []
+    }
+}
+
+// The open `comptime for` whose variable an expression names, or -1.
+fn loopOf(c: Checker, e: &Expr) int {
+    match e.kind {
+        ExprKind.Ident(_) => {}
+        _ => {
+            return -1
+        }
+    }
+    const local = match c.res(e.id.0) {
+        Res.Local(id) => id
+        _ => -1
+    }
+    let i = c.comptimeLoops.len()
+    for local >= 0 && i > 0 {
+        i -= 1
+        if c.comptimeLoops[i].local == local {
+            return i
+        }
+    }
+    return -1
+}
+
+/**
+ * Checks `field.name` and `field.index` on the variable of a `comptime for`.
+ *
+ * @param c the checker
+ * @param e the field expression
+ * @param base its base
+ * @param name the member
+ * @returns its type, or 0 when `base` is not such a variable
+ */
+pub fn comptimeMember(c: mut Checker, e: &Expr, base: &Expr, name: Symbol) int {
+    const loop = loopOf(c, base)
+    if loop < 0 {
+        return 0
+    }
+    let info = c.comptimeLoops[loop]
+    c.setType(base.id.0, c.localTypes[info.local])
+    const text = c.text(name)
+    if text == "name" || text == "index" {
+        info.kind = if text == "name" { COMPTIME_NAME } else { COMPTIME_INDEX }
+        c.comptimeInfo.insert(comptimeKey(c, e.id.0), info)
+        return if text == "name" { STR } else { I64 }
+    }
+    c.error("E0316", e.span, "no field `{text}` on the variable of a `comptime for`: it has "
+            + "`name`, `index`, `attribute(key)` and `get(value)`")
+    return ERROR
+}
+
+/**
+ * Checks `field.attribute("key")` on the variable of a `comptime for`: an
+ * `Option<str>`, the value of the field's `@tag("key", value)`.
+ *
+ * @param c the checker
+ * @param e the call
+ * @param callee its callee, `field.attribute`
+ * @param args its arguments
+ * @returns its type, or 0 when the callee is not a member of such a variable
+ */
+pub fn comptimeMethod(c: mut Checker, e: &Expr, callee: &Expr, args: &List<Arg>) int {
+    const parts = match callee.kind {
+        ExprKind.Field(base, method, _) => (loopOf(c, &*base), method, base.id.0)
+        _ => {
+            return 0
+        }
+    }
+    if parts.0 < 0 {
+        return 0
+    }
+    let info = c.comptimeLoops[parts.0]
+    c.setType(parts.2, c.localTypes[info.local])
+    if c.text(parts.1) != "attribute" {
+        c.error("E0301", callee.span, "no method `{c.text(parts.1)}` on the variable of a "
+                + "`comptime for`: it has `attribute(key)` and `get(value)`")
+        return ERROR
+    }
+    const key = match args.len() == 1 && args[0].name.isNone() {
+        true => match args[0].value.kind {
+            ExprKind.Str(text) => c.r.names.intern(text).0
+            _ => 0
+        }
+        false => 0
+    }
+    if key == 0 {
+        c.error("E0300", e.span, "`field.attribute` takes a string literal: "
+                + "`field.attribute(\"json\")`")
+        return ERROR
+    }
+    info.kind = COMPTIME_ATTRIBUTE
+    info.key = key
+    c.comptimeInfo.insert(comptimeKey(c, e.id.0), info)
+    return c.types.adt(c.r.langItems[2], [STR])
+}
+
+/**
+ * Whether a `break` or `continue` without a label would leave a `comptime
+ * for` (spec 15.3): no ordinary loop is open inside the innermost one.
+ *
+ * @param c the checker
+ * @returns true if it would
+ */
+pub fn jumpLeavesComptime(c: Checker) bool {
+    const n = c.comptimeLoops.len()
+    return n > 0 && c.comptimeLoops[n - 1].loops == c.loops.len()
+}
+
+/**
+ * The keys a `comptime for` goes over in an instance, in declaration order.
+ *
+ * @param c the checker
+ * @param info the loop
+ * @param targs the instance's type arguments
+ * @returns the keys' symbols, or none while they depend on a parameter
+ */
+pub fn comptimeKeys(c: mut Checker, info: ComptimeInfo, targs: &List<int>) List<int> {
+    const bound = c.types.subst(info.bound, targs.clone())
+    if c.types.kind(bound) != TyKind.Key {
+        return []
+    }
+    let names = c.types.keyNames(bound)
+    const base = if info.base == 0 { 0 } else { c.types.subst(info.base, targs.clone()) }
+    if base == 0 || c.types.get(base).hasParam {
+        return names
+    }
+    let positions: List<int> = []
+    for i in 0..names.len() {
+        const key = c.types.keys([names[i]])
+        positions.push(c.types.keyPosition(base, key))
+    }
+    // Insertion sort by position: structs have few fields.
+    for i in 1..names.len() {
+        let j = i
+        for j > 0 && positions[j - 1] > positions[j] {
+            const name = names[j]
+            names[j] = names[j - 1]
+            names[j - 1] = name
+            const at = positions[j]
+            positions[j] = positions[j - 1]
+            positions[j - 1] = at
+            j -= 1
+        }
+    }
+    return names
+}
+
+/**
+ * The position of a key in the keys of a `comptime for`, for `field.index`.
+ *
+ * @param c the checker
+ * @param info the loop or the member
+ * @param targs the instance's type arguments, which give the key
+ * @returns the position, or -1 while it depends on a parameter
+ */
+pub fn comptimeIndex(c: mut Checker, info: ComptimeInfo, targs: &List<int>) int {
+    if info.param >= targs.len() {
+        return -1
+    }
+    const name = c.types.get(targs[info.param]).data
+    if c.types.kind(targs[info.param]) != TyKind.Key || name < 0 {
+        return -1
+    }
+    const names = comptimeKeys(c, info, targs)
+    for i in 0..names.len() {
+        if names[i] == name {
+            return i
+        }
+    }
+    return -1
+}
+
+/**
+ * Whether an expression is an integer known at compile time: a literal or
+ * `field.index`.
+ *
+ * @param c the checker, in the module of the expression
+ * @param e the expression, already checked
+ * @returns true if it is
+ */
+pub fn isComptimeInt(c: Checker, e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Int(_) => true
+        ExprKind.Field(_, _, _) => match c.comptimeInfo.get(comptimeKey(c, e.id.0)) {
+            Option.Some(info) => info.kind == COMPTIME_INDEX
+            Option.None => false
+        }
+        _ => false
+    }
+}
+
+/**
+ * The value of an integer known at compile time, for an instance.
+ *
+ * @param c the checker, in the module of the expression
+ * @param e a literal or `field.index`
+ * @param targs the instance's type arguments
+ * @returns the value, or -1 while it depends on a parameter
+ */
+pub fn comptimeInt(c: mut Checker, e: &Expr, targs: &List<int>) int {
+    match e.kind {
+        ExprKind.Int(value) => {
+            return value.wrappingCast<i64>()
+        }
+        _ => {}
+    }
+    const info = match c.comptimeInfo.get(comptimeKey(c, e.id.0)) {
+        Option.Some(found) => *found
+        Option.None => {
+            return -1
+        }
+    }
+    return comptimeIndex(c, info, targs)
+}
+
+/**
+ * The value of `field.attribute(key)` in an instance: the value of the
+ * field's `@tag(key, value)` (spec 15.4).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param info the call's record
+ * @param targs the instance's type arguments, with the loop's key
+ * @returns the value, if the field has that tag
+ */
+pub fn comptimeAttribute(c: mut Checker, p: Program, info: ComptimeInfo,
+                         targs: &List<int>) Option<str> {
+    if info.param >= targs.len() || info.base == 0 {
+        return Option.None
+    }
+    const base = c.types.subst(info.base, targs.clone())
+    const id = c.types.get(base).data
+    if c.types.kind(base) != TyKind.Adt || isMappedStruct(c, p, id) {
+        return Option.None
+    }
+    const position = c.types.keyPosition(base, targs[info.param])
+    if position < 0 {
+        return Option.None
+    }
+    const want = c.text(Symbol(info.key))
+    const decl = fieldDeclAt(p, c.loc(id), position)
+    for i in 0..decl.attributes.len() {
+        const a = &decl.attributes[i]
+        if c.text(a.name) == "tag" && a.args.len() == 2 {
+            const key = match a.args[0].kind {
+                ExprKind.Str(text) => text.clone()
+                _ => ""
+            }
+            if key == want {
+                if const ExprKind.Str(value) = a.args[1].kind {
+                    return Option.Some(value.clone())
+                }
+            }
+        }
+    }
+    return Option.None
+}

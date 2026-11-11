@@ -17,6 +17,8 @@ import sema.check.Checker
 import sema.check.Generics
 import sema.check.boundBit
 import sema.check.interfaceOf
+import sema.check_comptime_for.comptimeInt
+import sema.check_comptime_for.isComptimeInt
 import sema.check_generic.paramBounds
 import sema.check_types.resolveType
 import sema.check_generic.satisfies
@@ -242,14 +244,15 @@ fn compileTime(c: mut Checker, p: Program, e: &Expr) bool {
         ExprKind.Binary(op, lhs, rhs) => if op == Op.LogicalAnd || op == Op.LogicalOr {
             return compileTime(c, p, &*lhs) && compileTime(c, p, &*rhs)
         } else {
-            false
+            isComparison(op) && isComptimeInt(c, &*lhs) && isComptimeInt(c, &*rhs)
         }
         ExprKind.Call(_, _) => metaCall(c, p, e).len() > 0 && metaCall(c, p, e) != "nameOf"
         _ => isConstant(c, e)
     }
     if !ok {
         c.error("E0363", e.span, "the condition of a `comptime if` must be known at compile "
-                + "time: `true`, `false`, a constant or a `std.meta` predicate")
+                + "time: `true`, `false`, a constant, a `std.meta` predicate or a comparison of "
+                + "`field.index`")
     }
     return ok
 }
@@ -288,6 +291,9 @@ pub fn comptimeValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) in
             }
         }
         ExprKind.Binary(op, lhs, rhs) => {
+            if isComparison(op) {
+                return compare(op, comptimeInt(c, &*lhs, targs), comptimeInt(c, &*rhs, targs))
+            }
             const a = comptimeValue(c, p, &*lhs, targs)
             const b = comptimeValue(c, p, &*rhs, targs)
             const and = op == Op.LogicalAnd
@@ -305,6 +311,26 @@ pub fn comptimeValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) in
             Option.None => 0
         }
     }
+}
+
+fn isComparison(op: Op) bool {
+    return op == Op.Eq || op == Op.Ne || op == Op.Lt || op == Op.Le || op == Op.Gt || op == Op.Ge
+}
+
+// A comparison of compile-time integers, -1 while one depends on a parameter.
+fn compare(op: Op, a: int, b: int) int {
+    if a < 0 || b < 0 {
+        return DEPENDS
+    }
+    const holds = match op {
+        Op.Eq => a == b
+        Op.Ne => a != b
+        Op.Lt => a < b
+        Op.Le => a <= b
+        Op.Gt => a > b
+        _ => a >= b
+    }
+    return if holds { 1 } else { 0 }
 }
 
 fn predicateValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) int {

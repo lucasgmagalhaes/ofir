@@ -559,6 +559,11 @@ pub struct Checker {
     pub unions: Map<int, int>
     /** The members of each union's enum, as a tuple type, by its `DefId`. */
     pub unionDefs: Map<int, int>
+    /** The `comptime for` loops and the members of their variables (spec 15.3), by
+     * `module * 2^32 + NodeId`. */
+    pub comptimeInfo: Map<int, ComptimeInfo>
+    /** The open `comptime for` loops, innermost last. */
+    pub comptimeLoops: List<ComptimeInfo>
 
     /**
      * Reports an error.
@@ -849,6 +854,35 @@ fn intName(kind: int) str {
     return names[kind].sliceFrom(0)
 }
 
+/** A `comptime for` loop (spec 15.3). */
+pub const COMPTIME_LOOP: int = 0
+/** `field.name` of its variable. */
+pub const COMPTIME_NAME: int = 1
+/** `field.index`. */
+pub const COMPTIME_INDEX: int = 2
+/** `field.attribute(key)`. */
+pub const COMPTIME_ATTRIBUTE: int = 3
+
+/**
+ * A `comptime for` loop, or a member of its variable.
+ */
+pub copy struct ComptimeInfo {
+    /** `COMPTIME_LOOP`, `COMPTIME_NAME`, `COMPTIME_INDEX` or `COMPTIME_ATTRIBUTE`. */
+    pub kind: int
+    /** The loop variable's local. */
+    pub local: int
+    /** The index of the key parameter it stands for. */
+    pub param: int
+    /** The struct or tuple type whose fields it goes over, or 0. */
+    pub base: int
+    /** The key type it goes over. */
+    pub bound: int
+    /** The symbol of the key of `field.attribute(key)`, or 0. */
+    pub key: int
+    /** How many loops are open around it. */
+    pub loops: int
+}
+
 /**
  * Where a declaration is: its module, item and member.
  */
@@ -976,7 +1010,7 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
                    shorthandSpan: noSpan(), closures: [], closureMoves: [], capturesMut,
                    boundArgs: Map.new(), typeVars: [], typeVarTypes: [], aliasDef: 0,
                    mapped: Map.new(), inferNames: [], inferring: false, unions: Map.new(),
-                   unionDefs: Map.new()}
+                   unionDefs: Map.new(), comptimeInfo: Map.new(), comptimeLoops: []}
 }
 
 // ---------------------------------------------------------------------------

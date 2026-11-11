@@ -1,14 +1,9 @@
 // requires: stage1
-// Attributes that stage 1 checks but does not implement yet.
+// The arguments stage 1 checks of an attribute stage 0 accepts.
 
 @align(3)   // error[E0809]: invalid arguments for `@align`: write `@align(N)`, N a power of two up to 4096
 struct Block {
     x: int
-}
-
-struct Row {
-    @tag("json", "id")   // error[E0901]: the attribute `@tag` is not supported yet
-    id: int
 }
 
 fn main() {

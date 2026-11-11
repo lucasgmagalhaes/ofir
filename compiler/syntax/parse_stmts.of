@@ -14,6 +14,7 @@ import syntax.ast.Stmt
 import syntax.ast.StmtKind
 import syntax.ast.TypeExpr
 import syntax.parse_control.parseBlock
+import syntax.parse_exprs.newExpr
 import syntax.parse_exprs.parseExpr
 import syntax.parse_exprs.parseExprNoStruct
 import syntax.parse_patterns.parsePattern
@@ -111,6 +112,34 @@ fn forStmt(p: mut Parser, start: Span) Stmt {
     return newStmt(p, StmtKind.For(kind, mutable, first, second, expr, body), start)
 }
 
+// Whether the iterable of a `comptime for` is a key type: `keyof T`, `.x`
+// or a name, not a call such as `meta.fieldsOf<T>()`.
+fn atKeys(p: Parser) bool {
+    if p.atWord(p.words.keyof) || p.at(TokenKind.Dot) {
+        return true
+    }
+    return p.at(TokenKind.Ident) && p.peekAt(1) != TokenKind.Dot && p.peekAt(1) != TokenKind.LParen
+}
+
+// `comptime for name in keys { }` (spec 15.3); `comptime` and `for` are read.
+fn comptimeFor(p: mut Parser, start: Span) Stmt {
+    const name = p.takeName()
+    p.expect(TokenKind.In, "`in` after the name")
+    let iterable = if atKeys(p) {
+        const at = p.here()
+        const ty = parseType(p)
+        newExpr(p, ExprKind.Keys(ty), at)
+    } else {
+        parseExprNoStruct(p)
+    }
+    p.comptimeNames.push(name)
+    const body = parseBlock(p)
+    const _ = p.comptimeNames.pop()
+    const kind = StmtKind.For(ForKind.Comptime, false, Option.Some(name), Option.None,
+                              Option.Some(iterable), body)
+    return newStmt(p, kind, start)
+}
+
 fn atStatementEnd(p: Parser) bool {
     return p.at(TokenKind.Newline) || p.at(TokenKind.RBrace) || p.at(TokenKind.Eof)
 }
@@ -175,6 +204,13 @@ pub fn parseStmt(p: mut Parser) Stmt {
         TokenKind.For => {
             p.advance()
             forStmt(p, start)
+        }
+        TokenKind.Comptime => if p.peekAt(1) == TokenKind.For {
+            p.advance()
+            p.advance()
+            comptimeFor(p, start)
+        } else {
+            exprStmt(p, start)
         }
         TokenKind.Break => {
             p.advance()

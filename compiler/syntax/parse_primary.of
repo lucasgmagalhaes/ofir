@@ -6,6 +6,7 @@
  */
 
 import base.intern.Symbol
+import base.span.Span
 import syntax.ast.Arg
 import syntax.ast.Expr
 import syntax.ast.ExprKind
@@ -421,12 +422,54 @@ fn keyIndex(p: mut Parser, base: move Expr) Expr {
     return e
 }
 
+// `field.get(value)` on the variable of a `comptime for` (spec 15.3).
+fn comptimeGet(p: Parser, callee: &Expr, args: &List<Arg>) bool {
+    if args.len() != 1 || args[0].name.isSome() {
+        return false
+    }
+    const name = match callee.kind {
+        ExprKind.Field(base, method, typeArgs) => {
+            if typeArgs.len() > 0 || p.names.name(method) != "get" {
+                return false
+            }
+            match base.kind {
+                ExprKind.Ident(name) => name
+                _ => {
+                    return false
+                }
+            }
+        }
+        _ => {
+            return false
+        }
+    }
+    for i in 0..p.comptimeNames.len() {
+        if p.comptimeNames[i].0 == name.0 {
+            return true
+        }
+    }
+    return false
+}
+
+// `field.get(value)` is `value[field]`: the field of `value` the key names.
+fn fieldGet(p: mut Parser, callee: &Expr, args: &List<Arg>, start: Span) Expr {
+    const key = match callee.kind {
+        ExprKind.Field(base, _, _) => base.clone()
+        _ => Box.new(callee.clone())
+    }
+    const value = args[0].value.clone()
+    return newExpr(p, ExprKind.Index(Box.new(value), key), start)
+}
+
 fn postfixOnce(p: mut Parser, base: move Expr) (Expr, bool) {
     const start = base.span
     return match p.peek() {
         TokenKind.LParen => {
             p.advance()
             const args = parseCallArgs(p)
+            if comptimeGet(p, &base, &args) {
+                return (fieldGet(p, &base, &args, start), true)
+            }
             (newExpr(p, ExprKind.Call(Box.new(base), args), start), true)
         }
         TokenKind.LBracket => {

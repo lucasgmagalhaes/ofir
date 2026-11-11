@@ -64,4 +64,13 @@ extern "intrinsic" {
      * @returns its name
      */
     pub fn nameOf<T>() str
+
+    /**
+     * The fields of struct `T`, in declaration order: only the iterable of a
+     * `comptime for`, whose variable has `name`, `index`, `attribute(key)`
+     * and `get(value)` (spec 15.3).
+     *
+     * @typeParam T a struct
+     */
+    pub fn fieldsOf<T>()
 }
