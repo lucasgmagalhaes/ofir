@@ -1956,6 +1956,15 @@ pub fn lowerCondition(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Oper
 // ---------------------------------------------------------------------------
 // Compile-time code (spec 15, ADR 0035)
 
+// The concrete type of a type parameter narrowed by `comptime if` (spec
+// 15.3), whose operations take the instance's type; other types as they are.
+fn narrowedType(l: Lowerer, c: mut Checker, ty: int) int {
+    if c.types.kind(ty) != TyKind.Param {
+        return ty
+    }
+    return concreteType(l, c, ty)
+}
+
 // The type arguments of the instance being lowered.
 fn instanceArgs(l: Lowerer, c: Checker) List<int> {
     if isGlue(l.body.def) || l.body.targs == UNIT {
@@ -2383,8 +2392,8 @@ fn castExpr(l: mut Lowerer, c: mut Checker, p: Program, value: &Expr, ty: int,
         }
     }
     let v = lowerExpr(l, c, p, value)
-    v.ty = concreteType(l, c, v.ty)   // a narrowed parameter (spec 15.3)
-    return lowerCast(l, c, v, concreteType(l, c, ty), span)
+    v.ty = narrowedType(l, c, v.ty)
+    return lowerCast(l, c, v, narrowedType(l, c, ty), span)
 }
 
 pub fn lowerCast(l: mut Lowerer, c: Checker, value: move Operand, to: int, span: Span) Operand {
@@ -2444,7 +2453,7 @@ fn interpolation(l: mut Lowerer, c: mut Checker, p: Program, parts: &List<Expr>,
     const dest = emitTemp(l, STR, rvUse(opStr("", STR)))
     for i in 0..parts.len() {
         let part = lowerExpr(l, c, p, &parts[i])
-        part.ty = concreteType(l, c, part.ty)   // a narrowed parameter (spec 15.3)
+        part.ty = narrowedType(l, c, part.ty)
         if specs[i].len() == 0 && unionMembers(c, part.ty).len() > 0 {
             pushUnion(l, c, p, dest, part, false)
         } else if specs[i].len() == 0 {
