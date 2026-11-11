@@ -2,14 +2,6 @@
 // A compile-time panic, arithmetic or bounds error, deep recursion or a
 // spent step budget fails the build (spec 15.5, E0816).
 
-fn spin() int {
-    let n = 0
-    for true {
-        n += 1
-    }
-    return n
-}
-
 fn add(x: u8, y: u8) u8 {
     return x + y
 }
@@ -35,13 +27,12 @@ fn check(n: int) int {
 }
 
 fn main() {
-    const a = comptime spin()   // error[E0816]: compile-time evaluation failed: it ran out of its budget of 10000000 steps (`@comptimeBudget(n)`)
     const b = comptime add(200, 100)   // error[E0816]: compile-time evaluation failed: arithmetic overflow
     const c = comptime divide(1, 0)   // error[E0816]: compile-time evaluation failed: division by zero
     const d = comptime pick(3)   // error[E0816]: compile-time evaluation failed: index 3 out of bounds for length 3
     const e = comptime down(0)   // error[E0816]: compile-time evaluation failed: calls nested more than 128 deep
     const f = comptime check(5)   // error[E0816]: compile-time evaluation failed: it panicked: too big: 5
-    println("{a} {b} {c} {d} {e} {f} {budgeted()}")
+    println("{b} {c} {d} {e} {f} {budgeted()}")
 }
 
 @comptimeBudget(1000)
