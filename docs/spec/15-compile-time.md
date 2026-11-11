@@ -6,8 +6,10 @@ ordinary generic code that inspects types **at compile time**. Like other
 generic code, it is type-checked once, at its definition, and expanded for
 each instance (ADR 0035). Stage 1 implements the `std.meta` predicates,
 `meta.nameOf`, `comptime if`, `comptime panic` and `comptime for` over
-`keyof T`, `meta.fieldsOf<T>()` and `meta.variantsOf<T>()` with `@tag`;
-the rest is planned (roadmap 6.7a).
+`keyof T`, `meta.fieldsOf<T>()` and `meta.variantsOf<T>()` with `@tag`,
+and `comptime` expressions and `comptime fn` inside functions, run by an
+AIR interpreter (15.5); a module-level `const X = comptime f()` and
+compile-time heap allocation are planned (roadmap 6.7a6).
 
 Goals:
 
