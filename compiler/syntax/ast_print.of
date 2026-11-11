@@ -191,6 +191,7 @@ struct Printer {
             ExprKind.Block(block) => self.block("block", &block, names)
             ExprKind.Unsafe(block) => self.block("unsafe", &block, names)
             ExprKind.Comptime(inner) => self.withChildren("comptime", &*inner, Option.None, names)
+            ExprKind.Keys(ty) => self.line("keys {typeText(&ty, names)}")
             ExprKind.Closure(params, ret, body, isMove) => {
                 self.line(if isMove { "closure move" } else { "closure" })
                 self.depth += 1
@@ -335,7 +336,8 @@ struct Printer {
         } else if kind == ForKind.Cond {
             self.line("for cond")
         } else {
-            let text = "for {if mutable { "mut " } else { "" }}{nameOf(first, names)}"
+            const prefix = if kind == ForKind.Comptime { "comptime " } else { "" }
+            let text = "{prefix}for {if mutable { "mut " } else { "" }}{nameOf(first, names)}"
             if const Option.Some(s) = second {
                 text.push(", {names.name(s)}")
             }

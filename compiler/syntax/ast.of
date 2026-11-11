@@ -242,6 +242,8 @@ pub enum ExprKind {
      * `comptime if`, `If(_, Comptime(cond), ...)`.
      */
     Comptime(inner: Box<Expr>)
+    /** The key type iterated by `comptime for key in keyof T` (spec 16.6). */
+    Keys(ty: TypeExpr)
     /**
      * `x => body`, `(a: T, b) R => body`, `move () => body` (spec 10.1); a
      * parameter without a written type has an empty path as its type.
@@ -296,6 +298,8 @@ pub copy enum ForKind {
     Cond
     /** `for [mut] x[, y] in expr { }` */
     In
+    /** `comptime for x in expr { }`, unrolled per key (spec 15.3); `expr` is `Keys` or a call. */
+    Comptime
 }
 
 /**
