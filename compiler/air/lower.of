@@ -160,6 +160,8 @@ pub struct Lowerer {
     pub reached: List<bool>
     /** The generic instances reached: `def * 2^32 + targs`. */
     pub instances: Map<int, bool>
+    /** By instance, `def * 2^32 + targs`: the call that first reached it (E0814). */
+    pub origins: Map<int, Span>
     /** The locals to drop at the end of their scope, in order. */
     pub owned: List<int>
     /** Per open block: its first entry in `owned`. */
@@ -1102,6 +1104,10 @@ pub fn monoBody(l: mut Lowerer, c: mut Checker, p: Program) {
                 if isGlue(callee) {
                     reachGlue(l, callee, targs)
                 } else if callee != CALL_VALUE {
+                    if targs != UNIT && l.origins.get(callee * 4294967296 + targs).isNone() {
+                        const span = s.span
+                        l.origins.insert(callee * 4294967296 + targs, span)
+                    }
                     reach(l, c, p, callee, targs)
                 }
             } else if s.kind == StmtKind.Assign && s.value.kind == RvalueKind.FnValue {
@@ -1546,7 +1552,8 @@ fn findRoots(l: mut Lowerer, c: mut Checker, p: Program, m: int) {
  */
 pub fn lowerProgram(c: mut Checker, p: Program) Lowerer {
     let l = Lowerer{body: emptyBody(), block: 0, loops: [], pending: [], reached: [],
-                    instances: Map.new(), owned: [], scopes: [], flags: [], borrowed: [],
+                    instances: Map.new(), origins: Map.new(), owned: [], scopes: [], flags: [],
+                    borrowed: [],
                     movedParts: [], partFlags: [], dropCache: [], temps: [], tempScopes: [],
                     forward: false, tooDeep: false, fnDef: 0, unsupported: false, missing: "",
                     out: [], tests: []}

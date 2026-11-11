@@ -1,0 +1,539 @@
+/**
+ * @module
+ * Compile-time code (spec chapter 15, ADR 0035): the conditions of
+ * `comptime if`, the narrowing of type parameters in their `then` branch,
+ * the `std.meta` predicates and `comptime panic`. The body is checked once;
+ * the lowering evaluates each condition for each instance and keeps the
+ * branch taken.
+ */
+
+import sema.check.BOUND_CLONE
+import sema.check.BOUND_COPY
+import sema.check.BOUND_DEBUG
+import sema.check.BOUND_EQ
+import sema.check.BOUND_HASH
+import sema.check.BOUND_ORD
+import sema.check.Checker
+import sema.check.Generics
+import sema.check.boundBit
+import sema.check.interfaceOf
+import sema.check_generic.paramBounds
+import sema.check_types.resolveType
+import sema.check_generic.satisfies
+import sema.check_unsafe.isIntrinsic
+import sema.const_eval.constEval
+import sema.def.DefKind
+import sema.def.Res
+import sema.expr_check.checkExpr
+import sema.interfaces.unsatisfied
+import sema.program.Program
+import sema.types.BOOL
+import sema.types.ERROR
+import sema.types.NEVER
+import sema.types.STR
+import sema.types.TyKind
+import sema.types.UNIT
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.Op
+import syntax.ast.TypeExpr
+
+/** `meta.isInteger<T>()`: the integer operators (spec 15.3). */
+pub const BOUND_INT: int = 512
+/** `meta.isSigned<T>()`: with `BOUND_INT`, unary `-`. */
+pub const BOUND_SIGNED: int = 1024
+/** `meta.isFloat<T>()`: the float operators and literals. */
+pub const BOUND_FLOAT: int = 2048
+/** `meta.isStruct<T>()`: `meta.fieldsOf<T>()`. */
+pub const BOUND_STRUCT: int = 4096
+/** `meta.isEnum<T>()`: `meta.variantsOf<T>()`. */
+pub const BOUND_ENUM: int = 8192
+/**
+ * Given by both `isInteger` and `isFloat`: `+`, `-`, `*`, `/`, the
+ * comparisons, `as`, the literals `0` to `127` and interpolation.
+ */
+pub const BOUND_NUMBER: int = 16384
+
+/** The value of a condition that depends on a type parameter. */
+pub const DEPENDS: int = -1
+
+/**
+ * The numeric bounds of a type parameter narrowed by `meta.isInteger`,
+ * `meta.isSigned` or `meta.isFloat` (spec 15.3), or 0.
+ *
+ * @param c the checker
+ * @param ty a type
+ * @returns its bits among `BOUND_INT`, `BOUND_SIGNED`, `BOUND_FLOAT`, `BOUND_NUMBER`
+ */
+pub fn numeric(c: Checker, ty: int) int {
+    return paramBounds(c, ty) & (BOUND_INT | BOUND_SIGNED | BOUND_FLOAT | BOUND_NUMBER)
+}
+
+/**
+ * What a `comptime if` condition adds to the type parameters in its `then`
+ * branch: bound bits and interfaces, one entry per parameter.
+ */
+pub struct Narrowing {
+    /** The bits added to each parameter. */
+    pub bits: List<int>
+    /** The interfaces added to each parameter, as `DefId`s. */
+    pub ifaces: List<List<int>>
+}
+
+// ---------------------------------------------------------------------------
+// `std.meta`
+
+/**
+ * The name of the `std.meta` predicate or function a call names, or "".
+ *
+ * @param c the checker, in the module of the call
+ * @param p the program
+ * @param e an expression
+ * @returns `isInteger`, `isSigned`, `isFloat`, `isStruct`, `isEnum`,
+ *          `implements`, `nameOf` or ""
+ */
+pub fn metaCall(c: Checker, p: Program, e: &Expr) str {
+    const callee = match e.kind {
+        ExprKind.Call(f, args) if args.len() == 0 => &*f
+        _ => {
+            return ""
+        }
+    }
+    const Res.Def(id) = c.res(callee.id.0) else {
+        return ""
+    }
+    if c.def(id).kind != DefKind.Fn || !isIntrinsic(c, p, id) {
+        return ""
+    }
+    if p.modules[c.def(id).module].name != "std.meta" {
+        return ""
+    }
+    return c.text(c.def(id).name).toOwned()
+}
+
+// The type arguments a call was given, as a list (empty when unknown).
+fn callArgs(c: Checker, e: &Expr) List<int> {
+    return match c.callTypeArgs[c.module()].get(e.id.0) {
+        Option.Some(t) => if *t == UNIT { [] } else { c.types.get(*t).args.clone() }
+        Option.None => []
+    }
+}
+
+// The bound `I` of `meta.implements<T, I>()`, as written.
+fn implementedBound(e: &Expr) Option<TypeExpr> {
+    const callee = match e.kind {
+        ExprKind.Call(f, _) => &*f
+        _ => {
+            return Option.None
+        }
+    }
+    return match callee.kind {
+        ExprKind.Field(_, _, typeArgs) => if typeArgs.len() == 2 {
+            Option.Some(typeArgs[1].clone())
+        } else {
+            Option.None
+        }
+        ExprKind.Generic(_, typeArgs) => if typeArgs.len() == 2 {
+            Option.Some(typeArgs[1].clone())
+        } else {
+            Option.None
+        }
+        _ => Option.None
+    }
+}
+
+/**
+ * Whether a concrete type satisfies a `std.meta` predicate.
+ *
+ * @param c the checker, in the module of the call
+ * @param p the program
+ * @param e the call
+ * @param name the predicate
+ * @param ty its type argument, without parameters
+ * @returns true if it does
+ */
+pub fn predicateHolds(c: mut Checker, p: Program, e: &Expr, name: str, ty: int) bool {
+    const t = c.types.get(ty)
+    if name == "isInteger" {
+        return t.kind == TyKind.Int
+    }
+    if name == "isSigned" {
+        return t.kind == TyKind.Int && t.data <= 3
+    }
+    if name == "isFloat" {
+        return t.kind == TyKind.Float
+    }
+    if name == "isStruct" || name == "isEnum" {
+        if t.kind != TyKind.Adt {
+            return false
+        }
+        const kind = c.def(t.data).kind
+        return if name == "isStruct" { kind == DefKind.Struct } else { kind == DefKind.Enum }
+    }
+    const Option.Some(bound) = implementedBound(e) else {
+        return false
+    }
+    const bit = boundBit(c, &bound)
+    if bit != 0 {
+        return satisfies(c, p, ty, bit)
+    }
+    const iface = interfaceOf(c, &bound)
+    return iface != 0 && unsatisfied(c, p, ty, iface, UNIT).len() == 0
+}
+
+/**
+ * Checks `meta.implements<T, I>()`, whose second argument names an
+ * interface or a built-in bound rather than a type.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the call
+ * @param typeArgs its type arguments, as written
+ * @returns `bool`
+ */
+pub fn checkImplements(c: mut Checker, p: Program, e: &Expr, typeArgs: &List<TypeExpr>) int {
+    if typeArgs.len() != 2 {
+        c.error("E0302", e.span, "wrong number of type arguments: expected 2, found "
+                + "{typeArgs.len()}")
+        return BOOL
+    }
+    const ty = resolveType(c, p, &typeArgs[0])
+    if boundBit(c, &typeArgs[1]) == 0 && interfaceOf(c, &typeArgs[1]) == 0 {
+        c.error("E0200", typeArgs[1].span, "expected an interface or a bound such as `Eq`")
+    }
+    const targs = c.types.tuple([ty])
+    c.callTypeArgs[c.module()].insert(e.id.0, targs)
+    return BOOL
+}
+
+// ---------------------------------------------------------------------------
+// Conditions
+
+/**
+ * Checks the condition of a `comptime if` (spec 15.3): `true`, `false`,
+ * constants, the `std.meta` predicates, `!`, `&&` and `||` (E0363
+ * otherwise).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param cond the condition, inside `Comptime`
+ * @returns its value, 1 or 0, or `DEPENDS`
+ */
+pub fn checkComptimeCond(c: mut Checker, p: Program, cond: &Expr) int {
+    const ty = checkExpr(c, p, cond, BOOL)
+    if ty != BOOL && ty != ERROR {
+        c.error("E0308", cond.span, "mismatched types: expected `bool`, found "
+                + "`{c.typeName(ty)}`")
+        return DEPENDS
+    }
+    if !compileTime(c, p, cond) {
+        return DEPENDS
+    }
+    return comptimeValue(c, p, cond, &[])
+}
+
+// E0363 for the first part of a condition that is not known at compile time.
+fn compileTime(c: mut Checker, p: Program, e: &Expr) bool {
+    const ok = match e.kind {
+        ExprKind.Bool(_) => true
+        ExprKind.Unary(op, operand) => if op == Op.Not { compileTime(c, p, &*operand) } else {
+            false
+        }
+        ExprKind.Binary(op, lhs, rhs) => if op == Op.LogicalAnd || op == Op.LogicalOr {
+            return compileTime(c, p, &*lhs) && compileTime(c, p, &*rhs)
+        } else {
+            false
+        }
+        ExprKind.Call(_, _) => metaCall(c, p, e).len() > 0 && metaCall(c, p, e) != "nameOf"
+        _ => isConstant(c, e)
+    }
+    if !ok {
+        c.error("E0363", e.span, "the condition of a `comptime if` must be known at compile "
+                + "time: `true`, `false`, a constant or a `std.meta` predicate")
+    }
+    return ok
+}
+
+// A name or `module.NAME` that names a constant.
+fn isConstant(c: Checker, e: &Expr) bool {
+    const named = match e.kind {
+        ExprKind.Ident(_) | ExprKind.Field(_, _, _) => true
+        _ => false
+    }
+    return named && match c.res(e.id.0) {
+        Res.Def(id) => c.def(id).kind == DefKind.Const
+        _ => false
+    }
+}
+
+/**
+ * The value of a compile-time condition, for the type arguments of an
+ * instance.
+ *
+ * @param c the checker, in the module of the condition
+ * @param p the program
+ * @param e the condition, already checked
+ * @param targs the instance's type arguments, or none in the checker
+ * @returns 1 or 0, or `DEPENDS` when it names a parameter `targs` does not give
+ */
+pub fn comptimeValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) int {
+    return match e.kind {
+        ExprKind.Bool(true) => 1
+        ExprKind.Bool(false) => 0
+        ExprKind.Unary(_, operand) => {
+            const v = comptimeValue(c, p, &*operand, targs)
+            match v == DEPENDS {
+                true => DEPENDS
+                false => 1 - v
+            }
+        }
+        ExprKind.Binary(op, lhs, rhs) => {
+            const a = comptimeValue(c, p, &*lhs, targs)
+            const b = comptimeValue(c, p, &*rhs, targs)
+            const and = op == Op.LogicalAnd
+            if (and && (a == 0 || b == 0)) || (!and && (a == 1 || b == 1)) {
+                return if and { 0 } else { 1 }
+            }
+            match a == DEPENDS || b == DEPENDS {
+                true => DEPENDS
+                false => a
+            }
+        }
+        ExprKind.Call(_, _) => predicateValue(c, p, e, targs)
+        _ => match constEval(c, p, e) {
+            Option.Some(v) => if v.b { 1 } else { 0 }
+            Option.None => 0
+        }
+    }
+}
+
+fn predicateValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) int {
+    const args = callArgs(c, e)
+    if args.len() == 0 {
+        return 0   // after an error
+    }
+    let ty = args[0]
+    if c.types.get(ty).hasParam {
+        if targs.len() == 0 {
+            return DEPENDS
+        }
+        ty = c.types.subst(ty, targs.clone())
+    }
+    const name = metaCall(c, p, e)
+    return if predicateHolds(c, p, e, name, ty) { 1 } else { 0 }
+}
+
+// ---------------------------------------------------------------------------
+// Narrowing
+
+/**
+ * What a condition adds to the type parameters in its `then` branch (spec
+ * 15.3): through `&&` both sides, under `||` what both give, under `!`
+ * nothing.
+ *
+ * @param c the checker, in the module of the condition
+ * @param p the program
+ * @param e the condition, already checked
+ * @returns the narrowing, one entry per parameter in scope
+ */
+pub fn narrowingOf(c: mut Checker, p: Program, e: &Expr) Narrowing {
+    const count = c.generics.bounds.len()
+    let n = Narrowing{bits: [], ifaces: []}
+    for _ in 0..count {
+        n.bits.push(0)
+        n.ifaces.push([])
+    }
+    match e.kind {
+        ExprKind.Binary(op, lhs, rhs) => if op == Op.LogicalAnd || op == Op.LogicalOr {
+            const a = narrowingOf(c, p, &*lhs)
+            const b = narrowingOf(c, p, &*rhs)
+            for i in 0..count {
+                if op == Op.LogicalAnd {
+                    n.bits[i] = a.bits[i] | b.bits[i]
+                    n.ifaces[i] = a.ifaces[i].clone()
+                    for k in 0..b.ifaces[i].len() {
+                        n.ifaces[i].push(b.ifaces[i][k])
+                    }
+                } else {
+                    n.bits[i] = a.bits[i] & b.bits[i]
+                    n.ifaces[i] = common(&a.ifaces[i], &b.ifaces[i])
+                }
+            }
+        }
+        ExprKind.Call(_, _) => narrowCall(c, p, e, n)
+        _ => {}
+    }
+    return n
+}
+
+fn common(a: &List<int>, b: &List<int>) List<int> {
+    let out: List<int> = []
+    for i in 0..a.len() {
+        for j in 0..b.len() {
+            if a[i] == b[j] {
+                out.push(a[i])
+            }
+        }
+    }
+    return out
+}
+
+fn narrowCall(c: mut Checker, p: Program, e: &Expr, n: mut Narrowing) {
+    const args = callArgs(c, e)
+    if args.len() == 0 || c.types.kind(args[0]) != TyKind.Param {
+        return
+    }
+    const index = c.types.get(args[0]).data
+    if index >= n.bits.len() {
+        return
+    }
+    const name = metaCall(c, p, e)
+    const derived = BOUND_CLONE | BOUND_COPY | BOUND_DEBUG
+    if name == "isInteger" {
+        n.bits[index] = derived | BOUND_EQ | BOUND_ORD | BOUND_HASH | BOUND_INT | BOUND_NUMBER
+    } else if name == "isFloat" {
+        n.bits[index] = derived | BOUND_FLOAT | BOUND_NUMBER
+    } else if name == "isSigned" {
+        n.bits[index] = BOUND_SIGNED
+    } else if name == "isStruct" {
+        n.bits[index] = BOUND_STRUCT
+    } else if name == "isEnum" {
+        n.bits[index] = BOUND_ENUM
+    } else if name == "implements" {
+        const Option.Some(bound) = implementedBound(e) else {
+            return
+        }
+        n.bits[index] = boundBit(c, &bound)
+        const iface = interfaceOf(c, &bound)
+        if iface != 0 {
+            n.ifaces[index].push(iface)
+        }
+    }
+}
+
+/**
+ * Adds a narrowing to the type parameters in scope.
+ *
+ * @param c the checker
+ * @param n the narrowing
+ * @returns the parameters as they were, for `c.enterGenerics`
+ */
+pub fn narrow(c: mut Checker, n: &Narrowing) Generics {
+    const saved = c.generics.clone()
+    for i in 0..n.bits.len() {
+        if i >= c.generics.bounds.len() {
+            break
+        }
+        c.generics.bounds[i] = c.generics.bounds[i] | n.bits[i]
+        for k in 0..n.ifaces[i].len() {
+            c.generics.ifaces[i].push(n.ifaces[i][k])
+            c.generics.ifaceArgs[i].push(UNIT)
+        }
+    }
+    return saved
+}
+
+/**
+ * The narrowing of an `if` whose condition is `comptime`, or none.
+ *
+ * @param c the checker, in the module of the condition
+ * @param p the program
+ * @param cond the condition of an `if`
+ * @returns the narrowing of its `then` branch
+ */
+pub fn ifNarrowing(c: mut Checker, p: Program, cond: &Expr) Option<Narrowing> {
+    return match cond.kind {
+        ExprKind.Comptime(inner) => Option.Some(narrowingOf(c, p, &*inner))
+        _ => Option.None
+    }
+}
+
+/**
+ * The value of an `if` condition known without the type arguments: 1 or 0
+ * for a `comptime` condition that names no parameter, else `DEPENDS`.
+ *
+ * @param c the checker, in the module of the condition
+ * @param p the program
+ * @param cond the condition of an `if`
+ * @returns its value
+ */
+pub fn knownCondition(c: mut Checker, p: Program, cond: &Expr) int {
+    return match cond.kind {
+        ExprKind.Comptime(inner) => comptimeValue(c, p, &*inner, &[])
+        _ => DEPENDS
+    }
+}
+
+// ---------------------------------------------------------------------------
+// `comptime panic`
+
+/**
+ * Checks `comptime e`: `comptime panic("message")`, whose message is a
+ * string literal interpolating compile-time `str` values (spec 15.3).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the `comptime` expression
+ * @param inner what follows `comptime`
+ * @returns `never`
+ */
+pub fn checkComptimeExpr(c: mut Checker, p: Program, e: &Expr, inner: &Expr) int {
+    const Option.Some(message) = panicMessage(c, inner) else {
+        c.error("E0363", e.span, "only `comptime if` and `comptime panic(\"message\")` are "
+                + "supported here")
+        return ERROR
+    }
+    c.setType(inner.id.0, NEVER)
+    match message.kind {
+        ExprKind.Str(_) => {
+            c.setType(message.id.0, STR)
+        }
+        ExprKind.Interp(parts, _) => {
+            for i in 0..parts.len() {
+                checkMessagePart(c, p, &parts[i])
+            }
+            c.setType(message.id.0, STR)
+        }
+        _ => {
+            c.error("E0363", message.span, "the message of `comptime panic` must be a string "
+                    + "literal")
+        }
+    }
+    return NEVER
+}
+
+/**
+ * The message of `panic(message)`, when `e` is that call.
+ *
+ * @param c the checker
+ * @param e an expression
+ * @returns the message
+ */
+pub fn panicMessage(c: Checker, e: &Expr) Option<Expr> {
+    return match e.kind {
+        ExprKind.Call(callee, args) => match callee.kind {
+            ExprKind.Ident(name) => if c.text(name) == "panic" && args.len() == 1 {
+                Option.Some(args[0].value.clone())
+            } else {
+                Option.None
+            }
+            _ => Option.None
+        }
+        _ => Option.None
+    }
+}
+
+fn checkMessagePart(c: mut Checker, p: Program, part: &Expr) {
+    match part.kind {
+        ExprKind.Str(_) => {
+            c.setType(part.id.0, STR)
+            return
+        }
+        _ => {}
+    }
+    const ty = checkExpr(c, p, part, STR)
+    if ty != ERROR && metaCall(c, p, part) != "nameOf" {
+        c.error("E0363", part.span, "the message of `comptime panic` can interpolate only "
+                + "compile-time `str` values, such as `meta.nameOf<T>()`")
+    }
+}

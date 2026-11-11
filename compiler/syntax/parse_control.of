@@ -4,6 +4,7 @@
  * bootstrap/src/syntax/parse_control.c).
  */
 
+import base.span.Span
 import syntax.ast.Block
 import syntax.ast.Expr
 import syntax.ast.ExprKind
@@ -14,6 +15,8 @@ import syntax.parse_exprs.newExpr
 import syntax.parse_exprs.parseExpr
 import syntax.parse_exprs.parseExprNoStruct
 import syntax.parse_patterns.parseTestPattern
+import syntax.parse_primary.parsePostfix
+import syntax.parse_primary.parsePrimary
 import syntax.parse_stmts.parseStmt
 import syntax.parser.Parser
 import syntax.token.TokenKind
@@ -46,21 +49,34 @@ pub fn parseBlock(p: mut Parser) Block {
     return Block{span: p.spanSince(start), stmts}
 }
 
-// `if cond { } else if ... else { }` and `if const pattern = value { }`.
-fn ifExpr(p: mut Parser) Expr {
-    const start = p.advance()
+// `if cond { } else if ... else { }` and `if const pattern = value { }`;
+// `comptime if` (spec 15.3) when `start` is the span of `comptime`.
+fn ifExpr(p: mut Parser, comptimeAt: Option<Span>) Expr {
+    const start = match comptimeAt {
+        Option.Some(at) => {
+            p.advance()
+            at
+        }
+        Option.None => p.advance()
+    }
     let letPattern: Option<Pattern> = Option.None
-    if p.accept(TokenKind.Const) {
+    if comptimeAt.isNone() && p.accept(TokenKind.Const) {
         letPattern = Option.Some(parseTestPattern(p))
         p.expect(TokenKind.Eq, "`=` after the pattern")
     }
-    const cond = parseExprNoStruct(p)
+    let cond = parseExprNoStruct(p)
+    if comptimeAt.isSome() {
+        cond = newExpr(p, ExprKind.Comptime(Box.new(cond)), start)
+    }
     const then = parseBlock(p)
     let otherwise: Option<Box<Expr>> = Option.None
     if p.accept(TokenKind.Else) {
         const elseStart = p.here()
         if p.at(TokenKind.If) {
-            otherwise = Option.Some(Box.new(ifExpr(p)))
+            otherwise = Option.Some(Box.new(ifExpr(p, Option.None)))
+        } else if p.at(TokenKind.Comptime) && p.peekAt(1) == TokenKind.If {
+            const at = p.advance()
+            otherwise = Option.Some(Box.new(ifExpr(p, Option.Some(at))))
         } else {
             const block = parseBlock(p)
             otherwise = Option.Some(Box.new(newExpr(p, ExprKind.Block(block), elseStart)))
@@ -105,7 +121,8 @@ fn matchExpr(p: mut Parser) Expr {
 }
 
 /**
- * A block, `if`, `match` or `unsafe` expression; one of them is next.
+ * A block, `if`, `match`, `unsafe` or `comptime` expression; one of them is
+ * next.
  *
  * @param p the parser
  * @returns the expression
@@ -113,8 +130,17 @@ fn matchExpr(p: mut Parser) Expr {
 pub fn parseControl(p: mut Parser) Expr {
     const start = p.here()
     return match p.peek() {
-        TokenKind.If => ifExpr(p)
+        TokenKind.If => ifExpr(p, Option.None)
         TokenKind.Match => matchExpr(p)
+        TokenKind.Comptime => {
+            p.advance()
+            if p.at(TokenKind.If) {
+                ifExpr(p, Option.Some(start))
+            } else {   // `comptime panic(...)`
+                const inner = parsePostfix(p, parsePrimary(p))
+                newExpr(p, ExprKind.Comptime(Box.new(inner)), start)
+            }
+        }
         TokenKind.Unsafe => {
             p.advance()
             const block = parseBlock(p)

@@ -351,6 +351,7 @@ fn keywordTable() Map<str, TokenKind> {
     let k = Map<str, TokenKind>.new()
     k.insert("as", TokenKind.As)
     k.insert("break", TokenKind.Break)
+    k.insert("comptime", TokenKind.Comptime)
     k.insert("const", TokenKind.Const)
     k.insert("continue", TokenKind.Continue)
     k.insert("copy", TokenKind.Copy)

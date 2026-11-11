@@ -165,6 +165,7 @@ pub fn kindText(kind: TokenKind) str {
         TokenKind.Eof => "eof"
         TokenKind.As => "as"
         TokenKind.Break => "break"
+        TokenKind.Comptime => "comptime"
         TokenKind.Const => "const"
         TokenKind.Continue => "continue"
         TokenKind.Copy => "copy"

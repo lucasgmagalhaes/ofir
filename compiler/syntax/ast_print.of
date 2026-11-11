@@ -190,6 +190,7 @@ struct Printer {
             ExprKind.Match(scrutinee, arms) => self.matchExpr(&*scrutinee, arms, names)
             ExprKind.Block(block) => self.block("block", &block, names)
             ExprKind.Unsafe(block) => self.block("unsafe", &block, names)
+            ExprKind.Comptime(inner) => self.withChildren("comptime", &*inner, Option.None, names)
             ExprKind.Closure(params, ret, body, isMove) => {
                 self.line(if isMove { "closure move" } else { "closure" })
                 self.depth += 1

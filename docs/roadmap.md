@@ -268,7 +268,7 @@ These gaps remain:
 | 6.7 | Seeded `Map` hasher, labeled loops, const generics; labeled loops **done** (`name: for`, `break name`, `continue name`; spec 4.4); seeded hasher **done** (`Map.seeded()`, `Map.withSeed`, SipHash-1-3 strings; ADR 0034); const generics **done** in stage 1 (`const N: int`, `[T; N]`, inferred from array lengths; spec 8.7) | M |
 | 6.7a | Compile-time code: `comptime`, `std.meta`, `comptime for`/`if`, `@tag` (spec chapter 15, ADR 0035, stage 1), in the steps below | L |
 | 6.7a1 | Design: ADR 0035 (checked once, expanded per instance), spec chapter 15, codes E0363, E0364, E0814-E0818; **done** | S |
-| 6.7a2 | `comptime` keyword, `std.meta` predicates and `nameOf`, `comptime if` with narrowing (bounds and numeric operators), `comptime panic` (E0363, E0814) | M |
+| 6.7a2 | `comptime` keyword, `std.meta` predicates and `nameOf`, `comptime if` with narrowing (bounds and numeric operators), `comptime panic` (E0363, E0814); **done** | M |
 | 6.7a3 | `comptime for` over `keyof T` and `meta.fieldsOf<T>()`, `@tag` and `field.attribute`; done when `toJson` (spec 15.3) runs (E0364) | M |
 | 6.7a4 | `meta.variantsOf<T>()` | S |
 | 6.7a5 | AIR interpreter: `comptime` expressions, `comptime fn`, the step budget and `@comptimeBudget` (E0815-E0818) | M |

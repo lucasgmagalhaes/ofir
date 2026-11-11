@@ -1,0 +1,32 @@
+// requires: stage1
+// A `comptime if` whose condition is known checks and moves only the taken
+// branch (spec 15.3); one that depends on `T` keeps one branch per instance.
+
+import std.meta
+
+fn take(l: List<int>) int {
+    return l.len()
+}
+
+fn count<T>(v: T) int {
+    const l: List<int> = [1, 2]
+    comptime if meta.isInteger<T>() {
+        return take(l)
+    } else {
+        return 0
+    }
+}
+
+fn main() {
+    const l: List<int> = [1]
+    comptime if true {
+        println("{take(l)}")
+    } else {
+        const wrong: int = "never checked"
+        println("{take(l)} {take(l)} {wrong}")
+    }
+    comptime if false {
+        println("{take(l)}")
+    }
+    println("{count(1)} {count("x")}")
+}

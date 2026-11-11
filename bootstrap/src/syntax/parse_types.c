@@ -201,6 +201,11 @@ static TypeExpr *base_type(Parser *p) {
     case TOK_LBRACE:   // `{[K in T]: V}`, as stage 1 reads it
         syntax_error(p, start, "mapped types are not supported by stage 0");
         return new_type(p, TYPE_NEVER, start);
+    case TOK_KW_IF:   // conditional and `true`/`false` types, as stage 1 reads them
+    case TOK_KW_TRUE:
+    case TOK_KW_FALSE:
+        syntax_error(p, start, "type operators are not supported by stage 0");
+        return new_type(p, TYPE_NEVER, start);
     default:
         unexpected(p, "a type");
         return new_type(p, TYPE_NEVER, start);

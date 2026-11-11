@@ -353,6 +353,7 @@ pub fn resolveExpr(r: mut Resolver, e: &Expr) {
         }
         ExprKind.Block(block) => resolveBlock(r, &block)
         ExprKind.Unsafe(block) => resolveBlock(r, &block)
+        ExprKind.Comptime(inner) => resolveExpr(r, &*inner)
         ExprKind.Closure(params, _, body, _) => resolveClosure(r, e, &params, &*body)
     }
 }
