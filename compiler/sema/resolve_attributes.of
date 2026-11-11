@@ -32,6 +32,7 @@ const ON_ALIAS: int = 512
 const ON_IMPORT: int = 1024
 const ON_INTERFACE: int = 2048
 const ON_ANY: int = 4095
+const ON_VARIANT: int = 4096   // only `@tag`: not part of ON_ANY
 
 const ARGS_NONE: int = 0
 const ARGS_INLINE: int = 1
@@ -57,9 +58,10 @@ fn ruleIndex(name: str) Option<int> {
 }
 
 fn ruleTargets(rule: int) int {
+    const tag = ON_STRUCT | ON_ENUM | ON_FIELD | ON_VARIANT
     const targets = [ON_FN | ON_METHOD, ON_FN | ON_METHOD, ON_FN, ON_STRUCT | ON_ENUM,
                      ON_STRUCT | ON_ENUM, ON_STRUCT, ON_STRUCT, ON_EXTERN, ON_FN, ON_ANY, ON_FN,
-                     ON_ANY, ON_ANY, ON_STRUCT | ON_ENUM | ON_FIELD, ON_STRUCT | ON_ENUM]
+                     ON_ANY, ON_ANY, tag, ON_STRUCT | ON_ENUM]
     return targets[rule]
 }
 
@@ -120,6 +122,8 @@ fn targetName(target: int) str {
         "an enum"
     } else if target == ON_FIELD {
         "a field"
+    } else if target == ON_VARIANT {
+        "a variant"
     } else if target == ON_EXTERN {
         "an extern block"
     } else if target == ON_CONST {
@@ -300,8 +304,11 @@ pub fn checkAttributes(r: mut Resolver, item: &Item) {
             checkFields(r, &fields)
             checkFns(r, &methods, ON_METHOD)
         }
-        ItemKind.Enum(_, _, _, methods) => {
+        ItemKind.Enum(_, _, variants, methods) => {
             checkList(r, &item.attributes, ON_ENUM, item.span)
+            for i in 0..variants.len() {
+                checkList(r, &variants[i].attributes, ON_VARIANT, variants[i].span)
+            }
             checkFns(r, &methods, ON_METHOD)
         }
         ItemKind.Const(_, _) => checkList(r, &item.attributes, ON_CONST, item.span)
