@@ -10,6 +10,8 @@ import sema.check.Checker
 import sema.check_closure.noteWrite
 import sema.check_comptime.DEPENDS
 import sema.check_comptime.checkComptimeCond
+import sema.check_comptime_for.checkComptimeFor
+import sema.check_comptime_for.jumpLeavesComptime
 import sema.check_comptime.ifNarrowing
 import sema.check_comptime.narrow
 import sema.check_list.checkForCollection
@@ -223,7 +225,7 @@ fn forIn(c: mut Checker, p: Program, s: &Stmt, iterable: &Expr, two: bool, body:
 
 fn forStmt(c: mut Checker, p: Program, s: &Stmt) int {
     match s.kind {
-        StmtKind.For(kind, _, _, second, expr, body) => {
+        StmtKind.For(kind, _, first, second, expr, body) => {
             return match kind {
                 ForKind.Infinite => loopBody(c, p, s, &body, true)
                 ForKind.Cond => {
@@ -234,6 +236,12 @@ fn forStmt(c: mut Checker, p: Program, s: &Stmt) int {
                 }
                 ForKind.In => match expr {
                     Option.Some(iterable) => forIn(c, p, s, &iterable, second.isSome(), &body)
+                    Option.None => UNIT
+                }
+                ForKind.Comptime => match expr {
+                    Option.Some(iterable) => {
+                        checkComptimeFor(c, p, s, first ?? c.r.selfName, &iterable, &body)
+                    }
                     Option.None => UNIT
                 }
             }
@@ -255,7 +263,10 @@ fn returnStmt(c: mut Checker, p: Program, s: &Stmt, value: &Option<Expr>) int {
 }
 
 fn jumpStmt(c: mut Checker, s: &Stmt, isBreak: bool) int {
-    if c.loops.len() == 0 {
+    if s.label.isNone() && jumpLeavesComptime(c) {
+        c.error("E0309", s.span, "`{if isBreak { "break" } else { "continue" }}` inside "
+                + "`comptime for`, which is unrolled")
+    } else if c.loops.len() == 0 {
         c.error("E0309", s.span, "`{if isBreak { "break" } else { "continue" }}` outside of a "
                 + "loop")
     } else if const Option.Some(label) = s.label {
