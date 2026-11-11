@@ -1,0 +1,64 @@
+// requires: stage1
+// Numeric narrowing: operators, literals, casts and formatting of a narrowed T (spec 15.3).
+
+import std.meta
+
+fn sum<T>(items: &List<T>) T {
+    comptime if meta.isInteger<T>() || meta.isFloat<T>() {
+        let total: T = 0 as T
+        for x in items {
+            total += x
+        }
+        return total
+    } else {
+        comptime panic("sum: {meta.nameOf<T>()} is not a number")
+    }
+}
+
+fn neg<T: Copy>(x: T) T {
+    comptime if meta.isInteger<T>() && meta.isSigned<T>() {
+        return -x
+    } else comptime if meta.isFloat<T>() {
+        return -x
+    } else {
+        return x
+    }
+}
+
+fn bits<T: Copy>(x: T) T {
+    comptime if meta.isInteger<T>() {
+        return (x & 15) | (x << 1) % 7
+    } else {
+        return x
+    }
+}
+
+fn big<T: Copy>(a: T, b: T) bool {
+    comptime if meta.isInteger<T>() || meta.isFloat<T>() {
+        return a < b && a + b == b + a && a * 2 as T / 1 as T >= a - a
+    } else {
+        return false
+    }
+}
+
+fn show<T>(x: T) str {
+    comptime if meta.isInteger<T>() {
+        return "{x:x} {x}"
+    } else comptime if meta.isFloat<T>() {
+        return "{x:.2} {1.5 as T + x}"
+    } else comptime if meta.implements<T, Debug>() {
+        return "{x:?}"
+    } else {
+        return "?"
+    }
+}
+
+fn main() {
+    const xs = [1, 2, 3]
+    println("{sum(&xs)}")
+    const fs = [1.5, 2.5]
+    println("{sum(&fs)}")
+    const bs: List<u8> = [200, 50]
+    println("{neg(5)} {neg(2.5)} {neg(7 as u8)} {bits(9)} {big(1, 2)} {big(2.0, 1.0)}")
+    println("{show(255)} {show(3.14159)} {show("s")} {sum(&bs)} {show(Option.Some(1))}")
+}
