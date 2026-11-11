@@ -45,10 +45,12 @@ const ARGS_ALLOW: int = 7
 const ARGS_TWO_STR: int = 8
 const ARGS_LIB: int = 9
 const ARGS_SYMBOL: int = 10
+const ARGS_COUNT: int = 11
 
 fn ruleIndex(name: str) Option<int> {
     const names = ["inline", "cold", "test", "lang", "repr", "packed", "align", "link", "export",
-                   "deprecated", "bench", "cfg", "allow", "tag", "threadsafe"]
+                   "deprecated", "bench", "cfg", "allow", "tag", "threadsafe",
+                   "comptimeBudget"]
     for i in 0..names.len() {
         if names[i] == name {
             return Option.Some(i)
@@ -61,14 +63,14 @@ fn ruleTargets(rule: int) int {
     const tag = ON_STRUCT | ON_ENUM | ON_FIELD | ON_VARIANT
     const targets = [ON_FN | ON_METHOD, ON_FN | ON_METHOD, ON_FN, ON_STRUCT | ON_ENUM,
                      ON_STRUCT | ON_ENUM, ON_STRUCT, ON_STRUCT, ON_EXTERN, ON_FN, ON_ANY, ON_FN,
-                     ON_ANY, ON_ANY, tag, ON_STRUCT | ON_ENUM]
+                     ON_ANY, ON_ANY, tag, ON_STRUCT | ON_ENUM, ON_FN | ON_METHOD]
     return targets[rule]
 }
 
 fn ruleArgs(rule: int) int {
     const args = [ARGS_INLINE, ARGS_NONE, ARGS_NONE, ARGS_STR, ARGS_REPR, ARGS_NONE, ARGS_ALIGN,
                   ARGS_LIB, ARGS_SYMBOL, ARGS_OPT_STR, ARGS_NONE, ARGS_ONE, ARGS_ALLOW,
-                  ARGS_TWO_STR, ARGS_NONE]
+                  ARGS_TWO_STR, ARGS_NONE, ARGS_COUNT]
     return args[rule]
 }
 
@@ -79,7 +81,8 @@ fn ruleUsage(rule: int) str {
                    "`@export(\"name\")`, name a C identifier",
                    "`@deprecated` or `@deprecated(\"message\")`", "`@bench`", "`@cfg(condition)`",
                    "`@allow(category)`, category `unused`, `unreachable`, `deprecated` or `naming`",
-                   "`@tag(\"key\", \"value\")`", "`@threadsafe`"]
+                   "`@tag(\"key\", \"value\")`", "`@threadsafe`",
+                   "`@comptimeBudget(n)`, n a positive integer"]
     return usage[rule].sliceFrom(0)
 }
 
@@ -165,6 +168,14 @@ fn isAlignment(e: &Expr) bool {
     }
 }
 
+// A positive integer: `@comptimeBudget(1000)`.
+fn isCount(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Int(value) => value > 0 && value < 4611686018427387904
+        _ => false
+    }
+}
+
 // The text of a string argument, "" for another argument.
 fn strText(e: &Expr) str {
     return match e.kind {
@@ -229,6 +240,8 @@ fn argsMatch(r: Resolver, kind: int, a: &Attribute) bool {
         return n == 1 && isLibrary(&a.args[0])
     } else if kind == ARGS_SYMBOL {
         return n == 1 && isSymbol(&a.args[0])
+    } else if kind == ARGS_COUNT {
+        return n == 1 && isCount(&a.args[0])
     }
     return n == 2 && isStr(&a.args[0]) && isStr(&a.args[1])
 }
