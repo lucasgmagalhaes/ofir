@@ -978,17 +978,17 @@ fn call(it: mut Interp, c: mut Checker, p: Program, out: List<AirBody>, frame: i
     if s.callee == GLUE_DROP {
         return
     }
-    if s.callee == GLUE_CLONE {
-        const v = pointee(it, c, frame, s.args[0])
-        assign(it, frame, s, v)
-        return
-    }
     if s.callee > 0 && isStrMethod(c, s.callee) && strMethod(it, c, frame, s) {
         return
     }
     const index = match it.bodies.get(s.callee * 4294967296 + s.targs) {
         Option.Some(i) => *i
         Option.None => -1
+    }
+    if s.callee == GLUE_CLONE && index < 0 {   // plain data: a copy
+        const v = pointee(it, c, frame, s.args[0])
+        assign(it, frame, s, v)
+        return
     }
     if index < 0 {
         noBody(it, c, p, frame, s)
