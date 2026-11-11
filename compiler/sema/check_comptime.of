@@ -7,6 +7,7 @@
  * branch taken.
  */
 
+import base.span.Span
 import sema.check.BOUND_CLONE
 import sema.check.BOUND_COPY
 import sema.check.BOUND_DEBUG
@@ -16,6 +17,7 @@ import sema.check.BOUND_ORD
 import sema.check.Checker
 import sema.check.Generics
 import sema.check.boundBit
+import sema.check.fnOf
 import sema.check.interfaceOf
 import sema.check_comptime_for.comptimeInt
 import sema.check_comptime_for.isComptimeInt
@@ -543,6 +545,25 @@ pub fn checkComptimeExpr(c: mut Checker, p: Program, e: &Expr, inner: &Expr,
         }
     }
     return NEVER
+}
+
+/**
+ * Reports E0817 when a `comptime fn` is used outside compile-time code
+ * (spec 15.5).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the function's `DefId`
+ * @param span the call or the use
+ */
+pub fn requireComptime(c: mut Checker, p: Program, id: int, span: Span) {
+    if c.comptimeDepth > 0 || c.def(id).kind != DefKind.Fn || isIntrinsic(c, p, id) {
+        return
+    }
+    if fnOf(p, c.loc(id)).isComptime {
+        c.error("E0817", span, "`{c.text(c.def(id).name)}` is a `comptime fn`: it can only be "
+                + "called from compile-time code")
+    }
 }
 
 /**

@@ -19,6 +19,7 @@ import sema.check_comptime.BOUND_INT
 import sema.check_comptime.BOUND_NUMBER
 import sema.check_comptime.BOUND_SIGNED
 import sema.check_comptime.checkComptimeExpr
+import sema.check_comptime.requireComptime
 import sema.check_comptime.checkImplements
 import sema.check_comptime.metaCall
 import sema.check_comptime.numeric
@@ -226,6 +227,7 @@ fn fnValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
     if isUnsafeFn(c, p, id) {
         return c.unsupported(span, "unsafe functions as values are")
     }
+    requireComptime(c, p, id, span)
     for i in 0..decl.params.len() {
         if decl.params[i].mode != Mode.Borrow {
             return c.unsupported(span, "functions with `mut` or `move` parameters as values are")
@@ -502,6 +504,7 @@ fn checkFnCall(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<
     if isUnsafeFn(c, p, id) {
         requireUnsafe(c, e.span, "calling an `unsafe` or `extern` function")
     }
+    requireComptime(c, p, id, e.span)
     const sig = fnSignature(c, p, id)
     const generics = fnGenerics(c, p, id)
     let ret = ERROR
