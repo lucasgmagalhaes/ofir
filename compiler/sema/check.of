@@ -526,6 +526,8 @@ pub struct Checker {
     pub loopLabels: List<Option<Symbol>>
     /** Above 0 inside an `unsafe` block or function. */
     pub unsafeDepth: int
+    /** Above 0 inside a `comptime` expression or a `comptime fn` (spec 15.1). */
+    pub comptimeDepth: int
     /** The `NodeId` of the function being checked, or -1. */
     pub fnNode: int
     /** Its `DefId`, or 0. */
@@ -1013,7 +1015,8 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
                    arrayCoercions, dynCoercions, unionCoercions, moveFlags, fnMoves: Map.new(),
                    bodyChecked: Map.new(), movesPending: Map.new(),
                    generics: noGenerics(), locals: [], localTypes: [], ret: UNIT,
-                   selfType: ERROR, loops: [], loopLabels: [], unsafeDepth: 0, fnNode: -1, fnDef: 0,
+                   selfType: ERROR, loops: [], loopLabels: [], unsafeDepth: 0, comptimeDepth: 0,
+                   fnNode: -1, fnDef: 0,
                    shorthandSpan: noSpan(), closures: [], closureMoves: [], capturesMut,
                    boundArgs: Map.new(), typeVars: [], typeVarTypes: [], aliasDef: 0,
                    mapped: Map.new(), inferNames: [], inferring: false, unions: Map.new(),
@@ -1167,12 +1170,14 @@ fn checkBody(c: mut Checker, p: Program, id: int, selfType: int, late: bool) {
         return
     }
     c.unsafeDepth = if decl.isUnsafe { 1 } else { 0 }
+    c.comptimeDepth = if decl.isComptime { 1 } else { 0 }
     const errors = c.r.diags.errorCount()
     let found = UNIT
     if const Option.Some(body) = decl.body {
         found = checkBlock(c, p, &body, ERROR, false)
     }
     c.unsafeDepth = 0
+    c.comptimeDepth = 0
     if c.ret != UNIT && c.ret != ERROR && found != NEVER {
         c.error("E0303", decl.span,
                 "function may reach its end without returning a value".toOwned())
