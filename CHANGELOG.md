@@ -86,6 +86,13 @@ project uses [Semantic Versioning](https://semver.org/).
   `variant.attribute("json")` (from a `@tag` on the variant) and
   `variant.matches(value)`, tested at run time (spec 15.3, roadmap 6.7a4,
   stage 1).
+- `comptime f(...)` inside a function runs `f` in the compiler, by an
+  interpreter of the AIR, and builds its value into the program: a
+  number, `bool`, `str`, array, tuple, struct or enum (E0818). A
+  `comptime fn` runs only there (E0817); I/O, `extern` calls and
+  run-time values are E0815, and a panic, an arithmetic or bounds error
+  or a spent step budget (10 million, `@comptimeBudget(n)`) is E0816
+  (spec 15.5, roadmap 6.7a5, stage 1).
 
 ### Changed
 
