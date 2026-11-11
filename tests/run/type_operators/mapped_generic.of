@@ -1,0 +1,47 @@
+// requires: stage1
+// Mapped types over type parameters (spec 16.4, 16.6): `merge(base, patch)`.
+
+struct Config {
+    name: str
+    port: int
+    debug: bool
+}
+
+struct Point {
+    x: float
+    y: float
+}
+
+type Partial<T> = { [K in keyof T]?: T[K] }
+
+fn merge<T>(base: move T, patch: move Partial<T>) T {
+    let out = base
+    comptime for key in keyof T {
+        if const Option.Some(value) = patch[key] {
+            out[key] = value
+        }
+    }
+    return out
+}
+
+fn count<T>(patch: &Partial<T>) int {
+    let n = 0
+    comptime for key in keyof T {
+        if patch[key].isSome() {
+            n += 1
+        }
+    }
+    return n
+}
+
+fn main() {
+    const base = Config{name: "app".toOwned(), port: 80, debug: false}
+    const patch = Partial<Config>{port: Option.Some(8080), debug: Option.Some(true)}
+    println("{count(&patch)}")
+    const c = merge(base, patch)
+    println("{c.name} {c.port} {c.debug}")
+    const renamed = merge(c, Partial<Config>{name: Option.Some("api".toOwned())})
+    println("{renamed.name} {renamed.port} {renamed.debug}")
+    const p = merge(Point{x: 1.0, y: 2.0}, Partial<Point>{y: Option.Some(5.0)})
+    println("{p.x} {p.y}")
+}
