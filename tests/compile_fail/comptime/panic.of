@@ -1,0 +1,23 @@
+// requires: stage1
+// `comptime panic` fails the instance that keeps it (spec 15.3, E0814).
+
+import std.meta
+
+fn sum<T>(items: &List<T>) T {
+    comptime if meta.isInteger<T>() || meta.isFloat<T>() {
+        let total: T = 0 as T
+        for x in items {
+            total += x
+        }
+        return total
+    } else {
+        comptime panic("sum: {meta.nameOf<T>()} is not a number")
+    }
+}
+
+fn main() {
+    const ints = [1, 2]
+    println("{sum(&ints)}")
+    const words = ["a", "b"]
+    println("{sum(&words)}")   // error[E0814]: sum: str is not a number
+}

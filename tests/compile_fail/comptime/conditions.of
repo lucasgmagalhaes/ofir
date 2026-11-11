@@ -1,0 +1,25 @@
+// requires: stage1
+// The condition of a `comptime if` is known at compile time (spec 15.3, E0363).
+
+import std.meta
+
+fn pick(b: bool) int {
+    comptime if b {   // error[E0363]: the condition of a `comptime if` must be known at compile time: `true`, `false`, a constant or a `std.meta` predicate
+        return 1
+    }
+    return 2
+}
+
+fn count<T>(n: int) int {
+    comptime if meta.isInteger<T>() && n > 0 {   // error[E0363]: the condition of a `comptime if` must be known at compile time: `true`, `false`, a constant or a `std.meta` predicate
+        return n
+    }
+    comptime if 1 {   // error[E0308]: mismatched types: expected `bool`, found `int`
+        return 0
+    }
+    return 0
+}
+
+fn main() {
+    println("{pick(true)} {count<int>(1)}")
+}
