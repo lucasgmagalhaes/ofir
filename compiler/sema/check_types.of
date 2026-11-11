@@ -147,6 +147,10 @@ fn aliasType(c: mut Checker, p: Program, id: int, typeParams: &List<Symbol>,
     if typeParams.len() == 0 && c.info[id].typed {
         return c.info[id].ty
     }
+    const savedUser = c.aliasUser
+    if c.aliasDef == 0 {
+        c.aliasUser = c.module()
+    }
     const saved = c.enter(c.def(id).module)
     const outer = c.enterGenerics(generics)
     const savedSelf = c.selfType
@@ -160,6 +164,7 @@ fn aliasType(c: mut Checker, p: Program, id: int, typeParams: &List<Symbol>,
     }
     c.info[id].checking = false
     c.aliasDef = savedAlias
+    c.aliasUser = savedUser
     c.selfType = savedSelf
     c.enterGenerics(outer)
     c.enter(saved)

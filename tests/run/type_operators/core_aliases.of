@@ -1,0 +1,40 @@
+// requires: stage1
+// The standard aliases of the prelude (spec 16.7), with no local declaration.
+
+struct Config {
+    name: str
+    port: int
+    debug: bool
+}
+
+struct Draft {
+    title: Option<str>
+    pages: Option<int>
+    done: bool
+}
+
+fn merge<T>(base: move T, patch: move Partial<T>) T {
+    let out = base
+    comptime for key in keyof T {
+        if const Option.Some(value) = patch[key] {
+            out[key] = value
+        }
+    }
+    return out
+}
+
+fn main() {
+    const base = Config{name: "app".toOwned(), port: 80, debug: false}
+    const merged = merge(base, Partial<Config>{port: Option.Some(8080)})
+    println("{merged.name} {merged.port} {merged.debug}")
+    const ready = Required<Draft>{title: "notes".toOwned(), pages: 3, done: true}
+    println("{ready.title} {ready.pages} {ready.done}")
+    const name = Pick<Config, .name>{name: "pick".toOwned()}
+    println("{name.name}")
+    const rest = Omit<Config, .name>{port: 1, debug: true}
+    println("{rest.port} {rest.debug}")
+    const range = Record<.lo | .hi, int>{lo: 2, hi: 9}
+    println("{range.hi - range.lo}")
+    const n: Unwrap<Option<int>> = 4
+    println("{n}")
+}

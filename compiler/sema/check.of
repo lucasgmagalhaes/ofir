@@ -553,6 +553,9 @@ pub struct Checker {
     pub typeVarTypes: List<int>
     /** The type alias being expanded, or 0. */
     pub aliasDef: int
+    /** The module that uses the outermost alias being expanded: its private
+     * fields are keys in the alias too (spec 16.1). */
+    pub aliasUser: int
     /** The struct of each instance of a mapped type (spec 16.4), by the mapped type's
      * file and offset and a tuple of the types in scope. */
     pub mapped: Map<(int, int, int), int>
@@ -661,6 +664,17 @@ pub struct Checker {
      */
     pub fn module(self) int {
         return self.r.current
+    }
+
+    /**
+     * The module that uses the alias being expanded, else the current one:
+     * `keyof` and `T[K]` see its private fields as well as the current
+     * module's.
+     *
+     * @returns the module index
+     */
+    pub fn keyModule(self) int {
+        return if self.aliasDef != 0 { self.aliasUser } else { self.r.current }
     }
 
     /**
@@ -1032,7 +1046,7 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
                    selfType: ERROR, loops: [], loopLabels: [], unsafeDepth: 0, comptimeDepth: 0,
                    fnNode: -1, fnDef: 0,
                    shorthandSpan: noSpan(), closures: [], closureMoves: [], capturesMut,
-                   boundArgs: Map.new(), typeVars: [], typeVarTypes: [], aliasDef: 0,
+                   boundArgs: Map.new(), typeVars: [], typeVarTypes: [], aliasDef: 0, aliasUser: 0,
                    mapped: Map.new(), mappedTpls: Map.new(),
                    mappedArgs: Map.new(), inferNames: [], inferring: false, unions: Map.new(),
                    unionDefs: Map.new(), comptimeInfo: Map.new(), comptimeLoops: []}

@@ -7,6 +7,9 @@ static void resolve_list(Checker *c, TypeList list, TypeId *out);
 
 static TypeId resolve_alias(Checker *c, Def *def, TypeList list, Span span) {
     SymbolList params = def->item->as.alias.type_params;
+    if (!def->item->as.alias.type) {
+        return unsupported(c, span, "mapped and conditional types in stage 0 are");
+    }
     if (list.len != params.len) {
         check_error(c, "E0302", span, "wrong number of type arguments for `" SV_FMT "`: "
                     "expected %u, found %u",

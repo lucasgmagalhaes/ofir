@@ -205,7 +205,7 @@ fn methodDef(c: Checker, p: Program, owner: int, index: int) int {
  * @param span where it is used
  */
 pub fn checkVisible(c: mut Checker, module: int, isPub: bool, name: Symbol, span: Span) {
-    if module != c.module() && !isPub {
+    if module != c.module() && module != c.keyModule() && !isPub {
         c.error("E0202", span, "`{c.text(name)}` is private to module "
                 + "`{c.r.moduleNames[module]}`")
     }

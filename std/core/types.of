@@ -1,0 +1,35 @@
+/**
+ * @module
+ * The standard type operator aliases (spec 16.7): mapped and conditional
+ * types over the fields of a struct.
+ */
+// requires: stage1 (stage 0 keeps these aliases opaque; compare_stages.py skips them)
+
+/** `T` itself, or the value type of `T` when it is an `Option`. */
+pub type Unwrap<T> = if T is Option<infer U> { U } else { T }
+
+/**
+ * Every field of `T` optional, defaulting to `Option.None`.
+ *
+ * @example
+ * ```ofir
+ * struct Point {
+ *     x: float
+ *     y: float
+ * }
+ * const patch = Partial<Point>{y: Option.Some(5.0)}
+ * ```
+ */
+pub type Partial<T> = { [K in keyof T]?: T[K] }
+
+/** Every `Option` field of `T` unwrapped. */
+pub type Required<T> = { [K in keyof T]: Unwrap<T[K]> }
+
+/** The fields `K` of `T`. */
+pub type Pick<T, K: keyof T> = { [P in K]: T[P] }
+
+/** The fields of `T` but `K`. */
+pub type Omit<T, K: keyof T> = { [P in keyof T - K]: T[P] }
+
+/** A field of type `V` for each key of `K`. */
+pub type Record<K, V> = { [P in K]: V }

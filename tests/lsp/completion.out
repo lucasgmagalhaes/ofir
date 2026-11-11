@@ -4,7 +4,7 @@
 {"jsonrpc":"2.0","id":3,"result":{"isIncomplete":false,"items":[{"label":"norm","kind":2}]}}
 {"jsonrpc":"2.0","id":4,"result":{"isIncomplete":false,"items":[{"label":"fromUtf8","kind":3}]}}
 {"jsonrpc":"2.0","id":5,"result":{"isIncomplete":false,"items":[{"label":"const","kind":14},{"label":"continue","kind":14},{"label":"copy","kind":14},{"label":"count","kind":6}]}}
-{"jsonrpc":"2.0","id":6,"result":{"isIncomplete":false,"items":[{"label":"ParseError","kind":22},{"label":"Point","kind":22}]}}
+{"jsonrpc":"2.0","id":6,"result":{"isIncomplete":false,"items":[{"label":"ParseError","kind":22},{"label":"Partial","kind":22},{"label":"Pick","kind":22},{"label":"Point","kind":22}]}}
 {"jsonrpc":"2.0","id":7,"result":{"isIncomplete":false,"items":[{"label":"twice","kind":3}]}}
 {"jsonrpc":"2.0","id":8,"result":[]}
 {"jsonrpc":"2.0","id":99,"result":null}

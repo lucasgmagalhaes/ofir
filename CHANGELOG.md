@@ -105,6 +105,9 @@ project uses [Semantic Versioning](https://semver.org/).
 - Mapped types over type parameters: `fn merge<T>(base: move T, patch:
   move Partial<T>) T` merges a patch field by field with `comptime for`
   (spec 16.6, roadmap 6.7b1, stage 1).
+- The standard aliases `Partial`, `Required`, `Pick`, `Omit`, `Record`
+  and `Unwrap` in the prelude (`std.core.types`, spec 16.7, roadmap
+  6.7b2, stage 1); stage 0 loads them as opaque aliases.
 
 ### Changed
 

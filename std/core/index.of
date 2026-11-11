@@ -28,6 +28,7 @@ import std.core.map
 import std.core.option
 import std.core.result
 import std.core.print
+import std.core.types
 
 /**
  * The result of comparing two values: what `compare` methods and sorting
