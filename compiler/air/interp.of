@@ -139,14 +139,15 @@ fn fetch(v: Value, path: List<int>, at: int) Value {
 }
 
 // Writes `x` at `path` from `at` into `v`, making the parts it needs.
-// Returns false for a write into a str's fields.
+// Returns false for a write into a str's fields other than its capacity,
+// which a borrow sets to 0 and the interpreter does not keep.
 fn store(v: mut Value, path: List<int>, at: int, x: move Value) bool {
     if at == path.len() {
         v = x
         return true
     }
     if v.kind == ValueKind.Str {
-        return false
+        return path[at] == 2 && at + 1 == path.len()
     }
     if v.kind != ValueKind.Agg {
         v = blank(ValueKind.Agg)
