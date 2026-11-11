@@ -45,17 +45,17 @@ pub fn intBits(data: int) int {
     }
 }
 
-fn isInt(c: Checker, ty: int) bool {
+fn isInt(c: mut Checker, ty: int) bool {
     return c.types.get(ty).kind == TyKind.Int
 }
 
 /** Whether the int type `ty` is signed. */
-pub fn isSigned(c: Checker, ty: int) bool {
+pub fn isSigned(c: mut Checker, ty: int) bool {
     return c.types.get(ty).data <= 3
 }
 
 /** `bits` read as a value of `ty`: an int is extended from its width. */
-pub fn normalize(c: Checker, ty: int, bits: u64) u64 {
+pub fn normalize(c: mut Checker, ty: int, bits: u64) u64 {
     if !isInt(c, ty) {
         return bits & 1
     }
@@ -71,7 +71,7 @@ pub fn normalize(c: Checker, ty: int, bits: u64) u64 {
     return low
 }
 
-fn known(f: &Folder, c: Checker, o: &Operand) Option<u64> {
+fn known(f: &Folder, c: mut Checker, o: &Operand) Option<u64> {
     return match o.kind {
         OperandKind.Int => Option.Some(normalize(c, o.ty, o.bits))
         OperandKind.Bool => Option.Some(if o.truth { 1 as u64 } else { 0 as u64 })
@@ -87,7 +87,7 @@ fn known(f: &Folder, c: Checker, o: &Operand) Option<u64> {
 }
 
 /** Whether the known value `v` of int type `from` lies outside int type `to`. */
-pub fn castFails(c: Checker, from: int, to: int, v: u64) bool {
+pub fn castFails(c: mut Checker, from: int, to: int, v: u64) bool {
     const t = intBits(c.types.get(to).data)
     const one: u64 = 1
     if isSigned(c, from) && v.wrappingCast<i64>() < 0 {
@@ -130,7 +130,7 @@ fn truth(b: bool) u64 {
 }
 
 // `a and b`, `a or b` of bools: one known operand can decide.
-fn logic(f: &Folder, c: Checker, rv: &Rvalue) Option<u64> {
+fn logic(f: &Folder, c: mut Checker, rv: &Rvalue) Option<u64> {
     const a = known(f, c, &rv.a)
     const b = known(f, c, &rv.b)
     const absorbing = truth(rv.op == Op.Or)
@@ -143,7 +143,7 @@ fn logic(f: &Folder, c: Checker, rv: &Rvalue) Option<u64> {
     return Option.Some(1 - absorbing)
 }
 
-fn binary(f: &Folder, c: Checker, rv: &Rvalue) Option<u64> {
+fn binary(f: &Folder, c: mut Checker, rv: &Rvalue) Option<u64> {
     const int = isInt(c, rv.a.ty)
     if !int && (rv.op == Op.And || rv.op == Op.Or) {
         return logic(f, c, rv)
@@ -159,7 +159,7 @@ fn binary(f: &Folder, c: Checker, rv: &Rvalue) Option<u64> {
     }
 }
 
-fn eval(f: &Folder, c: Checker, rv: &Rvalue, dest: int) Option<u64> {
+fn eval(f: &Folder, c: mut Checker, rv: &Rvalue, dest: int) Option<u64> {
     const ints = isInt(c, rv.a.ty) && isInt(c, rv.to)
     if rv.kind == RvalueKind.Use {
         return known(f, c, &rv.a)
@@ -190,7 +190,7 @@ fn eval(f: &Folder, c: Checker, rv: &Rvalue, dest: int) Option<u64> {
     return Option.Some(normalize(c, rv.to, v))
 }
 
-fn step(f: mut Folder, c: Checker, body: &AirBody, s: &AirStmt) {
+fn step(f: mut Folder, c: mut Checker, body: &AirBody, s: &AirStmt) {
     if s.kind == StmtKind.Call {
         if s.hasDest {
             f.stamp[s.dest] = 0
@@ -340,7 +340,7 @@ fn emptyBlock() AirBlock {
  * @param c the checker, for the types
  * @param body the body, changed in place
  */
-pub fn foldChecks(c: Checker, body: mut AirBody) {
+pub fn foldChecks(c: mut Checker, body: mut AirBody) {
     const n = body.locals.len()
     let f = Folder{stamp: List.filled(0, n), value: List.filled(0 as u64, n),
                    escaped: List.filled(false, n), block: 0}
