@@ -1,0 +1,24 @@
+// requires: stage1
+// Compile-time code does no I/O, calls no `extern` function and reads no
+// run-time value (spec 15.5, E0815).
+
+extern "C" {
+    fn abs(x: i32) i32
+}
+
+fn noisy() int {
+    println("hello")
+    return 1
+}
+
+fn absolute() i32 {
+    return unsafe { abs(-3) }
+}
+
+fn main() {
+    const a = comptime noisy()   // error[E0815]: compile-time code cannot print: it does no I/O (spec 15.5)
+    const b = comptime absolute()   // error[E0815]: compile-time code cannot call the extern function `abs`
+    const c = 3
+    const d = comptime c + 1   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
+    println("{a} {b} {d}")
+}
