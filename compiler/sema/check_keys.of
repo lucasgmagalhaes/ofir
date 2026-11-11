@@ -43,7 +43,7 @@ pub fn keyofType(c: mut Checker, p: Program, inner: &TypeExpr, span: Span) int {
     }
     if kind == TyKind.Param {
         useIndexNames(c)
-        return c.types.intern(TyKind.KeyOf, c.module(), ty, [])
+        return c.types.intern(TyKind.KeyOf, c.keyModule(), ty, [])
     }
     if kind == TyKind.Tuple {
         return indexKeys(c, c.types.get(ty).args.len())
@@ -59,7 +59,8 @@ pub fn keyofType(c: mut Checker, p: Program, inner: &TypeExpr, span: Span) int {
     if fieldsOf(c, id).isTuple {
         return indexKeys(c, fieldsOf(c, id).types.len())
     }
-    const inside = c.def(id).module == c.module()
+    const owner = c.def(id).module
+    const inside = owner == c.module() || owner == c.keyModule()
     let names: List<int> = []
     for i in 0..fieldsOf(c, id).names.len() {
         if inside || fieldIsPub(c, p, id, i) {
