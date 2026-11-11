@@ -23,6 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Use the main Ubuntu mirror (Linux)
+        if: runner.os == 'Linux'
+        # The runners' Azure apt mirror sometimes fails to resolve for hours.
+        run: |
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|' \
+            -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|' \
+            /etc/apt/sources.list.d/*.sources /etc/apt/sources.list || true
+          echo 'Acquire::Retries "5";' | sudo tee /etc/apt/apt.conf.d/80-retries
+
       - name: Install LLVM (Linux)
         if: runner.os == 'Linux'
         run: |
