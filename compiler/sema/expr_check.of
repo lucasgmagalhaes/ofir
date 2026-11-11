@@ -22,6 +22,7 @@ import sema.check_comptime.checkComptimeExpr
 import sema.check_comptime.checkImplements
 import sema.check_comptime.metaCall
 import sema.check_comptime.numeric
+import sema.check_comptime_for.comptimeMethod
 import sema.check_dyn.boxesDyn
 import sema.check_dyn.coerceToDyn
 import sema.check_generic.checkGenericArgs
@@ -544,7 +545,14 @@ fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
         _ => false
     }
     if isField {
+        const member = comptimeMethod(c, e, callee, args)
+        if member != 0 {   // `field.attribute("json")` in a `comptime for`
+            return member
+        }
         return checkMethodCall(c, p, e, callee, args, expected)
+    }
+    if metaCall(c, p, e) == "fieldsOf" {
+        return c.unsupported(e.span, "`meta.fieldsOf` outside of `comptime for` is")
     }
     const Res.Def(id) = nameRes(c, callee) else {
         const ty = checkExpr(c, p, callee, ERROR)
@@ -625,6 +633,7 @@ fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
         ExprKind.Block(block) => checkBlock(c, p, &block, expected, true)
         ExprKind.Unsafe(block) => checkUnsafeBlock(c, p, &block, expected, true)
         ExprKind.Comptime(inner) => checkComptimeExpr(c, p, e, &*inner)
+        ExprKind.Keys(_) => c.unsupported(e.span, "`keys T` outside of `comptime for` is")
         ExprKind.Tuple(elems) => tuple(c, p, &elems, expected)
         ExprKind.SelfType => match c.res(e.id.0) {   // `Self` as a value: the type's name
             Res.Def(id) => defValue(c, p, id, e.span, ERROR)

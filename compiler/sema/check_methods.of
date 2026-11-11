@@ -19,7 +19,9 @@ import sema.check.itemOf
 import sema.check.itemTypeParams
 import sema.check_box.autoDeref
 import sema.check_box.methodReceiver
+import sema.check_comptime_for.comptimeMember
 import sema.check_keys.keyIndex
+import sema.check_keys.paramKey
 import sema.check_generic.checkGenericArgs
 import sema.check_generic.fnGenerics
 import sema.check_generic.inferExplicit
@@ -585,6 +587,10 @@ fn builtinConst(c: Checker, ty: int, name: Symbol) bool {
  */
 pub fn checkField(c: mut Checker, p: Program, e: &Expr, base: &Expr, name: Symbol,
                   expected: int) int {
+    const member = comptimeMember(c, e, base, name)
+    if member != 0 {   // `field.name` in a `comptime for`
+        return member
+    }
     const owner = typeNameOf(c, base)
     if owner != 0 {   // `Shape.Empty`, `Opt<int>.None`
         const selfType = namedInstance(c, p, owner, &typeArgsOf(base), base.span)
@@ -632,6 +638,9 @@ pub fn checkIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, index: &Exp
         const key = checkExpr(c, p, index, ERROR)
         if const Option.Some(field) = keyIndex(c, p, ty, index, key) {
             return field
+        }
+        if paramKey(c, key) == ERROR {   // a `comptime for` that had an error
+            return ERROR
         }
         requireType(c, index, key, I64)
         c.error("E0313", e.span, "type `{c.typeName(ty)}` cannot be indexed")
