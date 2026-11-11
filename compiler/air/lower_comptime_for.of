@@ -40,6 +40,7 @@ import sema.check_comptime_for.comptimeAttribute
 import sema.check_comptime_for.comptimeIndex
 import sema.check_comptime_for.comptimeKey
 import sema.check_comptime_for.comptimeKeys
+import sema.check_mapped.substType
 import sema.program.Program
 import sema.types.BOOL
 import sema.types.I64
@@ -100,7 +101,7 @@ pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt,
     for i in 1..l.body.locals.len() {
         const ty = l.body.locals[i].ty
         if i != variable && c.types.get(ty).hasParam &&
-           c.types.subst(ty, args.clone()) != c.types.subst(ty, probe.clone()) {
+           substType(c, ty, args.clone()) != substType(c, ty, probe.clone()) {
             depends.push(i)
         }
     }
@@ -113,7 +114,7 @@ pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt,
         for d in 0..depends.len() {
             const local = depends[d]
             let twin = l.body.locals[local].clone()
-            twin.ty = c.types.subst(twin.ty, args.clone())
+            twin.ty = substType(c, twin.ty, args.clone())
             l.body.locals.push(twin)
             renameIn(l, range, local, l.body.locals.len() - 1)
         }
@@ -243,6 +244,6 @@ fn matchesValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, info: Comp
     } else {
         lowerPlace(l, c, p, &value)
     }
-    const ty = c.types.subst(info.base, args.clone())
+    const ty = substType(c, info.base, args.clone())
     return isVariant(l, c, p, &place, ty, comptimeIndex(c, p, info, args))
 }
