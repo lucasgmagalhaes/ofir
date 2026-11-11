@@ -153,6 +153,8 @@ M4, the code in `compiler/` must be written in this subset.
   `@allow`
 - default parameter values and named arguments
 - compile-time code (`comptime`, `std.meta`)
+- key, mapped and conditional types (stage 0 parses an alias whose body is
+  a mapped or conditional type, as in the prelude, and rejects a use of it)
 - good diagnostics: stage 0 reports the first error per function
 
 Programs accepted by stage 0 are still valid Ofir: stage 1 enforces every
