@@ -1,0 +1,38 @@
+// requires: stage1
+// `meta.variantsOf<T>()` needs an enum, or `T` narrowed to one (spec 15.2,
+// E0364). A variant has `name`, `index`, `attribute(key)` and
+// `matches(value)`, but no `get`.
+
+import std.meta
+
+enum Color {
+    Red
+    Green(int)
+}
+
+fn count<T>() int {
+    let n = 0
+    comptime for _variant in meta.variantsOf<T>() {   // error[E0364]: `meta.variantsOf<T>()` needs an enum: narrow `T` with `comptime if meta.isEnum<T>()`
+        n += 1
+    }
+    return n
+}
+
+fn members(c: Color) {
+    comptime for v in meta.variantsOf<Color>() {
+        const _ = v.get(c)   // error[E0301]: no method `get` on the variable of a `comptime for` over variants: it has `attribute(key)` and `matches(value)`
+        const _ = v.matches(3)   // error[E0300]: mismatched types: expected Color, found int
+        const _ = v.size   // error[E0316]: no field `size` on the variable of a `comptime for`: it has `name`, `index`, `attribute(key)` and `matches(value)`
+    }
+}
+
+struct Point {
+    x: int
+}
+
+fn main() {
+    comptime for v in meta.variantsOf<Point>() {   // error[E0364]: `meta.variantsOf` needs an enum, found `Point`
+        println(v.name)
+    }
+    members(Color.Red)
+}
