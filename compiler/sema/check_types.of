@@ -27,6 +27,7 @@ import sema.check_keys.keyofType
 import sema.check_mapped.checkAliasBounds
 import sema.check_mapped.mappedType
 import sema.check_ref.checkInstanceStorable
+import sema.const_eval.byComptimeMessage
 import sema.def.DefKind
 import sema.expr_check.checkConst
 import sema.def.Res
@@ -236,6 +237,10 @@ fn constArg(c: mut Checker, p: Program, id: int, span: Span) int {
     if ty != I64 {
         c.error("E0362", span, "the constant `{c.text(c.def(id).name)}` is of type "
                 + "`{c.typeName(ty)}`: const arguments are of type `int` (spec 8.7)")
+        return ERROR
+    }
+    if c.info[id].byComptime {
+        c.error("E0801", span, byComptimeMessage(c, id))
         return ERROR
     }
     return match c.info[id].value {
