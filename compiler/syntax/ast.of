@@ -398,6 +398,8 @@ pub struct FnDecl {
     pub isPub: bool
     /** `unsafe fn` */
     pub isUnsafe: bool
+    /** `comptime fn`: runs only at compile time (spec 15.1) */
+    pub isComptime: bool
     /** `"C"` for `extern "C" fn`, `""` otherwise. */
     pub abi: str
     /** Its type parameters. */
