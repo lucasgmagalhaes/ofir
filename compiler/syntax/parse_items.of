@@ -68,11 +68,22 @@ fn attribute(p: mut Parser) Attribute {
  */
 pub fn parseItemHeader(p: mut Parser) ItemHeader {
     const span = p.here()
+    const attributes = parseAttributes(p)
+    return ItemHeader{span, attributes, isPub: p.accept(TokenKind.Pub)}
+}
+
+/**
+ * The attributes `@name(...)` before a declaration or a variant.
+ *
+ * @param p the parser
+ * @returns them, in order
+ */
+pub fn parseAttributes(p: mut Parser) List<Attribute> {
     let attributes: List<Attribute> = []
     for p.at(TokenKind.At) {
         attributes.push(attribute(p))
     }
-    return ItemHeader{span, attributes, isPub: p.accept(TokenKind.Pub)}
+    return attributes
 }
 
 fn importItem(p: mut Parser) ItemKind {
