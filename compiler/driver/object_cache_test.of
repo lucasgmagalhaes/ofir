@@ -1,0 +1,32 @@
+// The native SHA-256 path matches the cache key used before it moved to C.
+
+@test
+fn hashesSaltAndText() {
+    const path = objectPath("salt", "body")
+    const expected = "6b43d49a4921f73967f68321a675ca0f0b2c8d7a4f1b93d123e162b4f8a4ec70"
+    assert(path.endsWith("/6b/{expected}.o"))
+}
+
+@test
+fn hashesSeveralBlocks() {
+    let text = str.new()
+    for _ in 0..1000 {
+        text.push("a")
+    }
+    const path = objectPath("salt", text)
+    const expected = "8b535ba1ae2ce61ce5a45222cb2902e69a458353ec96554b6bf2377da8e028f7"
+    assert(path.endsWith("/8b/{expected}.o"))
+}
+
+@test
+fn hashesPaddingBoundary() {
+    let text = str.new()
+    for _ in 0..50 {
+        text.push("a")
+    }
+    const oneBlock = "f73eacbc9dca314518e6e7da103af647e01a9d37d3ec176575fb72c159ad01ea"
+    assert(objectPath("salt", text).endsWith("/f7/{oneBlock}.o"))
+    text.push("a")
+    const twoBlocks = "1d6ec72ba808aeaed5e81bcb559104a08c943e7d56aa9140090a5c23121baf49"
+    assert(objectPath("salt", text).endsWith("/1d/{twoBlocks}.o"))
+}
