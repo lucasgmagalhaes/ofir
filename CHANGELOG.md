@@ -93,6 +93,10 @@ project uses [Semantic Versioning](https://semver.org/).
   run-time values are E0815, and a panic, an arithmetic or bounds error
   or a spent step budget (10 million, `@comptimeBudget(n)`) is E0816
   (spec 15.5, roadmap 6.7a5, stage 1).
+- `const X = comptime f()` at module level: the interpreter computes the
+  constant, which may be an array, tuple, struct or enum. It cannot be
+  used in another constant or an array length (E0801; spec 15.1, roadmap
+  6.7a6, stage 1).
 
 ### Changed
 
