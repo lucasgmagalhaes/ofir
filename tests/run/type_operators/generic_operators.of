@@ -1,0 +1,38 @@
+// requires: stage1
+// Pick, Omit, Unwrap and filtered mapped types over type parameters (spec 16.4, 16.5).
+
+struct Config {
+    name: str
+    port: int
+    debug: bool
+}
+
+type Ints<T> = { [K in keyof T if T[K] is int]: T[K] }
+
+fn pick<T, K: keyof T>(p: move Pick<T, K>) Pick<T, K> {
+    return p
+}
+
+fn omit<T, K: keyof T>(p: move Omit<T, K>) Omit<T, K> {
+    return p
+}
+
+fn first<T>(x: move Unwrap<T>) Unwrap<T> {
+    return x
+}
+
+fn ints<T>(p: move Ints<T>) Ints<T> {
+    return p
+}
+
+fn main() {
+    const name = pick<Config, .name>(Pick<Config, .name>{name: "pick".toOwned()})
+    println("{name.name}")
+    const rest = omit<Config, .name>(Omit<Config, .name>{port: 1, debug: true})
+    println("{rest.port} {rest.debug}")
+    const n = first<Option<int>>(4)
+    const s = first<str>("plain")
+    println("{n + 1} {s}")
+    const only = ints<Config>(Ints<Config>{port: 8080})
+    println("{only.port}")
+}
