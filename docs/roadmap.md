@@ -276,6 +276,8 @@ These gaps remain:
 | 6.7a7 | Compile-time heap allocation (`List`, `Map`) inside `comptime` code; **done** | S |
 | 6.7a8 | Faster `comptime` interpreter: the checker and program are passed by reference, not copied on each call (about 6x faster); **done** | S |
 | 6.7b | `comptime for` over keys (spec 16.6) and the standard aliases in `std.core` (16.7), moved from 5.19: it needs 6.7a, mapped and conditional types over type parameters, and type operators that stage 0 can load in `std.core`; done when `merge(base, patch)` is written in Ofir | M |
+| 6.7b1 | Mapped types over type parameters: `Partial<T>` in a generic signature, `patch[key]` in `comptime for key in keyof T`, inference from an instance; `merge(base, patch)` (spec 16.6) runs with a local alias; **done** | M |
+| 6.7b2 | The standard aliases in `std.core` (spec 16.7), with filters and `Pick`/`Omit` over type parameters: it needs type operators that stage 0 can load in `std.core` | M |
 | 6.8 | Windows support | L |
 | 6.9 | Scheduled CI job for the auditable bootstrap path | S |
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |
