@@ -101,7 +101,7 @@ pub fn isCopy(c: Checker, p: Program, ty: int) bool {
         TyKind.Array => isCopy(c, p, t.inner)
         TyKind.Param => paramBounds(c, ty) & BOUND_COPY != 0
         TyKind.Str | TyKind.Slice => false
-        TyKind.Index => false   // `T[K]`: not known before the instance
+        TyKind.Index | TyKind.Mapped => false   // not known before the instance
         TyKind.Fn => t.data & FN_OWNED == 0   // a `move fn` owns its captured values
         _ => true
     }

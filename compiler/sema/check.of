@@ -848,6 +848,12 @@ pub struct Checker {
                 out.push("]")
             }
             TyKind.Value => out.push("{t.data}")
+            TyKind.Mapped => {
+                out.push(self.text(self.def(t.data).name))
+                out.push("<")
+                self.appendList(out, &t.args, qualified)
+                out.push(">")
+            }
         }
     }
 }
