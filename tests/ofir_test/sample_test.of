@@ -2,6 +2,12 @@
 
 @test
 fn addWorks() {
+    // Keep this test running while later tests finish, to check output order.
+    let total = 0
+    for i in 0..3000000 {
+        total += i % 2
+    }
+    assert(total == 1500000)
     assert(add(2, 2) == 4)
 }
 
