@@ -595,6 +595,9 @@ fn name(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, ty: int) Operand {
     }
     const kind = c.def(id).kind
     if kind == DefKind.Const {   // evaluated by the checker
+        if c.info[id].value.isNone() {
+            return comptimeConst(l, c, p, id, ty)
+        }
         return constOperand(c, id, ty)
     }
     if kind == DefKind.Variant {   // `None`
@@ -611,6 +614,24 @@ fn name(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, ty: int) Operand {
     }
     c.error("E0901", e.span, "global variables are not supported yet".toOwned())
     return unit()
+}
+
+// `const X = comptime f()` (spec 15.1): its initializer, run by the
+// interpreter at each use, in the constant's module.
+fn comptimeConst(l: mut Lowerer, c: mut Checker, p: Program, id: int, ty: int) Operand {
+    const saved = c.enter(c.def(id).module)
+    let out = unit()
+    match itemOf(p, c.loc(id)).kind {
+        ItemKind.Const(_, value) => match value.kind {
+            ExprKind.Comptime(inner) => {
+                out = comptimeExpr(l, c, p, &value, &*inner)
+            }
+            _ => {}
+        }
+        _ => {}
+    }
+    c.enter(saved)
+    return out
 }
 
 // The mutable global `id`: the place its address points to (spec 11.5).
