@@ -292,7 +292,8 @@ pub fn comptimeValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) in
         }
         ExprKind.Binary(op, lhs, rhs) => {
             if isComparison(op) {
-                return compare(op, comptimeInt(c, &*lhs, targs), comptimeInt(c, &*rhs, targs))
+                const a = comptimeInt(c, p, &*lhs, targs)
+                return compare(op, a, comptimeInt(c, p, &*rhs, targs))
             }
             const a = comptimeValue(c, p, &*lhs, targs)
             const b = comptimeValue(c, p, &*rhs, targs)
