@@ -722,12 +722,22 @@ fn setFlag(l: mut Lowerer, local: int, value: bool) {
     }
 }
 
+// Whether no step of a path waits for a `comptime for` key.
+fn resolved(fields: &List<int>) bool {
+    for i in 0..fields.len() {
+        if keyFieldType(fields[i]) >= 0 {
+            return false
+        }
+    }
+    return true
+}
+
 // Flags for the parts of `local` that the move analysis saw moved out.
-fn flagParts(l: mut Lowerer, c: mut Checker, local: int) {
+pub fn flagParts(l: mut Lowerer, c: mut Checker, local: int) {
     for i in 0..l.movedParts.len() {
         const ast = l.movedParts[i].clone()
         const fields = concretePath(l, c, &ast.fields)
-        if ast.local + 1 == local && partFlag(l, local, &fields) == 0 {
+        if ast.local + 1 == local && resolved(&fields) && partFlag(l, local, &fields) == 0 {
             const part = Part{local: local, fields: fields}
             const flag = newTemp(l, BOOL)
             l.partFlags.push(PartFlag{part: part, flag: flag})
@@ -1044,7 +1054,9 @@ fn resolveKeys(c: mut Checker, fields: mut List<int>, args: &List<int>) {
         if index >= 0 {
             const base = c.types.subst(c.types.get(index).inner, args.clone())
             const key = c.types.subst(c.types.get(index).args[0], args.clone())
-            fields[i] = c.types.keyPosition(base, key)
+            if !c.types.get(key).hasParam {   // a `comptime for` key: per iteration
+                fields[i] = c.types.keyPosition(base, key)
+            }
         }
     }
 }
@@ -1062,31 +1074,74 @@ fn concretePath(l: Lowerer, c: mut Checker, path: &List<int>) List<int> {
 // The body of an instance of a generic function, with its type arguments.
 fn substBody(l: mut Lowerer, c: mut Checker) {
     const args = c.types.get(l.body.targs).args.clone()
-    for i in 0..l.body.locals.len() {
+    substFrom(l, c, &args, AirRange{local: 0, block: 0, open: -1, stmt: 0})
+}
+
+/** What a body gained since some point: locals, blocks and statements of the open block. */
+pub copy struct AirRange {
+    /** The first new local. */
+    pub local: int
+    /** The first new block. */
+    pub block: int
+    /** The block open at that point, or -1. */
+    pub open: int
+    /** Its first new statement. */
+    pub stmt: int
+}
+
+/**
+ * The range of what the body gains from now on.
+ *
+ * @param l the lowering
+ * @returns the range
+ */
+pub fn airRangeNow(l: Lowerer) AirRange {
+    return AirRange{local: l.body.locals.len(), block: l.body.blocks.len(), open: l.block,
+                    stmt: l.body.blocks[l.block].stmts.len()}
+}
+
+/**
+ * Substitutes type arguments into what a body gained (a `comptime for`
+ * iteration, or the whole body).
+ *
+ * @param l the lowering
+ * @param c the checker
+ * @param args the type arguments
+ * @param range what to substitute
+ */
+pub fn substFrom(l: mut Lowerer, c: mut Checker, args: &List<int>, range: AirRange) {
+    for i in range.local..l.body.locals.len() {
         l.body.locals[i].ty = c.types.subst(l.body.locals[i].ty, args.clone())
     }
-    for b in 0..l.body.blocks.len() {
-        for i in 0..l.body.blocks[b].stmts.len() {
-            const s = &mut l.body.blocks[b].stmts[i]
-            substPath(c, s.destPath, &args)
-            if s.kind == StmtKind.Assign {
-                substOperand(c, s.value.a, &args)
-                substOperand(c, s.value.b, &args)
-                s.value.to = c.types.subst(s.value.to, args.clone())
-                for k in 0..s.value.items.len() {
-                    substOperand(c, s.value.items[k], &args)
-                }
-            } else {
-                for k in 0..s.args.len() {
-                    substOperand(c, s.args[k], &args)
-                }
-                s.targs = c.types.subst(s.targs, args.clone())
-            }
-        }
-        substOperand(c, l.body.blocks[b].term.cond, &args)
-        substOperand(c, l.body.blocks[b].term.index, &args)
-        substOperand(c, l.body.blocks[b].term.len, &args)
+    if range.open >= 0 {
+        substBlock(l, c, args, range.open, range.stmt)
     }
+    for b in range.block..l.body.blocks.len() {
+        substBlock(l, c, args, b, 0)
+    }
+}
+
+fn substBlock(l: mut Lowerer, c: mut Checker, args: &List<int>, b: int, first: int) {
+    for i in first..l.body.blocks[b].stmts.len() {
+        const s = &mut l.body.blocks[b].stmts[i]
+        substPath(c, s.destPath, args)
+        if s.kind == StmtKind.Assign {
+            substOperand(c, s.value.a, args)
+            substOperand(c, s.value.b, args)
+            s.value.to = c.types.subst(s.value.to, args.clone())
+            for k in 0..s.value.items.len() {
+                substOperand(c, s.value.items[k], args)
+            }
+        } else {
+            for k in 0..s.args.len() {
+                substOperand(c, s.args[k], args)
+            }
+            s.targs = c.types.subst(s.targs, args.clone())
+        }
+    }
+    substOperand(c, l.body.blocks[b].term.cond, args)
+    substOperand(c, l.body.blocks[b].term.index, args)
+    substOperand(c, l.body.blocks[b].term.len, args)
 }
 
 // Substitutes an instance's type arguments into its lowered body, then
@@ -1094,6 +1149,11 @@ fn substBody(l: mut Lowerer, c: mut Checker) {
 pub fn monoBody(l: mut Lowerer, c: mut Checker, p: Program) {
     if l.body.targs != UNIT && !isGlue(l.body.def) {
         substBody(l, c)
+    }
+    for i in 0..l.body.locals.len() {
+        if c.types.get(l.body.locals[i].ty).hasParam {
+            l.body.locals[i].ty = UNIT   // of a `comptime for` the instance does not keep
+        }
     }
     for b in 0..l.body.blocks.len() {
         for i in 0..l.body.blocks[b].stmts.len() {
