@@ -164,10 +164,10 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0812 | cannot borrow a field of a `@packed` struct: its address may not be aligned | stage 1 |
 | E0813 | the C symbol `x` is defined twice | stage 1 |
 | E0814 | `comptime panic`: an instance reached it, with its message (spec 15.3) | stage 1 |
-| E0815 | this function cannot run at compile time: it calls an `extern` function or does I/O (spec 15.5) | planned |
-| E0816 | compile-time evaluation failed: a panic, an arithmetic or bounds error, or the step budget ran out (spec 15.5) | planned |
-| E0817 | a `comptime fn` can only be called from compile-time code (spec 15.1) | planned |
-| E0818 | the value of a `comptime` expression must be a number, `bool`, `str`, array, tuple, struct or enum of those (spec 15.5) | planned |
+| E0815 | this function cannot run at compile time: it calls an `extern` function or does I/O (spec 15.5) | stage 1 |
+| E0816 | compile-time evaluation failed: a panic, an arithmetic or bounds error, or the step budget ran out (spec 15.5) | stage 1 |
+| E0817 | a `comptime fn` can only be called from compile-time code (spec 15.1) | stage 1 |
+| E0818 | the value of a `comptime` expression must be a number, `bool`, `str`, array, tuple, struct or enum of those (spec 15.5) | stage 1 |
 | E0900 | cannot read source file | stage 0 |
 | E0901 | X is not supported yet (a feature this compiler version does not implement) | stage 0 |
 | E0902 | the toolchain failed: clang or the runtime library is missing, or clang reported an error | stage 0 |

@@ -91,7 +91,8 @@ pub fn parseFn(p: mut Parser, header: move ItemHeader, withBody: bool) FnDecl {
         body = Option.Some(parseBlock(p))
     }
     return FnDecl{id: p.newId(), span: p.spanSince(header.span), name,
-                  attributes: header.attributes, isPub: header.isPub, isUnsafe: false, abi: "",
+                  attributes: header.attributes, isPub: header.isPub, isUnsafe: false,
+                  isComptime: false, abi: "",
                   typeParams, bounds, hasSelf: selfMode.isSome(),
                   selfMode: selfMode ?? Mode.Borrow, params, ret, body}
 }

@@ -22,7 +22,8 @@ import syntax.ast.Op
 import diag.noSpan
 import std.mem
 
-const ONES: u64 = 18446744073709551615
+/** All 64 bits set. */
+pub const ONES: u64 = 18446744073709551615
 
 struct Folder {
     /** stamp[local] == block + 1: value[local] is known. */
@@ -34,7 +35,8 @@ struct Folder {
     block: int
 }
 
-fn intBits(data: int) int {
+/** The width in bits of the int type with `data`. */
+pub fn intBits(data: int) int {
     return match data % 4 {
         0 => 8
         1 => 16
@@ -47,12 +49,13 @@ fn isInt(c: Checker, ty: int) bool {
     return c.types.get(ty).kind == TyKind.Int
 }
 
-fn isSigned(c: Checker, ty: int) bool {
+/** Whether the int type `ty` is signed. */
+pub fn isSigned(c: Checker, ty: int) bool {
     return c.types.get(ty).data <= 3
 }
 
-// `bits` read as a value of `ty`: an int is extended from its width.
-fn normalize(c: Checker, ty: int, bits: u64) u64 {
+/** `bits` read as a value of `ty`: an int is extended from its width. */
+pub fn normalize(c: Checker, ty: int, bits: u64) u64 {
     if !isInt(c, ty) {
         return bits & 1
     }
@@ -83,8 +86,8 @@ fn known(f: &Folder, c: Checker, o: &Operand) Option<u64> {
     }
 }
 
-// Whether the known value `v` of int type `from` lies outside int type `to`.
-fn castFails(c: Checker, from: int, to: int, v: u64) bool {
+/** Whether the known value `v` of int type `from` lies outside int type `to`. */
+pub fn castFails(c: Checker, from: int, to: int, v: u64) bool {
     const t = intBits(c.types.get(to).data)
     const one: u64 = 1
     if isSigned(c, from) && v.wrappingCast<i64>() < 0 {
@@ -100,7 +103,8 @@ fn castFails(c: Checker, from: int, to: int, v: u64) bool {
     return v > max
 }
 
-fn compare(op: Op, a: u64, b: u64, sign: bool) Option<bool> {
+/** `a op b` for a comparison `op`; `sign` compares as signed. */
+pub fn compare(op: Op, a: u64, b: u64, sign: bool) Option<bool> {
     const lt = if sign { a.wrappingCast<i64>() < b.wrappingCast<i64>() } else { a < b }
     const gt = if sign { a.wrappingCast<i64>() > b.wrappingCast<i64>() } else { a > b }
     return match op {

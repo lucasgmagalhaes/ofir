@@ -1,0 +1,95 @@
+// requires: stage1
+// `comptime` expressions run during compilation (spec 15.1, 15.5): their
+// value is a number, bool, str, array, tuple, struct or enum.
+
+import std.meta
+
+struct Point {
+    x: int
+    y: int
+}
+
+enum Shape {
+    Circle(float)
+    Rect(int, int)
+    Empty
+}
+
+comptime fn squares() [u32; 4] {
+    let t: [u32; 4] = [0, 0, 0, 0]
+    for i in 0..4 {
+        t[i] = (i * i) as u32
+    }
+    return t
+}
+
+comptime fn label(n: int) str {
+    let s = "n="
+    s = s + "{n}"
+    s.push("!")
+    return s
+}
+
+fn fib(n: int) int {
+    if n < 2 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+fn shape(k: int) Shape {
+    if k == 0 {
+        return Shape.Circle(1.5)
+    }
+    if k == 1 {
+        return Shape.Rect(2, 3)
+    }
+    return Shape.Empty
+}
+
+fn bump(x: mut int) {
+    x += 10
+}
+
+fn bumped() int {
+    let a = 5
+    bump(a)
+    return a
+}
+
+comptime fn pair() (int, bool) {
+    return (7, "ab" < "b")
+}
+
+fn describe(s: Shape) str {
+    return match s {
+        Shape.Circle(r) => "circle {r}"
+        Shape.Rect(w, h) => "rect {w}x{h}"
+        Shape.Empty => "empty"
+    }
+}
+
+fn sizeName<T>(x: T) str {
+    return comptime label(meta.nameOf<T>().len())
+}
+
+fn main() {
+    const table = comptime squares()
+    const p = comptime Point{x: squares()[2] as int, y: -3}
+    const s = comptime label(42)
+    const f = comptime fib(20)
+    const q = comptime pair()
+    const wrapped: u8 = comptime (250 as u8).wrappingAdd(10)
+    const root = comptime (2.0 as float).sqrt()
+    const bits = comptime (1 << 40) | 5
+    const tests = comptime 7 / 2 + -7 % 3
+    println("{table[0]} {table[1]} {table[2]} {table[3]}")
+    println("{p.x} {p.y}")
+    println("{s} {s.len()}")
+    println("{f} {comptime bumped()}")
+    println("{q.0} {q.1} {wrapped} {root} {bits} {tests}")
+    println(describe(comptime shape(0)))
+    println(describe(comptime shape(1)))
+    println(describe(comptime shape(2)))
+    println("{sizeName(true)} {sizeName(1.5)}")
+}

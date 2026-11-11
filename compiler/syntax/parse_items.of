@@ -188,6 +188,10 @@ fn itemBody(p: mut Parser, header: move ItemHeader) Option<(Symbol, ItemKind)> {
         p.advance()
     }
     const isUnsafe = p.accept(TokenKind.Unsafe)
+    const isComptime = p.at(TokenKind.Comptime) && p.peekAt(1) == TokenKind.Fn
+    if isComptime {
+        p.advance()
+    }
     const kind = p.peek()
     if kind == TokenKind.Struct {
         p.advance()
@@ -201,6 +205,7 @@ fn itemBody(p: mut Parser, header: move ItemHeader) Option<(Symbol, ItemKind)> {
         p.advance()
         let decl = parseFn(p, header, true)
         decl.isUnsafe = isUnsafe
+        decl.isComptime = isComptime
         return Option.Some((decl.name, ItemKind.Fn(Box.new(decl))))
     }
     if kind == TokenKind.Import {
@@ -278,7 +283,7 @@ fn atItem(p: Parser) bool {
         kind == TokenKind.Extern || kind == TokenKind.Interface || kind == TokenKind.Copy {
         return true
     }
-    if kind == TokenKind.Unsafe {
+    if kind == TokenKind.Unsafe || kind == TokenKind.Comptime {
         return p.peekAt(1) == TokenKind.Fn
     }
     if p.atWord(p.words.ref) {

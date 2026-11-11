@@ -146,6 +146,30 @@ pub copy struct Instance {
     pub glue: int
 }
 
+/**
+ * A `comptime` expression (spec 15.1): blocks `start` up to `after` of a
+ * body compute its value into `dest`; the interpreter runs them and
+ * replaces them with the constant (`air.interp`).
+ */
+pub struct ComptimeRegion {
+    /** The body's function, as `AirBody.def`. */
+    pub def: int
+    /** The body's type arguments, as `AirBody.targs`. */
+    pub targs: int
+    /** The body's closure, or -1. */
+    pub closure: int
+    /** The first block of the expression. */
+    pub start: int
+    /** The block after it. */
+    pub after: int
+    /** The local that receives the value. */
+    pub dest: int
+    /** The budget of steps (`@comptimeBudget`). */
+    pub budget: int
+    /** The expression. */
+    pub span: Span
+}
+
 /** The state of the lowering. */
 pub struct Lowerer {
     /** The body being built. */
@@ -194,6 +218,8 @@ pub struct Lowerer {
     pub out: List<AirBody>
     /** `ofir test`: the `@test` functions, by `DefId`. */
     pub tests: List<int>
+    /** The `comptime` expressions lowered, in order. */
+    pub comptimes: List<ComptimeRegion>
 
     /**
      * Notes a construct stage 1 does not lower yet.
@@ -1616,7 +1642,7 @@ pub fn lowerProgram(c: mut Checker, p: Program) Lowerer {
                     borrowed: [],
                     movedParts: [], partFlags: [], dropCache: [], temps: [], tempScopes: [],
                     forward: false, tooDeep: false, fnDef: 0, unsupported: false, missing: "",
-                    out: [], tests: []}
+                    out: [], tests: [], comptimes: []}
     if !c.r.testing {
         checkMain(c, p)
     }

@@ -1,0 +1,12 @@
+// requires: stage1
+// The value of a `comptime` expression is plain data (spec 15.5, E0818).
+
+fn numbers() List<int> {
+    return [1, 2]
+}
+
+fn main() {
+    const a = comptime numbers()   // error[E0818]: the value of a `comptime` expression cannot be a `List<int>`: it must be a number, `bool`, `str`, array, tuple, struct or enum of those
+    const b = comptime (1, numbers())   // error[E0818]: the value of a `comptime` expression cannot be a `(int, List<int>)`: it must be a number, `bool`, `str`, array, tuple, struct or enum of those
+    println("{a.len()} {b.0}")
+}
