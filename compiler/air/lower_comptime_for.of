@@ -17,16 +17,22 @@ import air.air.opStr
 import air.air.rvUse
 import air.lower.AirRange
 import air.lower.Lowerer
+import air.lower.Place
 import air.lower.airRangeNow
 import air.lower.emitAssign
 import air.lower.flagParts
 import air.lower.substFrom
+import air.lower.toLocal
 import air.lower_expr.lowerBlock
+import air.lower_expr.lowerExpr
+import air.lower_expr.lowerPlace
 import air.lower_expr.variantNamed
 import air.lower_pattern.variantValue
+import air.lower_pattern.isVariant
 import sema.check.COMPTIME_ATTRIBUTE
 import sema.check.COMPTIME_INDEX
 import sema.check.COMPTIME_LOOP
+import sema.check.COMPTIME_MATCHES
 import sema.check.COMPTIME_NAME
 import sema.check.Checker
 import sema.check.ComptimeInfo
@@ -38,10 +44,12 @@ import sema.program.Program
 import sema.types.BOOL
 import sema.types.I64
 import sema.types.STR
+import sema.types.TyKind
 import sema.types.UNIT
 import base.intern.Symbol
 import syntax.ast.Block
 import syntax.ast.Expr
+import syntax.ast.ExprKind
 import syntax.ast.Stmt
 
 // The record of a `comptime for` or of a member of its variable.
@@ -81,7 +89,7 @@ pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt,
     }
     const outer = l.body.targs
     let args = argsNow(l, c)
-    const keys = comptimeKeys(c, info, &args)
+    const keys = comptimeKeys(c, p, info, &args)
     const variable = info.local + 1
     for args.len() <= info.param {
         args.push(UNIT)
@@ -177,7 +185,8 @@ fn renameOperand(o: mut Operand, from: int, to: int) {
 
 /**
  * The value of a member of a `comptime for` variable in this iteration:
- * `field.name`, `field.index` or `field.attribute(key)`.
+ * `field.name`, `field.index`, `field.attribute(key)` or
+ * `variant.matches(value)`.
  *
  * @param l the lowering
  * @param c the checker
@@ -203,7 +212,7 @@ pub fn comptimeMemberValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
         return Option.Some(opStr(c.text(Symbol(name)), STR))
     }
     if info.kind == COMPTIME_INDEX {
-        const index = comptimeIndex(c, info, &args)
+        const index = comptimeIndex(c, p, info, &args)
         return Option.Some(opInt(index.wrappingCast<u64>(), I64))
     }
     if info.kind == COMPTIME_ATTRIBUTE {
@@ -213,5 +222,27 @@ pub fn comptimeMemberValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
             Option.None => variantValue(l, c, p, ty, variantNamed(c, p, ty, "None"), [])
         })
     }
+    if info.kind == COMPTIME_MATCHES {
+        return Option.Some(matchesValue(l, c, p, e, info, &args))
+    }
     return Option.None
+}
+
+// `variant.matches(value)` in an instance: a test of the value's tag.
+fn matchesValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, info: ComptimeInfo,
+                args: &List<int>) Operand {
+    const value = match e.kind {
+        ExprKind.Call(_, callArgs) => callArgs[0].value.clone()
+        _ => {
+            panic("matchesValue: not a call")
+        }
+    }
+    const found = c.typeOf(value.id.0)
+    const place = if c.types.kind(found) == TyKind.Ref {   // through the reference
+        Place{local: toLocal(l, lowerExpr(l, c, p, &value)), fields: [], deref: true}
+    } else {
+        lowerPlace(l, c, p, &value)
+    }
+    const ty = c.types.subst(info.base, args.clone())
+    return isVariant(l, c, p, &place, ty, comptimeIndex(c, p, info, args))
 }
