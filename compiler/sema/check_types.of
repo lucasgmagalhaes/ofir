@@ -32,6 +32,7 @@ import sema.def.DefKind
 import sema.expr_check.checkConst
 import sema.def.Res
 import sema.interfaces.dynIncompatible
+import sema.interfaces.isAny
 import sema.program.Program
 import sema.resolve_attributes.warnDeprecated
 import sema.trace.link
@@ -316,6 +317,9 @@ fn namedType(c: mut Checker, p: Program, id: int, args: &List<TypeExpr>, span: S
         }
         DefKind.Const => constArg(c, p, id, span)
         DefKind.Interface => {
+            if isAny(c, id) {   // `any` is a `dyn` type already (spec 9.8)
+                return c.types.dynOf(id, [])
+            }
             const name = c.text(c.def(id).name)
             c.error("E0356", span, "`{name}` is an interface: only a parameter type can name it "
                     + "alone; write `dyn {name}` or a type parameter (spec 9.6)")
@@ -620,6 +624,10 @@ fn dynType(c: mut Checker, p: Program, inner: &TypeExpr, span: Span) int {
     const iface = interfaceOf(c, inner)
     if iface == 0 {
         c.error("E0333", inner.span, "`{typeText(inner, c.r.names)}` is not an interface")
+        return ERROR
+    }
+    if isAny(c, iface) {
+        c.error("E0365", span, "`any` is a `dyn` type already: write `any`, not `dyn any`")
         return ERROR
     }
     const generic = match inner.kind {

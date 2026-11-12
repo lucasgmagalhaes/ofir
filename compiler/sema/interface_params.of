@@ -132,7 +132,7 @@ fn interfaceNamed(r: Resolver, t: &TypeExpr, owner: &List<Symbol>, named: &List<
                 return 0
             }
             const isInterface = id != 0 && r.defs[id].kind == DefKind.Interface
-            if !isInterface {
+            if !isInterface || isAnyDef(r, id) {   // `v: any` is a `dyn` parameter
                 return 0
             }
             id
@@ -237,4 +237,9 @@ fn rewrittenType(r: mut Resolver, t: &TypeExpr, owner: &List<Symbol>, named: &Li
 
 fn pathTo(param: Symbol, at: &TypeExpr) TypeExpr {
     return TypeExpr{kind: TypeKind.Path([param], []), span: at.span}
+}
+
+// Whether a declaration is the interface `any` (spec 9.8), a `dyn` type.
+fn isAnyDef(r: Resolver, id: int) bool {
+    return r.text(r.defs[id].name) == "any" && r.moduleNames[r.defs[id].module] == "std.core.any"
 }
