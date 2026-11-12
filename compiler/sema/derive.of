@@ -128,9 +128,8 @@ pub fn adtSatisfies(c: mut Checker, p: Program, ty: int, bit: int) bool {
     if declaredMethod(c, p, ty, "drop") != 0 || declaredMethod(c, p, ty, "cmp") != 0 {
         return false
     }
-    const ownEq = declaredMethod(c, p, ty, "eq") != 0
-    if ownEq && bit != BOUND_ORD {
-        return false   // a declared `eq` of another shape; `Hash` must agree with it
+    if declaredMethod(c, p, ty, "eq") != 0 {
+        return false   // `Ord` and `Hash` must agree with the declared `eq`
     }
     return derives(c, p, ty, bit)
 }
