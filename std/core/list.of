@@ -545,7 +545,13 @@ pub struct List<T> {
                 ofir_alloc(size) as *mut T
             }
         }
-        let width = 1
+        let lo = 0
+        for lo < self.len {   // short runs first: insertion sort is cheaper there
+            const hi = (lo + SORT_RUN).min(self.len)
+            insertionSort(src, dst, lo, hi)
+            lo = hi
+        }
+        let width = SORT_RUN
         for width < self.len {
             let lo = 0
             for lo < self.len {
@@ -650,21 +656,53 @@ unsafe fn shift<T>(dst: *mut T, src: *T, count: int) {
     }
 }
 
+// The length of the runs that `sort` orders by insertion before merging.
+const SORT_RUN = 16
+
+// Sorts p[lo..hi] in place by insertion; `scratch[i]` holds the element
+// being placed. Equal elements keep their order.
+fn insertionSort<T: Ord>(p: *mut T, scratch: *mut T, lo: int, hi: int) {
+    for i in lo + 1..hi {
+        unsafe {
+            if *p.add(i) < *p.add(i - 1) {
+                shift(scratch.add(i), p.add(i), 1)
+                let j = i - 1
+                for j > lo && *scratch.add(i) < *p.add(j - 1) {
+                    j -= 1
+                }
+                shift(p.add(j + 1), p.add(j), i - j)
+                shift(p.add(j), scratch.add(i), 1)
+            }
+        }
+    }
+}
+
 // Merges the sorted runs src[lo..mid] and src[mid..hi] into dst[lo..hi];
 // on ties the left run comes first, so the sort is stable.
 fn mergeRuns<T: Ord>(src: *mut T, dst: *mut T, lo: int, mid: int, hi: int) {
+    unsafe {
+        if mid >= hi || !(*src.add(mid) < *src.add(mid - 1)) {   // already in order
+            shift(dst.add(lo), src.add(lo), hi - lo)
+            return
+        }
+    }
     let i = lo
     let j = mid
-    for k in lo..hi {
+    let k = lo
+    for i < mid && j < hi {
         unsafe {
-            const takeLeft = i < mid && (j >= hi || !(*src.add(j) < *src.add(i)))
-            if takeLeft {
-                *dst.add(k) = *src.add(i)
-                i += 1
-            } else {
-                *dst.add(k) = *src.add(j)
+            if *src.add(j) < *src.add(i) {
+                shift(dst.add(k), src.add(j), 1)
                 j += 1
+            } else {
+                shift(dst.add(k), src.add(i), 1)
+                i += 1
             }
         }
+        k += 1
+    }
+    unsafe {
+        shift(dst.add(k), src.add(i), mid - i)
+        shift(dst.add(k + mid - i), src.add(j), hi - j)
     }
 }

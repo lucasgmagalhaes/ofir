@@ -1,0 +1,75 @@
+// requires: stage1
+// `sort` at every length around its run boundaries, on random, sorted,
+// reversed and constant input; it is stable and moves heap elements once.
+
+import std.core.Ordering
+
+struct Item {
+    key: int
+    seq: int
+    tag: str
+
+    fn cmp(self, other: Item) Ordering {
+        return if self.key < other.key {
+            Ordering.Less
+        } else if self.key > other.key {
+            Ordering.Greater
+        } else {
+            Ordering.Equal
+        }
+    }
+}
+
+fn keyOf(pattern: int, i: int, n: int, seed: int) int {
+    return if pattern == 0 {
+        seed % 7
+    } else if pattern == 1 {
+        i
+    } else if pattern == 2 {
+        n - i
+    } else {
+        3
+    }
+}
+
+fn check(pattern: int, n: int) bool {
+    let items: List<Item> = []
+    let seed = 12345 + n
+    for i in 0..n {
+        seed = (seed * 1103515245 + 12345) % 2147483648
+        items.push(Item{key: keyOf(pattern, i, n, seed), seq: i, tag: "{i}"})
+    }
+    items.sort()
+    for i in 1..items.len() {
+        const a = items[i - 1].key
+        const b = items[i].key
+        if a > b {
+            return false
+        }
+        if a == b && items[i - 1].seq > items[i].seq {
+            return false
+        }
+    }
+    for item in items {
+        if item.tag != "{item.seq}" {
+            return false
+        }
+    }
+    return items.len() == n
+}
+
+fn main() {
+    let bad = 0
+    for pattern in 0..4 {
+        for n in 0..70 {
+            if !check(pattern, n) {
+                println("unsorted: pattern {pattern}, length {n}")
+                bad += 1
+            }
+        }
+        if !check(pattern, 1000) {
+            bad += 1
+        }
+    }
+    println("{bad} failures")
+}
