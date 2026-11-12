@@ -1286,7 +1286,10 @@ pub fn evalComptimes(l: mut Lowerer, c: mut Checker, p: Program) {
     }
 }
 
-/** The calls that the notes of a failure name, innermost first: with the first and the last note, `MAX_NOTES`. */
+/**
+ * The calls that the notes of a failure name, innermost first: with the
+ * first and the last note, `MAX_NOTES`.
+ */
 const MAX_TRACE: int = 2
 
 // `path:line:column` of the start of a span.
