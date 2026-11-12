@@ -113,3 +113,79 @@ behavior if it:
 - produces an invalid value (a `bool` other than 0 or 1, an invalid enum tag,
   a `str` with invalid UTF-8);
 - causes a data race.
+
+The rest of this section states what each rule asks of unsafe code. A safe
+function that wraps unsafe code (`List`, `Box`, `str`, `std.sync`) must keep
+these rules for every input; its tests run under ASan, UBSan and valgrind
+(`make check-asan`, `make check-leaks`). Questions this section leaves
+**[open]** have no guaranteed answer: unsafe code must not depend on any
+answer to them.
+
+### Validity
+
+A value is valid when its bytes are a value of its type:
+
+| Type | Valid bytes |
+|------|-------------|
+| integers, floats | any bytes (every NaN is a valid float) |
+| `bool` | 0 or 1 |
+| enums | a declared tag, and valid fields for that variant |
+| `&T`, `&mut T`, `Box<T>` | non-null, aligned, pointing to a valid `T` |
+| `str` | a pointer, length and capacity of valid UTF-8 bytes |
+| raw pointers | any address, including null |
+| structs, tuples, arrays | every field and element valid; padding is not read |
+
+Producing an invalid value, even one that is never read, is undefined
+behavior. Unsafe code must not rely on the bytes of padding.
+
+### Initialization
+
+Memory from `alloc` or `realloc` is uninitialized. Unsafe code must write a
+valid value to a place before it reads the place, drops it or creates a
+reference to it. A write through a raw pointer, `*p = v`, moves `v` into
+the place without dropping what was there, so it initializes uninitialized
+memory (as `List.push` does); to replace a valid value that needs a drop,
+read the old value out first.
+
+### Alignment
+
+A dereference of `*T` must use an address that is a multiple of
+`alignOf<T>()` (chapter 13). The C library's `malloc` aligns memory to 16
+bytes on the supported targets; `Box`, `List` and closures allocate a type
+with a larger alignment with `ofir_alloc_aligned` (chapter 13.7). A
+`@packed` struct has alignment 1, and borrowing one of its fields is an
+error (E0812), because the field may be misaligned.
+
+### Aliasing
+
+While a `&mut T` is live, the value it points to is reached only through
+it: no other reference and no raw pointer may read or write that value.
+While a `&T` is live, no one may write the value. Function parameters that
+are references are emitted as `noalias` (chapter 13.5), so breaking this
+rule lets the optimizer change what the program does. Raw pointers may
+alias each other freely; a raw pointer made from a reference, `&x as *T`,
+may be used only while the borrow of `x` would still be allowed.
+
+### Provenance
+
+A pointer is valid for the allocation it came from: the one `alloc`
+returned, or the value its reference borrowed. `p.add(n)` must stay within
+that allocation, or one element past its end, and only the addresses
+within it may be dereferenced. Comparing pointers with `==` compares
+addresses and is always safe. **[open]** whether a pointer made from a
+`uint` (`n as *T`) may reach an allocation other than the one whose address
+produced `n`; until this is decided, unsafe code makes pointers from
+integers only for addresses that came from the same allocation.
+
+### Data races
+
+A data race is two accesses to the same location from different tasks, at
+least one of them a write, with neither ordered before the other. A task
+is ordered after the code that started it with `task.run`, and `join`
+orders the task before the code after it. Sending on a channel orders the
+send before the receive that gets the value; unlocking a `Mutex` orders
+the unlock before the next lock. Every `AtomicInt` and `AtomicBool`
+operation is sequentially consistent. Safe code cannot race, because
+`Send` and `Sync` (chapter 14.3) keep shared values behind these types.
+**[open]** weaker atomic orderings, and the result of a racy read in unsafe
+code: unsafe code must not race.
