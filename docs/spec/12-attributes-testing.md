@@ -269,11 +269,11 @@ meaningful:
 |---------|---------|
 | unused variable | `const x = 1` never read (prefix with `_` to silence) |
 | unused import | `import std.fs` never used |
-| unused private function, type or constant | |
+| unused private function, type or constant **[planned]** | |
 | unreachable code | statements after `return` |
-| unused `mut` / `let` | a `let` that is never reassigned or mutated |
+| unused `mut` / `let` **[planned]** | a `let` that is never reassigned or mutated |
 | deprecated item | uses of `@deprecated` items |
-| naming convention | `fn read_file()`, `struct token` (chapter 1.4) |
+| naming convention **[planned]** | `fn read_file()`, `struct token` (chapter 1.4) |
 
 - `--deny-warnings` turns every warning into an error; CI uses it.
 - Unused variables (W0001) exclude parameters and names starting with
