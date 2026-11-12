@@ -109,6 +109,17 @@ typedef struct {
     Operand index;
 } Element;
 
+// Assigns a loop variable the value at `place` or, in a `for mut` loop, its
+// address: the variable is then the element itself.
+static void bind_value(Lowerer *l, Stmt *s, LocalId local, Place place, TypeId type) {
+    Operand value = place_operand(place, OPERAND_COPY, type);
+    if (s->as.for_.mutable) {
+        l->body->locals.data[local.id].by_ref = true;
+        value = place_operand(place, OPERAND_ADDR, type_ref(l->types, type, false));
+    }
+    emit_assign(l, local, (Rvalue){.kind = RV_USE, .a = value});
+}
+
 // Binds the loop variables to the current element: `x`, `i, x` or, for a
 // map entry, `key, value`.
 static void bind_element(Lowerer *l, Stmt *s, Element current) {
@@ -119,8 +130,7 @@ static void bind_element(Lowerer *l, Stmt *s, Element current) {
     LocalId second = air_local_of(s->as.for_.second_local);
     if (!is_map(l, s->as.for_.expr->type)) {
         bool two = s->as.for_.second.id != 0;
-        Operand value = place_operand(element, OPERAND_COPY, elem);
-        emit_assign(l, two ? second : first, (Rvalue){.kind = RV_USE, .a = value});
+        bind_value(l, s, two ? second : first, element, elem);
         if (two) {
             emit_assign(l, first, (Rvalue){.kind = RV_USE, .a = index});
         }
@@ -129,10 +139,8 @@ static void bind_element(Lowerer *l, Stmt *s, Element current) {
     TypeId map = s->as.for_.expr->type;
     Operand key = place_operand(field_of(l, element, ENTRY_KEY), OPERAND_COPY,
                                 type_get(l->types, map)->args[0]);
-    Operand value = place_operand(field_of(l, element, ENTRY_VALUE), OPERAND_COPY,
-                                  type_get(l->types, map)->args[1]);
     emit_assign(l, first, (Rvalue){.kind = RV_USE, .a = key});
-    emit_assign(l, second, (Rvalue){.kind = RV_USE, .a = value});
+    bind_value(l, s, second, field_of(l, element, ENTRY_VALUE), type_get(l->types, map)->args[1]);
 }
 
 // `for x in list`, `for i, x in list` and `for key, value in map`: a hidden
