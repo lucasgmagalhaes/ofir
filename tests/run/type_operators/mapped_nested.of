@@ -1,0 +1,41 @@
+// requires: stage1
+// A mapped type of a mapped type in a generic signature (spec 16.4):
+// `Partial<Partial<T>>`.
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn flatten<T>(patch: move Partial<Partial<T>>, base: move Partial<T>) Partial<T> {
+    let out = base
+    comptime for key in keyof T {
+        if const Option.Some(inner) = patch[key] {
+            out[key] = inner
+        }
+    }
+    return out
+}
+
+fn known<T>(patch: &Partial<Partial<T>>) int {
+    let n = 0
+    comptime for key in keyof T {
+        match patch[key] {
+            Option.Some(Option.Some(_)) => {
+                n += 1
+            }
+            _ => {}
+        }
+    }
+    return n
+}
+
+fn main() {
+    const deep = Partial<Partial<Point>>{x: Option.Some(Option.Some(3)),
+                                         y: Option.Some(Option.None)}
+    println("{known(&deep)}")
+    const flat = flatten(deep, Partial<Point>{y: Option.Some(7)})
+    println("{flat.x ?? 0} {flat.y ?? -1}")
+    const empty = flatten<Point>(Partial<Partial<Point>>{}, Partial<Point>{})
+    println("{empty.x.isNone()} {empty.y.isNone()}")
+}
