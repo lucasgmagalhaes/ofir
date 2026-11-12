@@ -1,5 +1,7 @@
 // The tests of `std.core.box` (spec 12.2): `ofir test std/core/box.of` runs them.
 
+import std.testing.assert
+
 @test
 fn cloneCopiesTheValue() {
     const a = Box.new("text".toOwned())
