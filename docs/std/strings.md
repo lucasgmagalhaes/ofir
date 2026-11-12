@@ -15,7 +15,7 @@ UTF-8 character boundaries.
 | `fn clone(self) str` | the same as `toOwned` | ✓ |
 | `fn clear(mut self)` | | ✓ |
 | `fn bytes(self) StrBytes` | iterator over the bytes (`u8`) | ✓ |
-| `fn chars(self) StrChars` | iterator over Unicode scalar values (`u32`) | |
+| `fn chars(self) StrChars` | iterator over Unicode scalar values (`u32`) | ✓ |
 | `fn startsWith(self, p: str) bool`, `endsWith` | | ✓ |
 | `fn find(self, p: str) Option<int>` | byte offset | ✓ |
 | `fn contains(self, p: str) bool` | | ✓ |
