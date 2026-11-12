@@ -1,0 +1,6 @@
+true false -0.0 -inf 0
+false true false false false
+true inf -inf NaN true
+2.0 2.0 2.0 -1.0
+5
+-inf -2.0 0.5 3.0 inf
