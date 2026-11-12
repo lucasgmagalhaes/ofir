@@ -6,6 +6,8 @@ enum Color {
     Red
     @inline   // error[E0808]: the attribute `@inline` does not apply to a variant
     Green
+    @cfg(debug)   // error[E0808]: the attribute `@cfg` does not apply to a variant
+    Blue
 }
 
 fn main() {
