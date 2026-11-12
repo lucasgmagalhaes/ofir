@@ -36,7 +36,7 @@ def unknown_codes(known: set) -> list[str]:
     for path in sorted((ROOT / "tests").rglob("*.of")):
         if "runner" in path.relative_to(ROOT / "tests").parts:
             continue
-        for number, line in enumerate(path.read_text().splitlines(), start=1):
+        for number, line in enumerate(path.read_text(errors="replace").splitlines(), start=1):
             problems += [f"{path.relative_to(ROOT)}:{number}: {code} is not in "
                          f"{REGISTRY.relative_to(ROOT)}"
                          for code in USE_RE.findall(line) if code not in known]

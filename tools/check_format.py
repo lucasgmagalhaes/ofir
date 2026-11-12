@@ -171,7 +171,7 @@ def fix_lines(lines: list) -> list:
 
 
 def fix_file(path: Path):
-    text = path.read_text()
+    text = path.read_text(errors="surrogateescape")
     lines = text.splitlines()
     if path.suffix == ".of":
         lines = fix_lines(lines)
@@ -191,7 +191,7 @@ def fix_file(path: Path):
         lines = out
     new = "\n".join(lines) + ("\n" if text.endswith("\n") else "")
     if new != text:
-        path.write_text(new)
+        path.write_text(new, errors="surrogateescape")
 
 
 def check_lines(lines, name: str, first: int = 1) -> list:
@@ -206,7 +206,7 @@ def check_lines(lines, name: str, first: int = 1) -> list:
 def code_blocks(path: Path):
     """The `ofir` code blocks of a Markdown file or of the doc comments of
     an Ofir file, as (first line number, lines)."""
-    lines = path.read_text().splitlines()
+    lines = path.read_text(errors="surrogateescape").splitlines()
     block, start = None, 0
     for n, line in enumerate(lines, 1):
         text = line.strip()
@@ -236,7 +236,7 @@ def main() -> int:
         if fix:
             fix_file(path)
         name = str(path.relative_to(ROOT))
-        problems += check_lines(path.read_text().splitlines(), name)
+        problems += check_lines(path.read_text(errors="surrogateescape").splitlines(), name)
         for start, block in code_blocks(path):
             problems += check_lines(block, name, start)
     docs = []
