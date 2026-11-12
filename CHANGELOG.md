@@ -136,6 +136,9 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `Any` is now the builtin `dyn` type `any` (spec 9.8, ADR 0039):
+  `v: any`, `&any` and `Box<any>` replace `dyn Any`; `dyn any` is E0365.
+
 - Source files must be valid UTF-8 (E0008) and free of bidirectional
   control characters (E0009), in comments and literals too (spec 1.1,
   OFIR-06). Save the file as UTF-8, and write such a character as an
