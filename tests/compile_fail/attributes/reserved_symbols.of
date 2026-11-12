@@ -1,0 +1,20 @@
+// requires: stage1
+// `main` and the `ofir_` prefix are C symbols of the runtime (spec 11.4).
+
+@export("main")   // error[E0819]: the C symbol `main` is reserved for the runtime
+extern "C" fn start() i32 {
+    return 0
+}
+
+extern "C" fn ofir_helper() i32 {   // error[E0819]: the C symbol `ofir_helper` is reserved for the runtime
+    return 1
+}
+
+@export("ofirAdd")
+extern "C" fn add(a: i32, b: i32) i32 {
+    return a + b
+}
+
+fn main() {
+    println("{start()} {ofir_helper()} {add(1, 2)}")
+}
