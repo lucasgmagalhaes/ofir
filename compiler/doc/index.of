@@ -136,9 +136,9 @@ fn pageOf(source: &Source, modules: mut List<str>, summaries: mut List<str>) Opt
 // without `.of`, `/` written `.`, and `index` naming its directory. A file
 // given by itself (`path == root`) is named after its stem.
 fn moduleName(root: str, path: str) str {
-    let rel = path.sliceFrom(0).toOwned()
+    let rel = path.replace("\\", "/")   // Windows paths may use `\`
     if path != root && path.startsWith(root) {
-        rel = path.sliceFrom(root.len()).toOwned()
+        rel = rel.sliceFrom(root.len()).toOwned()
     }
     for rel.startsWith("./") || rel.startsWith("/") {
         rel = rel.sliceFrom(if rel.startsWith("/") { 1 } else { 2 }).toOwned()

@@ -1,4 +1,5 @@
 // requires: stage1
+// requires: unix
 // `@cfg` removes the declarations whose condition is false (spec 12.4).
 
 import std.os

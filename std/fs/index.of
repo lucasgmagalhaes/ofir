@@ -123,7 +123,7 @@ pub fn exists(path: str) bool {
  * import std.fs
  *
  * const here = fs.canonicalize(".").expect("the current directory exists")
- * assert(here.startsWith("/"))
+ * assert(fs.exists(here))   // an absolute path, also on Windows
  * ```
  */
 pub fn canonicalize(path: str) Result<str, IoError> {

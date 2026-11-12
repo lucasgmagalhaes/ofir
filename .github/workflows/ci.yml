@@ -61,3 +61,26 @@ jobs:
         run: |
           sudo apt-get install -y valgrind
           make check-leaks check-asan
+
+  # Windows (roadmap 6.8): clang for the MinGW target, run from Git Bash
+  # (docs/design/toolchain.md, section 7).
+  windows:
+    name: windows-2025 / LLVM
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          echo "/c/mingw64/bin" >> "$GITHUB_PATH"
+          export PATH="/c/mingw64/bin:$PATH"
+          command -v clang mingw32-make gcc python || true
+          clang --version
+          gcc --version | head -1
+          python --version
+
+      - name: Build and test
+        run: mingw32-make test

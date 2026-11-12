@@ -191,19 +191,25 @@ int32_t ofir_touch(const uint8_t *path, int64_t len) {
 // Creates each missing directory of `name`, which it modifies in place.
 static int32_t make_dirs(char *name) {
     for (char *at = name + 1;; at++) {
-        if (*at != '/' && *at != 0) {
+#ifdef _WIN32
+        int separator = *at == '/' || *at == '\\';   // paths mix both on Windows
+#else
+        int separator = *at == '/';
+#endif
+        if (!separator && *at != 0) {
             continue;
         }
         char saved = *at;
         *at = 0;
+        // Only the last directory decides: a prefix such as `C:` can fail on Windows.
         struct stat info;
-        if (mkdir(name, 0777) != 0 && errno != EEXIST &&
-            (stat(name, &info) != 0 || !S_ISDIR(info.st_mode))) {   // `C:` on Windows
-            return errno;
+        int32_t code = mkdir(name, 0777) == 0 || errno == EEXIST ? 0 : errno;
+        if (code != 0 && stat(name, &info) == 0 && S_ISDIR(info.st_mode)) {
+            code = 0;
         }
         *at = saved;
         if (saved == 0) {
-            return 0;
+            return code;
         }
     }
 }

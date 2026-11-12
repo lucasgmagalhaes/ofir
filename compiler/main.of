@@ -690,6 +690,10 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
         args.push("-l{libraries[i]}")
     }
     args.push("-lm".toOwned())
+    // MinGW keeps the pthread functions in winpthreads.
+    if onWindows() {
+        args.push("-lpthread".toOwned())
+    }
     args.push("-o".toOwned())
     args.push(exe.toOwned())
     // The main thread gets the 8 MiB stack Linux gives it.
