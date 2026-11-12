@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The compatibility policy before 1.0 (`docs/design/compatibility.md`,
+  ADR 0037): no stability promise; minor releases may break, patch
+  releases do not; deprecation with a shim before removal; each break has
+  a changelog migration and a migration fixture; `edition` is reserved.
 - The auditable bootstrap path in CI: `tools/bootstrap_chain.sh` builds
   every release from 0.5.0 on from its stage 0, each by the one before,
   and checks the current sources against `make verify`; the Bootstrap

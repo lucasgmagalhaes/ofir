@@ -1,0 +1,6 @@
+// requires: stage1
+// The `edition` key of the manifest is accepted (docs/design/compatibility.md).
+
+fn main() {
+    println("edition 2027")
+}
