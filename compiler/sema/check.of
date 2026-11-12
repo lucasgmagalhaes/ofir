@@ -577,6 +577,16 @@ pub struct Checker {
     pub inferNames: List<Symbol>
     /** Whether a pattern of a conditional type is being resolved. */
     pub inferring: bool
+    /** The type aliases being expanded, outermost first, with where each is named. */
+    pub aliasStack: List<int>
+    pub aliasSpans: List<Span>
+    /** The branches of conditional types being resolved when each was entered. */
+    pub aliasConds: List<int>
+    pub aliasDefers: List<int>
+    /** The branches being resolved of decided conditional types, and of those
+     * deferred on a type parameter (spec 16.5). */
+    pub condDepth: int
+    pub deferDepth: int
     /** The generic enum of the union types of each number of members (spec 17.6). */
     pub unions: Map<int, int>
     /** The number of members of each union's enum, by its `DefId`. */
@@ -1093,7 +1103,9 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
                    shorthandSpan: noSpan(), closures: [], closureMoves: [], capturesMut,
                    boundArgs: Map.new(), typeVars: [], typeVarTypes: [], aliasDef: 0, aliasUser: 0,
                    mapped: Map.new(), mappedTpls: Map.new(),
-                   mappedArgs: Map.new(), inferNames: [], inferring: false, unions: Map.new(),
+                   mappedArgs: Map.new(), inferNames: [], inferring: false, aliasStack: [],
+                   aliasSpans: [], aliasConds: [], aliasDefers: [], condDepth: 0, deferDepth: 0,
+                   unions: Map.new(),
                    unionDefs: Map.new(), comptimeInfo: Map.new(), comptimeLoops: []}
 }
 
