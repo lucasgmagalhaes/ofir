@@ -1,7 +1,8 @@
 /**
  * @module
- * Union types (spec 17): each union is an enum of its own, with one
- * single-field variant per member in canonical order (stage 1 only).
+ * Union types (spec 17): each union is an instance of a generic enum with
+ * one single-field variant per type argument, its members in canonical
+ * order (stage 1 only).
  */
 
 import base.span.Span
@@ -53,11 +54,6 @@ pub fn unionType(c: mut Checker, a: int, spanA: Span, b: int, spanB: Span, span:
             }
         }
     }
-    for i in 0..members.len() {
-        if c.types.get(members[i]).hasParam {
-            return c.unsupported(span, "union types over type parameters are")
-        }
-    }
     return unionOf(c, &members, span)
 }
 
@@ -72,10 +68,7 @@ pub fn unionMembers(c: Checker, ty: int) List<int> {
     if c.types.kind(ty) != TyKind.Adt {
         return []
     }
-    return match c.unionDefs.get(c.types.get(ty).data) {
-        Option.Some(tuple) => c.types.get(*tuple).args.clone()
-        Option.None => []
-    }
+    return if c.isUnion(c.types.get(ty).data) { c.types.get(ty).args.clone() } else { [] }
 }
 
 // E0351 for a type that cannot be the payload of a variant.
@@ -150,34 +143,30 @@ fn overlap(c: Checker, a: int, b: int) bool {
     return true
 }
 
-// The enum of the union of `members`, made once.
+// The union of `members`: an instance of the generic enum of the unions of
+// as many members, made once, with one variant per member.
 fn unionOf(c: mut Checker, members: &List<int>, span: Span) int {
-    const key = c.types.tuple(members.clone())
-    if const Option.Some(known) = c.unions.get(key) {
-        return c.types.adt(*known, [])
+    const count = members.len()
+    if const Option.Some(known) = c.unions.get(count) {
+        return c.types.adt(*known, members.clone())
     }
-    let name = ""
     let info = EnumInfo{variants: [], hasPayload: true}
-    for i in 0..members.len() {
-        if i > 0 {
-            name.push(" | ")
-        }
-        const member = c.typeName(members[i])
-        name.push(member)
-        const symbol = c.r.names.intern(member)
-        info.variants.push(VariantInfo{name: symbol, fieldNames: [Option.None],
-                                       types: [members[i]], discriminant: i})
+    for i in 0..count {
+        const symbol = c.r.names.intern("{i}")
+        const member = c.types.param(i, symbol.0)
+        info.variants.push(VariantInfo{name: symbol, fieldNames: [Option.None], types: [member],
+                                       discriminant: i})
     }
-    const symbol = c.r.names.intern(name)
+    const symbol = c.r.names.intern("Union{count}")
     c.r.defs.push(Def{kind: DefKind.Enum, name: symbol, span, isPub: true, inPrelude: false,
                       lang: false, module: c.module(), item: -1, member: -1, target: 0,
                       primitive: 0})
     c.info.push(emptyInfo())
     const id = c.r.defs.len() - 1
     c.info[id].variants = Option.Some(Box.new(info))
-    c.unions.insert(key, id)
-    c.unionDefs.insert(id, key)
-    return c.types.adt(id, [])
+    c.unions.insert(count, id)
+    c.unionDefs.insert(id, count)
+    return c.types.adt(id, members.clone())
 }
 
 /**

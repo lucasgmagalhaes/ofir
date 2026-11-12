@@ -1,0 +1,54 @@
+// requires: stage1
+// Unions whose members have type parameters (spec 17.1): each instance is
+// the union of the substituted members.
+
+struct Slot<T> {
+    v: List<T> | str
+}
+
+fn wrap<T>(x: move Option<T>) Option<T> | int {
+    return x
+}
+
+fn count<T>(n: int) Option<T> | int {
+    return n
+}
+
+fn describe<T>(v: move Option<T> | int) str {
+    return match v {
+        o: Option<T> => if o.isSome() { "some" } else { "none" },
+        n: int => "int {n}",
+    }
+}
+
+fn main() {
+    const a = wrap(Option.Some(2))
+    match a {
+        o: Option<int> => println("{o.unwrap()}"),
+        n: int => println("{n}"),
+    }
+    const b: Option<int> | int = count<int>(7)
+    match b {
+        o: Option<int> => println("{o.isSome()}"),
+        n: int => println("{n}"),
+    }
+    println(describe(wrap(Option.Some("x"))))
+    println(describe(wrap<str>(Option.None)))
+    println(describe(count<bool>(3)))
+    let list: List<Option<str> | int> = []
+    list.push(wrap(Option.Some("y")))
+    list.push(count<str>(4))
+    for list.len() > 0 {
+        println(describe(list.remove(0)))
+    }
+    const s = Slot{v: [5]}
+    match s.v {
+        l: List<int> => println("list {l.len()}"),
+        t: str => println(t),
+    }
+    const u = Slot<bool>{v: "text"}
+    match u.v {
+        l: List<bool> => println("list {l.len()}"),
+        t: str => println(t),
+    }
+}
