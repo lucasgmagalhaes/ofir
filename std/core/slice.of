@@ -141,8 +141,14 @@ pub ref struct Slice<T> {
  */
 pub fn checkRange(lo: int, hi: int, len: int) {
     if lo < 0 || lo > hi || hi > len {
-        panic("range {lo}..{hi} is out of bounds for a length of {len}")
+        rangePanic(lo, hi, len)
     }
+}
+
+// Out of line, so that checkRange stays small enough to inline.
+@cold
+fn rangePanic(lo: int, hi: int, len: int) {
+    panic("range {lo}..{hi} is out of bounds for a length of {len}")
 }
 
 /**
