@@ -142,6 +142,7 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0362 | a type where a constant is expected, or a constant where a type is expected (spec 8.7) | stage 1 |
 | E0363 | a `comptime if` condition must be known at compile time (spec 15.3) | stage 1 |
 | E0364 | `meta.fieldsOf<T>()` needs a struct and `meta.variantsOf<T>()` an enum: narrow `T` with `comptime if` (spec 15.2) | stage 1 |
+| E0365 | `dyn any`: `any` is a `dyn` type already (spec 9.8) | stage 1 |
 | E0500 | non-exhaustive `match`: missing patterns | stage 0 |
 | E0501 | refutable pattern in `const` | stage 0 |
 | E0600 | use of moved value `x` | stage 0 |
