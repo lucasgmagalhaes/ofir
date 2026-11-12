@@ -9,6 +9,7 @@ extern "C" {
     fn ofir_alloc(size: int) *mut u8
     fn ofir_realloc(p: *mut u8, size: int) *mut u8
     fn ofir_free(p: *mut u8)
+    fn ofir_find_bytes(text: *u8, len: int, part: *u8, n: int) int
 }
 
 /**
@@ -273,12 +274,7 @@ pub struct str {
      * ```
      */
     pub fn contains(self, part: str) bool {
-        for i in 0..=self.len - part.len {
-            if sameBytes(unsafe { self.ptr.add(i) }, part.ptr, part.len) {
-                return true
-            }
-        }
-        return false
+        return findFrom(self, part, 0).isSome()
     }
 
     /**
@@ -324,7 +320,7 @@ pub struct str {
     pub fn slice(self, lo: int, hi: int) str {
         checkRange(lo, hi, self.len)
         if !self.isBoundary(lo) || !self.isBoundary(hi) {
-            panic("byte range {lo}..{hi} is not on character boundaries")
+            boundaryPanic(lo, hi)
         }
         let view = ""
         view.ptr = unsafe { self.ptr.add(lo) }
@@ -649,6 +645,12 @@ pub struct CString {
     }
 }
 
+// Out of line, so that `slice` stays small enough to inline.
+@cold
+fn boundaryPanic(lo: int, hi: int) {
+    panic("byte range {lo}..{hi} is not on character boundaries")
+}
+
 // Whether the `n` bytes at `a` and `b` are equal.
 fn sameBytes(a: *u8, b: *u8, n: int) bool {
     return n == 0 || unsafe { memcmp(a, b, n as u64) } == 0
@@ -656,12 +658,14 @@ fn sameBytes(a: *u8, b: *u8, n: int) bool {
 
 // The offset of the first `part` at or after `from`, or None.
 fn findFrom(text: str, part: str, from: int) Option<int> {
-    for i in from..=text.len - part.len {
-        if sameBytes(unsafe { text.ptr.add(i) }, part.ptr, part.len) {
-            return Option.Some(i)
-        }
+    if from > text.len - part.len {
+        return Option.None
     }
-    return Option.None
+    const at = unsafe { ofir_find_bytes(text.ptr.add(from), text.len - from, part.ptr, part.len) }
+    if at < 0 {
+        return Option.None
+    }
+    return Option.Some(from + at)
 }
 
 // ASCII whitespace: space, \t, \n, vertical tab, form feed, \r.

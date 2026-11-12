@@ -1,0 +1,25 @@
+// `find`, `contains` and `replace` around the edges of the byte search.
+
+fn show(at: Option<int>) str {
+    if const Option.Some(i) = at {
+        return "{i}"
+    }
+    return "none"
+}
+
+fn main() {
+    println("{show("".find(""))} {show("abc".find(""))} {show("".find("a"))}")
+    println("{show("ab".find("abc"))} {show("abc".find("abc"))} {show("abc".find("c"))}")
+    println("{show("aaab".find("aab"))} {show("abab".find("bab"))} {show("abcab".find("abd"))}")
+    println("{show("héllo wörld".find("ö"))} {show("héllo".find("llo"))}")
+    let long = "x".repeat(100)
+    long.push("needle")
+    println("{show(long.find("needle"))} {show(long.find("needlex"))} {long.contains("xn")}")
+    println("{"".contains("")} {"a".contains("")} {"abc".contains("bd")}")
+    println("{"aaaa".replace("aa", "b")} {"a-b-".replace("-", "+")} {"abc".replace("", "x")}")
+    let fields = 0
+    for _part in "a,,b,".split(",") {
+        fields += 1
+    }
+    println("{fields}")
+}
