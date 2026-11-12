@@ -84,7 +84,7 @@ There are no variadic functions in Ofir.
 | `std.fs` | read and write files, directories |
 | `std.os` | command line arguments, environment, exit, run processes |
 | `std.strings` | string helpers: split, trim, find, parse numbers (named so it does not shadow the `str` type) |
-| `std.math` | constants and functions such as `math.PI`, `math.hypot`; float methods like `x.sqrt()` live on the type |
+| `std.math` **[planned]** | constants and functions such as `math.PI`, `math.hypot`; float methods like `x.sqrt()` live on the type |
 | `std.mem` | `swap`, `replace`, `take` |
 | `std.mem.cell` | `UnsafeCell`, `Cell` |
 | `std.testing` | `assert`, `assertEq`, `assertNe`, `Bencher` (12.2, 12.3) |

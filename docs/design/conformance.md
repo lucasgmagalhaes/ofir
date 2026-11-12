@@ -36,7 +36,7 @@ specification; the other classes are known and accepted.
 | 1.1 Source files | full | full | `tests/lex` `tests/compile_fail/lexer/unexpected_character.of` | - |
 | 1.2 Comments | full | full | `tests/lex/comments.of` `tests/compile_fail/lexer/unterminated_block_comment.of` | - |
 | 1.3 Statement termination | full | full | `tests/lex/newlines.of` `tests/parse/generics_and_newlines.of` `tests/compile_fail/parser/semicolon.of` `tests/compile_fail/parser/leading_operator.of` | - |
-| 1.4 Identifiers | full | partial | `tests/lex/keywords_and_names.of` | missing: the naming convention warning (W0007) |
+| 1.4 Identifiers | full | partial | `tests/lex/keywords_and_names.of` | planned: the naming convention warning (W0007) |
 | 1.5 Keywords | full | full | `tests/lex/keywords_and_names.of` | - |
 | 1.6 Operators and punctuation | full | full | `tests/lex/operators.of` `tests/parse/expressions.of` | - |
 | 1.7 Literals | partial | full | `tests/lex/numbers.of` `tests/lex/strings.of` `tests/run/strings/literals.of` `tests/run/strings/format.of` `tests/compile_fail/lexer` | subset: format specifiers, raw, multi-line and byte strings |
@@ -100,7 +100,7 @@ specification; the other classes are known and accepted.
 | 7.3 Visibility | full | full | `tests/compile_fail/modules/visibility` `tests/compile_fail/modules/checks` | - |
 | 7.4 The prelude | full | full | `tests/run/basics/prelude.of` | - |
 | 7.5 Built-in functions | partial | full | `tests/run/basics/prelude.of` `tests/panic/assert.of` `tests/run/testing/assert_eq.of` | subset: `assertEq` and `assertNe` need interfaces |
-| 7.6 Standard library (bootstrap subset) | partial | partial | `std/io/index.of` `std/fs/index.of` `std/os` `std/strings` `std/mem` `std/testing/index.of` | missing: `std.math`; planned: the rest of the standard library |
+| 7.6 Standard library (bootstrap subset) | partial | partial | `std/io/index.of` `std/fs/index.of` `std/os` `std/strings` `std/mem` `std/testing/index.of` | planned: `std.math` and the rest of the standard library |
 | 8.1 Generic functions | partial | full | `tests/run/generics_basic/functions.of` `tests/run/generics/bounds.of` `tests/run/generics/bounds_stage0.of` `tests/compile_fail/types/bounds_stage0.of` | subset: bounds other than `Eq`, `Ord` and `Hash` |
 | 8.2 Generic types | full | full | `tests/run/generics_basic/types.of` `tests/compile_fail/types/generics.of` | - |
 | 8.3 Methods on generic types | full | full | `tests/run/generics_basic/types.of` `tests/run/generics_basic/edges.of` | - |
@@ -138,7 +138,7 @@ specification; the other classes are known and accepted.
 | 12.3 Benchmarks | none | full | `tests/ofir_bench` `tests/compile_fail/types/benches.of` | subset: `ofir bench` |
 | 12.4 Conditional compilation | none | full | `tests/run/attributes/cfg.of` `tests/run/attributes/cfg_windows.of` `tests/compile_fail/attributes/cfg.of` | subset: `@cfg`; target: `cfg_windows` runs on Windows only |
 | 12.5 Documentation comments | partial | full | `tests/ofir_doctest` `tests/doc` `tools/check_docs.py` | subset: doc tests and `ofir doc` |
-| 12.6 Warnings | partial | partial | `tests/compile_fail/warn_unused.of` `tests/compile_fail/warn_unreachable.of` `tests/compile_fail/warn_imports` `tests/compile_fail/attributes/deprecated.of` | subset: stage 0 reports W0001, W0002 and W0004 only; missing: unused private items (W0003), needless `let` (W0005) and naming (W0007) |
+| 12.6 Warnings | partial | partial | `tests/compile_fail/warn_unused.of` `tests/compile_fail/warn_unreachable.of` `tests/compile_fail/warn_imports` `tests/compile_fail/attributes/deprecated.of` | subset: stage 0 reports W0001, W0002 and W0004 only; planned: unused private items (W0003), needless `let` (W0005) and naming (W0007) |
 | 13.1 Primitive types | full | full | `tests/codegen/functions.of` | untested: no test checks sizes and alignments |
 | 13.2 Structs and tuples | partial | full | `tests/run/layout/field_order.of` `tests/run/layout/repr_order.of` `tests/run/attributes/layout.of` `tests/compile_fail/attributes/layout.of` | subset: `@repr(C)`, `@packed` and `@align` |
 | 13.3 Enums | full | full | `tests/run/niche` `tests/codegen/niche.of` | - |
@@ -180,11 +180,4 @@ Stage 0 implements none of these chapters (bootstrap subset).
 
 ## Findings
 
-The `missing:` gaps, each to fix in the implementation or the
-specification:
-
-- `std.math` (7.6) is listed among the standard modules, but `std/` has
-  no `math` module.
-- The warnings W0003, W0005 and W0007 (1.4, 12.6) are listed by the
-  specification without a **[planned]** mark; `docs/errors/README.md`
-  marks them planned.
+No section has a `missing:` gap.
