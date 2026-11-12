@@ -150,6 +150,7 @@ CI runs `check-leaks` and `check-asan` on Linux.
 4. CI runs all suites on Linux and macOS for every pull request.
 5. Stage 0 and stage 1 run the same `tests/run`, `tests/panic` and
    `tests/compile_fail` suites (stage 0 may skip tests tagged
-   `// requires: stage1` for features outside the bootstrap subset). A
+   `// requires: stage1` for features outside the bootstrap subset;
+   `// requires: unix` skips a test on Windows). A
    `// flags: ...` line adds compiler flags to a run or codegen test, e.g.
    `// flags: --release`.
