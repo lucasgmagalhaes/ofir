@@ -1,0 +1,30 @@
+// requires: stage1
+// A borrowed `fn` value cannot outlive the frame it borrows from (spec 10.4):
+// a struct field, a return type or a container of it is E0702, and only a
+// `move` closure converts to `move fn`.
+
+struct Holder {
+    f: fn() int                         // error[E0702]: a borrowed function value cannot be stored in a struct field: use a `move fn` type
+}
+
+fn make() fn() int {                    // error[E0702]: a function cannot return a borrowed function value: return a `move fn`
+    return () int => 1
+}
+
+fn keep(f: move fn() int) int {
+    return f()
+}
+
+fn store(f: fn() int) int {
+    let fs: List<fn() int> = []         // error[E0702]: a borrowed function value cannot be stored in a container or a struct: use a `move fn` type
+    fs.push(f)
+    return fs.len()
+}
+
+fn main() {
+    const n = 1
+    const borrowing = () int => n
+    println("{keep(borrowing)}")        // error[E0300]: mismatched types: expected move fn() int, found fn() int
+    const owned: move fn() int = borrowing   // error[E0300]: mismatched types: expected move fn() int, found fn() int
+    println("{owned()} {store(borrowing)}")
+}
