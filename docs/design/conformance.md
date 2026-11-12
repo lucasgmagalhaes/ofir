@@ -41,12 +41,12 @@ specification; the other classes are known and accepted.
 | 1.6 Operators and punctuation | full | full | `tests/lex/operators.of` `tests/parse/expressions.of` | - |
 | 1.7 Literals | partial | full | `tests/lex/numbers.of` `tests/run/numbers/bounds.of` `tests/lex/strings.of` `tests/run/strings/literals.of` `tests/run/strings/format.of` `tests/compile_fail/lexer` | subset: format specifiers, raw, multi-line and byte strings |
 | 1.8 Documentation comments | full | full | `tests/doc` `tools/check_docs.py` | - |
-| 2.1 Primitive types | full | full | `tests/run/basics/arithmetic.of` `tests/run/numbers` `tests/run/numbers/bounds.of` `tests/panic/add_overflow.of` `tests/panic/cast_nan.of` `tests/panic/cast_below.of` | - |
+| 2.1 Primitive types | full | full | `tests/run/basics/arithmetic.of` `tests/run/numbers` `tests/run/numbers/bounds.of` `tests/panic/add_overflow.of` `tests/panic/cast_nan.of` `tests/panic/cast_below.of` `tests/run/numbers/float_edges.of` | planned: `totalCmp` |
 | 2.2 The unit type | full | full | `tests/run/basics/control.of` | untested: no test of its own |
 | 2.3 Strings | full | full | `tests/run/strings` `tests/panic/str_boundary.of` | - |
 | 2.4 Structs | full | full | `tests/run/structs` `tests/compile_fail/types/structs.of` | - |
 | 2.5 Enums | full | full | `tests/run/enums` `tests/compile_fail/types/enums.of` | - |
-| 2.6 Built-in generic types | full | full | `tests/run/list` `tests/run/map` `tests/run/box` `tests/run/errors` | - |
+| 2.6 Built-in generic types | full | full | `tests/run/list` `tests/run/map` `tests/run/box` `tests/run/errors` `tests/run/map/custom_keys.of` `std/core/map_test.of` | - |
 | 2.7 Fixed-size arrays | partial | partial | `tests/run/arrays` `tests/compile_fail/types/array_not_copy.of` `tests/compile_fail/types/array_length.of` | subset: stage 0 has the type but no array values; limit: arrays of elements that are not Copy |
 | 2.8 References | partial | full | `tests/run/refs` `tests/borrow` `tests/compile_fail/types/references.of` | subset: stage 0 checks no borrows (5.4) |
 | 2.9 Copy and move types | full | full | `tests/run/moves` `tests/compile_fail/moves.of` | - |
@@ -121,7 +121,7 @@ specification; the other classes are known and accepted.
 | 9.6 Static dispatch | none | full | `tests/run/interfaces/params.of` `tests/compile_fail/types/interface_params.of` | subset: interfaces |
 | 9.7 Dynamic dispatch with `dyn` | none | full | `tests/run/dyn` `tests/compile_fail/types/dyn.of` | subset: `dyn` |
 | 9.8 Type switches | none | full | `tests/run/dyn/type_switch.of` `tests/compile_fail/types/type_switch.of` | subset: `dyn` |
-| 9.9 Built-in interfaces | partial | full | `tests/run/interfaces/derived.of` `tests/run/strings/debug.of` `tests/compile_fail/types/derived.of` `tests/compile_fail/types/debug.of` | subset: stage 0 has `Eq`, `Ord` and `Hash` on scalars, `str` and tuples of these only |
+| 9.9 Built-in interfaces | partial | partial | `tests/run/interfaces/derived.of` `tests/run/strings/debug.of` `tests/compile_fail/types/derived.of` `tests/compile_fail/types/debug.of` `tests/run/map/custom_keys.of` | subset: stage 0 has `Eq`, `Ord` and `Hash` on scalars, `str` and tuples of these only; planned: `Hasher` and a declared `hash`; missing: `cmp` cannot be called on a primitive or on a type parameter bounded by `Ord` |
 | 9.10 Coherence | none | full | `compiler/sema/check.of` | subset: interfaces; untested: holds by construction (methods are declared in their type) |
 | 10.1 Syntax | none | full | `tests/run/closures` `tests/compile_fail/types/closures.of` | subset: closures |
 | 10.2 Two function types | none | full | `tests/run/closures/fn_values.of` `tests/run/tasks/send.of` | subset: closures |
