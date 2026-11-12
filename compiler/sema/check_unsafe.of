@@ -80,7 +80,9 @@ pub fn pointerCast(c: mut Checker, from: int, to: int, span: Span) bool {
                                                                      (from == U64 ||
                                                                          from == I64))
     if ptrPtr || ptrInt {
-        requireUnsafe(c, span, "converting a raw pointer")
+        if a != TyKind.Ref {   // a reference to a pointer is safe (spec 11.2)
+            requireUnsafe(c, span, "converting a raw pointer")
+        }
         return true
     }
     return false
