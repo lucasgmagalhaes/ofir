@@ -120,6 +120,8 @@ static void statement(Gen *g, const AirStmt *s) {
     TypeId type = g->body->locals.data[s->dest.id].type;
     if (s->dest_path.len > 0 || s->dest_path.deref) {   // a field or `*p`: the operand's type
         type = s->as.rvalue.a.type;
+    } else if (g->body->locals.data[s->dest.id].by_ref) {   // a binding given an address
+        type = s->as.rvalue.a.type;
     }
     gen_rvalue(g, &s->as.rvalue, type, &v);
     store_at(g, s->dest, s->dest_path, v);

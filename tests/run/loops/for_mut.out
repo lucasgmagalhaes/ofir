@@ -1,0 +1,9 @@
+110 121 132
+drop a1
+drop b1
+a12 b12
+x=2
+yy=4
+end
+drop b12
+drop a12

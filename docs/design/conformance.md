@@ -69,7 +69,7 @@ specification; the other classes are known and accepted.
 | 4.1 Blocks | full | full | `tests/run/basics/control.of` `tests/compile_fail/names/scopes.of` | - |
 | 4.2 Assignment | full | full | `tests/compile_fail/types/assignment.of` | - |
 | 4.3 `if` | full | full | `tests/run/basics/control.of` | - |
-| 4.4 `for` | partial | full | `tests/run/basics/loops.of` `tests/run/iterators` `tests/run/loops/labeled.of` `tests/compile_fail/types/labeled_loops.of` | subset: labeled loops, and stage 0 finds the iterator method by name, not by interface |
+| 4.4 `for` | partial | full | `tests/run/basics/loops.of` `tests/run/iterators` `tests/run/loops` `tests/compile_fail/types/labeled_loops.of` `tests/compile_fail/types/for_mut.of` `tests/borrow/for_mut.of` `tests/borrow/drain.of` | subset: labeled loops, and stage 0 finds the iterator method by name, not by interface |
 | 4.5 `match` | full | full | `tests/run/enums/patterns.of` `tests/run/enums/exhaustive.of` `tests/compile_fail/types/exhaustive.of` | - |
 | 4.6 `if const` and `const ... else` | full | full | `tests/run/enums/if_let.of` | - |
 | 4.7 `return`, `break`, `continue` | full | full | `tests/run/basics/loops.of` `tests/compile_fail/types/returns.of` | - |

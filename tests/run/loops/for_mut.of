@@ -1,0 +1,44 @@
+// `for mut` binds each element in place (spec 4.4): changes reach the list
+// or the map, and an assigned element drops its old value once.
+
+struct Named {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+fn bump(n: mut int) {
+    n += 100
+}
+
+fn main() {
+    let numbers = [1, 2, 3]
+    for mut n in numbers {
+        n *= 10
+    }
+    for mut i, n in numbers {
+        n += i
+        bump(n)
+    }
+    println("{numbers[0]} {numbers[1]} {numbers[2]}")
+    let names = [Named{name: "a".toOwned()}, Named{name: "b".toOwned()}]
+    for mut item in names {
+        item.name = "{item.name}1"
+    }
+    for mut item in names {
+        item = Named{name: "{item.name}2"}
+    }
+    println("{names[0].name} {names[1].name}")
+    let scores: Map<str, int> = Map.new()
+    scores.insert("x", 1)
+    scores.insert("yy", 2)
+    for mut key, value in scores {
+        value += key.len()
+    }
+    for key, value in scores {
+        println("{key}={value}")
+    }
+    println("end")
+}

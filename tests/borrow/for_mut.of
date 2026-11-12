@@ -1,0 +1,20 @@
+// requires: stage1
+// `for mut` borrows its list mutably for the whole loop (spec 4.4): the
+// body cannot read or change the list except through the loop variable.
+
+fn total(xs: &[int]) int {
+    return xs.len()
+}
+
+fn main() {
+    let ys = [1, 2]
+    for mut y in ys {
+        y += total(ys.asSlice())   // error[E0703]: cannot use `ys` while it is borrowed as mutable by the `for` loop
+        y += ys[0]                 // error[E0703]: cannot use `ys` while it is borrowed as mutable by the `for` loop
+        ys.push(y)                 // error[E0700]: cannot borrow `ys` as mutable more than once: it is also borrowed by the `for` loop
+    }
+    for mut y in ys {
+        y += 1
+    }
+    ys.push(3)
+}
