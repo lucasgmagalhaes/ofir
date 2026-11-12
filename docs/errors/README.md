@@ -174,6 +174,7 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0816 | compile-time evaluation failed: a panic, an arithmetic or bounds error, or the step budget ran out (spec 15.5) | stage 1 |
 | E0817 | a `comptime fn` can only be called from compile-time code (spec 15.1) | stage 1 |
 | E0818 | the value of a `comptime` expression must be a number, `bool`, `str`, array, tuple, struct or enum of those (spec 15.5) | stage 1 |
+| E0819 | the C symbol `x` is reserved for the runtime: `main` and the `ofir_` prefix (spec 11.4) | stage 1 |
 | E0900 | cannot read source file | stage 0 |
 | E0901 | X is not supported yet (a feature this compiler version does not implement) | stage 0 |
 | E0902 | the toolchain failed: clang or the runtime library is missing, or clang reported an error | stage 0 |
