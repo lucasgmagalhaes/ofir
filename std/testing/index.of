@@ -3,7 +3,8 @@
  * `std.testing`: the helpers of tests (spec 12.2, ADR 0036). They are not
  * in the prelude: a module that calls them imports them, as
  * `import std.testing.assert`. Each assert is lowered where it is called,
- * so a failure reports the location of the call.
+ * so a failure reports the location of the call. `Bencher` is what a
+ * `@bench` function receives (spec 12.3).
  */
 
 extern "intrinsic" {
@@ -34,4 +35,62 @@ extern "intrinsic" {
      * @param right the value it must differ from
      */
     pub fn assertNe<T: Eq + Debug>(left: T, right: T)
+}
+extern "C" {
+    fn ofir_now_ns() i64
+}
+
+// How long a benchmark runs before its time is reported, in nanoseconds.
+const TARGET_NANOS: int = 500_000_000
+
+/**
+ * Times the code of a benchmark.
+ *
+ * @example
+ * ```ofir
+ * @bench
+ * fn benchSum(b: mut Bencher) {
+ *     let xs: List<int> = []
+ *     for i in 0..1000 {
+ *         xs.push(i)
+ *     }
+ *     b.run(() => sum(xs))
+ * }
+ * ```
+ */
+pub copy struct Bencher {
+    // The iterations of the last measurement.
+    iters: int
+    // Their total time, in nanoseconds.
+    nanos: int
+
+    /**
+     * Calls `f` repeatedly, doubling the count until the calls take about
+     * half a second, then prints the time per call.
+     *
+     * @param f the code to time
+     */
+    pub fn run(mut self, f: fn()) {
+        f()   // a warm-up call
+        let n = 1
+        for {
+            const start = unsafe { ofir_now_ns() }
+            for _ in 0..n {
+                f()
+            }
+            const elapsed = unsafe { ofir_now_ns() } - start
+            self.iters = n
+            self.nanos = elapsed as int
+            if elapsed as int >= TARGET_NANOS || n >= 1 << 40 {
+                break
+            }
+            n *= 2
+        }
+        println("{self.nanos / self.iters} ns/iter ({self.iters} iterations)")
+    }
+}
+
+// The `Bencher` that `ofir bench` passes to each `@bench` function.
+fn startBench() Bencher {
+    return Bencher{iters: 0, nanos: 0}
 }

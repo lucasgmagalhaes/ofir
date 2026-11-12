@@ -1571,7 +1571,7 @@ fn lowerTestMain(l: mut Lowerer, c: mut Checker, p: Program) {
         terminate(l, branch(opCopy(chosen, BOOL), run, next))
         switchTo(l, run)
         if c.r.benching {   // `bench(&mut startBench())`
-            const start = stdFn(c, p, "std.core.bench", "startBench")
+            const start = stdFn(c, p, "std.testing", "startBench")
             const ty = c.types.get(fnSignature(c, p, start)).inner
             const bencher = newTemp(l, ty)
             emitCall(l, start, UNIT, [], bencher)

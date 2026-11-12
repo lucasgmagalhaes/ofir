@@ -272,7 +272,7 @@ pub fn resolveProgram(program: Program, names: move Interner, diags: move Diagno
     }
     for m in 0..program.modules.len() {
         const name = program.modules[m].name.clone()
-        const late = name == "std.core.any" || name == "std.core.iter" || name == "std.core.bench"
+        const late = name == "std.core.any" || name == "std.core.iter"
         if !late {   // stage 0 does not load them
             r.trace.line("module {m} {program.modules[m].name}")
         }
