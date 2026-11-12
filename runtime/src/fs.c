@@ -191,7 +191,12 @@ int32_t ofir_touch(const uint8_t *path, int64_t len) {
 // Creates each missing directory of `name`, which it modifies in place.
 static int32_t make_dirs(char *name) {
     for (char *at = name + 1;; at++) {
-        if (*at != '/' && *at != 0) {
+#ifdef _WIN32
+        int separator = *at == '/' || *at == '\\';   // paths mix both on Windows
+#else
+        int separator = *at == '/';
+#endif
+        if (!separator && *at != 0) {
             continue;
         }
         char saved = *at;
