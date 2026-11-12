@@ -1,0 +1,29 @@
+// requires: stage1 (interfaces: `Eq` and `Debug`, ADR 0036)
+// `assertEq` and `assertNe` from `std.testing`: they compare with `==` and
+// read their arguments, which stay usable after the call.
+
+import std.testing.assertEq
+import std.testing.assertNe
+
+struct Point {
+    x: int
+    y: int
+}
+
+enum Token {
+    Number(int)
+    Word(str)
+}
+
+fn main() {
+    assertEq(1 + 2, 3)
+    assertNe("a", "b")
+    const name = "ofir".toOwned()
+    assertEq(name, "ofir".toOwned())
+    println(name)
+    assertEq(Point{x: 1, y: 2}, Point{x: 1, y: 2})
+    assertNe(Token.Number(1), Token.Word("1".toOwned()))
+    assertEq(Option.Some("x".toOwned()), Option.Some("x".toOwned()))
+    assertNe((1, true), (1, false))
+    println("ok")
+}
