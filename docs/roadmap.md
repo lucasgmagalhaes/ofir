@@ -353,6 +353,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.22g | Feature states: planned, open and rejected features with owners and gates (`docs/design/feature-states.md`, ADR 0038), ADR statuses checked by `tools/check_features.py`; no feature flags before 1.0 | OFIR-07 | **done**: 6.22 is complete |
 | 6.23 | Language completion and unresolved semantic choices | OFIR-08 to OFIR-21 | Existing phase 5 tasks linked; accepted semantics and rejection cases tested |
 | 6.23a | Interfaces: embedding cycles (E0327), conflicting embedded signatures (E0328) and conflicting defaults through embedding, assertions and bounds (E0329) in spec 9.3 and 9.4; merged signatures, diamonds and recursive types tested | OFIR-08 | **done**: embedding a generic interface stays a stage 1 limit |
+| 6.23b | Dynamic dispatch: `mut dyn` parameters, `dyn` values and boxes passed to `dyn` parameters, `Box<dyn I>` conversions in generic arguments, the vtable layout (spec 9.7); type tests on generic types and ownership through `Box<dyn Any>` tested | OFIR-09 | **done**: upcasts and `dyn` of generic interfaces are planned |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
@@ -396,8 +397,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.23 with OFIR-09 (dynamic dispatch, unsized values and
-   `Any`); OFIR-08 is done.
+1. Continue 6.23 with OFIR-10 (closures and function values); OFIR-08
+   and OFIR-09 are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
