@@ -1193,6 +1193,9 @@ fn valueCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr
 
 fn fieldCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr, base: &Expr,
              name: Symbol, args: &List<Arg>) Operand {
+    if c.fieldCalls[c.module()].get(callee.id.0).isSome() {   // `button.onClick()`
+        return valueCall(l, c, p, e, callee, args)
+    }
     if moduleMember(c, callee) {   // `shapes.area(c)`
         return nameCall(l, c, p, e, callee, args)
     }
