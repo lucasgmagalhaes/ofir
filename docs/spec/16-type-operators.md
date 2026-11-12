@@ -112,6 +112,13 @@ type Required<T> = { [K in keyof T]: Unwrap<T[K]> }
 - Conditions are decided per instantiation, after substitution; an
   unresolved condition (on a type parameter with no bound that decides it)
   is an error at the instantiation (E0344).
+- A type alias may name itself only in a branch of a conditional type:
+  `type Deep<T> = if T is Option<infer U> { Deep<U> } else { T }` makes
+  `Deep<Option<Option<int>>>` an `int`. Each expansion is decided with its
+  arguments; another self-reference is E0310, and more than 64 nested
+  expansions of aliases are E0346, reported where the recursive alias is
+  first named. A recursive alias whose condition is on a type parameter of
+  a generic signature is not supported yet (E0901).
 
 ## 16.6 Mapping values
 
@@ -155,3 +162,4 @@ fn merge<T>(base: move T, patch: move Partial<T>) T {
 | E0343 | a key must be known at compile time |
 | E0344 | the condition of a conditional type is not decided for this instantiation |
 | E0345 | `infer` is only allowed in the pattern of a conditional type |
+| E0346 | a recursive type alias expands more than 64 times |
