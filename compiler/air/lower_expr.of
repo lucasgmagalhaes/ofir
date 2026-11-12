@@ -1871,18 +1871,25 @@ fn lowerForList(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt, expr: &
     const current = Place{local: at, fields: [], deref: true}
     const first = c.localAt(stmt.id.0) + 1
     let two = false
-    if const StmtKind.For(_, _, _, second, _, _) = stmt.kind {
+    let mutable = false
+    if const StmtKind.For(_, isMut, _, second, _, _) = stmt.kind {
         two = second.isSome()
+        mutable = isMut
     }
     if map {
         const args = c.types.get(mapType).args.clone()
         const key = placeOperand(&fieldOfPlace(&current, 0), OperandKind.Copy, args[0])
-        const value = placeOperand(&fieldOfPlace(&current, 1), OperandKind.Copy, args[1])
         emitAssign(l, first, rvUse(key))
-        emitAssign(l, first + 1, rvUse(value))
+        if mutable {   // `for mut key, value`: `value` is the entry's value itself
+            l.body.locals[first + 1].byRef = true
+        }
+        bindPlace(l, c, first + 1, &fieldOfPlace(&current, 1), args[1])
     } else {
         const elem = if array { c.types.get(ty).inner } else { c.types.get(ty).args[0] }
         const target = if two { first + 1 } else { first }
+        if mutable {   // `for mut x`: `x` is the element itself
+            l.body.locals[target].byRef = true
+        }
         if l.body.locals[target].byRef {   // a value with interior mutability
             bindPlace(l, c, target, &current, elem)
         } else {
