@@ -38,8 +38,14 @@ pub fn cSymbol(r: Resolver, decl: &FnDecl) str {
     return stringArg(r, &decl.attributes, "export") ?? r.text(decl.name).toOwned()
 }
 
+// `main` and the `ofir_` prefix belong to the runtime (spec 11.4).
+fn reservedSymbol(symbol: str) bool {
+    return symbol == "main" || symbol.startsWith("ofir_")
+}
+
 /**
- * Reports E0813 for two `extern "C" fn` that define the same symbol.
+ * Reports E0813 for two `extern "C" fn` that define the same symbol, and
+ * E0819 for a symbol of the runtime defined outside std.
  *
  * @param c the checker
  * @param p the program
@@ -47,13 +53,18 @@ pub fn cSymbol(r: Resolver, decl: &FnDecl) str {
 pub fn checkCSymbols(c: mut Checker, p: Program) {
     let seen: Map<str, bool> = Map.new()
     for m in 0..p.modules.len() {
+        const name = &p.modules[m].name
+        const inStd = name == "std" || name.startsWith("std.")
         const items = &p.modules[m].module.items
         for i in 0..items.len() {
             match items[i].kind {
                 ItemKind.Fn(decl) => {
                     if decl.abi.len() > 0 {
                         const symbol = cSymbol(c.r, &*decl)
-                        if seen.contains(symbol) {
+                        if !inStd && reservedSymbol(symbol) {
+                            c.error("E0819", decl.span,
+                                    "the C symbol `{symbol}` is reserved for the runtime")
+                        } else if seen.contains(symbol) {
                             c.error("E0813", decl.span, "the C symbol `{symbol}` is defined twice")
                         } else {
                             const _ = seen.insert(symbol, true)
