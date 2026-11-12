@@ -15,7 +15,8 @@ build/stage0/ofir run examples/hello.of
 ```
 
 Requirements: a C11 compiler, `make`, Python 3 and clang 17 or later. On Windows: Git Bash,
-GNU make, clang and a MinGW-w64 toolchain (docs/design/toolchain.md, section 7).
+clang and a MinGW-w64 toolchain, with `mingw32-make` in place of `make`; see
+[Windows](docs/design/toolchain.md#windows) for the installation steps.
 
 ## Editor support
 

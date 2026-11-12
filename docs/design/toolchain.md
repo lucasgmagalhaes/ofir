@@ -455,3 +455,34 @@ test runner (a development dependency only; users never need Python).
 On Windows, run `make` from a POSIX shell (Git Bash); `tools/platform.mk`
 builds with clang for the MinGW target and finds clang on `PATH` or in
 `C:/Program Files/LLVM/bin`.
+
+### Windows
+
+Ofir runs on 64-bit Windows with the MinGW C library (section 6). To
+install it:
+
+1. Install [Git for Windows](https://gitforwindows.org/), which brings
+   Git Bash, and Python 3 for the tests.
+2. Install LLVM 17 or later (the official installer puts clang in
+   `C:/Program Files/LLVM/bin`, which the build finds without `PATH`).
+3. Install a MinGW-w64 toolchain, such as WinLibs, for example in
+   `C:/mingw64`. It provides the C library, `mingw32-make` and the
+   winpthreads library the runtime links with. Put its `bin` directory on
+   the `PATH` of Git Bash: `export PATH="/c/mingw64/bin:$PATH"`.
+4. In Git Bash, clone the repository and build the compiler:
+
+```
+mingw32-make stage1                    # build/stage1/ofir.exe
+build/stage1/ofir.exe run examples/hello.of
+```
+
+The compiler finds the runtime (`build/libofir_rt.a`) and the standard
+library (`std/`) relative to its executable, as on the other platforms;
+`OFIR_RUNTIME`, `OFIR_STD` and `OFIR_CLANG` override them. `ofir build`
+writes `.exe` files. `mingw32-make test` runs the tests as CI does; the
+ones that use POSIX paths or tools carry `// requires: unix` and are
+skipped.
+
+A release seed (`docs/bootstrap.md`) works on Windows as on the other
+platforms: `mingw32-make check-seed SEED=ofir-<version>.ll` builds a
+compiler from it.

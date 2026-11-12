@@ -252,13 +252,13 @@ These gaps remain:
 | 6.4 | `ofir doc` and doc tests, in the steps below; **done** | M |
 | 6.4a | Doc tests: the ```` ```ofir ```` blocks of documentation comments run under `ofir test`; **done** (stage 1): `compiler/driver/doctest.of`, `tests/ofir_doctest`, the examples of std and `compiler/` | S |
 | 6.4b | `ofir doc`: HTML documentation from the doc comments; **done** (stage 1): `compiler/doc`, `tests/doc` | M |
-| 6.5 | Package manager (ADR 0032, stage 1), in the steps below | L |
+| 6.5 | Package manager (ADR 0032, stage 1), in the steps below; **done** | L |
 | 6.5a | Design: ADR 0032, `docs/design/toolchain.md`, codes E0910-E0915; **done** | S |
 | 6.5b | Path dependencies: a JSONC reader for `ofir.json`, `dependencies` with `path`, imports by package name (E0910, E0911, E0915); **done** (stage 1): `tests/run/packages/app` and `tests/compile_fail/packages` | M |
 | 6.5c | Git dependencies, semver requirements, resolution, `ofir.lock`, `ofir fetch` and `ofir update` (E0912); **done** (stage 1): `tests/run/packages/git` and `tests/compile_fail/packages/git` | M |
 | 6.5d | SHA-256 checksums in `ofir.lock`, `--locked` and `--offline` (E0913, E0914); **done** (stage 1): `tests/compile_fail/packages/{locked,checksum,offline}` | S |
 | 6.5e | Registry client: the git index and version archives; **done** (stage 1): `tests/run/packages/{registry,yanked}` and `tests/compile_fail/packages/{registry,registry_checksum}` | M |
-| 6.6 | Incremental and parallel compilation (ADR 0033, stage 1), in the steps below | L |
+| 6.6 | Incremental and parallel compilation (ADR 0033, stage 1), in the steps below; **done** | L |
 | 6.6a | Design: ADR 0033, measurements of a self-compile; **done** | S |
 | 6.6b | `os.spawn`, `Child.wait` and `os.cpuCount` in std (runtime, both stages); **done**: `tests/run/system/os` | S |
 | 6.6c | Codegen units: one per module, stable text within a unit, `hidden` and `linkonce_odr` linkage, `--codegen-units=1`; `--emit=llvm` unchanged; **done**: stage 1 builds a `.ll` file per module and links them in one clang call; all tests pass with units, and `verify` checks the single module | M |
@@ -266,7 +266,7 @@ These gaps remain:
 | 6.6e | The object cache in `$OFIR_HOME/cache/objects`: keys, atomic writes, checks, recovery after a failed link, `OFIR_CACHE_LIMIT`, `--no-cache`; cold and warm build times recorded; **done**: a self-compile at `-O0` on 4 cores takes 22.7 s cold and 10.6 s warm, when every unit hits the cache | M |
 | 6.6f | Release benchmarks with units and with one unit; the release default chosen from them; **done**: release builds are one unit. Run times with units against one unit: `fib` -9%, `nbody` -2%, `binary_trees` +2%, and the compiler compiling itself to `.ll` +59% (1.38 s against 0.87 s), past the 3% of ADR 0033 | S |
 | 6.7 | Seeded `Map` hasher, labeled loops, const generics; labeled loops **done** (`name: for`, `break name`, `continue name`; spec 4.4); seeded hasher **done** (`Map.seeded()`, `Map.withSeed`, SipHash-1-3 strings; ADR 0034); const generics **done** in stage 1 (`const N: int`, `[T; N]`, inferred from array lengths; spec 8.7) | M |
-| 6.7a | Compile-time code: `comptime`, `std.meta`, `comptime for`/`if`, `@tag` (spec chapter 15, ADR 0035, stage 1), in the steps below | L |
+| 6.7a | Compile-time code: `comptime`, `std.meta`, `comptime for`/`if`, `@tag` (spec chapter 15, ADR 0035, stage 1), in the steps below; **done** | L |
 | 6.7a1 | Design: ADR 0035 (checked once, expanded per instance), spec chapter 15, codes E0363, E0364, E0814-E0818; **done** | S |
 | 6.7a2 | `comptime` keyword, `std.meta` predicates and `nameOf`, `comptime if` with narrowing (bounds and numeric operators), `comptime panic` (E0363, E0814); **done** | M |
 | 6.7a3 | `comptime for` over `keyof T` and `meta.fieldsOf<T>()`, `@tag` and `field.attribute`; done when `toJson` (spec 15.3) runs (E0364); **done** | M |
@@ -279,11 +279,11 @@ These gaps remain:
 | 6.7b1 | Mapped types over type parameters: `Partial<T>` in a generic signature, `patch[key]` in `comptime for key in keyof T`, inference from an instance; `merge(base, patch)` (spec 16.6) runs with a local alias; **done** | M |
 | 6.7b2 | The standard aliases in `std.core` (spec 16.7): stage 0 loads type operator aliases as opaque (E0901 on use); in an alias body, the using module's private fields are keys too; **done** | S |
 | 6.7b3 | Filters, `Pick`/`Omit` and conditional types over type parameters (`Pick<T, K>`, `Unwrap<T>` in a generic signature); **done** | M |
-| 6.8 | Windows support (x86_64, clang with the MinGW target), in the steps below | L |
+| 6.8 | Windows support (x86_64, clang with the MinGW target), in the steps below; **done** | L |
 | 6.8a | CI job on Windows: both stages build, all tests and std tests pass with stage 0 and stage 1 (paths with `\` and drive letters in `fs`, `ofir lsp` and `ofir doc`; `// requires: unix`); **done** | M |
 | 6.8b | Windows tests of target-specific code: `@cfg(os == "windows")` output, `os.name()`, `// requires: windows`; **done**: `tests/run/attributes/cfg_windows` | S |
-| 6.8c | Releases checked on Windows: `release.yml` builds the compiler from the seed there (`make check-seed`), and a `publish` input checks a branch without releasing | S |
-| 6.8d | Installing and using Ofir on Windows in the docs (`docs/design/toolchain.md`, README) | S |
+| 6.8c | Releases checked on Windows: `release.yml` builds the compiler from the seed there (`make check-seed`), and a `publish` input checks a branch without releasing; **done** | S |
+| 6.8d | Installing and using Ofir on Windows in the docs (`docs/design/toolchain.md`, README); **done** | S |
 | 6.9 | Scheduled CI job for the auditable bootstrap path: `tools/bootstrap_chain.sh`, weekly; the link from the last release to the current sources waits for the next release; **done** | S |
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |
 
