@@ -7,15 +7,29 @@
 #include <stdlib.h>
 #include <string.h>
 
+// "00" to "99": two digits per division.
+static const char DIGIT_PAIRS[201] =
+    "00010203040506070809101112131415161718192021222324252627282930313233343536373839"
+    "40414243444546474849505152535455565758596061626364656667686970717273747576777879"
+    "8081828384858687888990919293949596979899";
+
 int ofir_format_uint(char *buf, uint64_t value) {
-    char digits[24];
-    int n = 0;
-    do {
-        digits[n++] = (char)('0' + value % 10);
-        value /= 10;
-    } while (value != 0);
-    for (int i = 0; i < n; i++) {
-        buf[i] = digits[n - 1 - i];
+    int n = 1;   // the number of digits
+    for (uint64_t rest = value; rest >= 10; rest /= 10) {
+        n++;
+    }
+    int at = n;
+    while (value >= 100) {
+        unsigned pair = (unsigned)(value % 100) * 2;
+        value /= 100;
+        buf[--at] = DIGIT_PAIRS[pair + 1];
+        buf[--at] = DIGIT_PAIRS[pair];
+    }
+    if (value >= 10) {
+        buf[--at] = DIGIT_PAIRS[value * 2 + 1];
+        buf[--at] = DIGIT_PAIRS[value * 2];
+    } else {
+        buf[--at] = (char)('0' + value);
     }
     return n;
 }
