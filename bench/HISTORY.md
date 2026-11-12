@@ -158,3 +158,13 @@ for their own source. The extra one-time build cost is recovered after
 about five such compilations. An unchanged second `make stage1` took 1.42 s
 with the new input-based build rule. These are local results, not a CI
 performance baseline.
+
+## Stage 1 LLVM function buffer reuse (local Windows measurement)
+
+The stage 1 compiler reuses its function IR string's capacity between bodies
+instead of starting with an empty string each time. On a warm self-build of
+`compiler/main.of`, alternating the old and new release compilers gave median
+codegen times of 621 ms and 607 ms, and median total times of 1,913 ms and
+1,884 ms (four old and five new runs, excluding the first cold build).
+Both compilers emitted byte-identical LLVM IR for that source. These are
+local timings; the improvement is small enough to recheck on other hosts.
