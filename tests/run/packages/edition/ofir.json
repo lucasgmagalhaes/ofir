@@ -1,0 +1,9 @@
+// Migration fixture (docs/design/compatibility.md): a manifest that names
+// the 2027 edition builds as one without the key; the compiler accepts the
+// key and does not select anything by it yet.
+{
+  "name": "app",
+  "version": "0.1.0",
+  "edition": "2027",
+  "build": {"kind": "exe", "root": "main.of"},
+}
