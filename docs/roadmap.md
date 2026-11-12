@@ -360,6 +360,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.23f | Attributes and conditional compilation: `@cfg` checks only its condition and follows the host target, `main` and `ofir_` C symbols are reserved for the runtime (E0819), deprecation and unknown attributes tested | OFIR-13 | **done**: stage 1 only; no cross compilation |
 | 6.23g | Compile-time execution: E0815 and E0816 note the function and line where a called function failed and the calls that led there; a random seed is rejected (E0815); the test runner checks diagnostic notes | OFIR-14 | **done**: stage 1 only |
 | 6.23h | Type operators: a type alias may name itself in a branch of a conditional type, decided per expansion, up to 64 nested expansions (E0346); visibility (`key_visibility`), inference (`mapped_generic`) and ownership (`key_params`, E0600) of keys stay tested | OFIR-15 | **done**: stage 1 only; recursion on a type parameter is E0901 |
+| 6.23i | Union types: normalization (`unions/normalization`), layout (`unions/layout`), exhaustiveness (`union_unreachable`, W0004) and invalid narrowing (`union_narrowing`: E0352 for sub-unions and `if const`, E0500, E0602 from a borrowed member) are tested | OFIR-16 | **done**: stage 1 only; the spec needed no change |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
@@ -403,8 +404,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.23 with OFIR-16 (union types and narrowing);
-   OFIR-08 to OFIR-15 are done.
+1. Continue 6.23 with OFIR-17 (const generics and array-length expressions);
+   OFIR-08 to OFIR-16 are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

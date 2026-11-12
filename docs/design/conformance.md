@@ -171,11 +171,11 @@ Stage 0 implements none of these chapters (bootstrap subset).
 | 16.7 The standard aliases | none | full | `tests/run/type_operators/core_aliases.of` `tests/compile_fail/types/type_operators_stage0.of` | subset: stage 0 loads the aliases as opaque (E0901 on use) |
 | 16.8 Errors | none | full | `tests/compile_fail/types/key_types.of` `tests/compile_fail/types/mapped_types.of` `tests/compile_fail/types/conditional_types.of` `tests/compile_fail/types/recursive_types.of` | subset: type operators |
 | 17.1 Union types | none | full | `tests/run/unions/generic.of` `tests/compile_fail/types/unions.of` | subset: union types |
-| 17.2 Equivalence | none | full | `tests/compile_fail/types/unions.of` | subset: union types |
+| 17.2 Equivalence | none | full | `tests/run/unions/normalization.of` `tests/compile_fail/types/unions.of` | subset: union types |
 | 17.3 Widening | none | full | `tests/run/unions/widening.of` `tests/run/unions/widening_sub.of` | subset: union types |
-| 17.4 Narrowing | none | full | `tests/run/unions/narrowing.of` `tests/run/unions/narrowing_drops.of` `tests/compile_fail/types/union_narrowing.of` | subset: union types |
+| 17.4 Narrowing | none | full | `tests/run/unions/narrowing.of` `tests/run/unions/narrowing_drops.of` `tests/compile_fail/types/union_narrowing.of` `tests/compile_fail/types/union_unreachable.of` | subset: union types |
 | 17.5 Operations and interfaces | none | full | `tests/run/unions/interfaces.of` `tests/run/unions/try.of` `tests/compile_fail/types/union_interfaces.of` | subset: union types |
-| 17.6 Layout | none | full | `tests/run/unions/drops.of` `compiler/codegen/llvm.of` | subset: union types; untested: no test checks the layout |
+| 17.6 Layout | none | full | `tests/run/unions/layout.of` `tests/run/unions/drops.of` | subset: union types |
 | 17.7 Errors | none | full | `tests/compile_fail/types/unions.of` `tests/compile_fail/types/union_narrowing.of` | subset: union types |
 
 ## Findings

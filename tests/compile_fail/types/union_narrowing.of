@@ -1,5 +1,5 @@
 // requires: stage1
-// Narrowing a union (spec 17.4): E0352 and exhaustiveness.
+// Narrowing a union (spec 17.4): E0352, exhaustiveness and borrowed members.
 
 struct A {
     n: int
@@ -24,6 +24,37 @@ fn foreign(value: A | B) int {
 fn partial(value: A | B) int {
     return match value {   // error[E0500]: non-exhaustive `match`: `_: B` is not covered
         a: A => a.n
+    }
+}
+
+fn subUnion(value: A | B) int {
+    return match value {
+        _: (A | C) => 1   // error[E0352]: `C` is not a member of the union `A | B`
+        _ => 2
+    }
+}
+
+fn test(value: A | B) int {
+    if const c: C = value {   // error[E0352]: `C` is not a member of the union `A | B`
+        return c.n
+    }
+    return 0
+}
+
+fn missing(value: A | B | C) int {
+    return match value {   // error[E0500]: non-exhaustive `match`: `_: C` is not covered
+        _: (A | B) => 1
+    }
+}
+
+fn take(value: move A) int {
+    return value.n
+}
+
+fn borrowed(value: &(A | B)) int {
+    return match *value {
+        a: A => take(a)   // error[E0602]: cannot move out of `a`, which is borrowed: declare the parameter `move`, or call `.clone()`
+        _: B => 0
     }
 }
 
