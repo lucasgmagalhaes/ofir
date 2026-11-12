@@ -55,6 +55,11 @@ fn main() {
 The runner checks that exactly the annotated errors are produced, matching
 the **code and line** strictly and the message as a substring.
 
+A `// note: text` line of its own below an annotation expects a note of
+that diagnostic containing `text`, where the test's path is shortened to
+its file name (`trace.of:7:9`). The runner reads the notes from
+`--message-format=json`, under stage 1 only.
+
 In a project test, errors in its `ofir.json` (a dependency that cannot
 be found, say) are annotated there, as JSONC comments on their line;
 the runner matches them by file, line and code.
@@ -110,6 +115,7 @@ fn add(a: int, b: int) int {
 | `ofir build FILE --emit=ast` (AST on stdout) | `parse` |
 | `ofir run FILE` | `run`, `panic` |
 | `ofir build FILE --message-format=short -o OUT` | `compile_fail`, `borrow` |
+| `ofir build FILE --message-format=json -o OUT` | `compile_fail` with `// note:` lines (stage 1) |
 | `ofir build FILE --emit=llvm -o OUT` (writes `OUT.ll`) | `codegen` |
 | `ofir fmt --stdout FILE` | `fmt` |
 | `ofir doc --stdout FILE` | `doc` |

@@ -161,7 +161,7 @@ Stage 0 implements none of these chapters (bootstrap subset).
 | 15.2 Type information | none | full | `tests/run/comptime/predicates.of` `tests/run/comptime/fields.of` `tests/run/comptime/variants.of` `tests/compile_fail/comptime/fields_of.of` | subset: compile-time code |
 | 15.3 `comptime for` and `comptime if` | none | full | `tests/run/comptime/branches.of` `tests/run/comptime/to_json.of` `tests/compile_fail/comptime/conditions.of` | subset: compile-time code |
 | 15.4 Attributes as metadata | none | full | `tests/run/comptime/to_json.of` `tests/run/comptime/variants.of` | subset: compile-time code |
-| 15.5 Limits | none | full | `tests/compile_fail/comptime/failure.of` `tests/compile_fail/comptime/io.of` | subset: compile-time code |
+| 15.5 Limits | none | full | `tests/compile_fail/comptime/failure.of` `tests/compile_fail/comptime/io.of` `tests/compile_fail/comptime/trace.of` | subset: compile-time code |
 | 16.1 Key types and `keyof` | none | full | `tests/run/type_operators/keys.of` `tests/compile_fail/types/key_types.of` `tests/compile_fail/modules/key_visibility` | subset: type operators |
 | 16.2 Keys as generic parameters | none | full | `tests/run/type_operators/key_params.of` `tests/compile_fail/types/key_params.of` | subset: type operators |
 | 16.3 Indexed access types | none | full | `tests/run/type_operators/keys.of` `tests/compile_fail/types/key_types.of` | subset: type operators |

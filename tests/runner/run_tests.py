@@ -39,6 +39,8 @@ PANIC_EXIT_STATUS = 101
 
 ANNOTATION_RE = re.compile(r"//\s*(error|warning)\[([EW]\d{4})\]:\s*(.*?)\s*$")
 DIAGNOSTIC_RE = re.compile(r"^(.*?):(\d+):(\d+): (error|warning)\[([EW]\d{4})\]: (.*)$")
+# A note of the diagnostic annotated last, on a line of its own (stage 1).
+NOTE_RE = re.compile(r"^\s*//\s*note:\s*(.*?)\s*$")
 REQUIRES_RE = re.compile(r"^//\s*requires:\s*(\S+)", re.MULTILINE)
 # Extra compiler flags of a run or codegen test, e.g. `// flags: --release`.
 FLAGS_RE = re.compile(r"^//\s*flags:\s*(.+)$", re.MULTILINE)
@@ -325,6 +327,46 @@ def write_lock(cfg: Config, template: Path) -> None:
     (template.parent / "ofir.lock").write_text(text, newline="\n")
 
 
+def parse_notes(source: str) -> list[tuple[int, str, str]]:
+    """Returns (line, code, note) for each `// note:` line: a note of the
+    diagnostic annotated last."""
+    notes = []
+    last = None
+    for number, text in enumerate(source.splitlines(), start=1):
+        m = ANNOTATION_RE.search(text)
+        if m:
+            last = (number, m.group(2))
+            continue
+        n = NOTE_RE.match(text)
+        if n and last:
+            notes.append((last[0], last[1], n.group(1)))
+    return notes
+
+
+def missing_notes(cfg: Config, path: Path, source: str) -> list[str]:
+    """Stage 1 must give each annotated note, with the test's path shortened
+    to its file name."""
+    notes = parse_notes(source)
+    if not notes or cfg.stage == 0:
+        return []
+    proc = run_process(compiler_cmd(cfg, "build", str(path), "--message-format=json",
+                                    "-o", str(cfg.tmp / path.stem), *test_flags(source)),
+                       env=test_env(cfg, path))
+    given = []
+    for text in (proc.stdout + proc.stderr).splitlines():
+        if not text.startswith("{"):
+            continue
+        d = json.loads(text)
+        for note in d.get("notes", []):
+            message = note["message"].replace(str(path.resolve()), path.name)
+            given.append((d["line"], d["code"], message.replace(str(path), path.name)))
+    problems = []
+    for line, code, note in notes:
+        if not any((g[0], g[1]) == (line, code) and note in g[2] for g in given):
+            problems.append(f"missing note of {code} at line {line}: {note}")
+    return problems
+
+
 def check_diagnostics(cfg: Config, path: Path, source: str) -> Result:
     annotations = parse_annotations(source)
     manifest = path.parent / "ofir.json"
@@ -346,6 +388,7 @@ def check_diagnostics(cfg: Config, path: Path, source: str) -> Result:
 
     missing = missing_stage0 if cfg.stage == 0 else missing_stage1
     problems = unexpected_diagnostics(reported, annotations) + missing(reported, annotations)
+    problems += missing_notes(cfg, path, source)
     if problems:
         return Result(path, "fail", "\n".join(problems))
     return Result(path, "pass")

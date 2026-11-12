@@ -35,6 +35,7 @@ import air.fold.isSigned
 import air.fold.normalize
 import air.lower.Lowerer
 import base.span.Span
+import diag.noSpan
 import sema.check.Checker
 import sema.check.itemOf
 import sema.def.DefKind
@@ -184,6 +185,15 @@ struct Interp {
     outer: List<str>
     /** The blocks that `ofir_alloc` made: each an aggregate of its elements. */
     heap: List<Value>
+    /** The statement or terminator being run. */
+    at: Span
+    /** The function and the call site of each active call, outermost first. */
+    fns: List<int>
+    calls: List<Span>
+    /** Where the failure happened, and the calls active then. */
+    failedAt: Span
+    failedFns: List<int>
+    failedCalls: List<Span>
 }
 
 fn fail(it: mut Interp, code: str, message: move str) {
@@ -191,6 +201,9 @@ fn fail(it: mut Interp, code: str, message: move str) {
         it.failed = true
         it.code = code.toOwned()
         it.message = message
+        it.failedAt = it.at
+        it.failedFns = it.fns.clone()
+        it.failedCalls = it.calls.clone()
     }
 }
 
@@ -1010,7 +1023,11 @@ fn call(it: mut Interp, c: mut Checker, p: &Program, out: List<AirBody>, frame: 
     }
     it.frames.push(locals)
     const callee = it.frames.len() - 1
+    it.fns.push(out[index].def)
+    it.calls.push(s.span)
     run(it, c, p, out, index, callee, 0, -1)
+    it.fns.truncate(callee - 1)
+    it.calls.truncate(callee - 1)
     const result = it.frames[callee][0].clone()
     it.frames.truncate(callee)
     if !it.failed {
@@ -1098,10 +1115,16 @@ fn run(it: mut Interp, c: mut Checker, p: &Program, out: List<AirBody>, b: int, 
             if it.failed {
                 return
             }
+            if out[b].blocks[block].stmts[i].span.end > 0 {
+                it.at = out[b].blocks[block].stmts[i].span
+            }
             exec(it, c, p, out, frame, out[b].blocks[block].stmts[i])
             if it.failed {
                 return
             }
+        }
+        if out[b].blocks[block].term.span.end > 0 {
+            it.at = out[b].blocks[block].term.span
         }
         tick(it)
         if !it.failed {
@@ -1248,7 +1271,8 @@ pub fn evalComptimes(l: mut Lowerer, c: mut Checker, p: Program) {
         return
     }
     let it = Interp{bodies: Map.new(), frames: [], steps: 0, budget: 0, failed: false, code: "",
-                    message: "", outer: [], heap: []}
+                    message: "", outer: [], heap: [], at: noSpan(), fns: [], calls: [],
+                    failedAt: noSpan(), failedFns: [], failedCalls: []}
     for i in 0..l.out.len() {
         if l.out[i].closure.isNone() {
             it.bodies.insert(l.out[i].def * 4294967296 + l.out[i].targs, i)
@@ -1259,6 +1283,40 @@ pub fn evalComptimes(l: mut Lowerer, c: mut Checker, p: Program) {
         if b >= 0 {
             evalRegion(l, c, &p, it, r, b)
         }
+    }
+}
+
+/**
+ * The calls that the notes of a failure name, innermost first: with the
+ * first and the last note, `MAX_NOTES`.
+ */
+const MAX_TRACE: int = 2
+
+// `path:line:column` of the start of a span.
+fn where(c: Checker, span: Span) str {
+    const file = c.r.map.file(span.file)
+    const at = file.lineCol(span.start)
+    return "{file.path}:{at.line}:{at.column}"
+}
+
+// Notes on where a failure inside a called function happened, and the
+// calls that led there (spec 15.5).
+fn traceFailure(it: Interp, c: mut Checker) {
+    const n = it.failedFns.len()
+    if n == 0 || it.failedAt.end == 0 {
+        return
+    }
+    const name = c.text(c.def(it.failedFns[n - 1]).name)
+    c.r.diags.note("it failed in `{name}` at {where(c, it.failedAt)}")
+    let k = n - 1
+    for k >= 1 && n - k <= MAX_TRACE {
+        const callee = c.text(c.def(it.failedFns[k]).name)
+        const caller = c.text(c.def(it.failedFns[k - 1]).name)
+        c.r.diags.note("`{callee}` was called from `{caller}` at {where(c, it.failedCalls[k])}")
+        k -= 1
+    }
+    if k >= 1 {
+        c.r.diags.note("and {k} more calls")
     }
 }
 
@@ -1284,9 +1342,12 @@ fn evalRegion(l: mut Lowerer, c: mut Checker, p: &Program, it: mut Interp, r: in
     it.budget = l.comptimes[r].budget
     it.failed = false
     it.heap = []
+    it.fns = []
+    it.calls = []
     run(it, c, p, l.out, b, 0, start, after)
     if it.failed {
         c.error(it.code, span, it.message.clone())
+        traceFailure(it, c)
         return
     }
     const value = it.frames[0][dest].clone()

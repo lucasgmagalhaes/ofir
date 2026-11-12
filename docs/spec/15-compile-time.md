@@ -197,8 +197,12 @@ meanings of chapter 12.1.
 - Compile-time execution has a step budget (default 10 million operations,
   configurable with `@comptimeBudget(n)` on the enclosing declaration), so
   a buggy loop is a compile error instead of a hang. A panic, an
-  arithmetic or bounds error, or running out of budget is E0816.
+  arithmetic or bounds error, calls nested more than 128 deep, or running
+  out of budget is E0816.
 - `comptime` code is deterministic: it cannot read files, the clock, the
   environment or random numbers, nor call `extern` functions (E0815).
   Builds stay reproducible (required for the self-hosting check).
+- E0815 and E0816 point at the `comptime` expression. When the failure is
+  inside a called function, notes name that function and the line where it
+  failed, then the calls that led there, innermost first.
 - A `comptime fn` called from code that runs at run time is E0817.
