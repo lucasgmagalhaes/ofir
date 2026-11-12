@@ -51,6 +51,10 @@ Operand lower_intrinsic(Lowerer *l, Expr *call, FnDecl *fn) {
     if (sv_eq(name, SV("alignOf"))) {
         return size_of(l, call, RV_ALIGN_OF);
     }
+    if (sv_eq(name, SV("assert"))) {   // std.testing (ADR 0036)
+        lower_panic_assert(l, call, BUILTIN_ASSERT);
+        return op_unit();
+    }
     if (sv_eq(name, SV("dropInPlace")) || sv_eq(name, SV("forget"))) {
         return lower_drop_intrinsic(l, call, sv_eq(name, SV("forget")));
     }
