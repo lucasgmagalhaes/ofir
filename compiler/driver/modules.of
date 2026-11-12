@@ -510,7 +510,7 @@ pub fn loadProgram(input: str, root: move Module, front: mut Front,
         }
         m += 1
         if m == ld.modules.len() {
-            // `Any` (spec 9.8) and `Iterator<T>` (spec 9.5): prelude modules
+            // `any` (spec 9.8) and `Iterator<T>` (spec 9.5): prelude modules
             // that stage 0 cannot read, so `std.core` does not import them;
             // loaded last, they leave the numbers of the other modules as
             // stage 0 gives them.
