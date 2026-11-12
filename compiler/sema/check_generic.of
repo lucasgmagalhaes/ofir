@@ -28,6 +28,8 @@ import sema.check.fnOf
 import sema.check.noGenerics
 import sema.check.typeGenericsOf
 import sema.check_closure.coerceToSend
+import sema.check_dyn.boxesDyn
+import sema.check_dyn.coerceToDyn
 import sema.check_keys.checkKeyArg
 import sema.check_keys.checkKeyBound
 import sema.check_keys.isKeyLiteral
@@ -38,6 +40,7 @@ import sema.check_list.coerceToSlice
 import sema.check_list.hashable
 import sema.check_mapped.substType
 import sema.check_methods.isCloneable
+import sema.check_types.compatible
 import sema.check_types.resolveType
 import sema.check_union.coerceToUnion
 import sema.check_union.unionMembers
@@ -438,11 +441,14 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
         if hint == ERROR && slots[i] >= 0 {
             hint = arrayHint(c, &inf, param, arg)
         }
-        const found = checkExpr(c, p, arg, hint)
+        const boxed = boxesDyn(c, hint)   // `Box.new(x)` infers the type of `x`
+        const found = checkExpr(c, p, arg, if boxed { ERROR } else { hint })
         if keyParam {
             checkKeyArg(c, arg, found)
         }
-        inferFrom(c, inf, param, found)
+        if !boxed {
+            inferFrom(c, inf, param, found)
+        }
     }
     inferFromBounds(c, p, inf)
     inferFinish(c, inf, span)
@@ -452,6 +458,8 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
             const wanted = inferApply(c, &inf, params[slots[i]])
             const found = c.typeOf(args[i].value.id.0)
             const widened = coerceToSlice(c, p, &args[i].value, found, wanted) ||
+                            (!compatible(found, wanted)
+                             && coerceToDyn(c, p, &args[i].value, found, wanted)) ||
                             coerceToUnion(c, &args[i].value, found, wanted) ||
                             coerceToSend(c, p, &args[i].value, found, wanted)
             if !widened {

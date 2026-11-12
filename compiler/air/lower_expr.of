@@ -1467,7 +1467,8 @@ fn dynCoercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
     c.setType(e.id.0, found)   // the expression itself has the type found
     const borrowed = dynBorrowed(c, e)
     const thin = if borrowed {
-        placeOperand(&lowerPlace(l, c, p, e), OperandKind.Addr, c.types.ref(found, false))
+        const mutable = c.types.get(ty).data == 1
+        placeOperand(&lowerPlace(l, c, p, e), OperandKind.Addr, c.types.ref(found, mutable))
     } else {
         lowerView(l, c, p, e, derefCount(c, e))
     }

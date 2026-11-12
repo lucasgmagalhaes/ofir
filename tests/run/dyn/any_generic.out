@@ -1,0 +1,11 @@
+pair of int 1
+pair of str x
+list of 2
+other Pair<float>
+other int
+other Config
+pair of int 2
+other Config
+end
+drop second
+drop first

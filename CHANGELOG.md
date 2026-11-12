@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `mut dyn` parameters in stage 1 (spec 9.7); a `dyn` parameter also
+  takes a `&mut dyn I` or a `Box<dyn I>`, borrowed, and `Box.new(x)`
+  converts to `Box<dyn I>` in generic arguments (`list.push(Box.new(x))`).
+  The vtable layout is specified; converting a `dyn` value to an embedded
+  interface and `dyn` of generic interfaces are planned.
 - Interface embedding checks in stage 1 (spec 9.3, 9.4): an interface
   that embeds itself (E0327), a method reaching an interface with two
   signatures (E0328) and two defaults for the same method through

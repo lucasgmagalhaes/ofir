@@ -1,0 +1,49 @@
+// requires: stage1
+// `dyn` parameters (spec 9.7): `mut dyn` needs a mutable value, a shared
+// `dyn` does not become a `mut dyn`, `move dyn` is not a parameter mode,
+// and an interface does not convert to the interfaces it embeds.
+
+interface Named {
+    fn name(self) str
+}
+
+interface Counter {
+    Named
+    fn bump(mut self) int
+}
+
+struct Clicks {
+    n: int
+
+    fn bump(mut self) int {
+        self.n += 1
+        return self.n
+    }
+
+    fn name(self) str {
+        return "clicks"
+    }
+}
+
+fn twice(c: mut dyn Counter) int {
+    return c.bump()
+}
+
+fn upcast(c: dyn Counter) str {
+    return label(c)             // error[E0300]: mismatched types: expected &dyn Named, found &dyn Counter
+}
+
+fn label(n: dyn Named) str {
+    return n.name()
+}
+
+fn own(c: move dyn Counter) {   // error[E0901]: `move` `dyn` parameters are not supported yet
+}
+
+fn main() {
+    const c = Clicks{n: 0}
+    twice(c)                    // error[E0315]: this value cannot be modified: declare it with `let`
+    let other = Clicks{n: 1}
+    let shared: &dyn Counter = &other
+    twice(shared)               // error[E0300]: mismatched types: expected &mut dyn Counter, found &dyn Counter
+}

@@ -237,9 +237,25 @@ for s in shapes {
 ```
 
 A `dyn` value is a **fat pointer**: a data pointer plus a pointer to a
-virtual table with one entry per method, plus the size, alignment and drop
-function of the concrete type. Converting a concrete pointer to a `dyn`
-pointer is implicit when the expected type is known.
+virtual table. The table holds, in order, the drop function, the size, the
+alignment and the type id of the concrete type (for type switches, 9.8),
+then one entry per method callable through `dyn`, in declaration order.
+Converting a concrete pointer to a `dyn` pointer is implicit when the
+expected type is known, in generic arguments too
+(`list.push(Box.new(Circle{radius: 1.0}))` on a `List<Box<dyn Shape>>`).
+
+A `dyn` parameter also takes a `dyn` value: `s: dyn Shape` takes a
+`&dyn Shape`, a `&mut dyn Shape` or a `Box<dyn Shape>`, and
+`s: mut dyn Shape` a `&mut dyn Shape` or a mutable `Box<dyn Shape>`;
+the box is borrowed, not moved. A `mut dyn` parameter needs a mutable
+value (E0315), and a `&dyn` does not become a `&mut dyn` (E0300). A `dyn`
+value cannot be taken by `move`: a function that takes ownership takes a
+`Box<dyn I>`.
+
+Converting a `dyn` value to another interface, even one it embeds
+(`dyn Both` to `dyn Named`), is **[planned]**; until then it is a type
+mismatch (E0300). `dyn` of a generic interface (`dyn Iterator<int>`) is
+**[planned]** too, and rejected with E0901.
 
 ### Dyn compatibility
 
