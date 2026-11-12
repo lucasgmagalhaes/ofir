@@ -58,8 +58,15 @@ are two ways to build the current compiler:
    with the result.
 2. **Auditable path:** stage 0 → the first self-hosted release → every
    following release in order. It requires only a C compiler and clang and
-   proves that no seed hides anything ("trusting trust"). Running it in CI
-   on a schedule is planned.
+   proves that no seed hides anything ("trusting trust").
+   `tools/bootstrap_chain.sh` runs it, and the Bootstrap workflow
+   (`.github/workflows/bootstrap.yml`) runs that weekly. The chain starts at
+   0.5.0, built by its own stage 0 (0.2.0 cannot build 0.5.0, whose std
+   uses `where` bounds). Each release rebuilds itself to a fixed point, and
+   the current sources must give the same LLVM IR as `make verify`. While
+   they use features newer than the last release (now `const` and `let`),
+   the current sources are built by their own stage 0; the link from the
+   last release to them returns with the next release.
 
 `make seed` writes the seed of the current sources
 (`build/seed/ofir-<version>.ll` and its `.sha256`), after `make verify`.
