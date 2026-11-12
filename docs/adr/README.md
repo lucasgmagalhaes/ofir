@@ -42,6 +42,7 @@ changed by writing a new record that supersedes the old one.
 | [0034](0034-seeded-map-hasher.md) | Seeded `Map` hashing: SipHash keys and a per-map seed | Accepted |
 | [0035](0035-comptime.md) | Compile-time code checked once and expanded per instance | Accepted |
 | [0036](0036-testing-module.md) | Asserts and `Bencher` in `std.testing`, not in the prelude | Accepted |
+| [0037](0037-compatibility-policy.md) | No stability promise before 1.0; deprecate before removing | Accepted |
 
 ## Template
 
