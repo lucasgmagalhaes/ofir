@@ -21,9 +21,12 @@ floats. Most operations are methods on the float types (core.md).
 
 | Item | Description |
 |------|-------------|
-| `assertEq(left, right)` | in the prelude (spec 7.5) |
-| `fn assertNe<T: Eq + Debug>(left: T, right: T)` | |
+| `fn assert(condition: bool)` | panics when `condition` is false |
+| `fn assertEq<T: Eq + Debug>(left: T, right: T)` | panics when `left != right`, printing both |
+| `fn assertNe<T: Eq + Debug>(left: T, right: T)` | panics when `left == right`, printing both |
 | `struct Bencher` with `fn run(mut self, f: fn())` | used by `@bench` |
+
+None of them is in the prelude: a module imports them (ADR 0036).
 
 ## `std.fmt`
 
