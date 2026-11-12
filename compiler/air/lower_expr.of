@@ -735,6 +735,10 @@ fn lowerIntrinsic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, id: int,
         rv.to = callTypeArg(c, e)
         return tempValue(l, I64, rv)
     }
+    if name == "assert" {   // std.testing (ADR 0036)
+        panicAssert(l, c, p, e, &args[0].value, false)
+        return unit()
+    }
     if name == "dropInPlace" || name == "forget" {
         const value = lowerExpr(l, c, p, &args[0].value)
         if name == "forget" {
