@@ -4,6 +4,33 @@
 
 Source files are UTF-8 encoded text with the extension `.of`.
 
+- **Encoding.** The whole file, comments included, must be well-formed
+  UTF-8: an invalid sequence, an overlong form, a surrogate or a value
+  above U+10FFFF is an error (E0008). So every string literal is valid
+  UTF-8. There is no byte order mark: a leading U+FEFF is E0001.
+- **Line ends.** A line ends at `\n`. `\r` is whitespace, so `\r\n` ends
+  a line as `\n` does; a `\r` alone does not.
+- **ASCII tokens.** Names, keywords, numbers, operators and whitespace are
+  ASCII. Any other character outside a comment or a literal is E0001,
+  including Unicode spaces such as U+00A0.
+- **Literals and comments** may hold any character. A literal keeps the
+  bytes as written: there is no Unicode normalization, so `"é"` written
+  as U+00E9 and as `e` followed by U+0301 are different strings.
+- **Bidirectional controls** (U+202A to U+202E, U+2066 to U+2069) change
+  how text is displayed and can make code read differently from how it
+  runs. They are an error anywhere in a file (E0009); a string that needs
+  one writes it as an escape, `"\u{202E}"`.
+- **Diagnostic columns.** A diagnostic gives a line and a column, both
+  from 1. The column counts bytes from the start of the line: a tab, and
+  each byte of a multi-byte character, is one column. The text and JSON
+  formats (`--message-format`) use these columns; the language server
+  converts them to UTF-16 code units, as the LSP requires.
+
+Identifiers are ASCII (1.4), so they need no normalization, and two
+different names cannot look the same through Unicode confusables. Unicode
+identifiers are not planned; if they are added, an ADR decides their
+normalization and confusable checks first.
+
 ## 1.2 Comments
 
 ```ofir
