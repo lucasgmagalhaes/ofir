@@ -110,7 +110,7 @@ Panics are raised by:
 - integer overflow, division by zero, invalid shifts;
 - failed `as` conversions;
 - `unwrap`/`expect` on `None` or `Err`;
-- `assert(cond)` and `panic("message")`;
+- `assert(cond)` (and the other asserts of `std.testing`) and `panic("message")`;
 - stack overflow (detected by the runtime).
 
 Panics cannot be caught. Recovering from panics is intentionally not
