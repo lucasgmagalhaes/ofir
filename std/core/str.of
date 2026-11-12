@@ -9,7 +9,7 @@ extern "C" {
     fn ofir_alloc(size: int) *mut u8
     fn ofir_realloc(p: *mut u8, size: int) *mut u8
     fn ofir_free(p: *mut u8)
-    fn ofir_find_bytes(text: *u8, len: int, part: *u8, n: int) int
+    fn memchr(s: *u8, c: i32, n: u64) *u8
 }
 
 /**
@@ -677,11 +677,40 @@ fn findFrom(text: str, part: str, from: int) Option<int> {
     if from > text.len - part.len {
         return Option.None
     }
-    const at = unsafe { ofir_find_bytes(text.ptr.add(from), text.len - from, part.ptr, part.len) }
+    const at = unsafe { findBytes(text.ptr.add(from), text.len - from, part.ptr, part.len) }
     if at < 0 {
         return Option.None
     }
     return Option.Some(from + at)
+}
+
+// The offset of the first copy of the `n` bytes at `part` in the `len`
+// bytes at `text`, or -1.
+unsafe fn findBytes(text: *u8, len: int, part: *u8, n: int) int {
+    if n == 0 {
+        return 0
+    }
+    if n > len {
+        return -1
+    }
+    const first = *part as i32
+    const tail = n - 1
+    const final = *part.add(tail)
+    const start = text as uint
+    const last = start + (len - n) as uint   // the last address a match can start at
+    let at = text
+    for at as uint <= last {
+        const hit = memchr(at, first, (last - at as uint + 1) as u64)
+        if hit as uint == 0 {
+            return -1
+        }
+        // The last byte first: a cheap filter before memcmp.
+        if *hit.add(tail) == final && sameBytes(hit.add(1), part.add(1), tail) {
+            return (hit as uint - start) as int
+        }
+        at = hit.add(1)
+    }
+    return -1
 }
 
 // ASCII whitespace: space, \t, \n, vertical tab, form feed, \r.
