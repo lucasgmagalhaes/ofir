@@ -1,0 +1,64 @@
+// requires: stage1
+// `move fn` values in fields, lists and options (spec 10.2, 10.4): `x.f()`
+// calls a fn-typed field when `x` has no method `f`, and each closure
+// drops what it captured when it is replaced, dropped or moved out.
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+struct Button {
+    label: str
+    onClick: move fn() int
+    apply: move fn(int) int
+
+    fn apply(self, x: int) int {   // a method wins over the field of the same name
+        return x * 100
+    }
+}
+
+struct Wrapper<T> {
+    map: move fn(T) T
+}
+
+fn make(name: str, k: int) move fn() int {
+    const n = Noisy{name: name.toOwned()}
+    return move () int => n.name.len() + k
+}
+
+fn twice(x: int) int {
+    return x * 2
+}
+
+fn main() {
+    let b = Button{label: "ok".toOwned(), onClick: make("a", 1), apply: twice}
+    println("{b.onClick()}")
+    println("method {b.apply(3)}")
+    b.onClick = make("b", 2)
+    println("after replace: {b.onClick()}")
+    const r = &b
+    println("through a reference: {r.onClick()}")
+    const w = Wrapper<int>{map: twice}
+    println("generic: {w.map(21)}")
+    const boxed = Box.new(Wrapper<float>{map: move (x: float) float => x / 2.0})
+    println("boxed: {boxed.map(3.0)}")
+    let handlers: List<move fn() int> = []
+    handlers.push(make("c", 3))
+    handlers.push(make("d", 4))
+    for i in 0..handlers.len() {
+        println("handler {(handlers[i])()}")
+    }
+    let slot: Option<move fn() int> = Option.Some(make("e", 5))
+    if const Option.Some(f) = slot {
+        println("option {f()}")
+    }
+    println("after option")
+    const g = make("f", 6)
+    const moved = g
+    println("moved {moved()}")
+    println("end")
+}
