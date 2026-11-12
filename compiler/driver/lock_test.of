@@ -1,5 +1,7 @@
 // The tests of `driver.lock`.
 
+import std.testing.assert
+
 @test
 fn checksumHashesTheFilesInOrder() {
     const sum = "760fe8af9eedfdbc434b8f6a76014f3d4a399865601f8913928b8d562e30a5c5"

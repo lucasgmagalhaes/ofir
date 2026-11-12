@@ -1,5 +1,7 @@
 // The native SHA-256 path matches the cache key used before it moved to C.
 
+import std.testing.assert
+
 @test
 fn hashesSaltAndText() {
     const path = objectPath("salt", "body")
