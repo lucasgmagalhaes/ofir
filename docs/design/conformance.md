@@ -124,9 +124,9 @@ specification; the other classes are known and accepted.
 | 9.9 Built-in interfaces | partial | partial | `tests/run/interfaces/derived.of` `tests/run/strings/debug.of` `tests/compile_fail/types/derived.of` `tests/compile_fail/types/debug.of` `tests/run/map/custom_keys.of` | subset: stage 0 has `Eq`, `Ord` and `Hash` on scalars, `str` and tuples of these only; planned: `Hasher` and a declared `hash`; missing: `cmp` cannot be called on a primitive or on a type parameter bounded by `Ord` |
 | 9.10 Coherence | none | full | `compiler/sema/check.of` | subset: interfaces; untested: holds by construction (methods are declared in their type) |
 | 10.1 Syntax | none | full | `tests/run/closures` `tests/compile_fail/types/closures.of` | subset: closures |
-| 10.2 Two function types | none | full | `tests/run/closures/fn_values.of` `tests/run/tasks/send.of` | subset: closures |
+| 10.2 Two function types | none | full | `tests/run/closures/fn_values.of` `tests/run/closures/fields.of` `tests/compile_fail/types/closure_escape.of` `tests/run/tasks/send.of` | subset: closures |
 | 10.3 Captures | none | full | `tests/run/closures/captures.of` `tests/run/closures/move.of` `tests/borrow/closures.of` | subset: closures |
-| 10.4 Representation | none | full | `compiler/air/lower_closure.of` | subset: closures; untested: no test of its own |
+| 10.4 Representation | none | full | `tests/run/closures/move.of` `tests/run/closures/fields.of` | subset: closures |
 | 11.1 `unsafe` blocks and functions | partial | partial | `tests/compile_fail/types/unsafe.of` `tests/run/ffi/libc.of` | planned: reading the fields of `union` types |
 | 11.2 Raw pointers | full | full | `tests/run/unsafe/ref_to_ptr.of` `tests/run/ffi/libc.of` `tests/compile_fail/types/unsafe.of` | - |
 | 11.3 Calling C | full | full | `tests/run/ffi/libc.of` `tests/run/ffi/cstring.of` `tests/panic/cstring_nul.of` | - |
