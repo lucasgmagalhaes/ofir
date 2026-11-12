@@ -315,6 +315,8 @@ pub struct List<T> {
      * @returns `Some` with the last element, or `None` for an empty list
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * let stack = [1, 2]
      * assert((stack.pop() ?? 0) == 2)
      * ```
@@ -400,6 +402,8 @@ pub struct List<T> {
      * @returns a list of the same length, which owns its elements
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * const names = ["ada".toOwned(), "alan".toOwned()]
      * let more = names.clone()
      * more.push("grace".toOwned())
