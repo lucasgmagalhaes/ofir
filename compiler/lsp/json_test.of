@@ -1,5 +1,7 @@
 // The tests of `lsp.json`.
 
+import std.testing.assert
+
 @test
 fn parsesNestedValues() {
     const text = "\{\"id\": 3, \"params\": \{\"items\": [true, null, \"a\\nb\"]\}\}"

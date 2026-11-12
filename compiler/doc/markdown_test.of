@@ -1,5 +1,7 @@
 // The tests of `doc.markdown`.
 
+import std.testing.assert
+
 @test
 fn escapesMarkup() {
     assert(escape("a < b && \"c\" > d") == "a &lt; b &amp;&amp; &quot;c&quot; &gt; d")
