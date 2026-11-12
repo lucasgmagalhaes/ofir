@@ -10,6 +10,10 @@ on:
       version:
         description: "Version to release (must equal VERSION in compiler/main.of)"
         required: true
+      publish:
+        description: "Create the release (off: only build and check the seed)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -103,6 +107,7 @@ jobs:
   release:
     name: release
     needs: [check, check-windows]
+    if: inputs.publish
     runs-on: ubuntu-24.04
     permissions:
       contents: write
