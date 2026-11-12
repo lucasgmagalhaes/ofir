@@ -24,6 +24,10 @@ import syntax.ast.Expr
  * @returns whether it was converted (or an error reported)
  */
 pub fn coerceToDyn(c: mut Checker, p: Program, e: &Expr, found: int, expected: int) bool {
+    if reborrowsDyn(c, found, expected) {   // the same fat pointer, retyped
+        c.setType(e.id.0, expected)
+        return true
+    }
     const Option.Some(target) = dynTarget(c, found, expected) else {
         return false
     }
@@ -44,6 +48,22 @@ pub fn coerceToDyn(c: mut Checker, p: Program, e: &Expr, found: int, expected: i
     c.dynCoercions[c.module()].insert(e.id.0, found)
     c.setType(e.id.0, expected)
     return true
+}
+
+// Whether `found` is a `&mut dyn I` or a `Box<dyn I>` passed where a
+// `&dyn I` (or, from a `Box`, a `&mut dyn I`) is expected: a `dyn`
+// parameter given another `dyn` value.
+fn reborrowsDyn(c: Checker, found: int, expected: int) bool {
+    const want = c.types.get(expected)
+    if want.kind != TyKind.Ref || c.types.kind(want.inner) != TyKind.Dyn {
+        return false
+    }
+    if const Option.Some(inner) = boxInner(c, found) {
+        return inner == want.inner
+    }
+    const have = c.types.get(found)
+    return have.kind == TyKind.Ref && have.inner == want.inner && have.data == 1 &&
+           want.data == 0
 }
 
 // The concrete type that `found` gives to `expected`, if the conversion
@@ -69,9 +89,8 @@ fn dynTarget(c: Checker, found: int, expected: int) Option<int> {
         }
         return dynSource(c, have.inner)
     }
-    if want.kind == TyKind.Ref && want.data == 0 && have.kind != TyKind.Ref &&
-       have.kind != TyKind.Ptr {
-        return dynSource(c, found)   // a value, borrowed
+    if want.kind == TyKind.Ref && have.kind != TyKind.Ref && have.kind != TyKind.Ptr {
+        return dynSource(c, found)   // a value, borrowed (a `mut dyn` parameter: mutably)
     }
     return Option.None
 }
