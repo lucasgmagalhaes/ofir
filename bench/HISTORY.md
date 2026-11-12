@@ -146,3 +146,15 @@ complete build took 12,633 and 12,742 ms before, and a median of 8,880 ms
 after (five runs). These runs are on one machine; the cache tests and hash
 vectors passed, but a cross-platform benchmark is needed before treating
 the wall-time ratio as a general result.
+
+## Optimized stage 1 compiler (local Windows measurement)
+
+Self-build of `compiler/main.of`, warm object cache, 32 logical CPUs, clang
+targeting MinGW. Building stage 1 with stage 0 `--release` took 44.34 s,
+versus 15.32 s without it. The resulting stage 1 compiled the same input
+in a median of 1,789 ms, versus 7,786 ms for the unoptimized stage 1
+(three warm runs each). The two compilers emitted byte-identical LLVM IR
+for their own source. The extra one-time build cost is recovered after
+about five such compilations. An unchanged second `make stage1` took 1.42 s
+with the new input-based build rule. These are local results, not a CI
+performance baseline.

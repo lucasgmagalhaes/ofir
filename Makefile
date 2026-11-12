@@ -53,10 +53,16 @@ check-asan: stage0 runtime
 compare-stages: stage1
 	$(PYTHON) tools/compare_stages.py --compiler $(BUILD)/stage0/ofir$(EXE) --stage1 $(BUILD)/stage1/ofir$(EXE) --fuzz 200
 
-# Stage 1, built by stage 0.
+# Stage 1, built once by stage 0 and reused until its inputs change.
+STAGE1_SOURCES := $(shell find compiler std -name '*.of' ! -name '*_test.of' -type f)
 stage1: stage0 runtime
+	$(MAKE) $(BUILD)/stage1/ofir$(EXE)
+
+$(BUILD)/stage1/ofir$(EXE): $(STAGE1_SOURCES) $(BUILD)/stage0/ofir$(EXE) \
+		$(BUILD)/libofir_rt.a Makefile tools/platform.mk
 	mkdir -p $(BUILD)/stage1
-	OFIR_STD=$(abspath std) $(BUILD)/stage0/ofir$(EXE) build compiler/main.of -o $(BUILD)/stage1/ofir$(EXE)
+	OFIR_STD=$(abspath std) $(BUILD)/stage0/ofir$(EXE) build compiler/main.of \
+	    --release -o $(BUILD)/stage1/ofir$(EXE)
 
 # Stage 2: the compiler built by stage 1 (roadmap 4.13).
 STAGE_ENV = OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a

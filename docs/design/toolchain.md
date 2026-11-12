@@ -444,11 +444,16 @@ must be installed next to clang. Cross-compilation uses
 ```
 make stage0        # build bootstrap/ with the system C compiler → build/stage0/ofir
 make runtime       # build runtime/ → build/libofir_rt.a
-make stage1        # compile compiler/ with stage0 → build/stage1/ofir
+make stage1        # compile compiler/ with stage0 -O2 → build/stage1/ofir
 make stage2        # compile compiler/ with stage1 → build/stage2/ofir
 make verify        # stage2 compiles compiler/ again; outputs must be identical
 make test          # run all suites in tests/ against the newest stage
 ```
+
+`make stage1` builds the compiler in release mode so repeated compilations
+run faster. It reuses the executable until a compiler or std source, stage 0,
+the runtime library, or the build configuration changes. This does not set
+`--release` for programs compiled by stage 1.
 
 Requirements: a C11 compiler, `make`, clang ≥ 17, and Python 3 for the
 test runner (a development dependency only; users never need Python).
