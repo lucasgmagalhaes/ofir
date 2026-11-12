@@ -3,6 +3,8 @@
 // `@test` functions do not. tools/run_std_tests.py checks the output, with
 // the times replaced.
 
+import std.testing.assert
+
 fn sum(xs: [int]) int {
     let total = 0
     for x in xs {
