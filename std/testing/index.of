@@ -14,4 +14,24 @@ extern "intrinsic" {
      * @param condition what must hold
      */
     pub fn assert(condition: bool)
+
+    /**
+     * Panics when `left != right`, printing both values with `Debug` and the
+     * location of the call; does nothing otherwise. Stage 1 only.
+     *
+     * @typeParam T the type of the values
+     * @param left the value computed
+     * @param right the value expected
+     */
+    pub fn assertEq<T: Eq + Debug>(left: T, right: T)
+
+    /**
+     * Panics when `left == right`, printing both values with `Debug` and the
+     * location of the call; does nothing otherwise. Stage 1 only.
+     *
+     * @typeParam T the type of the values
+     * @param left the value computed
+     * @param right the value it must differ from
+     */
+    pub fn assertNe<T: Eq + Debug>(left: T, right: T)
 }
