@@ -69,8 +69,8 @@ Tests go in the module's test file, `name_test.of` next to `name.of`
 - Fields that have a sensible default declare it (`port: int = 8080`)
   instead of requiring it in every literal.
 - One-field wrappers use tuple structs: `copy struct NodeId(int)`.
-- Prefer generics, a union type or a dedicated interface to `dyn Any`;
-  keep `dyn Any` for values that pass through code that cannot know their
+- Prefer generics, a union type or a dedicated interface to `any`;
+  keep `any` for values that pass through code that cannot know their
   type (spec 9.8).
 
 ## Names
