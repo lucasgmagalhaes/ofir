@@ -50,6 +50,10 @@ static Res find(Resolver *r, Symbol name, Span span) {
     }
     resolve_error(r, "E0200", span, "cannot find `" SV_FMT "` in this scope",
                   SV_ARG(resolver_name(r, name)));
+    if (sv_eq(resolver_name(r, name), SV("assert"))) {   // no longer built in (ADR 0036)
+        diag_help(&r->sema->session->diags, "import it: `import std.testing.assert`");
+        return (Res){RES_ERROR, 0};
+    }
     suggest_name(r->sema, name, SUGGEST_VALUE);
     return (Res){RES_ERROR, 0};
 }
