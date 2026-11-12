@@ -135,6 +135,9 @@ pub fn keyOpType(c: mut Checker, p: Program, op: Op, left: &TypeExpr, right: &Ty
     }
     const keysA = c.types.kind(a) == TyKind.Key
     const keysB = c.types.kind(b) == TyKind.Key
+    if op != Op.Or && (keyLike(c, a) && keyLike(c, b)) && !(keysA && keysB) {
+        return c.types.intern(TyKind.KeyOp, if op == Op.And { 1 } else { 2 }, 0, [a, b])
+    }
     if !keysA || !keysB {
         if op == Op.Or {
             return unionType(c, a, left.span, b, right.span, span)
@@ -144,22 +147,23 @@ pub fn keyOpType(c: mut Checker, p: Program, op: Op, left: &TypeExpr, right: &Ty
         c.error("E0340", span, "`{symbol}` needs key types, found `{c.typeName(found)}`")
         return ERROR
     }
-    const namesA = c.types.keyNames(a)
+    if op != Op.Or {
+        return c.types.keyOp(if op == Op.And { 1 } else { 2 }, a, b)
+    }
+    let names = c.types.keyNames(a)
     const namesB = c.types.keyNames(b)
-    let names: List<int> = []
-    if op == Op.Or {
-        names = namesA.clone()
-        for i in 0..namesB.len() {
-            names.push(namesB[i])
-        }
-    } else {
-        for i in 0..namesA.len() {
-            if contains(&namesB, namesA[i]) == (op == Op.And) {
-                names.push(namesA[i])
-            }
-        }
+    for i in 0..namesB.len() {
+        names.push(namesB[i])
     }
     return c.types.keys(names)
+}
+
+// A key type, or one with a parameter that may be a key type once it is
+// known: `keyof T`, a parameter, `A - B`.
+fn keyLike(c: Checker, ty: int) bool {
+    const kind = c.types.kind(ty)
+    return kind == TyKind.Key || kind == TyKind.KeyOf || kind == TyKind.KeyOp ||
+           kind == TyKind.Param
 }
 
 fn contains(names: &List<int>, name: int) bool {
@@ -242,7 +246,7 @@ fn keysType(c: mut Checker, p: Program, base: int, key: int, keySpan: Span, span
 pub fn paramIndexType(c: mut Checker, p: Program, base: int, key: int, bound: int,
                       span: Span) int {
     const b = c.types.get(bound)
-    if b.kind == TyKind.KeyOf && b.inner == base {
+    if keysOf(c, bound, base) {
         return c.types.intern(TyKind.Index, 0, base, [key])
     }
     if b.kind == TyKind.Key && !c.types.get(base).hasParam {
@@ -257,6 +261,26 @@ pub fn paramIndexType(c: mut Checker, p: Program, base: int, key: int, bound: in
     c.error("E0341", span, "the keys of `{c.typeName(key)}` may not be keys of "
             + "`{c.typeName(base)}`: bound it by `keyof {c.typeName(base)}`")
     return ERROR
+}
+
+// Whether every key of `bound` is a key of `base`: `keyof base`, a key
+// parameter bounded by it, or an `&` or `-` of them.
+fn keysOf(c: Checker, bound: int, base: int) bool {
+    const b = c.types.get(bound)
+    if b.kind == TyKind.KeyOf {
+        return b.inner == base
+    }
+    if b.kind == TyKind.Param {
+        const outer = paramKey(c, bound)
+        return outer != 0 && outer != bound && keysOf(c, outer, base)
+    }
+    if b.kind != TyKind.KeyOp {
+        return false
+    }
+    if b.data == 1 && keysOf(c, b.args[1], base) {
+        return true
+    }
+    return keysOf(c, b.args[0], base)
 }
 
 // The type of field `name` of `base`, or ERROR after an error.

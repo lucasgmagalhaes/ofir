@@ -108,6 +108,9 @@ project uses [Semantic Versioning](https://semver.org/).
 - The standard aliases `Partial`, `Required`, `Pick`, `Omit`, `Record`
   and `Unwrap` in the prelude (`std.core.types`, spec 16.7, roadmap
   6.7b2, stage 1); stage 0 loads them as opaque aliases.
+- `Pick<T, K>`, `Omit<T, K>`, `if` filters and conditional types such as
+  `Unwrap<T>` over type parameters, decided at each instantiation (spec
+  16.4-16.6, roadmap 6.7b3, stage 1).
 
 ### Changed
 

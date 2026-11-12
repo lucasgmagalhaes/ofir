@@ -70,6 +70,18 @@ pub copy enum TyKind {
      * `data` is the alias, `args` its arguments; a struct once they are known.
      */
     Mapped
+    /**
+     * `A & B` or `A - B` of key types with a parameter, resolved by `subst`
+     * (spec 16.1): `data` is 1 for `&` and 2 for `-`, `args` `[A, B]`.
+     */
+    KeyOp
+    /**
+     * A conditional type on a type parameter (spec 16.5), decided by `subst`:
+     * `args` is `[A, B, X, Y]` for `if A is B { X } else { Y }` (`data` 1) and
+     * `[A, ERROR, X, Y]` for `if A { X } else { Y }` (`data` 0). `infer`
+     * placeholders are parameters from `INFER_BASE`.
+     */
+    Cond
 }
 
 /**
@@ -87,6 +99,9 @@ pub struct Ty {
     /** A type parameter occurs in it. */
     pub hasParam: bool
 }
+
+/** The index of the first `infer` placeholder of a conditional type (spec 16.5). */
+pub const INFER_BASE: int = 1048576
 
 /** The error type. */
 pub const ERROR: int = 0
@@ -153,6 +168,7 @@ pub struct TypeTable {
     indexNames: List<int>   // the symbols of `0`, `1`, ...: tuple keys
     expanded: List<int>   // by type id: the struct of a known `Mapped`, or 0
     pending: List<int>   // the known `Mapped` types with no struct yet
+    undecided: List<int>   // the non-`bool` conditions `subst` met
 
     /**
      * A table with the built-in types, in the order of their ids.
@@ -161,7 +177,8 @@ pub struct TypeTable {
      */
     pub fn new() TypeTable {
         let table = TypeTable{types: [], slots: List.filled(0, 256), fields: [],
-                              indexNames: [], expanded: [], pending: []}
+                              indexNames: [], expanded: [], pending: [],
+                              undecided: []}
         table.intern(TyKind.Error, 0, 0, [])
         table.intern(TyKind.Unit, 0, 0, [])
         table.intern(TyKind.Never, 0, 0, [])
@@ -381,6 +398,33 @@ pub struct TypeTable {
     }
 
     /**
+     * `a & b` (`op` 1) or `a - b` (`op` 2) of key types.
+     *
+     * @param op 1 or 2
+     * @param a a key type
+     * @param b a key type
+     * @returns the key type, or ERROR when one is not a key type
+     */
+    pub fn keyOp(mut self, op: int, a: int, b: int) int {
+        if self.types[a].kind != TyKind.Key || self.types[b].kind != TyKind.Key {
+            return ERROR
+        }
+        const namesA = self.keyNames(a)
+        const namesB = self.keyNames(b)
+        let names: List<int> = []
+        for i in 0..namesA.len() {
+            let inB = false
+            for j in 0..namesB.len() {
+                inB = inB || namesB[j] == namesA[i]
+            }
+            if inB == (op == 1) {
+                names.push(namesA[i])
+            }
+        }
+        return self.keys(names)
+    }
+
+    /**
      * The names of a key type.
      *
      * @param ty a key type
@@ -465,6 +509,10 @@ pub struct TypeTable {
         if kind == TyKind.Index && !self.types[inner].hasParam && !self.types[items[0]].hasParam {
             return self.indexFields(inner, items[0])
         }
+        if kind == TyKind.KeyOp && !self.types[items[0]].hasParam &&
+           !self.types[items[1]].hasParam {
+            return self.keyOp(data, items[0], items[1])
+        }
         if kind == TyKind.Array && items.len() == 1 && self.types[items[0]].kind == TyKind.Value {
             return self.intern(kind, self.types[items[0]].data, inner, [])   // `[T; N]`
         }
@@ -472,6 +520,9 @@ pub struct TypeTable {
             return ERROR   // a type given for `N`: E0362
         }
         const result = self.intern(kind, data, inner, items)
+        if kind == TyKind.Cond && !self.types[items[0]].hasParam {
+            return self.decideCond(data, &items)
+        }
         if kind == TyKind.Mapped && !self.types[result].hasParam {
             if result < self.expanded.len() && self.expanded[result] != 0 {
                 return self.expanded[result]
@@ -479,6 +530,109 @@ pub struct TypeTable {
             self.pending.push(result)
         }
         return result
+    }
+
+    // The branch of a `Cond` whose condition `items[0]` has no parameter.
+    fn decideCond(mut self, isPattern: int, items: &List<int>) int {
+        if isPattern == 0 {
+            const kind = self.types[items[0]].kind
+            const data = self.types[items[0]].data
+            if kind != TyKind.Bool || data == 0 {
+                if items[0] != ERROR {
+                    self.undecided.push(items[0])
+                }
+                return ERROR
+            }
+            return if data == 1 { items[2] } else { items[3] }
+        }
+        let found: List<int> = []
+        if !self.unify(items[1], items[0], found) {
+            return items[3]
+        }
+        return self.substInfer(items[2], &found)
+    }
+
+    /**
+     * Whether `ty` matches the pattern `shape` of a conditional type (spec
+     * 16.5), binding its `infer` placeholders: `found[i]` for `INFER_BASE + i`,
+     * -1 while unbound.
+     *
+     * @param shape the pattern
+     * @param ty the type
+     * @param found the bindings, grown as needed
+     * @returns true when it matches
+     */
+    pub fn unify(mut self, shape: int, ty: int, found: mut List<int>) bool {
+        if shape == ty {
+            return true
+        }
+        if !self.types[shape].hasParam {
+            return false
+        }
+        const kind = self.types[shape].kind
+        const data = self.types[shape].data
+        if kind == TyKind.Param && data >= INFER_BASE {
+            const slot = data - INFER_BASE
+            for found.len() <= slot {
+                found.push(-1)
+            }
+            if found[slot] < 0 {
+                found[slot] = ty
+                return true
+            }
+            return found[slot] == ty
+        }
+        const count = self.types[shape].args.len()
+        if kind != self.types[ty].kind || data != self.types[ty].data ||
+           count != self.types[ty].args.len() {
+            return false
+        }
+        const inner = self.types[shape].inner
+        const tyInner = self.types[ty].inner
+        const nested = kind == TyKind.Ref || kind == TyKind.Ptr || kind == TyKind.Slice ||
+                       kind == TyKind.Array || kind == TyKind.Fn
+        if nested && !self.unify(inner, tyInner, found) {
+            return false
+        }
+        if !nested && inner != tyInner {
+            return false
+        }
+        for i in 0..count {
+            const arg = self.types[shape].args[i]
+            const tyArg = self.types[ty].args[i]
+            if !self.unify(arg, tyArg, found) {
+                return false
+            }
+        }
+        return true
+    }
+
+    // `ty` with each `infer` placeholder `INFER_BASE + i` replaced by `found[i]`.
+    fn substInfer(mut self, ty: int, found: &List<int>) int {
+        if !self.types[ty].hasParam {
+            return ty
+        }
+        const kind = self.types[ty].kind
+        const data = self.types[ty].data
+        if kind == TyKind.Param {
+            const slot = data - INFER_BASE
+            return if slot >= 0 && slot < found.len() && found[slot] >= 0 {
+                found[slot]
+            } else {
+                ty
+            }
+        }
+        let inner = self.types[ty].inner
+        const keepsInner = kind == TyKind.Tuple || kind == TyKind.Adt || kind == TyKind.Dyn
+        if !keepsInner && kind != TyKind.Mapped {
+            inner = self.substInfer(inner, found)
+        }
+        let items: List<int> = []
+        for i in 0..self.types[ty].args.len() {
+            const arg = self.types[ty].args[i]
+            items.push(self.substInfer(arg, found))
+        }
+        return self.intern(kind, data, inner, items)
     }
 
     /**
@@ -521,6 +675,16 @@ pub struct TypeTable {
      */
     pub fn takePending(mut self) List<int> {
         return mem.replace(self.pending, [])
+    }
+
+    /**
+     * The conditions that `subst` found neither `true` nor `false` since
+     * the last call (spec 16.4): E0344 at the use.
+     *
+     * @returns their types, in order
+     */
+    pub fn takeUndecided(mut self) List<int> {
+        return mem.replace(self.undecided, [])
     }
 
     /**
@@ -769,6 +933,8 @@ pub fn kindNumber(kind: TyKind) int {
         TyKind.Index => 18
         TyKind.Value => 19
         TyKind.Mapped => 20
+        TyKind.KeyOp => 21
+        TyKind.Cond => 22
     }
 }
 

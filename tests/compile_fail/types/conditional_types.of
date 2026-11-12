@@ -1,10 +1,15 @@
 // requires: stage1
 // Conditional types (spec 16.5): E0344 and E0345.
 
-type Unwrap<T> = if T is Option<infer U> { U } else { T }   // error[E0344]: the condition of a conditional type is not decided for `T`
 type Odd<T> = if T { int } else { str }   // error[E0344]: a condition must be `true` or `false`, found `int`
 type Loose = Option<infer U>   // error[E0345]: `infer` is only allowed in the pattern of a conditional type
 
-fn generic<T>(x: Unwrap<T>) {}
 fn odd(x: Odd<int>) {}
 fn loose(x: Loose) {}
+
+fn generic<T>(x: Odd<T>) int {
+    return 1
+}
+fn caller() int {
+    return generic<int>(1)   // error[E0344]: a condition must be `true` or `false`, found `int`
+}

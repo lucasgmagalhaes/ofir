@@ -446,7 +446,23 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
         c.callTypeArgs[c.module()].insert(callId, targs)
     }
     const result = inferApply(c, &inf, ret)
+    reportUndecided(c, span)
     return result
+}
+
+/**
+ * E0344 for the conditions an instantiation left neither `true` nor
+ * `false` (spec 16.4).
+ *
+ * @param c the checker
+ * @param span the use
+ */
+pub fn reportUndecided(c: mut Checker, span: Span) {
+    const found = c.types.takeUndecided()
+    for i in 0..found.len() {
+        c.error("E0344", span, "a condition must be `true` or `false`, found "
+                + "`{c.typeName(found[i])}`")
+    }
 }
 
 // ---------------------------------------------------------------------------

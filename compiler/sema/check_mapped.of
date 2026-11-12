@@ -9,8 +9,10 @@ import base.span.Span
 import sema.check.Checker
 import sema.check.boundedParam
 import sema.check.emptyInfo
+import sema.check.isKeyBound
 import sema.check.itemOf
 import sema.check_cond.decide
+import sema.check_cond.notDecided
 import sema.check_keys.included
 import sema.check_ref.checkStorable
 import sema.check_types.resolveType
@@ -38,6 +40,8 @@ pub copy struct MappedTpl {
     pub field: int
     /** `?:`: each field defaults to `Option.None`. */
     pub optional: bool
+    /** `if Cond`, over the alias parameters and `K`: `true` or `false` per key; -1 for none. */
+    pub filter: int
 }
 
 /**
@@ -63,7 +67,7 @@ pub fn mappedType(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys:
         return ERROR
     }
     if c.types.get(keyType).hasParam {
-        return deferred(c, p, t, param, keys, filter, optional, field, keyType)
+        return deferred(c, p, t, param, keys, filter, optional, field)
     }
     if c.types.kind(keyType) != TyKind.Key {
         c.error("E0340", keys.span, "a mapped type needs a key type, found "
@@ -124,11 +128,9 @@ pub fn mappedType(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys:
 }
 
 // An instance whose keys have a parameter: a `Mapped` type, expanded once its
-// arguments are known. Only an alias whose whole body is the mapped type, with
-// no filter, over `keyof` of its parameters.
+// arguments are known. Only an alias whose whole body is the mapped type.
 fn deferred(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &TypeExpr,
-            filter: &Option<Box<TypeExpr>>, optional: bool, field: &TypeExpr,
-            keyType: int) int {
+            filter: &Option<Box<TypeExpr>>, optional: bool, field: &TypeExpr) int {
     const alias = c.aliasDef
     const body = match itemOf(p, c.loc(alias)).kind {
         ItemKind.TypeAlias(_, aliased) => aliased.span
@@ -136,12 +138,12 @@ fn deferred(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &Type
     }
     const whole = body.file.0 == t.span.file.0 && body.start == t.span.start
     const nested = c.typeVarTypes.len() > 0
-    if !whole || filter.isSome() || nested || c.types.kind(keyType) != TyKind.KeyOf {
+    if !whole || nested {
         return c.unsupported(t.span, "mapped types over type parameters are")
     }
     if c.mappedTpls.get(alias).isNone() {
-        const tpl = template(c, p, t, param, keys, optional, field)
-        if tpl.keys == ERROR || tpl.field == ERROR {
+        const tpl = template(c, p, t, param, keys, filter, optional, field)
+        if tpl.keys == ERROR || tpl.field == ERROR || tpl.filter == ERROR {
             return ERROR
         }
         c.mappedTpls.insert(alias, tpl)
@@ -153,15 +155,20 @@ fn deferred(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &Type
 // The keys and field type of a mapped type over the alias parameters: `K` is
 // the parameter after them, bounded by the keys.
 fn template(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &TypeExpr,
-            optional: bool, field: &TypeExpr) MappedTpl {
+            filter: &Option<Box<TypeExpr>>, optional: bool, field: &TypeExpr) MappedTpl {
     const savedArgs = mem.replace(c.generics.aliasArgs, [])
     const n = c.generics.owner.len()
     const savedKeys = mem.replace(c.generics.keys, List.filled(0, n + 1))
+    aliasKeys(c, p)
     const keysTpl = resolveType(c, p, keys)
     c.generics.keys[n] = keysTpl
     c.typeVars.push(param)
     c.typeVarTypes.push(c.types.param(n, param.0))
     let fieldTpl = resolveType(c, p, field)
+    const filterTpl = match *filter {
+        Option.Some(test) => resolveType(c, p, &*test)
+        Option.None => -1
+    }
     c.typeVars.pop()
     c.typeVarTypes.pop()
     c.generics.keys = savedKeys
@@ -169,7 +176,26 @@ fn template(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &Type
     if optional && fieldTpl != ERROR {
         fieldTpl = c.types.adt(c.r.langItems[2], [fieldTpl])
     }
-    return MappedTpl{span: t.span, keys: keysTpl, field: fieldTpl, optional}
+    return MappedTpl{span: t.span, keys: keysTpl, field: fieldTpl, optional,
+                     filter: filterTpl}
+}
+
+// The key bounds of the alias parameters, such as `K: keyof T`, as types of
+// the parameters.
+fn aliasKeys(c: mut Checker, p: Program) {
+    const preds = itemOf(p, c.loc(c.aliasDef)).bounds.clone()
+    for i in 0..preds.len() {
+        const index = boundedParam(&preds[i].ty, &c.generics.owner, &[])
+        if index < 0 {
+            continue
+        }
+        for j in 0..preds[i].bounds.len() {
+            if isKeyBound(&preds[i].bounds[j]) {
+                const bound = resolveType(c, p, &preds[i].bounds[j])
+                c.generics.keys[index] = bound
+            }
+        }
+    }
 }
 
 /**
@@ -204,10 +230,21 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
     let info = StructInfo{names: [], types: [], defaults: [], isTuple: false, isCopy: false}
     const names = c.types.keyNames(keyType)
     let pubs: List<bool> = []
+    let kept: List<int> = []
     for i in 0..names.len() {
         let fieldArgs = args.clone()
         fieldArgs.push(c.types.keys([names[i]]))
+        if tpl.filter >= 0 {
+            const test = c.types.get(c.types.subst(tpl.filter, fieldArgs.clone()))
+            if test.kind != TyKind.Bool || test.data == 0 {
+                return ERROR
+            }
+            if test.data == 2 {
+                continue
+            }
+        }
         const ty = c.types.subst(tpl.field, fieldArgs)
+        kept.push(names[i])
         info.names.push(Symbol(names[i]))
         info.types.push(ty)
         info.defaults.push(tpl.optional)
@@ -215,7 +252,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
     }
     const id = mappedStruct(c, alias, tpl.span, &args)
     c.types.setFields(id, KeyFields{module: c.def(alias).module, isTuple: false,
-                                    names: names.clone(), pubs, types: info.types.clone()})
+                                    names: kept, pubs, types: info.types.clone()})
     c.info[id].fields = Option.Some(Box.new(info))
     c.mapped.insert(cacheKey, id)
     c.mappedArgs.insert(id, (alias, cacheKey.2))
@@ -277,7 +314,13 @@ fn keep(c: mut Checker, p: Program, filter: &Option<Box<TypeExpr>>) int {
         Option.Some(test) => {
             let names: List<Symbol> = []
             let binds: List<int> = []
-            decide(c, p, &*test, names, binds)
+            let parts: List<int> = []
+            const decided = decide(c, p, &*test, names, binds, parts)
+            if decided == 2 {
+                notDecided(c, test.span, parts[0])
+            } else {
+                decided
+            }
         }
         Option.None => 1
     }
