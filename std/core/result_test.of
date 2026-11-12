@@ -1,5 +1,7 @@
 // The tests of `std.core.result` (spec 12.2): `ofir test std/core/result.of` runs them.
 
+import std.testing.assert
+
 @test
 fn okAndErrSplitTheResult() {
     const good: Result<int, str> = Result.Ok(1)
