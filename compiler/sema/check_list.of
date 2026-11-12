@@ -34,6 +34,7 @@ import syntax.ast.Expr
 import syntax.ast.ExprKind
 import syntax.ast.Mode
 import syntax.ast.Stmt
+import syntax.ast.StmtKind
 
 /**
  * The element type of a `List<T>`.
@@ -359,6 +360,11 @@ pub fn checkForCollection(c: mut Checker, p: Program, s: &Stmt, expr: &Expr, two
     } else if ty != ERROR {
         c.error("E0300", expr.span, "mismatched types: `for` needs a range, a list, a slice, "
                 + "a map or an iterator, found {c.typeName(ty)}")
+    }
+    if const StmtKind.For(_, true, _, _, _, _) = s.kind {   // `for mut`: the elements change
+        if first != ERROR && iteratorItem(c, p, ty).isNone() && placeRoot(c, expr).isSome() {
+            requireMutable(c, p, expr)
+        }
     }
     const local = c.localAt(s.id.0)
     if local >= 0 {
