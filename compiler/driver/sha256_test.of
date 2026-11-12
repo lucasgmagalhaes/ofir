@@ -1,5 +1,7 @@
 // The tests of `driver.sha256`, against the vectors of FIPS 180-4.
 
+import std.testing.assert
+
 @test
 fn hashesTheStandardVectors() {
     assert(sha256Hex("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
