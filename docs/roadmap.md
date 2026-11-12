@@ -345,6 +345,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 |---|---------------|--------------------|-----------------|
 | 6.22 | Specification, conformance inventory and compatibility policy | OFIR-01 to OFIR-07 | Guarantees mapped to source/tests, stages, targets and feature states |
 | 6.22a | Conformance matrix: every spec section mapped to stages, tests and classified gaps (`docs/design/conformance.md`, checked by `tools/check_conformance.py`) | OFIR-01 | **done**: `make check-docs` checks the matrix against the spec |
+| 6.22b | Boundary cases: evaluation order (spec 4.10), literal and cast edges (1.7, 2.1), newline rules (1.3); float-to-int `as` checks the truncated value | OFIR-02 | **done**: cited in the conformance matrix |
 | 6.23 | Language completion and unresolved semantic choices | OFIR-08 to OFIR-21 | Existing phase 5 tasks linked; accepted semantics and rejection cases tested |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
@@ -389,8 +390,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Fix the `missing:` findings of the conformance matrix (6.22a) and
-   continue OFIR-02 to OFIR-07 before assigning new release commitments.
+1. Continue OFIR-03 to OFIR-07 (6.22) before assigning new release commitments.
 2. Continue the remaining phase 5 language tasks: the gaps 5.22i-5.22l
    of the M5 check.
 3. Advance general-purpose std, tooling, packages and installation alongside
