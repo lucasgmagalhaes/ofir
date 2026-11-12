@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The auditable bootstrap path in CI: `tools/bootstrap_chain.sh` builds
+  every release from 0.5.0 on from its stage 0, each by the one before,
+  and checks the current sources against `make verify`; the Bootstrap
+  workflow runs it weekly (roadmap 6.9).
 - Const generics in stage 1: `const N: int` parameters, used as values
   and as array lengths (`[T; N]`), given as `Buffer<u8, 4>` or inferred
   from an array's length (spec 8.7; E0361, E0362).
