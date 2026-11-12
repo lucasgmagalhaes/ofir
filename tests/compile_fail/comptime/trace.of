@@ -1,0 +1,29 @@
+// requires: stage1
+// A failure inside a called function names where it happened and the
+// calls that led there (spec 15.5, E0816).
+
+fn inner(n: int) int {
+    if n > 3 {
+        panic("too big: {n}")
+    }
+    return n
+}
+
+fn outer(n: int) int {
+    return inner(n + 1)
+}
+
+fn down(n: int) int {
+    return down(n + 1)
+}
+
+fn main() {
+    const a = comptime outer(5)   // error[E0816]: compile-time evaluation failed: it panicked: too big: 6
+    // note: it failed in `inner` at trace.of:7:9
+    // note: `inner` was called from `outer` at trace.of:13:5
+    const b = comptime down(0)   // error[E0816]: compile-time evaluation failed: calls nested more than 128 deep
+    // note: it failed in `down` at trace.of:17:5
+    // note: `down` was called from `down` at trace.of:17:5
+    // note: and 125 more calls
+    println("{a} {b}")
+}
