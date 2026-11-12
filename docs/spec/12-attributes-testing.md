@@ -195,6 +195,16 @@ two declarations of one name may exist under conditions that exclude each
 other. This holds for top-level declarations, imports, fields, methods and
 the functions of an `extern` block.
 
+Only the condition that removes a declaration is checked (E0809); its
+other attributes are not, so an attribute that a later compiler version
+adds may be written under a condition. Statements, local declarations and
+enum variants take no `@cfg`.
+
+The conditions describe the machine the compiler runs on: there is no
+cross compilation yet, so `os` and `arch` are those of the host. The
+language server checks a file as a debug build that is not a test
+(`debug` holds, `test` does not).
+
 ## 12.5 Documentation comments
 
 A `/** ... */` comment documents the next declaration; one whose text

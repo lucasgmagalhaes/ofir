@@ -33,6 +33,12 @@ fn mode() str {
     return "release"
 }
 
+// Only the removing condition is checked, not the other attributes.
+@cfg(os == "windows")
+@notYetKnown(1)
+fn later() {
+}
+
 @cfg(test)
 fn undefinedOutsideTests() int {
     return missing()

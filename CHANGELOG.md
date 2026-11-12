@@ -8,6 +8,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- E0819: outside std, an `extern "C"` function whose symbol is `main` or
+  starts with `ofir_` is an error; these symbols belong to the runtime.
 - `str.chars()`: an iterator over the Unicode scalar values (`u32`) of a
   string, decoded from its UTF-8 bytes.
 - `List.drain()` (spec 4.4, ADR 0040): an iterator that moves the

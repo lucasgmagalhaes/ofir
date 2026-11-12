@@ -74,7 +74,7 @@ extern "C" {
 ## 11.4 Exporting functions to C
 
 ```ofir
-@export("ofir_add")
+@export("calc_add")
 extern "C" fn add(a: i32, b: i32) i32 {
     return a + b
 }
@@ -86,6 +86,12 @@ extern "C" fn add(a: i32, b: i32) i32 {
 - `@export` applies only to an `extern "C" fn` with a body (E0808).
 - A program defines each C symbol once: two `extern "C"` functions with the
   same symbol are an error (E0813).
+- `main` and the symbols that start with `ofir_` belong to the runtime and
+  the generated code: the runtime's `main` calls the program's `main`, and
+  its other functions are named `ofir_...`. Outside `std`, an `extern "C"`
+  function with one of these symbols is an error (E0819). Other symbols are
+  not checked: one that the C library or a linked library also defines is a
+  link error, or replaces that definition, as in C.
 
 ## 11.5 Mutable globals
 
