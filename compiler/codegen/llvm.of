@@ -2118,7 +2118,7 @@ fn begin(g: mut Gen, c: mut Checker, p: Program, module: int) {
 // it, and the instances of generic types are defined as functions use
 // them: the types a function defined are written first, then the function.
 fn function(g: mut Gen, c: mut Checker, p: Program, body: &AirBody) {
-    g.out = ""
+    g.out.clear()
     genBody(g, c, p, body)
     if g.typeDefs.len() > 0 {
         g.module.push(g.typeDefs)
