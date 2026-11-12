@@ -569,10 +569,10 @@ pub fn fnSignature(c: mut Checker, p: Program, id: int) int {
             ty = ownedFn(c, ty)
         }
         if c.types.kind(ty) == TyKind.Dyn {   // `s: dyn Shape` borrows the value
-            if decl.params[i].mode != Mode.Borrow {
-                ty = c.unsupported(decl.params[i].ty.span, "`mut` and `move` `dyn` parameters are")
-            } else {
-                ty = c.types.ref(ty, false)
+            if decl.params[i].mode == Mode.Move {
+                ty = c.unsupported(decl.params[i].ty.span, "`move` `dyn` parameters are")
+            } else {   // `s: mut dyn Shape` borrows it mutably
+                ty = c.types.ref(ty, decl.params[i].mode == Mode.Mut)
             }
         }
         params.push(ty)

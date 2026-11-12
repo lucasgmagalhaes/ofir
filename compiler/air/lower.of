@@ -96,6 +96,7 @@ import std.mem
 import syntax.ast.Mode
 import syntax.ast.Op
 import syntax.ast.Pattern
+import syntax.ast.TypeKind
 
 /** Where `break` and `continue` go in a loop. */
 pub copy struct LoopTarget {
@@ -944,7 +945,11 @@ pub fn byAddress(c: Checker, p: Program, id: int, index: int) bool {
     const decl = fnOf(p, c.loc(id))
     const mode = if index < 0 { decl.selfMode } else { decl.params[index].mode }
     const info = &c.info[id]
-    return mode == Mode.Mut || (info.returnsBorrow && info.sourceByRef &&
+    const dynParam = index >= 0 && match decl.params[index].ty.kind {
+        TypeKind.Dyn(_) => true   // `s: mut dyn I` is a `&mut dyn I` already
+        _ => false
+    }
+    return (mode == Mode.Mut && !dynParam) || (info.returnsBorrow && info.sourceByRef &&
                                 info.borrowSource == index) ||
            info.cellParams & (1 << (index + 1)) != 0
 }
