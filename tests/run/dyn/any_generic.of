@@ -1,6 +1,6 @@
 // requires: stage1
-// `Any` (spec 9.8): type tests that tell instances of a generic type apart,
-// a list of boxes of different types, and drops through `Box<dyn Any>`.
+// `any` (spec 9.8): type tests that tell instances of a generic type apart,
+// a list of boxes of different types, and drops through `Box<any>`.
 
 struct Pair<T> {
     a: T
@@ -14,7 +14,7 @@ struct Config {
     }
 }
 
-fn kind(v: dyn Any) str {
+fn kind(v: any) str {
     return match v {
         p: Pair<int> => "pair of int {p.a}"
         p: Pair<str> => "pair of str {p.a}"
@@ -28,7 +28,7 @@ fn main() {
     println(kind(Pair{a: "x"}))
     println(kind([1, 2]))
     println(kind(Pair{a: 1.5}))
-    let all: List<Box<dyn Any>> = []
+    let all: List<Box<any>> = []
     all.push(Box.new(1))
     all.push(Box.new(Config{name: "first"}))
     all.push(Box.new(Pair{a: 2}))
