@@ -1,0 +1,8 @@
+// requires: stage1 (interfaces: `Eq` and `Debug`, ADR 0036)
+// panic: assertion failed: left != right
+
+import std.testing.assertNe
+
+fn main() {
+    assertNe("same".toOwned(), "same".toOwned())
+}

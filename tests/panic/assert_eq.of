@@ -1,0 +1,13 @@
+// requires: stage1 (interfaces: `Eq` and `Debug`, ADR 0036)
+// panic: assertion failed: left == right
+
+import std.testing.assertEq
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn main() {
+    assertEq(Point{x: 1, y: 2}, Point{x: 1, y: 3})
+}
