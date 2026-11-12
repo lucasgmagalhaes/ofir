@@ -1,8 +1,8 @@
 # 14. Concurrency
 
-Concurrency is not part of the bootstrap language. Tasks (14.2) are
-implemented by stage 1 only; the rest of the chapter is **[planned]**, and
-its design is fixed now so that earlier features do not block it.
+Concurrency is not part of the bootstrap language: tasks (14.2), the
+marker interfaces (14.3), channels and the `std.sync` primitives (14.4) are
+implemented by stage 1 only.
 
 ## 14.1 Goals
 
