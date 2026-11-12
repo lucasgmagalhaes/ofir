@@ -739,6 +739,10 @@ fn lowerIntrinsic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, id: int,
         panicAssert(l, c, p, e, &args[0].value, false)
         return unit()
     }
+    if name == "assertEq" || name == "assertNe" {   // std.testing (ADR 0036)
+        assertEqual(l, c, p, e, args, name == "assertEq")
+        return unit()
+    }
     if name == "dropInPlace" || name == "forget" {
         const value = lowerExpr(l, c, p, &args[0].value)
         if name == "forget" {
@@ -1117,6 +1121,34 @@ fn panicAssert(l: mut Lowerer, c: mut Checker, p: Program, call: &Expr, arg: &Ex
     }
     const fails = tempValue(l, BOOL, rvalue(RvalueKind.Unary, Op.Not, value, unit()))
     emitAssert(l, fails, PanicKind.Assert, call.span)
+}
+
+// `assertEq(a, b)` and `assertNe(a, b)` (ADR 0036): the values compared
+// with `==`; when the assert fails, both in their `Debug` form, at the call.
+// The call reads the values and does not move them.
+fn assertEqual(l: mut Lowerer, c: mut Checker, p: Program, call: &Expr, args: &List<Arg>,
+               equal: bool) {
+    const ty = concreteType(l, c, callTypeArg(c, call))
+    const first = argument(l, c, p, &args[0].value, false, Option.Some(&args[1].value))
+    const left = toLocal(l, first)
+    const right = toLocal(l, lowerExpr(l, c, p, &args[1].value))
+    const same = equalValues(l, c, p, opCopy(left, ty), opCopy(right, ty), ty)
+    const fails = l.body.newBlock()
+    const done = l.body.newBlock()
+    terminate(l, if equal { branch(same, done, fails) } else { branch(same, fails, done) })
+    switchTo(l, fails)
+    const message = emitTemp(l, STR, rvUse(opStr("", STR)))
+    const out = opAddr(message, STR)
+    const op = if equal { "==" } else { "!=" }
+    pushText(l, &out, "assertion failed: left {op} right\n  left: ")
+    debugValue(l, c, p, opCopy(left, ty), ty, &out)
+    pushText(l, &out, "\n right: ")
+    debugValue(l, c, p, opCopy(right, ty), ty, &out)
+    let t = terminator(TermKind.Panic)
+    t.cond = out
+    t.span = call.span
+    terminate(l, t)
+    switchTo(l, done)
 }
 
 // `base.name(args)`: a method declared in a type, an associated function, a
