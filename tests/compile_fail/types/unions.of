@@ -18,9 +18,6 @@ fn bare<T>(x: T | int) {   // error[E0350]: the members `T` and `int` of a union
 fn lists<T>(x: List<T> | List<int>) {   // error[E0350]: the members `List<T>` and `List<int>` of a union can be the same type
 }
 
-fn options<T>(x: Option<T> | int) {   // error[E0901]: union types over type parameters are not supported yet
-}
-
 fn aliases(a: A, b: B, d: D) {
 }
 

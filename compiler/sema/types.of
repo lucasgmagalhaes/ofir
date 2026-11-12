@@ -523,6 +523,9 @@ pub struct TypeTable {
         if kind == TyKind.Cond && !self.types[items[0]].hasParam {
             return self.decideCond(data, &items)
         }
+        if kind == TyKind.Cond {
+            return self.reduceCond(result)
+        }
         if kind == TyKind.Mapped && !self.types[result].hasParam {
             if result < self.expanded.len() && self.expanded[result] != 0 {
                 return self.expanded[result]
@@ -530,6 +533,26 @@ pub struct TypeTable {
             self.pending.push(result)
         }
         return result
+    }
+
+    /**
+     * A conditional type whose pattern matches for every instance of its
+     * parameters, as its first branch: `if Option<T> is Option<infer U>
+     * { U } else { V }` is `T`.
+     *
+     * @param ty a `Cond` type
+     * @returns its first branch, or `ty`
+     */
+    pub fn reduceCond(mut self, ty: int) int {
+        if self.types[ty].kind != TyKind.Cond || self.types[ty].data == 0 {
+            return ty
+        }
+        const items = self.types[ty].args.clone()
+        let found: List<int> = []
+        if !self.unify(items[1], items[0], found) {
+            return ty   // decided per instance
+        }
+        return self.substInfer(items[2], &found)
     }
 
     // The branch of a `Cond` whose condition `items[0]` has no parameter.

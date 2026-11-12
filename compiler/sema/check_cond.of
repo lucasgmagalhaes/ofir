@@ -109,7 +109,8 @@ fn deferredCond(c: mut Checker, p: Program, test: &TypeExpr, parts: &List<int>,
         return ERROR
     }
     const isPattern = if parts[1] == ERROR { 0 } else { 1 }
-    return c.types.intern(TyKind.Cond, isPattern, 0, [parts[0], parts[1], thenTy, elseTy])
+    const cond = c.types.intern(TyKind.Cond, isPattern, 0, [parts[0], parts[1], thenTy, elseTy])
+    return c.types.reduceCond(cond)
 }
 
 // Whether `ty` has an `infer` placeholder of an enclosing conditional type.
@@ -151,8 +152,9 @@ pub fn isType(c: mut Checker, p: Program, test: &TypeExpr) int {
     }
     if decided == 2 {
         const isPattern = if parts[1] == ERROR { 0 } else { 1 }
-        return c.types.intern(TyKind.Cond, isPattern, 0,
-                              [parts[0], parts[1], boolType(c, true), boolType(c, false)])
+        const cond = c.types.intern(TyKind.Cond, isPattern, 0,
+                                    [parts[0], parts[1], boolType(c, true), boolType(c, false)])
+        return c.types.reduceCond(cond)
     }
     return boolType(c, decided == 1)
 }

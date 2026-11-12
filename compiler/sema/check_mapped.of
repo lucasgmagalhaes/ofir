@@ -212,7 +212,13 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         return known
     }
     const alias = c.types.get(mapped).data
-    const args = c.types.get(mapped).args.clone()
+    let args = c.types.get(mapped).args.clone()
+    for i in 0..args.len() {
+        if c.types.kind(args[i]) == TyKind.Mapped {   // `Partial<Partial<T>>`
+            const inner = expandMapped(c, args[i])
+            args[i] = inner
+        }
+    }
     if c.mappedTpls.get(alias).isNone() {
         return ERROR
     }
@@ -270,17 +276,15 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
  * @returns the substituted type
  */
 pub fn substType(c: mut Checker, ty: int, args: [int]) int {
-    const out = c.types.subst(ty, args)
-    if !c.types.hasPending() {
-        return out
-    }
-    for c.types.hasPending() {
+    let out = c.types.subst(ty, args)
+    for c.types.hasPending() {   // again for each level: `Partial<Partial<T>>`
         const pending = c.types.takePending()
         for i in 0..pending.len() {
             expandMapped(c, pending[i])
         }
+        out = c.types.subst(ty, args)
     }
-    return c.types.subst(ty, args)
+    return out
 }
 
 /**
@@ -300,12 +304,70 @@ pub fn mappedIndexType(c: mut Checker, base: int, key: int, bound: int) int {
     }
     const tpl = *c.mappedTpls.get(alias).unwrap()
     const args = c.types.get(base).args.clone()
-    if c.types.subst(tpl.keys, args.clone()) != bound {
+    if mappedKeys(c, c.types.subst(tpl.keys, args.clone())) != bound {
         return 0
     }
     let fieldArgs = args
     fieldArgs.push(key)
-    return c.types.subst(tpl.field, fieldArgs)
+    return reduceIndex(c, c.types.subst(tpl.field, fieldArgs))
+}
+
+// `ty` with each `M[K]` of a mapped type `M` replaced by the field type of
+// `M`: in `Partial<Partial<T>>`, `Partial<T>[K]` is `Option<T[K]>`. The key
+// of a field type is one of the keys of `M`.
+fn reduceIndex(c: mut Checker, ty: int) int {
+    if !c.types.get(ty).hasParam {
+        return ty
+    }
+    const kind = c.types.kind(ty)
+    const data = c.types.get(ty).data
+    let inner = c.types.get(ty).inner
+    let items = c.types.get(ty).args.clone()
+    if kind == TyKind.Index && c.types.kind(inner) == TyKind.Mapped {
+        if const Option.Some(tpl) = c.mappedTpls.get(c.types.get(inner).data) {
+            let fieldArgs = c.types.get(inner).args.clone()
+            fieldArgs.push(items[0])
+            const field = tpl.field
+            return reduceIndex(c, c.types.subst(field, fieldArgs))
+        }
+        return ty
+    }
+    const keepsInner = kind == TyKind.Tuple || kind == TyKind.Adt || kind == TyKind.Dyn ||
+                       kind == TyKind.Mapped || kind == TyKind.Index
+    if !keepsInner {
+        inner = reduceIndex(c, inner)   // ref, ptr, slice, array, fn
+    }
+    for i in 0..items.len() {
+        const item = reduceIndex(c, items[i])
+        items[i] = item
+    }
+    return c.types.intern(kind, data, inner, items)
+}
+
+/**
+ * `keys` with each `keyof M` of a mapped type `M` with no filter replaced by
+ * the keys of `M`: `keyof Partial<T>` is `keyof T`.
+ *
+ * @param c the checker
+ * @param keys a key type
+ * @returns the reduced key type
+ */
+pub fn mappedKeys(c: mut Checker, keys: int) int {
+    let out = keys
+    for c.types.kind(out) == TyKind.KeyOf {
+        const inner = c.types.get(out).inner
+        if c.types.kind(inner) != TyKind.Mapped {
+            break
+        }
+        const alias = c.types.get(inner).data
+        const found = c.mappedTpls.get(alias)
+        if found.isNone() || found.unwrap().filter >= 0 {
+            break
+        }
+        const tpl = *found.unwrap()
+        out = c.types.subst(tpl.keys, c.types.get(inner).args.clone())
+    }
+    return out
 }
 
 // Whether a mapped type keeps the current key: 1, 0, or -1 after an error.

@@ -1,0 +1,21 @@
+// requires: stage1
+// A conditional type over a type parameter decided by its pattern alone
+// (spec 16.5): `Unwrap<Option<T>>` is `T` in a generic body.
+
+type Unwrap<T> = if T is Option<infer U> { U } else { T }
+
+fn first<T>(x: move Option<T>, d: move Unwrap<Option<T>>) T {
+    return x ?? d
+}
+
+fn pair<A, B>(p: move Unwrap<Option<(A, B)>>) (B, A) {
+    const (a, b) = p
+    return (b, a)
+}
+
+fn main() {
+    println("{first(Option.Some(1), 2)} {first<int>(Option.None, 5)}")
+    const (b, a) = pair((1, "one"))
+    println("{b} {a}")
+    println("{first(Option.Some("x".toOwned()), "y".toOwned())}")
+}
