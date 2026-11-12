@@ -348,6 +348,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.22b | Boundary cases: evaluation order (spec 4.10), literal and cast edges (1.7, 2.1), newline rules (1.3); float-to-int `as` checks the truncated value | OFIR-02 | **done**: cited in the conformance matrix |
 | 6.22c | Unsafe obligations: validity, initialization, alignment, aliasing, provenance and data races (spec 11.6); `&x as *T` is safe | OFIR-03 | **done**: provenance and weaker atomic orderings are [open] |
 | 6.22d | Compatibility policy: versions, breaks, deprecation, editions, upgrades (`docs/design/compatibility.md`, ADR 0037) | OFIR-04 | **done**: migration fixtures; editions are [planned] |
+| 6.22e | Equality, ordering and hashing contracts (spec 9.9), NaN and signed zero (2.1), custom and seeded map keys; a declared `eq` no longer gets a derived `Ord` | OFIR-05 | **done**: `Hasher`, `totalCmp` and `cmp` on primitives stay open |
 | 6.23 | Language completion and unresolved semantic choices | OFIR-08 to OFIR-21 | Existing phase 5 tasks linked; accepted semantics and rejection cases tested |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
@@ -392,7 +393,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue OFIR-05 to OFIR-07 (6.22) before assigning new release commitments.
+1. Continue OFIR-06 and OFIR-07 (6.22) before assigning new release commitments.
 2. Continue the remaining phase 5 language tasks: the gaps 5.22i-5.22l
    of the M5 check.
 3. Advance general-purpose std, tooling, packages and installation alongside
