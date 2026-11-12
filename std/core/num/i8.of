@@ -28,6 +28,8 @@ pub copy struct i8 {
      * @returns `self + other`, wrapped into the range of `i8`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i8.MAX.wrappingAdd(1) == i8.MIN)
      * ```
      */
@@ -43,6 +45,8 @@ pub copy struct i8 {
      * @returns `self - other`, wrapped into the range of `i8`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i8.MIN.wrappingSub(1) == i8.MAX)
      * ```
      */
@@ -68,6 +72,8 @@ pub copy struct i8 {
      * @panics on `i8.MIN`, whose opposite does not fit in `i8`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((-7 as i8).abs() == 7)
      * ```
      */
@@ -139,6 +145,8 @@ pub copy struct i8 {
      * the value does not fit in `i8`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i8.parse("42").unwrapOr(0) == 42)
      * ```
      */
@@ -178,6 +186,8 @@ pub copy struct i8 {
      * @returns `self` if it is not greater than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as i8).min(5) == 3)
      * ```
      */
@@ -192,6 +202,8 @@ pub copy struct i8 {
      * @returns `self` if it is not less than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as i8).max(5) == 5)
      * ```
      */
@@ -207,6 +219,8 @@ pub copy struct i8 {
      * @returns `lo` if `self < lo`, `hi` if `self > hi`, else `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((12 as i8).clamp(0, 10) == 10)
      * ```
      */
@@ -222,6 +236,8 @@ pub copy struct i8 {
      * @panics when the result does not fit in `i8`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((2 as i8).pow(5) == 32)
      * ```
      */
