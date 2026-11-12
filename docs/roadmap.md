@@ -293,6 +293,12 @@ closed. These gaps remain:
 | 6.8d | Installing and using Ofir on Windows in the docs (`docs/design/toolchain.md`, README); **done** | S |
 | 6.9 | Scheduled CI job for the auditable bootstrap path: `tools/bootstrap_chain.sh`, weekly; the link from the last release to the current sources waits for the next release; **done** | S |
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |
+| 6.32 | Asserts and `Bencher` in `std.testing`, imported instead of in the prelude (ADR 0036), in the steps below | M |
+| 6.32a | Design: ADR 0036, spec 7.5, 12.2 and 12.3; **done** | S |
+| 6.32b | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import | M |
+| 6.32c | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert` | M |
+| 6.32d | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure | S |
+| 6.32e | `Bencher` moves to `std.testing`; `ofir bench` no longer adds it to the prelude | S |
 
 ### API and service ecosystem (proposed)
 
