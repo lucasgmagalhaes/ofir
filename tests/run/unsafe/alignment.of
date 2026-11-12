@@ -1,0 +1,28 @@
+// requires: stage1
+// Safe wrappers keep the alignment rule of spec 11.6: every element of a
+// `List` and the value in a `Box` sit at a multiple of `alignOf<T>()`,
+// also after the list grows and moves its buffer.
+
+@align(64)
+struct Line {
+    tag: int
+}
+
+fn aligned(p: *Line) bool {
+    const address = unsafe { p as uint }
+    return address % 64 == 0
+}
+
+fn main() {
+    let lines: List<Line> = List.new()
+    let ok = true
+    for i in 0..100 {
+        lines.push(Line{tag: i})
+        for j in 0..lines.len() {
+            ok = ok && aligned(&lines[j] as *Line)
+        }
+    }
+    const boxed = Box.new(Line{tag: 7})
+    ok = ok && aligned(&*boxed as *Line)
+    println("{alignOf<Line>()} {sizeOf<Line>()} {lines.len()} {lines[99].tag} {ok}")
+}
