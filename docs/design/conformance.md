@@ -39,9 +39,9 @@ specification; the other classes are known and accepted.
 | 1.4 Identifiers | full | partial | `tests/lex/keywords_and_names.of` | planned: the naming convention warning (W0007) |
 | 1.5 Keywords | full | full | `tests/lex/keywords_and_names.of` | - |
 | 1.6 Operators and punctuation | full | full | `tests/lex/operators.of` `tests/parse/expressions.of` | - |
-| 1.7 Literals | partial | full | `tests/lex/numbers.of` `tests/lex/strings.of` `tests/run/strings/literals.of` `tests/run/strings/format.of` `tests/compile_fail/lexer` | subset: format specifiers, raw, multi-line and byte strings |
+| 1.7 Literals | partial | full | `tests/lex/numbers.of` `tests/run/numbers/bounds.of` `tests/lex/strings.of` `tests/run/strings/literals.of` `tests/run/strings/format.of` `tests/compile_fail/lexer` | subset: format specifiers, raw, multi-line and byte strings |
 | 1.8 Documentation comments | full | full | `tests/doc` `tools/check_docs.py` | - |
-| 2.1 Primitive types | full | full | `tests/run/basics/arithmetic.of` `tests/run/numbers` `tests/panic/add_overflow.of` | - |
+| 2.1 Primitive types | full | full | `tests/run/basics/arithmetic.of` `tests/run/numbers` `tests/run/numbers/bounds.of` `tests/panic/add_overflow.of` `tests/panic/cast_nan.of` `tests/panic/cast_below.of` | - |
 | 2.2 The unit type | full | full | `tests/run/basics/control.of` | untested: no test of its own |
 | 2.3 Strings | full | full | `tests/run/strings` `tests/panic/str_boundary.of` | - |
 | 2.4 Structs | full | full | `tests/run/structs` `tests/compile_fail/types/structs.of` | - |
