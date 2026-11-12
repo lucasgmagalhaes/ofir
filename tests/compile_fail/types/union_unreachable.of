@@ -1,0 +1,38 @@
+// requires: stage1
+// Exhaustiveness of a union match (spec 17.4): an arm whose members the
+// arms before it already cover is unreachable (W0004).
+
+struct A {
+    n: int
+}
+
+struct B {
+    n: int
+}
+
+fn repeated(value: A | B) int {
+    return match value {
+        _: A => 1
+        _: A => 2   // warning[W0004]: unreachable `match` arm: the arms before it match every value
+        _: B => 3
+    }
+}
+
+fn covered(value: A | B | int) int {
+    return match value {
+        _: (A | B) => 1
+        _: B => 2   // warning[W0004]: unreachable `match` arm: the arms before it match every value
+        _: int => 3
+    }
+}
+
+fn wildcard(value: A | B) int {
+    return match value {
+        _: A => 1
+        _: B => 2
+        _ => 3   // warning[W0004]: unreachable `match` arm: the arms before it match every value
+    }
+}
+
+fn main() {
+}
