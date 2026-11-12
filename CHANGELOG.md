@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Interface embedding checks in stage 1 (spec 9.3, 9.4): an interface
+  that embeds itself (E0327), a method reaching an interface with two
+  signatures (E0328) and two defaults for the same method through
+  embedding, assertions or bounds (E0329) are errors; methods with the
+  same signature merge.
 - The feature state registry (`docs/design/feature-states.md`, ADR 0038):
   every planned, open and rejected feature with its owner, gate and
   decision; `make check-docs` keeps it in step with the specification

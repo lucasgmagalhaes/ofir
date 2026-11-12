@@ -77,6 +77,26 @@ method of its own, from the interfaces it asserts (`struct Circle: Shape`)
 and those they embed. Satisfying an interface without asserting it does not
 add its default methods to the type.
 
+Two defaults for the same method conflict when they come from different
+interfaces and no interface involved declares the method without a body.
+The conflict is an error (E0329) where it would have to be resolved:
+
+- in an interface that embeds both, unless it declares the method itself;
+- in a type that asserts both, unless it declares the method itself;
+- in a call through a type parameter bounded by both (`T: A + B`).
+
+```ofir
+struct Robot: Named + Greeter {     // both give `hello`
+    fn name(self) str {
+        return "r2"
+    }
+
+    fn hello(self) str {          // required: resolves the conflict
+        return "beep {self.name()}"
+    }
+}
+```
+
 ## 9.4 Embedding
 
 An interface can include other interfaces:
@@ -95,6 +115,15 @@ interface ReadWriter {
     Writer
 }
 ```
+
+The methods of an embedded interface become methods of the one that embeds
+it. A method that reaches an interface more than once, through two embedded
+interfaces or one embedded interface and a declaration of its own, must
+have the same `self` mode and signature each time; the declarations then
+merge (E0328 otherwise). An interface cannot embed itself, directly or
+through the interfaces it embeds (E0327). A recursive type, such as a tree
+whose children are a `List<Tree>`, can still satisfy and assert interfaces:
+only interfaces cannot be cyclic.
 
 ## 9.5 Generic interfaces
 

@@ -52,6 +52,7 @@ import sema.interfaces.dynCallable
 import sema.interfaces.isInterfaceMethod
 import sema.interfaces.methodIndex
 import sema.interfaces.paramBoundArgs
+import sema.interfaces.paramDefaultClash
 import sema.interfaces.paramMethodOwner
 import sema.layout_attrs.checkPackedBorrow
 import sema.program.Program
@@ -516,7 +517,12 @@ pub fn checkMethodCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, ar
             const found = checkExpr(c, p, base, ERROR)
             const selfType = methodReceiver(c, p, base, found, name)
             if c.types.kind(selfType) == TyKind.Param {   // a method of a bounding interface
-                const iface = paramMethodOwner(c, p, c.types.get(selfType).data, name)
+                const param = c.types.get(selfType).data
+                const iface = paramMethodOwner(c, p, param, name)
+                const clash = paramDefaultClash(c, p, param, name)
+                if clash.len() > 0 {
+                    c.error("E0329", field.span, "ambiguous call: {clash}")
+                }
                 if iface != 0 {
                     return checkUserMethod(c, p, call, field, base, name, &explicit, args, iface,
                                            false, selfType, expected)

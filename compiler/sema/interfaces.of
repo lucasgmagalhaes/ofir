@@ -460,6 +460,168 @@ pub fn assertedDefault(c: mut Checker, p: Program, owner: int, name: Symbol) int
 }
 
 /**
+ * Whether an interface embeds `target`, directly or not, or is it.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param iface the interface
+ * @param target another interface
+ * @returns true if it does
+ */
+pub fn embedsInterface(c: mut Checker, p: Program, iface: int, target: int) bool {
+    return contains(&interfaceClosure(c, p, iface), target)
+}
+
+/**
+ * Why the interfaces bounding a type parameter give conflicting defaults
+ * for method `name` (spec 9.3).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param param the type parameter
+ * @param name the method
+ * @returns the reason, or ""
+ */
+pub fn paramDefaultClash(c: mut Checker, p: Program, param: int, name: Symbol) str {
+    if param >= c.generics.ifaces.len() {
+        return ""
+    }
+    const bounds = c.generics.ifaces[param].clone()
+    return defaultClash(c, p, &bounds, name)
+}
+
+/**
+ * Why two interfaces give conflicting defaults for method `name` (spec
+ * 9.3): the first default each of `tops`, or an interface it embeds,
+ * gives, when two of them differ and none declares `name` without a body.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param tops the interfaces, as embedded, asserted or bounding
+ * @param name the method
+ * @returns the reason, or ""
+ */
+pub fn defaultClash(c: mut Checker, p: Program, tops: &List<int>, name: Symbol) str {
+    let providers: List<int> = []
+    for i in 0..tops.len() {
+        if tops[i] == 0 {
+            continue
+        }
+        const all = interfaceClosure(c, p, tops[i])
+        let first = 0
+        for j in 0..all.len() {
+            const index = methodIndex(c, p, all[j], name)
+            if index < 0 {
+                continue
+            }
+            if methodAt(p, c.loc(all[j]), index).body.isNone() {
+                return ""   // the type must declare it
+            }
+            if first == 0 {
+                first = all[j]
+            }
+        }
+        if first != 0 && !contains(&providers, first) {
+            providers.push(first)
+        }
+    }
+    if providers.len() < 2 {
+        return ""
+    }
+    const a = c.text(c.def(providers[0]).name).toOwned()
+    const b = c.text(c.def(providers[1]).name).toOwned()
+    return "`{c.text(name)}` has a default in both `{a}` and `{b}`"
+}
+
+/**
+ * The first conflicting defaults among `tops` for a method that `owner`
+ * does not declare (spec 9.3).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param tops the interfaces, as embedded or asserted
+ * @param owner the type or interface declaring them, whose own methods win
+ * @returns the reason, or ""
+ */
+pub fn firstDefaultClash(c: mut Checker, p: Program, tops: &List<int>, owner: int) str {
+    for i in 0..tops.len() {
+        if tops[i] == 0 {
+            continue
+        }
+        const all = interfaceClosure(c, p, tops[i])
+        for j in 0..all.len() {
+            for m in 0..methodCount(p, c.loc(all[j])) {
+                const method = methodAt(p, c.loc(all[j]), m)
+                if method.body.isNone() || methodIndex(c, p, owner, method.name) >= 0 {
+                    continue
+                }
+                const why = defaultClash(c, p, tops, method.name)
+                if why.len() > 0 {
+                    return why
+                }
+            }
+        }
+    }
+    return ""
+}
+
+/**
+ * Why the methods of interface `embedded`, and those it embeds, conflict
+ * with those `seen` so far: a method of the same name with another `self`
+ * mode or signature (spec 9.4). Adds the methods to `seen`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param embedded the interface embedded
+ * @param seen the `DefId`s of the methods seen, one per name
+ * @returns the reason, or ""
+ */
+pub fn embedConflict(c: mut Checker, p: Program, embedded: int, seen: mut List<int>) str {
+    const all = interfaceClosure(c, p, embedded)
+    for i in 0..all.len() {
+        const module = c.def(all[i]).module
+        for m in 0..methodCount(p, c.loc(all[i])) {
+            const method = methodAt(p, c.loc(all[i]), m)
+            const id = c.r.tables[module].fnDefs[method.id.0]
+            const other = sameName(c, &seen, method.name)
+            if other == 0 {
+                seen.push(id)
+            } else if !sameMethod(c, p, other, id) {
+                const d = c.def(other)
+                const first = c.itemDefs[d.module][d.item]
+                return ("method `{c.text(method.name)}` of "
+                    + "`{c.text(c.def(all[i]).name)}` has another signature than the one of "
+                    + "`{c.text(c.def(first).name)}`")
+            }
+        }
+    }
+    return ""
+}
+
+// The method among `seen` named `name`, or 0.
+fn sameName(c: Checker, seen: &List<int>, name: Symbol) int {
+    for i in 0..seen.len() {
+        if c.def(seen[i]).name.0 == name.0 {
+            return seen[i]
+        }
+    }
+    return 0
+}
+
+// Whether two interface methods have the same `self` mode and signature.
+fn sameMethod(c: mut Checker, p: Program, a: int, b: int) bool {
+    const x = methodAt(p, c.loc(a), c.def(a).member)
+    const y = methodAt(p, c.loc(b), c.def(b).member)
+    if x.hasSelf != y.hasSelf || x.selfMode != y.selfMode {
+        return false
+    }
+    if x.typeParams.len() != y.typeParams.len() {
+        return false
+    }
+    return fnSignature(c, p, a) == fnSignature(c, p, b)
+}
+
+/**
  * Whether an interface is `Any` (spec 9.8), whose `typeName` the compiler
  * provides for every type.
  *

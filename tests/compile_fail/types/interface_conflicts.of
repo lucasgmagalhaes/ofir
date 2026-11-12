@@ -1,0 +1,64 @@
+// requires: stage1
+// Interface embedding (spec 9.3, 9.4): cycles, methods that reach an
+// interface with two signatures, and defaults two interfaces both give.
+
+interface Loop {
+    Loop                        // error[E0327]: interface `Loop` embeds itself
+    fn f(self) int
+}
+
+interface Ping {
+    Pong                        // error[E0327]: interface `Ping` embeds itself through `Pong`
+}
+
+interface Pong {
+    Ping                        // error[E0327]: interface `Pong` embeds itself through `Ping`
+}
+
+interface Named {
+    fn name(self) str
+
+    fn hello(self) str {
+        return "hi {self.name()}"
+    }
+}
+
+interface Numbered {
+    fn name(self) int
+}
+
+interface Greeter {
+    fn name(self) str
+
+    fn hello(self) str {
+        return "hello {self.name()}"
+    }
+}
+
+interface Labeled {
+    Named
+    Numbered                    // error[E0328]: conflicting methods: method `name` of `Numbered` has another signature than the one of `Named`
+}
+
+interface Moved {
+    Named                       // error[E0328]: method `name` of `Named` has another signature than the one of `Moved`
+    fn name(move self) str
+}
+
+interface Polite {
+    Named
+    Greeter                     // error[E0329]: conflicting defaults: `hello` has a default in both `Named` and `Greeter`; declare the method in `Polite`
+}
+
+struct Robot: Named + Greeter { // error[E0329]: conflicting defaults: `hello` has a default in both `Named` and `Greeter`; declare the method in `Robot`
+    fn name(self) str {
+        return "r2"
+    }
+}
+
+fn greet<T: Named + Greeter>(t: T) str {
+    return t.hello()            // error[E0329]: ambiguous call: `hello` has a default in both `Named` and `Greeter`
+}
+
+fn main() {
+}

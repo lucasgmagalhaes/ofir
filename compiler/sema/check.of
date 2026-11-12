@@ -19,6 +19,8 @@ import diag.noSpan
 import sema.c_symbols.checkCSymbols
 import sema.call_args.checkDefaults
 import sema.check_mapped.MappedTpl
+import sema.check_methods.methodAt
+import sema.check_methods.methodCount
 import sema.check_ref.checkBorrowSource
 import sema.check_stmt.checkBlock
 import sema.check_unsafe.checkCSignature
@@ -34,6 +36,9 @@ import sema.enums.EnumInfo
 import sema.enums.checkEnumLayouts
 import sema.enums.enumVariants
 import sema.expr_check.checkConst
+import sema.interfaces.embedConflict
+import sema.interfaces.embedsInterface
+import sema.interfaces.firstDefaultClash
 import sema.interfaces.interfaceArity
 import sema.interfaces.interfaceText
 import sema.interfaces.unsatisfied
@@ -1391,10 +1396,52 @@ fn checkInterface(c: mut Checker, p: Program, index: int, methods: &List<FnDecl>
                     c.unsupported(embeds[i].span, "embedded generic interfaces are")
                 }
             }
+            checkEmbeds(c, p, index, &embeds)
         }
         _ => {}
     }
     checkMethods(c, p, index, methods)
+}
+
+// E0327 for an interface embedded by one it embeds, E0328 for embedded
+// methods with conflicting signatures and E0329 for conflicting defaults
+// (spec 9.3, 9.4).
+fn checkEmbeds(c: mut Checker, p: Program, index: int, embeds: &List<TypeExpr>) {
+    const me = c.itemDefs[c.module()][index]
+    if me == 0 || embeds.len() == 0 {
+        return
+    }
+    let seen: List<int> = []
+    for m in 0..methodCount(p, c.loc(me)) {
+        seen.push(c.r.tables[c.module()].fnDefs[methodAt(p, c.loc(me), m).id.0])
+    }
+    let tops: List<int> = []
+    for i in 0..embeds.len() {
+        const embedded = interfaceOf(c, &embeds[i])
+        tops.push(embedded)
+        if embedded == 0 {
+            continue   // E0333
+        }
+        if embedsInterface(c, p, embedded, me) {
+            const through = if embedded == me {
+                ""
+            } else {
+                " through `{c.text(c.def(embedded).name)}`"
+            }
+            c.error("E0327", embeds[i].span, "interface `{c.text(c.def(me).name)}` embeds "
+                    + "itself{through}")
+            continue
+        }
+        const why = embedConflict(c, p, embedded, seen)
+        if why.len() > 0 {
+            c.error("E0328", embeds[i].span, "conflicting methods: {why}")
+        }
+    }
+    const clash = firstDefaultClash(c, p, &tops, me)
+    if clash.len() > 0 {
+        c.error("E0329", embeds[embeds.len() - 1].span, "conflicting defaults: {clash}; "
+                + "declare the method in `{c.text(c.def(me).name)}`")
+    }
 }
 
 // E0333 for each type named where only interfaces go, E0302 for each
@@ -1453,6 +1500,16 @@ fn checkAsserts(c: mut Checker, p: Program, index: int) {
             c.error("E0335", item.asserts[i].span, "the type `{c.typeName(ty)}` does not "
                     + "satisfy `{interfaceText(c, iface, args)}`: {why}")
         }
+    }
+    let ifaces: List<int> = []
+    for i in 0..item.asserts.len() {
+        ifaces.push(interfaceOf(c, &item.asserts[i]))
+    }
+    const owner = c.itemDefs[c.module()][index]
+    const clash = firstDefaultClash(c, p, &ifaces, owner)
+    if clash.len() > 0 {
+        c.error("E0329", item.asserts[item.asserts.len() - 1].span, "conflicting defaults: "
+                + "{clash}; declare the method in `{c.typeName(ty)}`")
     }
 }
 

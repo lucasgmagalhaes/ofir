@@ -108,6 +108,9 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0323 | no enclosing loop is labeled `x` | stage 1 |
 | E0324 | the label `x` is already used by an enclosing loop | stage 1 |
 | E0326 | a variant is named through its enum: write `E.V` (ADR 0028) | stage 0 |
+| E0327 | interface `I` embeds itself (spec 9.4) | stage 1 |
+| E0328 | method `m` of `A` has another signature than the one of `B` (spec 9.4) | stage 1 |
+| E0329 | conflicting defaults: `m` has a default in both `A` and `B` (spec 9.3) | stage 1 |
 | E0330 | cannot infer the type parameter `T`: write the type arguments | stage 0 |
 | E0331 | instantiating `f` nests types more than 64 levels deep | stage 0 |
 | E0332 | the type `X` does not satisfy the bound `B` of `T` | stage 0 |
