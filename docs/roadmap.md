@@ -297,7 +297,7 @@ closed. These gaps remain:
 | 6.32a | Design: ADR 0036, spec 7.5, 12.2 and 12.3; **done** | S |
 | 6.32b | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import; **done**: `tests/compile_fail/names/assert_import` | M |
 | 6.32c | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert`; **done** | M |
-| 6.32d | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure | S |
+| 6.32d | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure; **done**: `tests/run/testing/assert_eq`, `tests/panic/assert_eq` | S |
 | 6.32e | `Bencher` moves to `std.testing`; `ofir bench` no longer adds it to the prelude | S |
 
 ### API and service ecosystem (proposed)
