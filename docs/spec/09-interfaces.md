@@ -288,18 +288,20 @@ A type test binds like any pattern (chapter 5.5): on a borrowed `dyn`
 value the binding borrows; on an owned `Box<dyn I>` it takes the value by
 move and the box is freed.
 
-### `Any`
+### `any`
 
-`Any` (ADR 0024), in `std.core` and the prelude, holds a value of any
-type:
+`any` (ADR 0024, ADR 0039) holds a value of any type. It is a builtin
+`dyn` type: `v: any` borrows a value, `&any` and `*any` point at one and
+`Box<any>` owns one, as `dyn I` does for an interface `I` (9.7). `dyn any`
+is an error (E0365). It is declared in `std.core`, in the prelude:
 
 ```ofir
-pub interface Any {
+pub interface any {
     fn typeName(self) str
 }
 ```
 
-Every type satisfies `Any`, except the types that hold references (`&T`,
+Every type satisfies `any`, except the types that hold references (`&T`,
 a `ref struct`, a type with such a field), which cannot be stored (chapter
 5.6, E0702). The compiler provides `typeName` for every type, which cannot
 declare its own; it returns the type's name as written in messages:
@@ -307,7 +309,7 @@ declare its own; it returns the type's name as written in messages:
 switch:
 
 ```ofir
-fn describe(v: dyn Any) str {
+fn describe(v: any) str {
     return match v {
         n: int => "the int {n}"
         s: str => "the str {s}"
@@ -316,7 +318,7 @@ fn describe(v: dyn Any) str {
     }
 }
 
-fn takeConfig(value: move Box<dyn Any>) Option<Config> {
+fn takeConfig(value: move Box<any>) Option<Config> {
     return match value {
         c: Config => Option.Some(c)   // moved out of the box
         _ => Option.None              // the box is dropped with its value
@@ -324,10 +326,10 @@ fn takeConfig(value: move Box<dyn Any>) Option<Config> {
 }
 ```
 
-`if const c: Config = value { ... }` tests a single type. There is no `any`
-type, no `is` operator and no reflection: a type test, which the compiler
-checks, is the only way to the concrete value. Two `dyn Any` values cannot
-be compared or hashed.
+`if const c: Config = value { ... }` tests a single type. There is no `is`
+operator and no reflection: a type test, which the compiler checks, is the
+only way to the concrete value. Two `any` values cannot be compared or
+hashed.
 
 ## 9.9 Built-in interfaces
 
