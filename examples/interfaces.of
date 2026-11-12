@@ -40,8 +40,8 @@ fn kind(shape: dyn Shape) str {
     }
 }
 
-// `Any` holds a value of any type; a type test recovers it.
-fn show(value: dyn Any) str {
+// `any` holds a value of any type; a type test recovers it.
+fn show(value: any) str {
     return match value {
         n: int => "the int {n}"
         s: str => "the str {s}"
