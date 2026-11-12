@@ -1,0 +1,34 @@
+// Spec 4.10: operands, arguments and struct literal fields are evaluated
+// left to right.
+
+struct Point {
+    x: int
+    y: int
+    z: int
+}
+
+fn trace(name: str, value: int) int {
+    print("{name} ")
+    return value
+}
+
+fn sum3(a: int, b: int, c: int) int {
+    return a + b + c
+}
+
+fn main() {
+    const total = trace("a", 1) + trace("b", 2) * trace("c", 3)
+    println("= {total}")
+    const less = trace("left", 1) < trace("right", 2)
+    println("= {less}")
+    const s = sum3(trace("first", 1), trace("second", 2), trace("third", 3))
+    println("= {s}")
+    const nested = sum3(trace("p", sum3(trace("q", 1), 0, 0)), trace("r", 2), 0)
+    println("= {nested}")
+    const p = Point { z: trace("z", 3), x: trace("x", 1), y: trace("y", 2) }
+    println("= {p.x} {p.y} {p.z}")
+    const list = [trace("e0", 0), trace("e1", 1), trace("e2", 2)]
+    println("= {list.len()}")
+    const t = (trace("t0", 0), trace("t1", 1))
+    println("= {t.0} {t.1}")
+}
