@@ -74,8 +74,7 @@ another identifier is an error (E0809).
 
 Stage 0 and stage 1 implement `@inline`, `@cold`, `@test` and `@lang`;
 stage 1 also implements `@deprecated`, `@allow`, `@cfg`, `@repr(C)`,
-`@packed`, `@align`, `@export`, `@link` and `@bench`. `@tag` is checked,
-then reported as not supported yet (E0901).
+`@packed`, `@align`, `@export`, `@link`, `@bench` and `@tag`.
 
 ## 12.2 Tests
 
