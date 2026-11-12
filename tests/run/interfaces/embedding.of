@@ -1,0 +1,126 @@
+// requires: stage1
+// Embedding (spec 9.3, 9.4): methods that reach an interface twice with
+// the same signature merge, a diamond gives one default, a declaration
+// resolves conflicting defaults, and recursive types assert interfaces.
+
+interface Named {
+    fn name(self) str
+}
+
+interface Labeled {
+    fn name(self) str
+}
+
+interface Tagged {
+    Named
+    Labeled
+}
+
+struct Item: Tagged {
+    fn name(self) str {
+        return "item"
+    }
+}
+
+fn tag<T: Tagged>(t: T) str {
+    return t.name()
+}
+
+fn both<T: Named + Labeled>(t: T) str {
+    return t.name()
+}
+
+interface Greeter {
+    fn name(self) str
+
+    fn hello(self) str {
+        return "hello {self.name()}"
+    }
+}
+
+interface Waver {
+    Greeter
+}
+
+interface Bower {
+    Greeter
+}
+
+interface Polite {
+    Waver
+    Bower
+}
+
+struct Guest: Polite {
+    fn name(self) str {
+        return "guest"
+    }
+}
+
+interface Beeper {
+    fn name(self) str
+
+    fn hello(self) str {
+        return "beep {self.name()}"
+    }
+}
+
+interface Chatty {
+    Greeter
+    Beeper
+
+    fn hello(self) str {
+        return "hey {self.name()}"
+    }
+}
+
+struct Robot: Greeter + Beeper {
+    fn name(self) str {
+        return "r2"
+    }
+
+    fn hello(self) str {
+        return "{self.name()} says hi"
+    }
+}
+
+struct Parrot: Chatty {
+    fn name(self) str {
+        return "polly"
+    }
+}
+
+interface Sized {
+    fn size(self) int
+
+    fn empty(self) bool {
+        return self.size() == 0
+    }
+}
+
+struct Tree: Sized {
+    label: str
+    children: List<Tree>
+
+    fn size(self) int {
+        let n = 1
+        for child in self.children {
+            n += child.size()
+        }
+        return n
+    }
+}
+
+fn count<T: Sized>(t: T) int {
+    return t.size()
+}
+
+fn main() {
+    println("{tag(Item{})} {both(Item{})}")
+    println(Guest{}.hello())
+    println(Robot{}.hello())
+    println(Parrot{}.hello())
+    const leaf = Tree{label: "b", children: []}
+    const tree = Tree{label: "a", children: [leaf, Tree{label: "c", children: []}]}
+    println("{count(tree)} {tree.empty()} {tree.label}")
+}
