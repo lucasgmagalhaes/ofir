@@ -87,7 +87,7 @@ seed: verify
 SEED_CLANG = "$(if $(OFIR_CLANG),$(OFIR_CLANG),clang)" $(CLANG_TARGET)
 check-seed: runtime
 	mkdir -p $(BUILD)/from-seed
-	$(SEED_CLANG) -O2 -Wno-override-module $(SEED) $(BUILD)/libofir_rt.a -lm \
+	$(SEED_CLANG) -O2 -Wno-override-module $(SEED) $(BUILD)/libofir_rt.a $(LINK_LIBS) \
 	    -o $(BUILD)/from-seed/seed$(EXE)
 	$(STAGE_ENV) $(BUILD)/from-seed/seed$(EXE) build compiler/main.of -o $(BUILD)/from-seed/ofir$(EXE)
 	$(BUILD)/from-seed/ofir$(EXE) version
