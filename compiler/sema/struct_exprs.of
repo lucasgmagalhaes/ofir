@@ -28,6 +28,7 @@ import sema.check_types.ownerType
 import sema.complete.offer
 import sema.complete.probing
 import sema.check_types.resolveAlias
+import sema.check_union.coerceToUnion
 import sema.def.DefKind
 import sema.def.Res
 import sema.expr_check.checkArgs
@@ -327,7 +328,10 @@ pub fn checkStructLiteral(c: mut Checker, p: Program, e: &Expr, expected: int) i
                         const wanted = inferApply(c, &finished, types[index])
                         const found = c.typeOf(fields[i].id.0)
                         if const Option.Some(value) = fields[i].value {
-                            requireType(c, &value, c.typeOf(value.id.0), wanted)
+                            const given = c.typeOf(value.id.0)
+                            if !coerceToUnion(c, &value, given, wanted) {
+                                requireType(c, &value, given, wanted)
+                            }
                         } else if found != wanted && found != ERROR && wanted != ERROR {
                             c.error("E0300", e.span, "mismatched types: expected "
                                     + "{c.typeName(wanted)}, found {c.typeName(found)}")

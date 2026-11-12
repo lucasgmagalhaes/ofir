@@ -332,8 +332,9 @@ fn dataPointer(l: mut Lowerer, c: mut Checker, p: Program, place: &Place, ty: in
 fn typeTest(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern, place: &Place,
             ty: int, fail: int) {
     const target = concreteType(l, c, c.members[c.module()][pattern.id.0])
-    if unionMembers(c, ty).len() > 0 {
-        unionTest(l, c, p, pattern, place, ty, target, fail)
+    const union = concreteType(l, c, ty)   // `Option<T> | int` in a generic body
+    if unionMembers(c, union).len() > 0 {
+        unionTest(l, c, p, pattern, place, union, target, fail)
         return
     }
     const id = emitTemp(l, I64, rvalue(RvalueKind.TypeId, Op.Add, fatPointer(c, p, place, ty),
