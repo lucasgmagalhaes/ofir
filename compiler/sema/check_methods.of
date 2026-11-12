@@ -40,6 +40,7 @@ import sema.complete.offer
 import sema.complete.probing
 import sema.def.DefKind
 import sema.def.Res
+import sema.expr_check.checkArgsOf
 import sema.expr_check.checkArgs
 import sema.expr_check.checkCallArgs
 import sema.expr_check.checkExpr
@@ -58,7 +59,10 @@ import sema.layout_attrs.checkPackedBorrow
 import sema.program.Program
 import sema.resolve_attributes.warnDeprecated
 import sema.struct_exprs.checkStructField
+import sema.structs.fieldIndex
+import sema.structs.fieldsOf
 import sema.structs.isCopy
+import sema.structs.structFields
 import sema.structs.structFieldType
 import sema.structs.variantFieldType
 import sema.suggest.Suggestion
@@ -311,6 +315,30 @@ fn methodArgs(c: mut Checker, p: Program, call: &Expr, field: &Expr, explicit: &
                             id)
 }
 
+// The index of field `name` of struct `owner` when its type is a `fn`, or -1.
+fn fnFieldOf(c: mut Checker, p: Program, owner: int, name: Symbol) int {
+    if c.def(owner).kind != DefKind.Struct || !structFields(c, p, owner) {
+        return -1
+    }
+    const index = fieldIndex(fieldsOf(c, owner), name)
+    if index < 0 || c.types.kind(fieldsOf(c, owner).types[index]) != TyKind.Fn {
+        return -1
+    }
+    return index
+}
+
+// `x.f(...)` that calls the fn value in field `f` of `x` (spec 10.2).
+fn checkFieldCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, name: Symbol,
+                  args: &List<Arg>, selfType: int) int {
+    const ty = checkStructField(c, p, field, name, selfType)
+    c.setType(field.id.0, ty)
+    c.fieldCalls[c.module()].insert(field.id.0, 1)
+    if c.types.kind(ty) != TyKind.Fn {
+        return skipArgs(c, p, args)
+    }
+    return checkArgsOf(c, p, call.span, args, ty)
+}
+
 /**
  * `value.m(args)` (`viaType` false) or `Type.f(args)` (`viaType` true).
  *
@@ -342,6 +370,9 @@ pub fn checkUserMethod(c: mut Checker, p: Program, call: &Expr, field: &Expr, ba
     const isClone = c.text(name) == "clone"
     if index < 0 && !viaType && isClone {
         return checkDerivedClone(c, p, call, field, explicit, args, selfType)
+    }
+    if index < 0 && !viaType && explicit.len() == 0 && fnFieldOf(c, p, owner, name) >= 0 {
+        return checkFieldCall(c, p, call, field, name, args, selfType)
     }
     if index < 0 {
         const ty = c.types.adt(owner, [])

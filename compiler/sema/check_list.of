@@ -123,9 +123,11 @@ pub fn checkListLiteral(c: mut Checker, p: Program, e: &Expr, items: &List<Expr>
     }
     let elem = ERROR
     let known = false
+    let given = false   // the expected type gives the element type, already checked
     if const Option.Some(t) = sequenceElem(c, expected) {   // a List or a `[T]` parameter
         elem = t
         known = true
+        given = true
     }
     for i in 0..items.len() {
         if known {
@@ -141,7 +143,9 @@ pub fn checkListLiteral(c: mut Checker, p: Program, e: &Expr, items: &List<Expr>
         return ERROR
     }
     const ty = listOf(c, elem)
-    checkInstanceStorable(c, p, ty, e.span)
+    if !given {
+        checkInstanceStorable(c, p, ty, e.span)
+    }
     return ty
 }
 

@@ -1,0 +1,18 @@
+2
+method 300
+drop a
+after replace: 3
+through a reference: 3
+generic: 42
+boxed: 1.5
+handler 4
+handler 5
+option 6
+drop e
+after option
+moved 7
+end
+drop f
+drop d
+drop c
+drop b

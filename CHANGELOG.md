@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Calls of fn-typed fields in stage 1 (spec 10.2): `button.onClick()`
+  calls the `move fn` in field `onClick` when the type has no method of
+  that name. Types print `move fn(...)` for owned function values, and an
+  annotated list literal of borrowed `fn` values reports E0702 once.
 - `mut dyn` parameters in stage 1 (spec 9.7); a `dyn` parameter also
   takes a `&mut dyn I` or a `Box<dyn I>`, borrowed, and `Box.new(x)`
   converts to `Box<dyn I>` in generic arguments (`list.push(Box.new(x))`).

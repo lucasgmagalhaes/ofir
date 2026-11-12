@@ -712,6 +712,11 @@ fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args:
                 eachArg(m, c, p, args, &none, Use.Move, s)
                 return
             }
+            if c.fieldCalls[c.module()].get(callee.id.0).isSome() {   // `button.onClick()`
+                movesNode(m, c, p, callee, s, Use.Read)
+                eachArg(m, c, p, args, &none, Use.Read, s)
+                return
+            }
             const member = c.members[c.module()][callee.id.0]
             if member > 0 {   // a method, or an associated function
                 fnCall(m, c, p, e, member, base, true, args, s)
