@@ -395,8 +395,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue the remaining phase 5 language tasks: the gaps 5.22i-5.22l
-   of the M5 check.
+1. Start 6.23 (OFIR-08 to OFIR-21), beginning with OFIR-08; the phase 5
+   gaps 5.22i-5.22l of the M5 check are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
