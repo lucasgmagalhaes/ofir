@@ -339,9 +339,28 @@ debug representation. `Debug` can bound a type parameter
 - A type that declares `fn eq(self, other: Self) bool` or
   `fn cmp(self, other: Self) Ordering` uses that method for `==` or `<`.
   A method named `eq` or `cmp` of another shape does not count, and blocks
-  the derivation of its interface. A type that declares `eq` is not
-  hashed by its fields, since equal values must hash equally: it is not a
-  `Map` key until it can declare `hash` (which needs `Hasher`).
+  the derivation of its interface.
+- A declared method is never mixed with derived ones, which could
+  disagree with it. A type that declares `eq` derives neither `Ord` nor
+  `Hash`; a type that declares `cmp` derives neither `Eq` nor `Hash`, so
+  it declares `eq` too for `==`. Neither is a `Map` key until it can
+  declare `hash` (which needs `Hasher`, planned).
+
+The interfaces have contracts, for every `a`, `b` and `c` of the type:
+
+- `Eq`: `a == a`; `a == b` exactly when `b == a`; `a == b` and `b == c`
+  give `a == c`; `a != b` is `!(a == b)`.
+- `Ord`: exactly one of `a < b`, `a == b`, `a > b` holds, where `==` is
+  the type's `Eq` when it has one; `<` is transitive; `a <= b` is
+  `a < b || a == b`.
+- `Hash`: `a == b` gives equal hashes, under any seed of a `Map` (chapter
+  2.6); unequal values may share a hash.
+
+Integers, `bool`, `str`, `()` and the derived interfaces keep them,
+provided the fields keep them. Floats keep them except when a NaN takes
+part (chapter 2.1). The compiler does not check a declared `eq` or `cmp`:
+one that breaks its contract makes `==`, `<`, `list.sort()` and `Map`
+lookups give unspecified results, without breaking memory safety.
 
 ```
 struct Version {
