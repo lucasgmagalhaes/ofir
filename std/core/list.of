@@ -281,6 +281,29 @@ pub struct List<T> {
     }
 
     /**
+     * An iterator that moves the elements out, first to last, and leaves
+     * the list empty: `for x in list.drain()` consumes the elements and
+     * keeps the buffer. The elements the loop does not reach are dropped
+     * with the iterator.
+     *
+     * @returns a `Drain` that borrows the list mutably
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * let names = ["ana".toOwned(), "bia".toOwned()]
+     * let kept: List<str> = []
+     * for name in names.drain() {
+     *     kept.push(name)
+     * }
+     * assert(names.isEmpty() && kept.len() == 2)
+     * ```
+     */
+    pub fn drain(mut self) Drain<T> {
+        return Drain{list: &mut self, index: 0}
+    }
+
+    /**
      * A view of part of the list: `l[lo..hi]`.
      *
      * @param lo the first position
@@ -583,6 +606,40 @@ pub ref struct ListIter<T> {
         const item = self.list.get(self.index)
         self.index += 1
         return item
+    }
+}
+
+/**
+ * An iterator that moves the elements out of a list (`List.drain`).
+ *
+ * @typeParam T the type of the elements
+ */
+pub ref struct Drain<T> {
+    list: &mut List<T>
+    index: int
+
+    /**
+     * The next element, moved out of the list.
+     *
+     * @returns `Some` with the element, or `None` after the last one
+     */
+    pub fn next(mut self) Option<T> {
+        if self.index >= self.list.len {
+            return Option.None
+        }
+        self.index += 1
+        return Option.Some(unsafe { *self.list.ptr.add(self.index - 1) })
+    }
+
+    // The elements not moved out are dropped, last first; the list is empty.
+    fn drop(mut self) {
+        for self.list.len > self.index {
+            self.list.len -= 1
+            unsafe {
+                dropInPlace(self.list.ptr.add(self.list.len))
+            }
+        }
+        self.list.len = 0
     }
 }
 
