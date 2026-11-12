@@ -1,0 +1,18 @@
+// requires: stage1
+// `for mut` changes the elements in place, so the list must be mutable
+// (spec 4.4).
+
+fn total(xs: &[int]) int {
+    let sum = 0
+    for mut x in xs {           // error[E0315]: this value cannot be modified: declare it with `let`
+        sum += x
+    }
+    return sum
+}
+
+fn main() {
+    const xs = [1, 2]
+    for mut x in xs {           // error[E0315]: this value cannot be modified: declare it with `let`
+        x += 1
+    }
+}
