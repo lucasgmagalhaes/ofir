@@ -34,6 +34,8 @@ pub copy struct f64 {
      * @returns the non-negative square root; NaN for a negative value
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((9.0 as f64).sqrt() == 3.0)
      * ```
      */
@@ -56,6 +58,8 @@ pub copy struct f64 {
      * @returns the largest integral value not greater than `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((-1.5 as f64).floor() == -2.0)
      * ```
      */
@@ -69,6 +73,8 @@ pub copy struct f64 {
      * @returns the smallest integral value not less than `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((1.2 as f64).ceil() == 2.0)
      * ```
      */
@@ -113,6 +119,8 @@ pub copy struct f64 {
      * @returns the value, or `ParseError` when the text is not a number
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(f64.parse("1.5").unwrapOr(0.0) == 1.5)
      * ```
      */
