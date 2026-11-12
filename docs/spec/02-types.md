@@ -63,10 +63,20 @@ methods (`a.wrappingAdd(b)`, `a.saturatingSub(b)`, `a.checkedMul(b)`, ...).
 Floats follow IEEE-754: division by zero yields an infinity, invalid
 operations yield NaN, nothing panics.
 
-- `==` and `<` use IEEE semantics, so `NaN != NaN`. For this reason floats
-  do **not** satisfy the `Eq`, `Ord` and `Hash` interfaces (chapter 9.9):
-  they cannot be `Map` keys, and sorting them uses
-  `list.sortBy((a, b) => a.totalCmp(b))`.
+- `==` and `<` use IEEE semantics: `NaN != NaN`, every comparison with a
+  NaN but `!=` is false, and `-0.0 == 0.0` while `-0.0 < 0.0` is false.
+  The two zeros still differ: `1.0 / -0.0` is `-inf` and `-0.0` prints
+  as `-0.0`.
+- Floats satisfy the `Eq` and `Ord` bounds with these semantics, which
+  are not an equivalence or a total order when a NaN takes part (chapter
+  9.9). `list.sort()` on floats still sorts every list without a NaN and
+  never fails on one: a list with a NaN ends as a permutation of its
+  elements, in an unspecified order. A total order that places NaN
+  (`totalCmp`) is planned.
+- Floats do not satisfy `Hash`: they cannot be `Map` keys, and a struct
+  or enum with a float field derives none of `Eq`, `Ord` and `Hash`.
+- `a.min(b)` and `a.max(b)` return the other operand when one is NaN;
+  of `-0.0` and `0.0` they may return either.
 - Textual form (interpolation, `Display`): the **shortest** decimal that
   converts back to the same value, always with a `.` or an exponent:
   `1.0`, `0.1`, `1e+21`, `-0.0`. Special values print as `NaN`, `inf` and
