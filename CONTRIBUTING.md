@@ -46,6 +46,10 @@ BREAKING CHANGE: function signatures no longer use ->.
   cases.
 - A change to the language starts with a change to [`docs/spec`](docs/spec);
   significant decisions get an [ADR](docs/adr/README.md).
+- An ADR is Proposed in its pull request and Accepted when it merges
+  (ADR 0038). A feature that changes state (planned, open, rejected) updates
+  the [feature state registry](docs/design/feature-states.md) in the same
+  pull request; there are no feature flags before 1.0.
 - New diagnostics get a code in the [registry](docs/errors/README.md) in the
   same commit.
 - Performance work follows [performance.md](docs/design/performance.md):

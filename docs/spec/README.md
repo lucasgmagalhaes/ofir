@@ -6,6 +6,8 @@ This specification describes the Ofir language. Sections marked
 **[planned]** are part of the design but are not required for the first
 (bootstrap) implementation. Questions marked **[open]** are not decided:
 no answer to them is guaranteed, and programs must not depend on one.
+Every marked feature, and every feature Ofir will not have, is listed in
+the [feature state registry](../design/feature-states.md).
 
 ## Chapters
 

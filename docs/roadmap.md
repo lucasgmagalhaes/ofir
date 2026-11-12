@@ -350,6 +350,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.22d | Compatibility policy: versions, breaks, deprecation, editions, upgrades (`docs/design/compatibility.md`, ADR 0037) | OFIR-04 | **done**: migration fixtures; editions are [planned] |
 | 6.22e | Equality, ordering and hashing contracts (spec 9.9), NaN and signed zero (2.1), custom and seeded map keys; a declared `eq` no longer gets a derived `Ord` | OFIR-05 | **done**: `Hasher`, `totalCmp` and `cmp` on primitives stay open |
 | 6.22f | Source encoding (UTF-8, E0008), bidirectional controls (E0009), ASCII tokens and identifiers, byte columns in diagnostics (spec 1.1) | OFIR-06 | **done**: Unicode identifiers are not planned |
+| 6.22g | Feature states: planned, open and rejected features with owners and gates (`docs/design/feature-states.md`, ADR 0038), ADR statuses checked by `tools/check_features.py`; no feature flags before 1.0 | OFIR-07 | **done**: 6.22 is complete |
 | 6.23 | Language completion and unresolved semantic choices | OFIR-08 to OFIR-21 | Existing phase 5 tasks linked; accepted semantics and rejection cases tested |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
@@ -394,16 +395,15 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue OFIR-07 (6.22) before assigning new release commitments.
-2. Continue the remaining phase 5 language tasks: the gaps 5.22i-5.22l
-   of the M5 check.
-3. Advance general-purpose std, tooling, packages and installation alongside
+1. Start 6.23 (OFIR-08 to OFIR-21), beginning with OFIR-08; the phase 5
+   gaps 5.22i-5.22l of the M5 check are done.
+2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
    [API ecosystem plan](design/api-ecosystem.md). Coordinate interfaces (5.3)
    and concurrency (6.1) before committing to shared stream/driver contracts
    or a concurrent server.
-4. Validate a CLI/filesystem utility, C consumer and concurrent program
+3. Validate a CLI/filesystem utility, C consumer and concurrent program
    (OFIR-76), plus each API milestone with the reference service (API-49).
    Select optional adapters and domain ecosystems by concrete demand and ownership.
 

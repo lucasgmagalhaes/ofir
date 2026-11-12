@@ -4,6 +4,11 @@ Each record documents one significant decision: its context, the decision,
 and its consequences. Records are immutable once accepted; a decision is
 changed by writing a new record that supersedes the old one.
 
+A record is Proposed while its pull request is open, Accepted when it
+merges, Rejected when the decision goes against it, and Superseded by
+NNNN when a later record replaces it (ADR 0038). The status in this table
+starts with the same word as the record's status line.
+
 | # | Decision | Status |
 |---|----------|--------|
 | [0001](0001-textual-llvm-ir-backend.md) | Generate textual LLVM IR and compile it with clang | Accepted |
@@ -43,13 +48,14 @@ changed by writing a new record that supersedes the old one.
 | [0035](0035-comptime.md) | Compile-time code checked once and expanded per instance | Accepted |
 | [0036](0036-testing-module.md) | Asserts and `Bencher` in `std.testing`, not in the prelude | Accepted |
 | [0037](0037-compatibility-policy.md) | No stability promise before 1.0; deprecate before removing | Accepted |
+| [0038](0038-feature-states.md) | Feature states in one registry; no feature flags before 1.0 | Accepted |
 
 ## Template
 
 ```markdown
 # NNNN. Title
 
-- Status: Proposed | Accepted | Superseded by NNNN
+- Status: Proposed | Accepted | Rejected | Superseded by NNNN
 - Date: YYYY-MM-DD
 
 ## Context

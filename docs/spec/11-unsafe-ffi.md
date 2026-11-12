@@ -118,7 +118,7 @@ The rest of this section states what each rule asks of unsafe code. A safe
 function that wraps unsafe code (`List`, `Box`, `str`, `std.sync`) must keep
 these rules for every input; its tests run under ASan, UBSan and valgrind
 (`make check-asan`, `make check-leaks`). Questions this section leaves
-**[open]** have no guaranteed answer: unsafe code must not depend on any
+open have no guaranteed answer: unsafe code must not depend on any
 answer to them.
 
 ### Validity
