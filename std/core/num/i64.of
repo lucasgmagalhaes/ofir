@@ -28,6 +28,8 @@ pub copy struct i64 {
      * @returns `self + other`, wrapped into the range of `i64`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i64.MAX.wrappingAdd(1) == i64.MIN)
      * ```
      */
@@ -43,6 +45,8 @@ pub copy struct i64 {
      * @returns `self - other`, wrapped into the range of `i64`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i64.MIN.wrappingSub(1) == i64.MAX)
      * ```
      */
@@ -68,6 +72,8 @@ pub copy struct i64 {
      * @panics on `i64.MIN`, whose opposite does not fit in `i64`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((-7 as i64).abs() == 7)
      * ```
      */
@@ -139,6 +145,8 @@ pub copy struct i64 {
      * the value does not fit in `i64`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i64.parse("42").unwrapOr(0) == 42)
      * ```
      */
@@ -178,6 +186,8 @@ pub copy struct i64 {
      * @returns `self` if it is not greater than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as i64).min(5) == 3)
      * ```
      */
@@ -192,6 +202,8 @@ pub copy struct i64 {
      * @returns `self` if it is not less than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as i64).max(5) == 5)
      * ```
      */
@@ -207,6 +219,8 @@ pub copy struct i64 {
      * @returns `lo` if `self < lo`, `hi` if `self > hi`, else `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((12 as i64).clamp(0, 10) == 10)
      * ```
      */
@@ -222,6 +236,8 @@ pub copy struct i64 {
      * @panics when the result does not fit in `i64`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((2 as i64).pow(5) == 32)
      * ```
      */

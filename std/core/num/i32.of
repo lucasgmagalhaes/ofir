@@ -28,6 +28,8 @@ pub copy struct i32 {
      * @returns `self + other`, wrapped into the range of `i32`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i32.MAX.wrappingAdd(1) == i32.MIN)
      * ```
      */
@@ -43,6 +45,8 @@ pub copy struct i32 {
      * @returns `self - other`, wrapped into the range of `i32`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i32.MIN.wrappingSub(1) == i32.MAX)
      * ```
      */
@@ -68,6 +72,8 @@ pub copy struct i32 {
      * @panics on `i32.MIN`, whose opposite does not fit in `i32`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((-7 as i32).abs() == 7)
      * ```
      */
@@ -139,6 +145,8 @@ pub copy struct i32 {
      * the value does not fit in `i32`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i32.parse("42").unwrapOr(0) == 42)
      * ```
      */
@@ -178,6 +186,8 @@ pub copy struct i32 {
      * @returns `self` if it is not greater than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as i32).min(5) == 3)
      * ```
      */
@@ -192,6 +202,8 @@ pub copy struct i32 {
      * @returns `self` if it is not less than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as i32).max(5) == 5)
      * ```
      */
@@ -207,6 +219,8 @@ pub copy struct i32 {
      * @returns `lo` if `self < lo`, `hi` if `self > hi`, else `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((12 as i32).clamp(0, 10) == 10)
      * ```
      */
@@ -222,6 +236,8 @@ pub copy struct i32 {
      * @panics when the result does not fit in `i32`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((2 as i32).pow(5) == 32)
      * ```
      */
