@@ -1,7 +1,8 @@
 /**
  * @module
- * Union types (spec 17): each union is an enum of its own, with one
- * single-field variant per member in canonical order (stage 1 only).
+ * Union types (spec 17): each union is an instance of a generic enum with
+ * one single-field variant per type argument, its members in canonical
+ * order (stage 1 only).
  */
 
 import base.span.Span
