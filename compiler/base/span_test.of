@@ -1,5 +1,7 @@
 // The tests of `base.span` (spec 12.2).
 
+import std.testing.assert
+
 @test
 fn spansJoinAndMeasure() {
     const a = Span{file: FileId(0), start: 4, end: 9}

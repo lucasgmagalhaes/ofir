@@ -1,5 +1,7 @@
 // The tests of `base.intern` (spec 12.2).
 
+import std.testing.assert
+
 @test
 fn internGivesOneSymbolPerName() {
     let names = Interner.new()
