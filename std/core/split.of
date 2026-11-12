@@ -77,7 +77,8 @@ pub struct StrSplit {
             return Option.Some(self.cut(self.rest.len()))
         }
         const part = self.cut(i)
-        self.rest = self.rest.sliceFrom(self.sep.len())
+        // A match of UTF-8 text in UTF-8 text starts and ends on boundaries.
+        self.rest = unsafe { self.rest.sliceUnchecked(self.sep.len(), self.rest.len()) }
         self.done = self.lines && self.rest.len() == 0
         return Option.Some(part)
     }
@@ -88,8 +89,9 @@ pub struct StrSplit {
         if self.lines && hi > 0 && self.rest[hi - 1] == b'\r' {
             hi -= 1
         }
-        const part = self.rest.slice(0, hi)
-        self.rest = self.rest.sliceFrom(n)
+        // `n` is the end of the rest or the start of a match, and a `\r` is one byte.
+        const part = unsafe { self.rest.sliceUnchecked(0, hi) }
+        self.rest = unsafe { self.rest.sliceUnchecked(n, self.rest.len()) }
         return part
     }
 
