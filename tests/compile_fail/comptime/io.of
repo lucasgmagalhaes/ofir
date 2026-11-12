@@ -15,10 +15,19 @@ fn absolute() i32 {
     return unsafe { abs(-3) }
 }
 
+// A seeded map reads a random seed.
+fn shuffled() int {
+    let m = Map<str, int>.seeded()
+    m.insert("a", 1)
+    return m.len()
+}
+
 fn main() {
     const a = comptime noisy()   // error[E0815]: compile-time code cannot print: it does no I/O (spec 15.5)
     const b = comptime absolute()   // error[E0815]: compile-time code cannot call the extern function `abs`
     const c = 3
     const d = comptime c + 1   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
-    println("{a} {b} {d}")
+    const e = comptime shuffled()   // error[E0815]: compile-time code cannot call the extern function `ofir_random_u64`
+    // note: `seeded` was called from `shuffled` at io.of:20:5
+    println("{a} {b} {d} {e}")
 }
