@@ -15,4 +15,6 @@ fn main() {
     println(s)
     const point = (1, 2)
     println("{point.0:3}{point.1:3}")
+    const word = "né日"   // 3 characters, 6 bytes: the width counts characters
+    println("[{word:5}] [{word:<5}] [{word:2}]")
 }

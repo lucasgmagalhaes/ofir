@@ -1,7 +1,8 @@
 /**
  * @module
  * The iterators of `str`: `StrSplit` for `split`, `splitWhitespace` and
- * `lines`, `StrBytes` for `bytes` (docs/std/strings.md).
+ * `lines`, `StrBytes` for `bytes`, `StrChars` for `chars`
+ * (docs/std/strings.md).
  */
 
 /**
@@ -138,6 +139,65 @@ pub struct StrBytes {
         }
         self.at += 1
         return Option.Some(self.text[self.at - 1])
+    }
+}
+
+/**
+ * The iterator of `chars`: each `next()` returns the following Unicode
+ * scalar value, decoded from the UTF-8 bytes.
+ *
+ * @example
+ * ```ofir
+ * let count = 0
+ * for c in "café".chars() {
+ *     count += 1   // 4 characters, 5 bytes
+ * }
+ * ```
+ */
+pub struct StrChars {
+    text: str
+    at: int
+
+    /**
+     * The characters of `text`: `text.chars()`.
+     *
+     * @param text the string
+     * @returns the iterator
+     */
+    pub fn of(text: str) StrChars {
+        return StrChars{text: text.sliceFrom(0), at: 0}
+    }
+
+    /**
+     * The next character. A `str` is always valid UTF-8, so the lead byte
+     * gives the length of the sequence.
+     *
+     * @returns `Some(scalar)`, or `None` at the end
+     */
+    pub fn next(mut self) Option<u32> {
+        if self.at >= self.text.len() {
+            return Option.None
+        }
+        const lead = self.text[self.at] as u32
+        let value = lead
+        let extra = 0
+        if lead >= 0xF0 {
+            value = lead & 0x07
+            extra = 3
+        } else if lead >= 0xE0 {
+            value = lead & 0x0F
+            extra = 2
+        } else if lead >= 0xC0 {
+            value = lead & 0x1F
+            extra = 1
+        }
+        self.at += 1
+        for extra > 0 {
+            value = (value << 6) | (self.text[self.at] as u32 & 0x3F)
+            self.at += 1
+            extra -= 1
+        }
+        return Option.Some(value)
     }
 }
 

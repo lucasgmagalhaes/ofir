@@ -1,0 +1,6 @@
+// panic: byte range 1..6 is not on character boundaries
+fn main() {
+    const s = "日本"
+    const start = 1
+    println(s[start..])
+}

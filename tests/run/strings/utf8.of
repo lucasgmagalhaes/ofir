@@ -1,0 +1,34 @@
+// UTF-8 boundaries (spec 1.7, 2.6): `len` counts bytes, `chars` decodes
+// scalar values, and find and slices work on byte offsets at boundaries.
+
+fn main() {
+    const s = "café ñ 日本 🙂"
+    let count = 0
+    let codes = ""
+    for c in s.chars() {
+        count += 1
+        if c >= 0x80 {
+            codes.push(" {c}")
+        }
+    }
+    println("{s.len()} bytes, {count} chars")
+    println("codes:{codes}")
+    const at = s.find("日") ?? -1
+    println("find {at}: {s[at..at + 6]}|{s[0..5]}|{s[at + 7..]}")
+    let parts = 0
+    for word in "a→b→c".split("→") {
+        parts += 1
+        print("{word}.")
+    }
+    println(" {parts}")
+    let built = ""
+    for c in s.chars() {
+        built.pushChar(c)
+    }
+    println("{built == s} {"é".toUpper()} {"ÉA".toLower()}")
+    let count2 = 0
+    for c in "".chars() {
+        count2 += c as int
+    }
+    println("{count2} {"\u{e9}" == "é"} {"\u{1F642}".len()}")
+}

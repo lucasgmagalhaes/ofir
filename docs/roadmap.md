@@ -356,6 +356,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.23b | Dynamic dispatch: `mut dyn` parameters, `dyn` values and boxes passed to `dyn` parameters, `Box<dyn I>` conversions in generic arguments, the vtable layout (spec 9.7); type tests on generic types and ownership through `Box<dyn Any>` tested | OFIR-09 | **done**: upcasts and `dyn` of generic interfaces are planned |
 | 6.23c | Closures and function values: `x.f()` calls a fn-typed field (spec 10.2); escape of borrowed `fn` values (E0702), conversion to `move fn`, drops of `move fn` in fields, lists and options tested; `move fn` printed in types | OFIR-10 | **done**: stage 0 keeps no field calls and no E0702 |
 | 6.23d | Generic std and iteration: `for mut` binds elements in place (both stages), borrow contracts of spec 4.4 tested (E0700, E0701, E0703, E0315), `List.drain()` for consuming loops, no lazy adapter chains (ADR 0040) | OFIR-11 | **done**: stage 0 checks no loop borrows; references stored in a container are not yet tracked by the borrow checker |
+| 6.23e | Named/default arguments and string forms: evaluation order of written arguments and defaults, multi-byte format widths and UTF-8 boundaries tested; `str.chars()` decodes scalar values (both stages) | OFIR-12 | **done**: named and default arguments, raw and multi-line strings and format specifiers stay stage 1 only |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
@@ -399,8 +400,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.23 with OFIR-12 (named/default arguments and string
-   forms); OFIR-08 to OFIR-11 are done.
+1. Continue 6.23 with OFIR-13 (attributes and conditional compilation);
+   OFIR-08 to OFIR-12 are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

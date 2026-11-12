@@ -1,0 +1,39 @@
+// requires: stage1
+// Evaluation order at calls (spec 3.3): the written arguments in the order
+// written, named ones included, then the defaults of the omitted
+// parameters, in parameter order, at each call.
+
+struct Tag {
+    name: str
+
+    fn fresh() Tag {
+        println("  default tag")
+        return Tag{name: "fresh"}
+    }
+
+    fn other() Tag {
+        println("  default other")
+        return Tag{name: "other"}
+    }
+}
+
+fn trace(label: str, value: int) int {
+    println("  arg {label}")
+    return value
+}
+
+fn make(a: int, b: int = 2, tag: Tag = Tag.fresh(), c: int = 3, last: Tag = Tag.other()) str {
+    return "{a} {b} {tag.name} {c} {last.name}"
+}
+
+fn main() {
+    println("positional:")
+    println(make(trace("a", 1), trace("b", 20)))
+    println("named, out of order:")
+    println(make(trace("a", 1), c: trace("c", 30), b: trace("b", 20)))
+    println("a named default given:")
+    println(make(c: trace("c", 30), a: trace("a", 1), tag: Tag{name: "given"}))
+    println("twice:")
+    println(make(1))
+    println(make(2))
+}

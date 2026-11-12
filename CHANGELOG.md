@@ -8,6 +8,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `str.chars()`: an iterator over the Unicode scalar values (`u32`) of a
+  string, decoded from its UTF-8 bytes.
 - `List.drain()` (spec 4.4, ADR 0040): an iterator that moves the
   elements out of a list, first to last, and leaves it empty; the
   elements a `break` leaves behind are dropped with it. Std has no lazy
