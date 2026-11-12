@@ -58,7 +58,12 @@ static Next link_program(const Options *opts, const char *ll, const char *exe) {
                     "--target=x86_64-w64-windows-gnu", "-Wl,--stack,8388608",
 #endif
                     opts->release ? "-O2" : "-O0", "-Wno-override-module", (char *)ll, runtime,
-                    "-lm", "-o", (char *)exe, NULL};
+                    "-lm",
+#ifdef _WIN32
+                    // MinGW keeps the pthread functions in winpthreads.
+                    "-lpthread",
+#endif
+                    "-o", (char *)exe, NULL};
     if (platform_spawn_wait(argv) != 0) {
         fprintf(stderr, "error[E0902]: clang failed to compile the generated code\n");
         return STOP_FAIL;
