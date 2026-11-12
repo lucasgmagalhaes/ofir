@@ -511,6 +511,9 @@ pub struct Checker {
     /** The values widened to a union (spec 17.3), by module: `NodeId` to the type before
      * the widening. */
     pub unionCoercions: List<Map<int, int>>
+    /** The calls `x.f(...)` of a fn-typed field `f` (spec 10.2), by module: the callee's
+     * `NodeId` to the field's index. */
+    pub fieldCalls: List<Map<int, int>>
     /** What the move analysis found, by module and `NodeId`: `moves.MOVES`, `moves.CONSUMED`. */
     pub moveFlags: List<Map<int, int>>
     /** The std functions checked with the root whose move analysis waits for the lowering. */
@@ -1050,6 +1053,7 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
     let arrayCoercions: List<Map<int, int>> = []
     let dynCoercions: List<Map<int, int>> = []
     let unionCoercions: List<Map<int, int>> = []
+    let fieldCalls: List<Map<int, int>> = []
     let moveFlags: List<Map<int, int>> = []
     let capturesMut: List<Map<int, List<int>>> = []
     for m in 0..p.modules.len() {
@@ -1065,6 +1069,7 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
         arrayCoercions.push(Map.new())
         dynCoercions.push(Map.new())
         unionCoercions.push(Map.new())
+        fieldCalls.push(Map.new())
         moveFlags.push(Map.new())
         capturesMut.push(Map.new())
     }
@@ -1079,7 +1084,8 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
     return Checker{r, types: TypeTable.new(), info, itemDefs, nodeTypes, localTypesOf, derefs,
                    adjusted, constUses: Map.new(),
                    members, callTypeArgs, argSlots, defaultsChecked: Map.new(), sliceCoercions,
-                   arrayCoercions, dynCoercions, unionCoercions, moveFlags, fnMoves: Map.new(),
+                   arrayCoercions, dynCoercions, unionCoercions, fieldCalls, moveFlags,
+                   fnMoves: Map.new(),
                    bodyChecked: Map.new(), movesPending: Map.new(),
                    generics: noGenerics(), locals: [], localTypes: [], ret: UNIT,
                    selfType: ERROR, loops: [], loopLabels: [], unsafeDepth: 0, comptimeDepth: 0,
