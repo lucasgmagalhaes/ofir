@@ -1061,7 +1061,7 @@ fn castFails(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue
     const a = operand(g, c, p, body, &rv.a)
     const from = rv.a.ty
     const to = rv.to
-    if c.types.kind(from) == TyKind.Float {   // the value must be in [min, max + 1)
+    if c.types.kind(from) == TyKind.Float {   // the value must be in (min - 1, max + 1)
         const t = intBits(c.types.get(to).data)
         const signed = c.types.get(to).data <= 3
         let power = 1.0
@@ -1070,10 +1070,18 @@ fn castFails(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue
             power = power * 2.0
         }
         const min = if signed { 0.0 - power } else { 0.0 }
-        const lo = floatBound(min)
+        // When min - 1 is not exact in the source type, no value lies between it and min.
+        const below = min - 1.0
+        const exact = if c.types.get(from).data == 32 {
+            (below as f32) as float == below
+        } else {
+            below != min
+        }
+        const lo = floatBound(if exact { below } else { min })
         const hi = floatBound(power)
+        const op = if exact { "ogt" } else { "oge" }
         const ge = nextTemp(g)
-        g.out.push("  {ge} = fcmp oge {a.ty} {a.text}, {lo}\n")
+        g.out.push("  {ge} = fcmp {op} {a.ty} {a.text}, {lo}\n")
         const lt = nextTemp(g)
         g.out.push("  {lt} = fcmp olt {a.ty} {a.text}, {hi}\n")
         const ok = nextTemp(g)

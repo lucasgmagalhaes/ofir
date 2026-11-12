@@ -1,0 +1,28 @@
+// Boundary cases of literals and `as` (spec 1.7, 2.1): the extreme values
+// of each width, the radix forms, and conversions at the edge of a range.
+fn main() {
+    const i8min: i8 = -128
+    const i8max: i8 = 127
+    const u8max: u8 = 255
+    const imin: int = -9223372036854775808
+    const imax: int = 9223372036854775807
+    const umax: u64 = 18446744073709551615
+    println("{i8min} {i8max} {u8max}")
+    println("{imin} {imax} {umax}")
+    println("{0xff} {0xFF_FF} {0o755} {0b1010_0101} {1_000_000}")
+    const top: u8 = 0xff
+    println("{top} {0x7fff_ffff_ffff_ffff}")
+    // Integer to integer at the exact edges of the target.
+    println("{i8max as u8} {u8max as i16} {(-128) as i8} {imax as u64}")
+    // Float to integer truncates toward zero, so values just past an edge fit.
+    println("{127.9 as i8} {-128.9 as i8} {255.99 as u8} {-0.9 as u8}")
+    const small: f32 = -128.9
+    const wide: f32 = -32768.5
+    println("{small as i8} {wide as i16} {small as i64}")
+    // Integer to float rounds to the nearest representable value.
+    const exact: int = 9007199254740992
+    const odd: int = 9007199254740993
+    println("{exact as float == odd as float} {umax as float}")
+    // Float literals.
+    println("{1e9} {2.5e-3} {0.1 + 0.2 == 0.3} {-0.0 == 0.0}")
+}

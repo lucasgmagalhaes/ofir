@@ -30,7 +30,9 @@ const c = 3.9 as int      // 3 (truncates toward zero)
 ```
 
 `as` between integer types panics if the value does not fit the target
-type. Float-to-integer `as` panics on NaN or out-of-range values.
+type. Float-to-integer `as` truncates toward zero and panics on NaN or
+when the truncated value does not fit, so `-128.9 as i8` is `-128` and
+`-129.0 as i8` panics.
 Integer-to-float `as` rounds to the nearest representable value.
 
 When a lossy conversion is intended, use the explicit conversion methods,

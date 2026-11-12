@@ -1,0 +1,6 @@
+// panic: value out of range for the target type of `as`
+// -129.0 truncates to -129, one below the range of i8.
+fn main() {
+    const x = -129.0
+    println("{x as i8}")
+}
