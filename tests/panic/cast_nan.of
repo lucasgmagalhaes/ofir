@@ -1,0 +1,5 @@
+// panic: value out of range for the target type of `as`
+fn main() {
+    const n = float.NAN
+    println("{n as int}")
+}
