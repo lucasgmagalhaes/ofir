@@ -166,3 +166,25 @@ int32_t ofir_str_cmp(const OfirStr *a, const OfirStr *b) {
     }
     return a->len < b->len ? -1 : a->len > b->len;
 }
+
+int64_t ofir_find_bytes(const uint8_t *text, int64_t len, const uint8_t *part, int64_t n) {
+    if (n == 0) {
+        return 0;
+    }
+    if (n > len) {
+        return -1;
+    }
+    const uint8_t *at = text;
+    const uint8_t *last = text + (len - n);   // the last place a match can start
+    while (at <= last) {
+        at = memchr(at, part[0], (size_t)(last - at + 1));
+        if (!at) {
+            return -1;
+        }
+        if (n == 1 || memcmp(at + 1, part + 1, (size_t)(n - 1)) == 0) {
+            return at - text;
+        }
+        at++;
+    }
+    return -1;
+}

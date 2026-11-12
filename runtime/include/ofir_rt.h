@@ -92,6 +92,8 @@ void ofir_str_drop(OfirStr *s);
 void ofir_str_concat(OfirStr *out, const OfirStr *a, const OfirStr *b);
 bool ofir_str_eq(const OfirStr *a, const OfirStr *b);
 int32_t ofir_str_cmp(const OfirStr *a, const OfirStr *b);   // <0, 0 or >0, bytewise
+// The offset of the first `n` bytes of `part` in the `len` bytes of `text`, or -1.
+int64_t ofir_find_bytes(const uint8_t *text, int64_t len, const uint8_t *part, int64_t n);
 
 
 // ---------------------------------------------------------------------------
