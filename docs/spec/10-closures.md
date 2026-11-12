@@ -77,6 +77,24 @@ fn onClick(b: mut Button, handler: move fn()) {      // keeps `handler`
 Storing or returning a `fn(A) R` is E0702, checked by the self-hosted
 compiler (stage 0 accepts it).
 
+A function value in a field is called with the method call syntax:
+`x.f(args)` calls the value of field `f` when the type of `x` has no method
+`f`. A method of the same name takes precedence, and parentheses do not
+change that: `(x.f)(args)` is the same call. A call through a field reads
+the field; it does not move the function value out of `x`. Stage 0 does not
+accept such calls.
+
+```ofir
+struct Button {
+    label: str
+    onClick: move fn() int
+}
+
+fn press(b: &Button) int {
+    return b.onClick()      // calls the field: `Button` has no method `onClick`
+}
+```
+
 ## 10.3 Captures
 
 A non-`move` closure captures each variable it uses by reference, chosen
