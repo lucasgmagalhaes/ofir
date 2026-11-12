@@ -568,9 +568,9 @@ pub struct Checker {
     pub inferNames: List<Symbol>
     /** Whether a pattern of a conditional type is being resolved. */
     pub inferring: bool
-    /** The enum of each union type (spec 17.6), by the tuple type of its sorted members. */
+    /** The generic enum of the union types of each number of members (spec 17.6). */
     pub unions: Map<int, int>
-    /** The members of each union's enum, as a tuple type, by its `DefId`. */
+    /** The number of members of each union's enum, by its `DefId`. */
     pub unionDefs: Map<int, int>
     /** The `comptime for` loops and the members of their variables (spec 15.3), by
      * `module * 2^32 + NodeId`. */
@@ -833,6 +833,15 @@ pub struct Checker {
             TyKind.Adt | TyKind.Dyn => {
                 if t.kind == TyKind.Dyn {
                     out.push("dyn ")
+                }
+                if t.kind == TyKind.Adt && self.isUnion(t.data) {   // `A | B`
+                    for i in 0..t.args.len() {
+                        if i > 0 {
+                            out.push(" | ")
+                        }
+                        self.appendType(out, t.args[i], qualified)
+                    }
+                    return
                 }
                 const module = self.r.defs[t.data].module
                 if qualified && module != 0 {
