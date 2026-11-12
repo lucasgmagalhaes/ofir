@@ -132,7 +132,7 @@ specification; the other classes are known and accepted.
 | 11.3 Calling C | full | full | `tests/run/ffi/libc.of` `tests/run/ffi/cstring.of` `tests/panic/cstring_nul.of` | - |
 | 11.4 Exporting functions to C | none | full | `tests/run/ffi/export_link.of` `tests/codegen/export.of` `tests/compile_fail/attributes/export_link.of` | subset: `@export` |
 | 11.5 Mutable globals | partial | partial | `tests/run/globals/app` `tests/compile_fail/types/globals.of` | subset: stage 0 has the declaration but no accesses; limit: globals of types other than numbers and `bool` |
-| 11.6 Undefined behavior | n/a | n/a | `tests/panic` | - |
+| 11.6 Undefined behavior | n/a | n/a | `tests/panic` `tools/check_asan.py` `tools/check_leaks.py` | - |
 | 12.1 Attributes | partial | full | `tests/compile_fail/attributes` `tests/run/attributes` `tests/codegen/hints.of` | subset: stage 0 implements `@inline`, `@cold`, `@test` and `@lang` only |
 | 12.2 Tests | partial | full | `tests/ofir_test` `tests/run/testing/assert_eq.of` `tests/compile_fail/types/tests.of` | subset: `Result` tests, `assertEq`, `assertNe`, doc tests and concurrent runs |
 | 12.3 Benchmarks | none | full | `tests/ofir_bench` `tests/compile_fail/types/benches.of` | subset: `ofir bench` |
