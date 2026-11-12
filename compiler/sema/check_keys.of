@@ -9,6 +9,7 @@ import base.span.Span
 import sema.check.Checker
 import sema.check.Generics
 import sema.check_mapped.mappedIndexType
+import sema.check_mapped.mappedKeys
 import sema.check_methods.checkVisible
 import sema.check_types.resolveType
 import sema.check_union.unionType
@@ -41,9 +42,10 @@ pub fn keyofType(c: mut Checker, p: Program, inner: &TypeExpr, span: Span) int {
     if ty == ERROR {
         return ERROR
     }
-    if kind == TyKind.Param {
+    if kind == TyKind.Param || kind == TyKind.Mapped {
         useIndexNames(c)
-        return c.types.intern(TyKind.KeyOf, c.keyModule(), ty, [])
+        const keys = c.types.intern(TyKind.KeyOf, c.keyModule(), ty, [])
+        return mappedKeys(c, keys)   // `keyof Partial<T>` is `keyof T`
     }
     if kind == TyKind.Tuple {
         return indexKeys(c, c.types.get(ty).args.len())
