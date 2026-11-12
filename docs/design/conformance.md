@@ -115,8 +115,8 @@ specification; the other classes are known and accepted.
 |---------|---------|---------|----------|------|
 | 9.1 Declaring interfaces | none | full | `tests/run/interfaces` `tests/compile_fail/types/interfaces.of` | subset: interfaces |
 | 9.2 Satisfying interfaces | none | full | `tests/run/interfaces/dispatch.of` `tests/compile_fail/types/interfaces.of` | subset: interfaces |
-| 9.3 Default methods | none | full | `tests/run/interfaces/defaults.of` | subset: interfaces |
-| 9.4 Embedding | none | partial | `tests/run/interfaces` | subset: interfaces; limit: embedding a generic interface |
+| 9.3 Default methods | none | full | `tests/run/interfaces/defaults.of` `tests/run/interfaces/embedding.of` `tests/compile_fail/types/interface_conflicts.of` | subset: interfaces |
+| 9.4 Embedding | none | partial | `tests/run/interfaces/embedding.of` `tests/compile_fail/types/interface_conflicts.of` | subset: interfaces; limit: embedding a generic interface |
 | 9.5 Generic interfaces | none | partial | `tests/run/interfaces/generic.of` `tests/compile_fail/types/generic_interfaces.of` | subset: interfaces; limit: `dyn` of a generic interface |
 | 9.6 Static dispatch | none | full | `tests/run/interfaces/params.of` `tests/compile_fail/types/interface_params.of` | subset: interfaces |
 | 9.7 Dynamic dispatch with `dyn` | none | full | `tests/run/dyn` `tests/compile_fail/types/dyn.of` | subset: `dyn` |
