@@ -1,0 +1,31 @@
+// requires: stage1
+// Migration fixture (docs/design/compatibility.md): a renamed function keeps
+// its old name as a deprecated shim that forwards to the new one, so code
+// that has not migrated yet still builds and gives the same result. Here the
+// old caller opts out of W0006 with `@allow(deprecated)` while it migrates.
+
+@deprecated("use `parseDigits`")
+fn atoi(s: str) int {
+    return parseDigits(s)
+}
+
+fn parseDigits(s: str) int {
+    let n = 0
+    for i in 0..s.len() {
+        n = n * 10 + (s[i] - 48) as int
+    }
+    return n
+}
+
+@allow(deprecated)
+fn notMigrated() int {
+    return atoi("1234")
+}
+
+fn migrated() int {
+    return parseDigits("1234")
+}
+
+fn main() {
+    println("{notMigrated()} {migrated()} {notMigrated() == migrated()}")
+}
