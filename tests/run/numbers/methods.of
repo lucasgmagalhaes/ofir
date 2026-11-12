@@ -1,3 +1,5 @@
+import std.testing.assert
+
 fn main() {
     const a: u8 = 250
     println("{a.wrappingAdd(10)} {a.wrappingSub(255)} {a.wrappingMul(2)}")
