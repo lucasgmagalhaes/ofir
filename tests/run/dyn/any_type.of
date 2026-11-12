@@ -1,0 +1,30 @@
+// requires: stage1
+// The builtin type `any` (spec 9.8, ADR 0039): `v: any` borrows a value,
+// `&any` and `Box<any>` hold one, and `typeName` names its type.
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn describe(v: any) str {
+    return match v {
+        n: int => "int {n}"
+        p: Point => "point {p.x},{p.y}"
+        _ => "other {v.typeName()}"
+    }
+}
+
+fn main() {
+    const one: &any = &1
+    println(describe(one))
+    println(describe(&Point{x: 2, y: 3}))
+    const boxed: Box<any> = Box.new("hi")
+    println(describe(boxed))
+    let all: List<Box<any>> = []
+    all.push(Box.new(7))
+    all.push(Box.new(true))
+    for b in all {
+        println(describe(b))
+    }
+}

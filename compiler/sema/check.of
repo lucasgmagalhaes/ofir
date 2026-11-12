@@ -837,6 +837,12 @@ pub struct Checker {
             }
             TyKind.Adt | TyKind.Dyn => {
                 if t.kind == TyKind.Dyn {
+                    const d = &self.r.defs[t.data]
+                    const inStd = self.r.moduleNames[d.module] == "std.core.any"
+                    if inStd && self.text(d.name) == "any" {
+                        out.push("any")   // spec 9.8
+                        return
+                    }
                     out.push("dyn ")
                 }
                 if t.kind == TyKind.Adt && self.isUnion(t.data) {   // `A | B`

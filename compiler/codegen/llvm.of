@@ -1576,7 +1576,7 @@ fn noDrop(g: mut Gen) {
     }
 }
 
-// `typeName` of `Any` (spec 9.8), which the compiler provides: the name of
+// `typeName` of `any` (spec 9.8), which the compiler provides: the name of
 // the concrete type, as messages write it.
 fn typeNameThunk(g: mut Gen, c: mut Checker, p: Program, ty: int, name: str) {
     const text = c.typeName(ty)

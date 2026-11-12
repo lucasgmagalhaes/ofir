@@ -622,7 +622,7 @@ fn sameMethod(c: mut Checker, p: Program, a: int, b: int) bool {
 }
 
 /**
- * Whether an interface is `Any` (spec 9.8), whose `typeName` the compiler
+ * Whether an interface is `any` (spec 9.8), whose `typeName` the compiler
  * provides for every type.
  *
  * @param c the checker
@@ -631,11 +631,11 @@ fn sameMethod(c: mut Checker, p: Program, a: int, b: int) bool {
  */
 pub fn isAny(c: Checker, iface: int) bool {
     const d = c.def(iface)
-    return c.text(d.name) == "Any" && c.r.moduleNames[d.module] == "std.core.any"
+    return c.text(d.name) == "any" && c.r.moduleNames[d.module] == "std.core.any"
 }
 
 /**
- * Whether a method is `typeName` of `Any`, which the compiler provides for
+ * Whether a method is `typeName` of `any`, which the compiler provides for
  * every type (spec 9.8).
  *
  * @param c the checker

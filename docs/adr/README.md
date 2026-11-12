@@ -34,7 +34,7 @@ starts with the same word as the record's status line.
 | [0021](0021-type-operators.md) | Type operators: `keyof`, indexed access, mapped and conditional types | Accepted |
 | [0022](0022-union-types.md) | Union types as anonymous tagged enums | Accepted |
 | [0023](0023-arrow-closures.md) | Closures are written as arrow functions | Accepted |
-| [0024](0024-any.md) | `Any`: values of any type through `dyn Any` | Accepted |
+| [0024](0024-any.md) | `Any`: values of any type through `dyn Any` | Accepted (spelling superseded by 0039) |
 | [0025](0025-name-ofir.md) | The language is named Ofir | Accepted |
 | [0026](0026-manifest-jsonc.md) | The manifest is `ofir.json`, JSON with comments | Accepted |
 | [0027](0027-lightweight-tasks.md) | Concurrency through lightweight tasks, without `async`/`await` | Accepted |
@@ -49,6 +49,7 @@ starts with the same word as the record's status line.
 | [0036](0036-testing-module.md) | Asserts and `Bencher` in `std.testing`, not in the prelude | Accepted |
 | [0037](0037-compatibility-policy.md) | No stability promise before 1.0; deprecate before removing | Accepted |
 | [0038](0038-feature-states.md) | Feature states in one registry; no feature flags before 1.0 | Accepted |
+| [0039](0039-any-type.md) | `any`: a builtin `dyn` type for values of any type | Accepted |
 
 ## Template
 

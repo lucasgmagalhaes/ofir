@@ -45,9 +45,9 @@ fn notDyn(x: int) int {
     }
 }
 
-fn stored(v: &dyn Any) int {
+fn stored(v: &any) int {
     return match v {
-        r: &int => *r           // error[E0354]: the type test can never match: &int does not satisfy Any: it holds a reference
+        r: &int => *r           // error[E0354]: the type test can never match: &int does not satisfy any: it holds a reference
         _ => 0
     }
 }
