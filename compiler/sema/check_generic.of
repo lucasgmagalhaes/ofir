@@ -40,6 +40,7 @@ import sema.check_mapped.substType
 import sema.check_methods.isCloneable
 import sema.check_types.resolveType
 import sema.check_union.coerceToUnion
+import sema.check_union.unionMembers
 import sema.derive.adtSatisfies
 import sema.derive.debuggable
 import sema.expr_check.checkExpr
@@ -213,6 +214,10 @@ pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
         inferMapped(c, inf, &pt, at.data)
         return
     }
+    if pt.kind == TyKind.Adt && c.isUnion(pt.data) && unionMembers(c, actual).len() == 0 {
+        inferMember(c, inf, &pt, actual)
+        return
+    }
     if at.kind != pt.kind || at.args.len() != pt.args.len() ||
        (pt.kind == TyKind.Adt && at.data != pt.data) {
         return   // a mismatch, reported when the argument is checked
@@ -222,6 +227,19 @@ pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
     }
     for i in 0..pt.args.len() {
         inferFrom(c, inf, pt.args[i], at.args[i])
+    }
+}
+
+// `Option<T> | int` given one of its members: from the member of the same
+// form.
+fn inferMember(c: mut Checker, inf: mut Infer, pt: &Ty, actual: int) {
+    const at = c.types.get(actual).clone()
+    for i in 0..pt.args.len() {
+        const member = c.types.get(pt.args[i]).clone()
+        if member.kind == at.kind && (member.kind != TyKind.Adt || member.data == at.data) {
+            inferFrom(c, inf, pt.args[i], actual)
+            return
+        }
     }
 }
 
