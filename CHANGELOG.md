@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `List.drain()` (spec 4.4, ADR 0040): an iterator that moves the
+  elements out of a list, first to last, and leaves it empty; the
+  elements a `break` leaves behind are dropped with it. Std has no lazy
+  adapter chains.
 - Calls of fn-typed fields in stage 1 (spec 10.2): `button.onClick()`
   calls the `move fn` in field `onClick` when the type has no method of
   that name. Types print `move fn(...)` for owned function values, and an
@@ -159,6 +163,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `for mut item in list` binds `item` to the element in place, in both
+  stages: changes reach the list or the map, and assigning a field of an
+  element that owns memory no longer frees it twice. Stage 1 rejects
+  `for mut` over an immutable list (E0315).
 - The parts of a consumed value that a pattern does not bind (a `_`, a
   field left out by `..`, the value matched in the `else` branch of an
   `if const` or of a `const ... else`) are dropped instead of leaked, also
