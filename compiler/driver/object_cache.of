@@ -6,14 +6,10 @@
  */
 
 import driver.git.ofirHome
+import driver.sha256.Sha256
 import driver.sha256.sha256Hex
 import std.fs
 import std.os
-
-extern "C" {
-    fn ofir_sha256_parts(first: *u8, firstLen: int, second: *u8, secondLen: int,
-                         digest: *mut u8)
-}
 
 /**
  * What every key holds besides the unit's text: the clang flags, the path
@@ -56,18 +52,11 @@ pub fn objectsDir() str {
  * @returns the path of the object
  */
 pub fn objectPath(salt: str, text: str) str {
-    const prefix = "{salt}\n"
-    let digest: List<u8> = [0; 32]
-    unsafe {
-        ofir_sha256_parts(prefix.asPtr(), prefix.len(), text.asPtr(), text.len(),
-                          &mut digest[0] as *mut u8)
-    }
-    const digits = "0123456789abcdef"
-    let hash = str.new()
-    for byte in digest {
-        hash.push(digits.slice((byte >> 4) as int, ((byte >> 4) as int) + 1))
-        hash.push(digits.slice((byte & 15) as int, ((byte & 15) as int) + 1))
-    }
+    let h = Sha256.new()
+    h.updateText(salt)
+    h.updateText("\n")
+    h.updateText(text)   // hashed in place: the module is not copied
+    const hash = h.finish()
     return "{objectsDir()}/{hash.slice(0, 2)}/{hash}.o"
 }
 
