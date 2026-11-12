@@ -53,7 +53,7 @@ def executable(path: str) -> str:
 
 
 def comparable(path: Path) -> bool:
-    return not ONE_STAGE.search(path.read_text())
+    return not ONE_STAGE.search(path.read_text(errors="replace"))
 
 
 def run(argv: list) -> tuple:
@@ -116,7 +116,7 @@ def main() -> int:
         rng = random.Random(args.seed)
         for i in range(args.fuzz):
             case = Path(tmp) / f"fuzz{i}.of"
-            case.write_text(mutate(rng, rng.choice(files).read_text()))
+            case.write_text(mutate(rng, rng.choice(files).read_text(errors="replace")))
             files.append(case)
         with concurrent.futures.ThreadPoolExecutor() as pool:
             results = list(pool.map(lambda p: compare(args.compiler, stage1, p), files))
