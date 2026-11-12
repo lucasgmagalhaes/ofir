@@ -35,7 +35,7 @@ specification; the other classes are known and accepted.
 |---------|---------|---------|----------|------|
 | 1.1 Source files | full | full | `tests/lex` `tests/compile_fail/lexer/unexpected_character.of` | - |
 | 1.2 Comments | full | full | `tests/lex/comments.of` `tests/compile_fail/lexer/unterminated_block_comment.of` | - |
-| 1.3 Statement termination | full | full | `tests/lex/newlines.of` `tests/parse/generics_and_newlines.of` `tests/compile_fail/parser/semicolon.of` `tests/compile_fail/parser/leading_operator.of` | - |
+| 1.3 Statement termination | full | full | `tests/lex/newlines.of` `tests/parse/generics_and_newlines.of` `tests/compile_fail/parser/semicolon.of` `tests/compile_fail/parser/leading_operator.of` `tests/run/basics/newlines.of` `tests/compile_fail/parser/else_next_line.of` `tests/compile_fail/parser/brace_next_line.of` | - |
 | 1.4 Identifiers | full | partial | `tests/lex/keywords_and_names.of` | planned: the naming convention warning (W0007) |
 | 1.5 Keywords | full | full | `tests/lex/keywords_and_names.of` | - |
 | 1.6 Operators and punctuation | full | full | `tests/lex/operators.of` `tests/parse/expressions.of` | - |
