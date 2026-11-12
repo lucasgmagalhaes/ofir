@@ -93,6 +93,9 @@ fn add(a: int, b: int) int {
 }
 
 // calc_test.of
+import std.testing.assert
+import std.testing.assertEq
+
 @test
 fn addWorks() {
     assert(add(2, 2) == 4)
@@ -113,13 +116,34 @@ Stage 0: `ofir test <file.of>` (or `<file>_test.of`) runs the tests of
 every module of the program except the std modules, plus those of the root
 file, which may be a std module (`ofir test std/core/split.of` runs
 `std/core/split_test.of`); `make test-std` runs the
-tests of std. A test returns `()`; `Result` tests and `assertEq` await
-interfaces (roadmap 5.1). Doc tests (12.5) run under stage 1 only.
-- `assertEq(a, b)` prints both values (using `Debug`) when they differ.
+tests of std. A test returns `()`; `Result` tests, `assertEq` and
+`assertNe` await interfaces (roadmap 5.1). Doc tests (12.5) run under
+stage 1 only.
+
+The asserts are in `std.testing`, not in the prelude (ADR 0036); `@test`
+and the other attributes are part of the language and need no import:
+
+| Function | Panics when |
+|----------|-------------|
+| `assert(condition: bool)` | `condition` is false: `assertion failed` |
+| `assertEq<T: Eq + Debug>(left: T, right: T)` | `left != right`, printing both values with `Debug` |
+| `assertNe<T: Eq + Debug>(left: T, right: T)` | `left == right`, printing both values with `Debug` |
+
+The compiler lowers each assert where it is called, so a failed assert
+reports the location of the call:
+
+```
+panic: assertion failed: left == right
+  left: 3
+ right: 4
+  at src/calc_test.of:7:5
+```
 
 ## 12.3 Benchmarks
 
 ```ofir
+import std.testing.Bencher
+
 @bench
 fn benchSort(b: mut Bencher) {
     let data = randomList(10_000)
@@ -134,7 +158,7 @@ per iteration.
   and returns nothing (E0206). Like tests, benchmarks are excluded from
   other builds and only their signature is checked there; `ofir bench`
   does not compile the `@test` functions or test files, nor call `main`.
-- `Bencher` is in the prelude under `ofir bench` (`std/core/bench.of`).
+- `Bencher` is in `std.testing`, imported by the benchmark's module.
   `b.run(f)` calls `f` once to warm up, then repeatedly, doubling the count
   until the calls take about half a second, and prints
   `N ns/iter (M iterations)`.
@@ -188,6 +212,8 @@ inside them are compiled and run by `ofir test` as doc tests.
  * @returns `a` if it is greater than `b`, else `b`
  * @example
  * ```ofir
+ * import std.testing.assert
+ *
  * assert(max(1, 2) == 2)
  * ```
  */

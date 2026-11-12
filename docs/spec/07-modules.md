@@ -66,14 +66,15 @@ fn println(text: str)            // standard output, followed by "\n"
 fn eprint(text: str)             // standard error
 fn eprintln(text: str)           // standard error, followed by "\n"
 fn panic(message: str) !
-fn assert(condition: bool)
-fn assertEq<T: Eq + Debug>(left: T, right: T)
 fn sizeOf<T>() int
 fn alignOf<T>() int
 ```
 
 Values are printed through string interpolation: `println("{count}")`.
 There are no variadic functions in Ofir.
+
+`assert`, `assertEq` and `assertNe` are not built in: they are in
+`std.testing` and are imported like any other std name (12.2, ADR 0036).
 
 ## 7.6 Standard library (bootstrap subset)
 
@@ -86,6 +87,7 @@ There are no variadic functions in Ofir.
 | `std.math` | constants and functions such as `math.PI`, `math.hypot`; float methods like `x.sqrt()` live on the type |
 | `std.mem` | `swap`, `replace`, `take` |
 | `std.mem.cell` | `UnsafeCell`, `Cell` |
+| `std.testing` | `assert`, `assertEq`, `assertNe`, `Bencher` (12.2, 12.3) |
 
 These are the modules the self-hosted compiler needs. The rest of the
 standard library is **[planned]**.
