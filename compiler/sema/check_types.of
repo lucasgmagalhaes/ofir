@@ -141,8 +141,7 @@ fn aliasType(c: mut Checker, p: Program, id: int, typeParams: &List<Symbol>,
     for i in 0..args.len() {
         generics.aliasArgs.push(resolveType(c, p, &args[i]))
     }
-    if c.info[id].checking {
-        c.error("E0310", span, "the type alias `{c.text(c.def(id).name)}` refers to itself")
+    if c.info[id].checking && !recursionAllowed(c, id, span) {
         return ERROR
     }
     if typeParams.len() == 0 && c.info[id].typed {
@@ -158,12 +157,21 @@ fn aliasType(c: mut Checker, p: Program, id: int, typeParams: &List<Symbol>,
     const savedAlias = c.aliasDef
     c.selfType = ERROR
     c.aliasDef = id
+    const wasChecking = c.info[id].checking
     c.info[id].checking = true
+    c.aliasStack.push(id)
+    c.aliasSpans.push(span)
+    c.aliasConds.push(c.condDepth)
+    c.aliasDefers.push(c.deferDepth)
     let ty = ERROR
     if checkAliasBounds(c, p, id, span) {
         ty = resolveType(c, p, aliased)
     }
-    c.info[id].checking = false
+    c.aliasStack.pop()
+    c.aliasSpans.pop()
+    c.aliasConds.pop()
+    c.aliasDefers.pop()
+    c.info[id].checking = wasChecking
     c.aliasDef = savedAlias
     c.aliasUser = savedUser
     c.selfType = savedSelf
@@ -174,6 +182,41 @@ fn aliasType(c: mut Checker, p: Program, id: int, typeParams: &List<Symbol>,
         c.info[id].typed = true
     }
     return ty
+}
+
+/**
+ * The expansions of type aliases that may be nested (spec 16.5): a recursive
+ * conditional type deeper than this is E0346.
+ */
+const MAX_ALIAS_DEPTH: int = 64
+
+// Whether the alias `id`, already being expanded, may be named again: from
+// a branch of a decided conditional type, up to `MAX_ALIAS_DEPTH`. Else an
+// error: E0310, E0346, or E0901 from a branch deferred on a type parameter.
+fn recursionAllowed(c: mut Checker, id: int, span: Span) bool {
+    let j = c.aliasStack.len() - 1
+    for j > 0 && c.aliasStack[j] != id {
+        j -= 1
+    }
+    const name = c.text(c.def(id).name)
+    if c.deferDepth > c.aliasDefers[j] {
+        c.unsupported(span, "recursive conditional types on a type parameter are")
+        return false
+    }
+    if c.condDepth == c.aliasConds[j] {
+        c.error("E0310", span, "the type alias `{name}` refers to itself")
+        return false
+    }
+    if c.aliasStack.len() < MAX_ALIAS_DEPTH {
+        return true
+    }
+    let first = 0
+    for c.aliasStack[first] != id {
+        first += 1
+    }
+    c.error("E0346", c.aliasSpans[first], "the type alias `{name}` expands more than "
+            + "{MAX_ALIAS_DEPTH} times: its recursion does not reach a branch without it")
+    return false
 }
 
 /**
