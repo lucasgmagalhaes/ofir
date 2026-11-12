@@ -1,7 +1,7 @@
 test sample.doubleWorks ... ok
-test sample:8 (doc test) ... ok
-test sample:21 (doc test) ... ok
-test sample:34 (doc test) ... FAILED (exit status 101)
-test sample:40 (doc test, not run) ... ok
+test sample:10 (doc test) ... ok
+test sample:24 (doc test) ... ok
+test sample:38 (doc test) ... FAILED (exit status 101)
+test sample:45 (doc test, not run) ... ok
 
 5 tests: 4 passed, 1 failed

@@ -1,12 +1,15 @@
 // Doc tests (spec 12.5), stage 1 only: each `ofir` block of a
 // documentation comment is compiled and run by `ofir test`.
 
+import std.testing.assert
+
 /**
  * @module
  * Doc tests: each `ofir` block below is compiled and run by `ofir test`.
  *
  * ```ofir
  * import sample.double
+ * import std.testing.assert
  *
  * assert(double(2) == 4)
  * ```
@@ -20,6 +23,7 @@
  * @example
  * ```ofir
  * import sample.double
+ * import std.testing.assert
  *
  * fn quadruple(n: int) int {
  *     return double(double(n))
@@ -33,6 +37,7 @@
  *
  * ```ofir
  * import sample.double
+ * import std.testing.assert
  *
  * assert(double(1) == 3)
  * ```
