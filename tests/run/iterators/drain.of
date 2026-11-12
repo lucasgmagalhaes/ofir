@@ -1,0 +1,33 @@
+// `List.drain` moves the elements out (spec 4.4): the loop owns each one,
+// a `break` drops the rest, and the list is left empty.
+
+struct Named {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+fn take(n: move Named) {
+    println("took {n.name}")
+}
+
+fn main() {
+    let xs = [Named{name: "a".toOwned()}, Named{name: "b".toOwned()}]
+    xs.push(Named{name: "c".toOwned()})
+    for n in xs.drain() {
+        take(n)
+    }
+    println("len {xs.len()}")
+    xs.push(Named{name: "d".toOwned()})
+    xs.push(Named{name: "e".toOwned()})
+    xs.push(Named{name: "f".toOwned()})
+    for n in xs.drain() {
+        println("got {n.name}")
+        break
+    }
+    println("len {xs.len()}")
+    xs.push(Named{name: "g".toOwned()})
+    println("end")
+}
