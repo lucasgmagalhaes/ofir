@@ -1,0 +1,10 @@
+// requires: stage1
+// `List.drain` borrows its list mutably while the loop runs (spec 4.4).
+
+fn main() {
+    let xs = [1, 2]
+    for n in xs.drain() {
+        println("{n} {xs.len()}")   // error[E0703]: cannot use `xs` while it is borrowed as mutable by the `for` loop
+    }
+    xs.push(3)
+}
