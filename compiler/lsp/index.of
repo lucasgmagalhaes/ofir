@@ -329,20 +329,24 @@ fn offsetOf(text: str, line: int, character: int) int {
 
 // The `file:` URI of a path, made absolute and percent-encoded.
 fn pathToUri(path: str) str {
-    let full = path.toOwned()
-    if !path.startsWith("/") {
+    let full = path.replace("\\", "/")
+    if !full.startsWith("/") && !hasDrive(full) {
         if const Result.Ok(dir) = os.currentDir() {
-            full = "{dir}/{path}"
+            const base = dir.replace("\\", "/")
+            full = "{base}/{full}"
         }
     }
     const hex = "0123456789ABCDEF"
     let out = "file://"
+    if hasDrive(full) {
+        out.push("/")   // file:///C:/dir on Windows
+    }
     for i in 0..full.len() {
         const b = full[i]
         const letter = (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z')
         const plain = (letter || (b >= b'0' && b <= b'9') || b == b'/' || b == b'-' ||
                        b == b'.' || b == b'_' || b == b'~')
-        if plain {
+        if plain || (i == 1 && hasDrive(full)) {
             out.pushChar(b as u32)
         } else {
             const v = b as int
@@ -371,7 +375,20 @@ fn uriToPath(uri: str) str {
             i += 1
         }
     }
-    return strings.fromUtf8(bytes).ok() ?? rest.toOwned()
+    const path = strings.fromUtf8(bytes).ok() ?? rest.toOwned()
+    if path.startsWith("/") && hasDrive(path.sliceFrom(1)) {
+        return path.sliceFrom(1).toOwned()   // /C:/dir on Windows
+    }
+    return path
+}
+
+// Whether `path` starts with a Windows drive, as in `C:/dir`.
+fn hasDrive(path: str) bool {
+    if path.len() < 2 || path[1] != b':' {
+        return false
+    }
+    const b = path[0]
+    return (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z')
 }
 
 fn hexValue(b: u8) int {
