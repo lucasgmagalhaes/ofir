@@ -1,0 +1,50 @@
+// requires: stage1
+// Union equivalence (spec 17.2): flattening, repeated members and member
+// order do not change the type.
+
+struct IoError {
+    path: str
+}
+
+struct ParseError {
+    line: int
+}
+
+type LoadError = IoError | ParseError
+type Reversed = ParseError | IoError
+type Nested = (IoError | int) | (ParseError | IoError)
+type Flat = LoadError | int
+type One = int | int
+
+fn reverse(err: move LoadError) Reversed {
+    return err   // the same type: no conversion
+}
+
+fn flatten(value: move Nested) Flat {
+    return value
+}
+
+fn name(value: Flat) str {
+    return match value {
+        e: IoError => "io {e.path}"
+        e: ParseError => "parse {e.line}"
+        n: int => "int {n}"
+    }
+}
+
+fn same(x: int | bool, y: bool | int) bool {
+    return x == y
+}
+
+fn main() {
+    const err: LoadError = ParseError{line: 4}
+    if const e: ParseError = reverse(err) {
+        println("reversed {e.line}")
+    }
+    println(name(flatten(IoError{path: "a.txt"})))
+    println(name(flatten(7)))
+    const one: One = 3
+    const n: int = one   // `int | int` is `int`
+    println("one {n}")
+    println("{same(1, 1)} {same(true, 1)} {same(false, false)}")
+}
