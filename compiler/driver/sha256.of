@@ -12,6 +12,9 @@ pub struct Sha256 {
     pending: List<u8>
     /** How many bytes were fed. */
     total: int
+    /** The message schedule of a block, reused from block to block. */
+    w: List<u32>
+    k: List<u32>
 
     /**
      * A computation that was fed nothing.
@@ -21,7 +24,8 @@ pub struct Sha256 {
     pub fn new() Sha256 {
         const state: List<u32> = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f,
                                   0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
-        return Sha256{state, pending: [], total: 0}
+        const w: List<u32> = [0; 64]
+        return Sha256{state, pending: [], total: 0, w, k: roundConstants()}
     }
 
     /**
@@ -30,15 +34,9 @@ pub struct Sha256 {
      * @param data the bytes
      */
     pub fn update(mut self, data: &List<u8>) {
-        const k = roundConstants()
-        for i in 0..data.len() {
-            self.pending.push(data[i])
-            if self.pending.len() == 64 {
-                compress(self.state, &self.pending, &k)
-                self.pending.clear()
-            }
+        if data.len() > 0 {
+            self.feed(&data[0] as *u8, data.len())
         }
-        self.total += data.len()
     }
 
     /**
@@ -47,11 +45,33 @@ pub struct Sha256 {
      * @param text the text
      */
     pub fn updateText(mut self, text: str) {
-        let data: List<u8> = []
-        for b in text.bytes() {
-            data.push(b)
+        self.feed(text.asPtr(), text.len())
+    }
+
+    // Feeds the `len` bytes at `data`: whole blocks are hashed where they
+    // lie, without a copy.
+    fn feed(mut self, data: *u8, len: int) {
+        self.total += len
+        let i = 0
+        if self.pending.len() > 0 {
+            for i < len && self.pending.len() < 64 {
+                self.pending.push(unsafe { *data.add(i) })
+                i += 1
+            }
+            if self.pending.len() < 64 {
+                return
+            }
+            compress(self.state, self.w, &self.k, &self.pending[0] as *u8)
+            self.pending.clear()
         }
-        self.update(&data)
+        for i + 64 <= len {
+            compress(self.state, self.w, &self.k, unsafe { data.add(i) })
+            i += 64
+        }
+        for i < len {
+            self.pending.push(unsafe { *data.add(i) })
+            i += 1
+        }
     }
 
     /**
@@ -96,23 +116,21 @@ pub fn sha256Hex(text: str) str {
     return h.finish()
 }
 
-// Hashes one block of 64 bytes into `state`.
-fn compress(state: mut List<u32>, block: &List<u8>, k: &List<u32>) {
-    let w: List<u32> = []
+// Hashes the block of 64 bytes at `block` into `state`; `w` holds 64 words.
+fn compress(state: mut List<u32>, w: mut List<u32>, k: &List<u32>, block: *u8) {
     for i in 0..16 {
-        const b0 = block[i * 4] as u32
-        const b1 = block[i * 4 + 1] as u32
-        const b2 = block[i * 4 + 2] as u32
-        const b3 = block[i * 4 + 3] as u32
-        w.push((b0 << 24) | (b1 << 16) | (b2 << 8) | b3)
+        const b0 = unsafe { *block.add(i * 4) } as u32
+        const b1 = unsafe { *block.add(i * 4 + 1) } as u32
+        const b2 = unsafe { *block.add(i * 4 + 2) } as u32
+        const b3 = unsafe { *block.add(i * 4 + 3) } as u32
+        w[i] = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
     }
     for i in 16..64 {
         const a = w[i - 15]
         const b = w[i - 2]
         const s0 = rotr(a, 7) ^ rotr(a, 18) ^ (a >> 3)
         const s1 = rotr(b, 17) ^ rotr(b, 19) ^ (b >> 10)
-        const next = w[i - 16].wrappingAdd(s0).wrappingAdd(w[i - 7]).wrappingAdd(s1)
-        w.push(next)
+        w[i] = w[i - 16].wrappingAdd(s0).wrappingAdd(w[i - 7]).wrappingAdd(s1)
     }
     let a = state[0]
     let b = state[1]
