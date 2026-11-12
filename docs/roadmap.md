@@ -295,8 +295,8 @@ closed. These gaps remain:
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |
 | 6.32 | Asserts and `Bencher` in `std.testing`, imported instead of in the prelude (ADR 0036), in the steps below | M |
 | 6.32a | Design: ADR 0036, spec 7.5, 12.2 and 12.3; **done** | S |
-| 6.32b | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import | M |
-| 6.32c | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert` | M |
+| 6.32b | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import; **done**: `tests/compile_fail/names/assert_import` | M |
+| 6.32c | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert`; **done** | M |
 | 6.32d | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure | S |
 | 6.32e | `Bencher` moves to `std.testing`; `ofir bench` no longer adds it to the prelude | S |
 
