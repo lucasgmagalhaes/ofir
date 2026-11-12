@@ -329,6 +329,22 @@ pub struct str {
     }
 
     /**
+     * A view of part of the string without the checks of `slice`.
+     *
+     * @param lo the offset of the first byte
+     * @param hi the offset after the last byte
+     * @returns the bytes `lo` to `hi - 1`
+     * @safety `0 <= lo <= hi <= len()`, and `lo` and `hi` are on character
+     * boundaries of the UTF-8 text
+     */
+    pub unsafe fn sliceUnchecked(self, lo: int, hi: int) str {
+        let view = ""
+        view.ptr = self.ptr.add(lo)
+        view.len = hi - lo
+        return view
+    }
+
+    /**
      * A view of the end of the string: `s[lo..]`.
      *
      * @param lo the offset of the first byte
