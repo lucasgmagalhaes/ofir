@@ -1,0 +1,25 @@
+positional:
+  arg a
+  arg b
+  default tag
+  default other
+1 20 fresh 3 other
+named, out of order:
+  arg a
+  arg c
+  arg b
+  default tag
+  default other
+1 20 fresh 30 other
+a named default given:
+  arg c
+  arg a
+  default other
+1 2 given 30 other
+twice:
+  default tag
+  default other
+1 2 fresh 3 other
+  default tag
+  default other
+2 2 fresh 3 other
