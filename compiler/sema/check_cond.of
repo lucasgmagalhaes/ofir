@@ -71,10 +71,15 @@ pub fn condType(c: mut Checker, p: Program, test: &TypeExpr, then: &TypeExpr,
     if decided == 2 {
         return deferredCond(c, p, test, &parts, &names, then, otherwise)
     }
+    c.condDepth += 1
+    let ty = ERROR
     if decided == 0 {
-        return resolveType(c, p, otherwise)
+        ty = resolveType(c, p, otherwise)
+    } else {
+        ty = thenType(c, p, &names, &binds, then)
     }
-    return thenType(c, p, &names, &binds, then)
+    c.condDepth -= 1
+    return ty
 }
 
 // `X` with each name `infer` binds in scope.
@@ -103,8 +108,10 @@ fn deferredCond(c: mut Checker, p: Program, test: &TypeExpr, parts: &List<int>,
     for i in 0..names.len() {
         binds.push(c.types.param(INFER_BASE + i, names[i].0))
     }
+    c.deferDepth += 1
     const thenTy = thenType(c, p, names, &binds, then)
     const elseTy = resolveType(c, p, otherwise)
+    c.deferDepth -= 1
     if thenTy == ERROR || elseTy == ERROR {
         return ERROR
     }
