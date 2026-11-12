@@ -1,5 +1,7 @@
 // The tests of `std.core.split` (spec 12.2): `ofir test std/core/split.of` runs them.
 
+import std.testing.assert
+
 @test
 fn splitKeepsEmptyParts() {
     let parts = "a,,b".split(",")

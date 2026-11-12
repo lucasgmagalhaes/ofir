@@ -1,5 +1,7 @@
 // The tests of sample.of, in its test file (spec 12.2).
 
+import std.testing.assert
+
 @test
 fn addWorks() {
     // Keep this test running while later tests finish, to check output order.

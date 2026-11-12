@@ -492,9 +492,9 @@ pub fn checkArgsOf(c: mut Checker, p: Program, span: Span, args: &List<Arg>, sig
     return checkArgs(c, p, span, args, &params, ret)
 }
 
-// print(str), println(str), panic(str) ! and assert(bool).
+// print(str), println(str) and panic(str) !; `assert` is in std.testing.
 fn builtinCall(c: mut Checker, p: Program, span: Span, args: &List<Arg>, builtin: int) int {
-    const param = if builtin == 3 { BOOL } else { STR }
+    const param = STR
     const ret = if builtin == 2 { NEVER } else { UNIT }
     return checkArgs(c, p, span, args, &[param], ret)
 }

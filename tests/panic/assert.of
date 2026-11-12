@@ -1,4 +1,7 @@
 // panic: assertion failed
+
+import std.testing.assert
+
 fn main() {
     const x = 2
     assert(x == 3)

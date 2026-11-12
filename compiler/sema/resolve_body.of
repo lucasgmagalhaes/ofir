@@ -109,7 +109,11 @@ fn find(r: mut Resolver, name: Symbol, span: Span) Res {
         return Res.Def(def)
     }
     r.error("E0200", span, "cannot find `{r.text(name)}` in this scope")
-    suggestName(r, name, SuggestScope.Value)
+    if r.text(name) == "assert" {   // no longer built in (ADR 0036)
+        r.diags.help("import it: `import std.testing.assert`".toOwned())
+    } else {
+        suggestName(r, name, SuggestScope.Value)
+    }
     if probing(r, name) {
         completeScope(r, false)
     }

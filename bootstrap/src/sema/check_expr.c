@@ -205,9 +205,9 @@ TypeId check_args(Checker *c, Expr *call, const Ty *signature) {
     return sig.inner;
 }
 
-// print(str), println(str), panic(str) ! and assert(bool).
+// print(str), println(str) and panic(str) !; `assert` is in std.testing.
 static TypeId builtin_call(Checker *c, Expr *call, Builtin builtin) {
-    TypeId param = type_id(builtin == BUILTIN_ASSERT ? TID_BOOL : TID_STR);
+    TypeId param = type_id(TID_STR);
     TypeId ret = type_id(builtin == BUILTIN_PANIC ? TID_NEVER : TID_UNIT);
     Ty sig = {.kind = TY_FN, .inner = ret, .arg_count = 1, .args = &param};
     return check_args(c, call, &sig);

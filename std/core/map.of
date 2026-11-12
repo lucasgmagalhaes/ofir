@@ -160,6 +160,8 @@ pub struct Map<K: Eq + Hash, V> {
      * @panics when the system is out of memory
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * let m = Map<str, int>.new()
      * assert(m.insert("a", 1).isNone())
      * assert((m.insert("a", 2) ?? 0) == 1)

@@ -75,6 +75,7 @@ pub struct Diagnostic {
  * import base.span.FileId
  * import base.span.Span
  * import diag.Diagnostics
+ * import std.testing.assert
  *
  * const span = Span{file: FileId(0), start: 0, end: 1}
  * let diags = Diagnostics.new()

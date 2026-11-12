@@ -1,5 +1,7 @@
 // The tests of `std.core.slice` (spec 12.2): `ofir test std/core/slice.of` runs them.
 
+import std.testing.assert
+
 @test
 fn slicesViewPartOfAList() {
     const items = [1, 2, 3, 4, 5]

@@ -121,6 +121,7 @@ pub fn exists(path: str) bool {
  * @example
  * ```ofir
  * import std.fs
+ * import std.testing.assert
  *
  * const here = fs.canonicalize(".").expect("the current directory exists")
  * assert(fs.exists(here))   // an absolute path, also on Windows

@@ -8,6 +8,7 @@
  */
 
 import base.intern.Symbol
+import std.testing.assert
 
 // A binding that a local declaration hid: the local index + 1, or 0.
 struct Shadowed {

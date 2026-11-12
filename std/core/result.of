@@ -18,6 +18,8 @@
  * @typeParam E the type of the error
  * @example
  * ```ofir
+ * import std.testing.assert
+ *
  * fn parsePort(s: str) Result<u16, ParseError> {
  *     const n = i64.parse(s)?          // returns the error to the caller
  *     if n < 1 || n > 65535 {
@@ -98,6 +100,8 @@ pub enum Result<T, E> {
      * @returns the value of `Ok`, else `fallback`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(i64.parse("x").unwrapOr(0) == 0)
      * ```
      */

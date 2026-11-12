@@ -1,5 +1,7 @@
 // The tests of `std.core.list` (spec 12.2): `ofir test std/core/list.of` runs them.
 
+import std.testing.assert
+
 @test
 fn removeAndInsertShiftElements() {
     let l = [1, 2, 3, 4]

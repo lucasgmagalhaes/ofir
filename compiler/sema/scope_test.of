@@ -1,6 +1,7 @@
 // The tests of `sema.scope` (spec 12.2).
 
 import base.intern.Symbol
+import std.testing.assert
 
 @test
 fn moduleTablesAreSeparate() {

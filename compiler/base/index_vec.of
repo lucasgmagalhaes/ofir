@@ -39,6 +39,7 @@ pub fn idAt<T>(index: int) Id<T> {
  * @example
  * ```ofir
  * import base.index_vec.IndexVec
+ * import std.testing.assert
  *
  * let names: IndexVec<str> = IndexVec.new()
  * const id = names.push("main".toOwned())

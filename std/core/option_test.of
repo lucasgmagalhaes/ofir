@@ -1,5 +1,7 @@
 // The tests of `std.core.option` (spec 12.2): `ofir test std/core/option.of` runs them.
 
+import std.testing.assert
+
 @test
 fn unwrapOrGivesTheValueOrTheFallback() {
     const some: Option<int> = Option.Some(3)

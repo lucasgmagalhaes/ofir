@@ -1,5 +1,7 @@
 // The tests of `driver.modules` (spec 12.2).
 
+import std.testing.assert
+
 @test
 fn rootNames() {
     assert(rootName("a/b/main.of") == "main")

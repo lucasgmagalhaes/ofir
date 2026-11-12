@@ -1,6 +1,8 @@
 // `@test` functions take nothing and return nothing (spec 12.2), which
 // every build checks, although only `ofir test` compiles them.
 
+import std.testing.assert
+
 @test                            // error[E0205]: a `@test` function takes no parameters and returns nothing
 fn takesAnArgument(n: int) {
     assert(n > 0)

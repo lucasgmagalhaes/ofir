@@ -60,7 +60,7 @@ static Operand call(Lowerer *l, Expr *e) {
         return build_variant(l, e->type, def->variant, args);
     }
     if (def->kind == DEF_BUILTIN) {
-        if (def->builtin == BUILTIN_PANIC || def->builtin == BUILTIN_ASSERT) {
+        if (def->builtin == BUILTIN_PANIC) {
             lower_panic_assert(l, e, def->builtin);
         } else {
             lower_print(l, args.items[0].value, def->builtin == BUILTIN_PRINTLN);

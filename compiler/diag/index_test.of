@@ -3,6 +3,7 @@
 import base.span.FileId
 import base.span.SourceMap
 import base.span.Span
+import std.testing.assert
 
 fn sample() SourceMap {
     let map = SourceMap.new()

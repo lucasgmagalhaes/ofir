@@ -1,0 +1,17 @@
+/**
+ * @module
+ * `std.testing`: the helpers of tests (spec 12.2, ADR 0036). They are not
+ * in the prelude: a module that calls them imports them, as
+ * `import std.testing.assert`. Each assert is lowered where it is called,
+ * so a failure reports the location of the call.
+ */
+
+extern "intrinsic" {
+    /**
+     * Panics with "assertion failed" and the location of the call when
+     * `condition` is false; does nothing otherwise.
+     *
+     * @param condition what must hold
+     */
+    pub fn assert(condition: bool)
+}

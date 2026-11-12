@@ -1,5 +1,7 @@
 // The tests of `std.strings` (spec 12.2): `ofir test std/strings/index.of` runs them.
 
+import std.testing.assert
+
 @test
 fn joinPutsTheSeparatorBetweenParts() {
     assert(join(["a", "b", "c"], ", ") == "a, b, c")

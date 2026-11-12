@@ -1,5 +1,7 @@
 // The tests of `driver.semver`.
 
+import std.testing.assert
+
 fn v(text: str) Version {
     return parseVersion(text).expect("a version")
 }

@@ -236,9 +236,8 @@ fn preludeNames() List<(str, DefKind, int)> {
                                                                                12),
             ("f64", DefKind.Primitive, 13), ("bool", DefKind.Primitive, 3), ("str",
                                                                              DefKind.Primitive, 14),
-            ("print", DefKind.Builtin, 0), ("println", DefKind.Builtin, 1), ("panic",
-                                                                             DefKind.Builtin, 2),
-            ("assert", DefKind.Builtin, 3)]
+            ("print", DefKind.Builtin, 0), ("println", DefKind.Builtin, 1),
+            ("panic", DefKind.Builtin, 2)]
 }
 
 const PRIMITIVE_TYPES: int = 15

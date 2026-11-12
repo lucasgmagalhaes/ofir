@@ -64,6 +64,8 @@ pub enum Option<T> {
      * @panics on `None`, with "called `unwrap` on a `None` value"
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(Option.Some(4).unwrap() == 4)
      * ```
      */
@@ -102,6 +104,8 @@ pub enum Option<T> {
      * @returns the content of `Some`, else `fallback`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * const none: Option<int> = Option.None
      * assert(none.unwrapOr(8080) == 8080)
      * ```

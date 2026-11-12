@@ -1,5 +1,7 @@
 // The tests of `base.index_vec` (spec 12.2).
 
+import std.testing.assert
+
 copy struct Node {
     depth: int
 }

@@ -1,5 +1,7 @@
 // The tests of `codegen.debug`.
 
+import std.testing.assert
+
 @test
 fn filesAreCreatedOnce() {
     let di = DebugInfo.new()

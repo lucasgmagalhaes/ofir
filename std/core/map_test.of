@@ -1,5 +1,7 @@
 // The tests of `std.core.map` (spec 12.2): `ofir test std/core/map.of` runs them.
 
+import std.testing.assert
+
 @test
 fn insertReplacesAndReturnsTheOldValue() {
     let ages: Map<str, int> = Map.new()

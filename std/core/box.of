@@ -28,6 +28,8 @@ extern "intrinsic" {
      * @returns the size in bytes; 0 for `()`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(sizeOf<i32>() == 4)
      * assert(sizeOf<str>() == 24)
      * ```
@@ -42,6 +44,8 @@ extern "intrinsic" {
      * @returns a power of two; 1 for `()`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert(alignOf<i32>() == 4)
      * assert(alignOf<str>() == 8)
      * ```
@@ -64,6 +68,8 @@ extern "intrinsic" {
  * @typeParam T the type of the value
  * @example
  * ```ofir
+ * import std.testing.assert
+ *
  * enum Expr {
  *     Number(int)
  *     Add(Box<Expr>, Box<Expr>)

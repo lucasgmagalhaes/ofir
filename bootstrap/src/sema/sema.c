@@ -20,7 +20,7 @@ static const PreludeEntry PRELUDE[] = {
     {"f64", DEF_PRIMITIVE, TID_F64},     {"bool", DEF_PRIMITIVE, TID_BOOL},
     {"str", DEF_PRIMITIVE, TID_STR},
     {"print", DEF_BUILTIN, BUILTIN_PRINT}, {"println", DEF_BUILTIN, BUILTIN_PRINTLN},
-    {"panic", DEF_BUILTIN, BUILTIN_PANIC}, {"assert", DEF_BUILTIN, BUILTIN_ASSERT},
+    {"panic", DEF_BUILTIN, BUILTIN_PANIC},
 };
 
 static DefId add_def(Sema *sema, Def def) {
