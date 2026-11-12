@@ -10,6 +10,10 @@ on:
       version:
         description: "Version to release (must equal VERSION in compiler/main.of)"
         required: true
+      publish:
+        description: "Create the release (off: only build and check the seed)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -78,9 +82,32 @@ jobs:
       - name: Build the compiler from the seed
         run: make check-seed SEED=seed-download/ofir-${{ inputs.version }}.ll
 
+  # Windows (roadmap 6.8): clang for the MinGW target, as in ci.yml.
+  check-windows:
+    name: check windows-2025 / LLVM
+    needs: seed
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the MinGW toolchain
+        run: echo "/c/mingw64/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: seed
+          path: seed-download
+
+      - name: Build the compiler from the seed
+        run: mingw32-make check-seed SEED=seed-download/ofir-${{ inputs.version }}.ll
+
   release:
     name: release
-    needs: check
+    needs: [check, check-windows]
+    if: inputs.publish
     runs-on: ubuntu-24.04
     permissions:
       contents: write

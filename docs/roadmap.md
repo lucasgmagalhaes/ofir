@@ -281,8 +281,8 @@ These gaps remain:
 | 6.7b3 | Filters, `Pick`/`Omit` and conditional types over type parameters (`Pick<T, K>`, `Unwrap<T>` in a generic signature); **done** | M |
 | 6.8 | Windows support (x86_64, clang with the MinGW target), in the steps below | L |
 | 6.8a | CI job on Windows: both stages build, all tests and std tests pass with stage 0 and stage 1 (paths with `\` and drive letters in `fs`, `ofir lsp` and `ofir doc`; `// requires: unix`); **done** | M |
-| 6.8b | Windows tests of target-specific code: `@cfg(os == "windows")` output, `os.name()`, `// requires: windows` | S |
-| 6.8c | Release archives for Windows in `release.yml`, checked by running the archived compiler | S |
+| 6.8b | Windows tests of target-specific code: `@cfg(os == "windows")` output, `os.name()`, `// requires: windows`; **done**: `tests/run/attributes/cfg_windows` | S |
+| 6.8c | Releases checked on Windows: `release.yml` builds the compiler from the seed there (`make check-seed`), and a `publish` input checks a branch without releasing | S |
 | 6.8d | Installing and using Ofir on Windows in the docs (`docs/design/toolchain.md`, README) | S |
 | 6.9 | Scheduled CI job for the auditable bootstrap path: `tools/bootstrap_chain.sh`, weekly; the link from the last release to the current sources waits for the next release; **done** | S |
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |

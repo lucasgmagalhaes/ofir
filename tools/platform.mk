@@ -9,6 +9,8 @@
 ifeq ($(OS),Windows_NT)
 EXE := .exe
 CLANG_TARGET := --target=x86_64-w64-windows-gnu
+# MinGW keeps the pthread functions in winpthreads.
+LINK_LIBS := -lm -lpthread
 ifeq ($(origin OFIR_CLANG),undefined)
 ifneq ($(shell command -v clang 2>/dev/null),)
 OFIR_CLANG := clang
@@ -29,4 +31,5 @@ export PYTHONUTF8 := 1
 else
 EXE :=
 CLANG_TARGET :=
+LINK_LIBS := -lm
 endif
