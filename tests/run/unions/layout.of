@@ -1,0 +1,33 @@
+// requires: stage1
+// Union layout (spec 17.6): an enum with one variant per member in the
+// canonical order, so every spelling of a union has the same layout.
+
+struct Wide {
+    a: int
+    b: int
+}
+
+struct Narrow {
+    flag: bool
+}
+
+enum Tagged {
+    W(Wide)
+    N(Narrow)
+}
+
+struct Holder {
+    value: Wide | Narrow
+    count: int
+}
+
+fn main() {
+    println("{sizeOf<Wide | Narrow>()} {sizeOf<Narrow | Wide>()} {sizeOf<Tagged>()}")
+    println("{sizeOf<Wide | Narrow | Wide>()} {sizeOf<(Narrow | Wide) | Narrow>()}")
+    println("{sizeOf<int | bool>()} {sizeOf<bool | int>()}")
+    println("{sizeOf<Holder>()}")
+    const held = Holder{value: Narrow{flag: true}, count: 2}
+    if const n: Narrow = held.value {
+        println("narrow {n.flag} {held.count}")
+    }
+}
