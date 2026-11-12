@@ -35,7 +35,7 @@ built-in interfaces:
 | Bound | Allows | Satisfied by |
 |-------|--------|--------------|
 | `Eq` | `==`, `!=` | integers, floats, `bool`, `str`, `()`, pointers, enums without payloads, tuples of these |
-| `Ord` | `<`, `<=`, `>`, `>=`, `list.sort()` | integers, floats, `str` |
+| `Ord` | `<`, `<=`, `>`, `>=`, `list.sort()` | integers, floats (IEEE, chapter 2.1), `str` |
 | `Hash` | with `Eq`, `Map<T, V>` keys | integers, `bool`, `str`, tuples of these |
 | `Clone` | `.clone()` | every type that can be cloned (chapter 5.2) |
 | `Copy` | implicit copies of values of `T` | Copy types (chapter 2.9) |

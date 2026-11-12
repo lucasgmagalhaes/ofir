@@ -122,6 +122,9 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- A type that declares `eq` no longer derives `Ord` (stage 1): `<` and
+  `sort` must agree with the declared equality. Declare `cmp` as well, or
+  compare a key field instead (spec 9.9, OFIR-05).
 - Stage 1 computes the layout of each struct and enum once per module it
   generates; the layout of nested enums took exponential time, and a
   self-compile spent most of its code generation there.

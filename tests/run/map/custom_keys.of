@@ -1,0 +1,48 @@
+// requires: stage1
+// Struct, enum and tuple keys (spec 9.9): equal keys hash equally, so a key
+// built again finds its entry, in a default map and in a seeded one (2.6).
+
+struct Point {
+    x: int
+    y: int
+}
+
+enum Shape {
+    Dot
+    Circle(Point, int)
+    Label(str)
+}
+
+fn fill(m: mut Map<Shape, int>) {
+    m.insert(Shape.Circle(Point{x: 1, y: 2}, 3), 1)
+    m.insert(Shape.Label("a"), 2)
+    m.insert(Shape.Dot, 3)
+    m.insert(Shape.Circle(Point{x: 1, y: 2}, 4), 4)
+    m.insert(Shape.Label("a"), 5)   // replaces the value of an equal key
+}
+
+fn show(m: Map<Shape, int>) {
+    const a = m.get(Shape.Circle(Point{x: 1, y: 2}, 3)) ?? &0
+    const b = m.get(Shape.Label("a")) ?? &0
+    const c = m.get(Shape.Circle(Point{x: 2, y: 1}, 3)) ?? &0
+    let order = ""
+    for _key, value in m {
+        order += "[{value}]"
+    }
+    println("{m.len()} {a} {b} {c} {order}")
+}
+
+fn main() {
+    let plain: Map<Shape, int> = Map.new()
+    fill(plain)
+    show(plain)
+    let seeded: Map<Shape, int> = Map.seeded()
+    fill(seeded)
+    show(seeded)
+    let fixed: Map<Shape, int> = Map.withSeed(42)
+    fill(fixed)
+    show(fixed)
+    let pairs: Map<(Point, str), bool> = Map.new()
+    pairs.insert((Point{x: 0, y: 0}, "o"), true)
+    println("{pairs.contains((Point{x: 0, y: 0}, "o"))} {pairs.contains((Point{x: 0, y: 1}, "o"))}")
+}

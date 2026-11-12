@@ -1,0 +1,23 @@
+// NaN, signed zero and infinities (spec 2.1): IEEE `==` and `<`, `min` and
+// `max` skip NaN, and sorting floats never fails, even with a NaN.
+
+fn same<T: Eq>(a: T, b: T) bool {
+    return a == b
+}
+
+fn main() {
+    const zero = 0.0
+    const negZero = -0.0
+    const nan = zero / zero
+    const inf = 1.0 / zero
+    println("{negZero == zero} {negZero < zero} {negZero} {1.0 / negZero} {negZero as int}")
+    println("{nan == nan} {nan != nan} {nan < 1.0} {nan >= 1.0} {same(nan, nan)}")
+    println("{nan.isNan()} {inf} {-inf} {inf - inf} {inf > 1e308}")
+    println("{nan.min(2.0)} {nan.max(2.0)} {(2.0).min(nan)} {(-1.0).max(nan)}")
+    let xs = [3.0, nan, 1.0, -0.0, 2.0]
+    xs.sort()
+    println("{xs.len()}")
+    let ys = [3.0, inf, -inf, 0.5, -2.0]
+    ys.sort()
+    println("{ys[0]} {ys[1]} {ys[2]} {ys[3]} {ys[4]}")
+}

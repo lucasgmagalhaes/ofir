@@ -1,5 +1,8 @@
 // requires: stage1
-// What the built-in interfaces are not derived for (spec 9.9).
+// What the built-in interfaces are not derived for (spec 9.9). A declared `eq`
+// or `cmp` is not mixed with derived interfaces, which could disagree with it.
+
+import std.core.Ordering
 
 struct Bag {
     items: List<int>   // a type with `drop` derives nothing
@@ -25,6 +28,21 @@ struct Odd {
     }
 }
 
+struct Ranked {
+    a: int
+    b: int
+
+    fn cmp(self, other: Ranked) Ordering {
+        return if self.a < other.a {
+            Ordering.Less
+        } else if self.a > other.a {
+            Ordering.Greater
+        } else {
+            Ordering.Equal
+        }
+    }
+}
+
 enum Flag {
     On(bool)
     Off
@@ -39,6 +57,10 @@ fn main() {
     const same = a == a                    // error[E0313]: operator cannot be applied to type `Bag`
     const m: Map<Weight, int> = Map.new()  // error[E0332]: the type `Weight` does not satisfy the bound `Eq` of `K`
     const n: Map<Loose, int> = Map.new()   // error[E0332]: the type `Loose` does not satisfy the bound `Hash` of `K`
+    const loose = Loose{a: 1} < Loose{a: 1} // error[E0313]: operator cannot be applied to type `Loose`
+    const r = Ranked{a: 1, b: 2}
+    const ranked = r == r                  // error[E0313]: operator cannot be applied to type `Ranked`
+    const k: Map<Ranked, int> = Map.new()  // error[E0332]: the type `Ranked` does not satisfy the bound `Eq` of `K`
     const odd = Odd{a: 1} == Odd{a: 1}     // error[E0313]: operator cannot be applied to type `Odd`
     const less = Flag.Off < Flag.Off       // error[E0313]: operator cannot be applied to type `Flag`
     const s = Sample{at: (1, 2.0)}
