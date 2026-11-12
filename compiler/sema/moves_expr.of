@@ -501,7 +501,9 @@ fn placeExpr(m: mut Moves, c: mut Checker, p: Program, e: &Expr, depth: int, s: 
         return
     }
     usePlace(m, c, &place, s, e.span)
-    const copied = isCopy(c, p, viewType(c, e, depth))
+    const widened = c.unionCoercions[c.module()].get(e.id.0)   // copied before widening
+    const ty = if const Option.Some(found) = widened { *found } else { viewType(c, e, depth) }
+    const copied = isCopy(c, p, ty)
     if place.local && use != Use.Mutate {   // a `mut` argument is borrowed after the others
         const moves = use == Use.Move && !copied && place.via == Via.Nothing
         access(s, &place.part, if moves { Access.Move } else { Access.Read }, e.span)
