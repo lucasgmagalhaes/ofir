@@ -50,6 +50,7 @@ starts with the same word as the record's status line.
 | [0037](0037-compatibility-policy.md) | No stability promise before 1.0; deprecate before removing | Accepted |
 | [0038](0038-feature-states.md) | Feature states in one registry; no feature flags before 1.0 | Accepted |
 | [0039](0039-any-type.md) | `any`: a builtin `dyn` type for values of any type | Accepted |
+| [0040](0040-iteration-without-lazy-chains.md) | Iteration contracts, without lazy adapter chains | Accepted |
 
 ## Template
 
