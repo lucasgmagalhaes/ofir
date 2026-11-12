@@ -1,0 +1,15 @@
+// requires: stage1
+// Recursive type aliases (spec 16.5): E0310, E0346 and E0901.
+
+type Direct<T> = Option<Direct<T>>   // error[E0310]: the type alias `Direct` refers to itself
+type Grow<T> = if T is Option<infer U> { Grow<Option<T>> } else { T }
+type Same = if int is int { Same } else { int }
+type Deep<T> = if T is Option<infer U> { Deep<U> } else { T }   // error[E0901]: recursive conditional types on a type parameter are not supported yet
+
+fn direct(x: Direct<int>) {}
+fn generic<T>(x: Deep<T>) {}
+
+fn main() {
+    const _: Grow<Option<int>> = 1   // error[E0346]: the type alias `Grow` expands more than 64 times
+    const _: Same = 1   // error[E0346]: the type alias `Same` expands more than 64 times
+}
