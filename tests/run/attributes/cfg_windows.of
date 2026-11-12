@@ -1,0 +1,50 @@
+// requires: stage1
+// requires: windows
+// `@cfg` on Windows: the counterpart of cfg.of (spec 12.4).
+
+import std.os
+
+@cfg(os == "linux" || os == "macos")
+fn family() str {
+    return "unix"
+}
+
+@cfg(os == "windows")
+fn family() str {
+    return "windows"
+}
+
+@cfg(os != "windows")
+import std.missing.module
+
+struct Config {
+    name: str
+    @cfg(os == "windows")
+    drive: str
+    @cfg(os != "windows")
+    root: str
+
+    @cfg(os != "windows")
+    fn path(self) str {
+        return "{self.root}{self.name}"
+    }
+
+    @cfg(os == "windows")
+    fn path(self) str {
+        return "{self.drive}:\\{self.name}"
+    }
+}
+
+@cfg(os == "windows")
+extern "C" {
+    fn GetTickCount() u32
+}
+
+fn main() {
+    println(family())
+    println("{os.name()}")
+    const c = Config{name: "etc", drive: "C"}
+    println(c.path())
+    const ticks = unsafe { GetTickCount() }
+    println("{ticks > 0}")
+}

@@ -505,6 +505,8 @@ def run_test(cfg: Config, suite: str, path: Path) -> Result:
             return Result(path, "skip", "requires stage0")
         if requirement == "unix" and os.name == "nt":
             return Result(path, "skip", "requires unix")
+        if requirement == "windows" and os.name != "nt":
+            return Result(path, "skip", "requires windows")
     if suite == "lex":
         return check_emit(cfg, path, "tokens", ".tokens")
     if suite == "parse":

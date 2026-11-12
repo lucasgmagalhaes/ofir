@@ -147,10 +147,11 @@ CI runs `check-leaks` and `check-asan` on Linux.
 2. Every new language feature comes with run tests **and** compile-fail tests
    for its misuse.
 3. Test files are small: one behavior per file.
-4. CI runs all suites on Linux and macOS for every pull request.
+4. CI runs all suites on Linux, macOS and Windows for every pull request.
 5. Stage 0 and stage 1 run the same `tests/run`, `tests/panic` and
    `tests/compile_fail` suites (stage 0 may skip tests tagged
    `// requires: stage1` for features outside the bootstrap subset;
-   `// requires: unix` skips a test on Windows). A
+   `// requires: unix` skips a test on Windows, `// requires: windows`
+   everywhere else). A
    `// flags: ...` line adds compiler flags to a run or codegen test, e.g.
    `// flags: --release`.
