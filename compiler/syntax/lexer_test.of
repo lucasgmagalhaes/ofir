@@ -3,6 +3,7 @@
 import base.intern.Interner
 import base.span.FileId
 import diag.Diagnostics
+import std.testing.assert
 import syntax.token.TokenKind
 
 fn expectKinds(src: str, expected: [TokenKind]) {
