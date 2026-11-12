@@ -71,7 +71,7 @@ def main() -> int:
     out = Path(args.out)
     failures = 0
     for i in range(args.count):
-        text = mutate(rng, rng.choice(sources).read_text())
+        text = mutate(rng, rng.choice(sources).read_text(errors="replace"))
         case = out / f"case{i}.of"
         case.write_text(text)
         bad = any(crashes(args.compiler, case, emit, out) for emit in ("--emit=llvm", "--emit=ast"))

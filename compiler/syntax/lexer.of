@@ -10,6 +10,7 @@
 
 import base.intern.Interner
 import base.span.FileId
+import base.span.Span
 import diag.Diagnostics
 import syntax.cursor.Cursor
 import syntax.cursor.isDigit
@@ -25,6 +26,7 @@ import syntax.token.TokenKind
 import syntax.token.TokenValue
 
 pub fn tokenize(src: str, file: FileId, names: mut Interner, diags: mut Diagnostics) List<Token> {
+    checkEncoding(src, file, diags)
     let lx = Lexer.new(file)
     for !lx.cur.atEnd(src) {
         if !lx.skipTrivia(src, diags) {
@@ -34,6 +36,81 @@ pub fn tokenize(src: str, file: FileId, names: mut Interner, diags: mut Diagnost
     const end = lx.cur.token(TokenKind.Eof, lx.cur.pos)
     lx.out.push(end)
     return lx.out
+}
+
+// Source must be UTF-8 without bidirectional controls (spec 1.1).
+fn checkEncoding(src: str, file: FileId, diags: mut Diagnostics) {
+    let i = 0
+    for i < src.len() {
+        if src[i] < 0x80 {
+            i += 1
+            continue
+        }
+        const n = utf8Length(src, i)
+        if n == 0 {
+            const start = i
+            i += 1
+            for i < src.len() && src[i] & 0xC0 == 0x80 {
+                i += 1
+            }
+            diags.error("E0008", Span{file, start, end: i}, "invalid UTF-8".toOwned())
+            continue
+        }
+        if n == 3 && isBidiControl(src, i) {
+            const span = Span{file, start: i, end: i + 3}
+            diags.error("E0009", span, "bidirectional control character".toOwned())
+        }
+        i += n
+    }
+}
+
+// Length of the UTF-8 character at `i`, or 0 if the bytes there are not
+// one: overlong forms, surrogates and values above U+10FFFF are invalid.
+fn utf8Length(src: str, i: int) int {
+    const c = src[i]
+    let lo: u8 = 0x80
+    let hi: u8 = 0xBF
+    let n = 0
+    if c >= 0xC2 && c <= 0xDF {
+        n = 2
+    } else if c >= 0xE0 && c <= 0xEF {
+        n = 3
+        if c == 0xE0 {
+            lo = 0xA0
+        }
+        if c == 0xED {
+            hi = 0x9F
+        }
+    } else if c >= 0xF0 && c <= 0xF4 {
+        n = 4
+        if c == 0xF0 {
+            lo = 0x90
+        }
+        if c == 0xF4 {
+            hi = 0x8F
+        }
+    }
+    if n == 0 || n > src.len() - i || src[i + 1] < lo || src[i + 1] > hi {
+        return 0
+    }
+    for k in 2..n {
+        if src[i + k] & 0xC0 != 0x80 {
+            return 0
+        }
+    }
+    return n
+}
+
+// U+202A to U+202E and U+2066 to U+2069 reorder how text is displayed.
+fn isBidiControl(src: str, i: int) bool {
+    if src[i] != 0xE2 {
+        return false
+    }
+    const b = src[i + 2]
+    if src[i + 1] == 0x80 {
+        return b >= 0xAA && b <= 0xAE
+    }
+    return src[i + 1] == 0x81 && b >= 0xA6 && b <= 0xA9
 }
 
 struct Lexer {

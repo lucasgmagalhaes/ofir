@@ -1,0 +1,6 @@
+// Columns count bytes from 1, and a tab is one column (spec 1.1).
+x	y
+"é" z
+"😀" z
+// ünïcode in a comment
+w

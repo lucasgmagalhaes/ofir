@@ -497,7 +497,7 @@ def check_lsp(cfg: Config, path: Path) -> Result:
 
 
 def run_test(cfg: Config, suite: str, path: Path) -> Result:
-    source = path.read_text()
+    source = path.read_text(errors="replace")   # invalid UTF-8 is a test input
     for requirement in REQUIRES_RE.findall(source):
         if requirement == "stage1" and cfg.stage == 0:
             return Result(path, "skip", "requires stage1")

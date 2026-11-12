@@ -1,0 +1,9 @@
+// Source is UTF-8 (spec 1.1): each invalid sequence is reported once.
+
+fn main() {
+    println("café")             // error[E0008]: invalid UTF-8
+    println("í € surrogate")    // error[E0008]: invalid UTF-8
+    println("À¯ overlong")      // error[E0008]: invalid UTF-8
+    // a comment with ÿþ too  // error[E0008]: invalid UTF-8
+    println("ðŸ˜€ is valid")
+}
