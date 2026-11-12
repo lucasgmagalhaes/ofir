@@ -1,5 +1,7 @@
 // The tests of `std.mem` (spec 12.2): `ofir test std/mem/index.of` runs them.
 
+import std.testing.assert
+
 @test
 fn replaceReturnsTheOldValue() {
     let names = ["ana".toOwned(), "bob".toOwned()]
