@@ -1,4 +1,5 @@
-// Memory allocation: wraps malloc and panics when out of memory.
+// Memory allocation: blocks of up to OFIR_POOL_MAX bytes come from the pool
+// (pool.c), larger ones from malloc; both panic when out of memory.
 //
 // On Windows every block comes from `_aligned_malloc`, so that `ofir_free`
 // releases aligned and plain blocks alike; elsewhere `free` accepts what
@@ -22,6 +23,12 @@ static size_t at_least_one(int64_t size) {
 }
 
 void *ofir_alloc(int64_t size) {
+    if ((uint64_t)size - 1 < OFIR_POOL_MAX) {   // 1 to OFIR_POOL_MAX bytes
+        void *block = ofir_pool_alloc(size);
+        if (block) {
+            return block;
+        }
+    }
 #ifdef _WIN32
     void *ptr = _aligned_malloc(at_least_one(size), 16);
 #else
@@ -34,6 +41,19 @@ void *ofir_alloc(int64_t size) {
 }
 
 void *ofir_realloc(void *ptr, int64_t size) {
+    if (!ptr) {
+        return ofir_alloc(size);
+    }
+    if (ofir_pool_owns(ptr)) {
+        int64_t room = ofir_pool_block_size(ptr);
+        if (size <= room && size > room / 2) {
+            return ptr;
+        }
+        void *moved = ofir_alloc(size);
+        memcpy(moved, ptr, size < room ? at_least_one(size) : (size_t)room);
+        ofir_pool_free(ptr);
+        return moved;
+    }
 #ifdef _WIN32
     void *grown = _aligned_realloc(ptr, at_least_one(size), 16);
 #else
@@ -84,6 +104,9 @@ void *ofir_realloc_aligned(void *ptr, int64_t size, int64_t align) {
 }
 
 void ofir_free(void *ptr) {
+    if (ofir_pool_try_free(ptr)) {
+        return;
+    }
 #ifdef _WIN32
     _aligned_free(ptr);
 #else

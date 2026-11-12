@@ -51,6 +51,7 @@ starts with the same word as the record's status line.
 | [0038](0038-feature-states.md) | Feature states in one registry; no feature flags before 1.0 | Accepted |
 | [0039](0039-any-type.md) | `any`: a builtin `dyn` type for values of any type | Accepted |
 | [0040](0040-iteration-without-lazy-chains.md) | Iteration contracts, without lazy adapter chains | Accepted |
+| [0041](0041-small-block-pool.md) | A small-block pool behind ofir_alloc | Accepted |
 
 ## Template
 

@@ -13,6 +13,7 @@ void ofir_task_entry(void *job);
 
 static void *start(void *job) {
     ofir_task_entry(job);
+    ofir_pool_thread_exit();
     ofir_stdout_publish();   // a last line that has no newline
     return NULL;
 }

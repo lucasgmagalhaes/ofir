@@ -1,0 +1,81 @@
+// Blocks of every size up to past the pool's limit (ADR 0041), kept alive
+// together so that a chunk of each class fills up: every block keeps what
+// was written into it.
+
+struct Quad {
+    a: int
+    b: int
+    c: int
+    d: int
+}
+
+// 192 and 320 bytes: classes whose blocks do not fill a chunk exactly.
+struct Six {
+    q0: Quad
+    q1: Quad
+    q2: Quad
+    q3: Quad
+    q4: Quad
+    q5: Quad
+}
+
+struct Ten {
+    six: Six
+    q6: Quad
+    q7: Quad
+    q8: Quad
+    q9: Quad
+}
+
+fn quad(i: int) Quad {
+    return Quad{a: i, b: i + 1, c: i + 2, d: i + 3}
+}
+
+fn six(i: int) Six {
+    return Six{q0: quad(i), q1: quad(i), q2: quad(i), q3: quad(i), q4: quad(i), q5: quad(i)}
+}
+
+fn main() {
+    let sixes: List<Box<Six>> = []
+    let tens: List<Box<Ten>> = []
+    for i in 0..5000 {
+        sixes.push(Box.new(six(i)))
+        tens.push(Box.new(Ten{six: six(i), q6: quad(i), q7: quad(i), q8: quad(i), q9: quad(i)}))
+    }
+    let same = true
+    for i in 0..5000 {
+        const s = &sixes[i]
+        const t = &tens[i]
+        same = same && s.q0.a == i && s.q5.d == i + 3 && t.six.q3.b == i + 1 && t.q9.d == i + 3
+    }
+    println("{same}")
+
+    let texts: List<str> = []
+    for n in 1..700 {
+        let text = ""
+        for i in 0..n {
+            text.push(if i % 2 == 0 { "a" } else { "b" })
+        }
+        texts.push(text)
+    }
+    for round in 0..3 {
+        let boxes: List<Box<int>> = []
+        for i in 0..20000 {
+            boxes.push(Box.new(i * round))
+        }
+        let sum = 0
+        for b in boxes {
+            sum += *b
+        }
+        println("{sum}")
+    }
+    let ok = true
+    for n in 1..700 {
+        const text = &texts[n - 1]
+        ok = ok && text.len() == n
+        for i in 0..n {
+            ok = ok && text[i] == (if i % 2 == 0 { b'a' } else { b'b' })
+        }
+    }
+    println("{ok}")
+}

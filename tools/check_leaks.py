@@ -9,6 +9,7 @@ access: drops must run exactly once. Requires valgrind.
 
 import argparse
 import concurrent.futures
+import os
 import shutil
 import subprocess
 import sys
@@ -29,6 +30,10 @@ def programs() -> list:
     return found
 
 
+# Every block from malloc: valgrind does not see a leaked block of the pool.
+SYSTEM_ALLOC = dict(os.environ, OFIR_SYSTEM_ALLOC="1")
+
+
 def check(compiler: str, path: Path, out_dir: Path):
     exe = out_dir / (path.stem + str(abs(hash(path))))
     build = subprocess.run([compiler, "build", str(path), "-o", str(exe)],
@@ -37,7 +42,8 @@ def check(compiler: str, path: Path, out_dir: Path):
         return None   # not a program stage 0 compiles (examples of later features)
     run = subprocess.run(["valgrind", "--leak-check=full", "--error-exitcode=9",
                           "--errors-for-leak-kinds=definite,indirect", str(exe)],
-                         capture_output=True, text=True, stdin=subprocess.DEVNULL)
+                         capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                         env=SYSTEM_ALLOC)
     if run.returncode != 9:
         return None
     lines = [l for l in run.stderr.splitlines()
