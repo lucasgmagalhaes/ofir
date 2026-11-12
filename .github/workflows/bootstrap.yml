@@ -1,0 +1,39 @@
+name: Bootstrap
+
+# The auditable path of the bootstrap (docs/bootstrap.md): the compiler is
+# rebuilt from stage 0 through the releases with only a C compiler and
+# clang (tools/bootstrap_chain.sh). Weekly and by hand.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chain:
+    name: chain
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use the main Ubuntu mirror
+        # The runners' Azure apt mirror sometimes fails to resolve for hours.
+        run: |
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|' \
+            -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|' \
+            /etc/apt/sources.list.d/*.sources /etc/apt/sources.list || true
+          echo 'Acquire::Retries "5";' | sudo tee /etc/apt/apt.conf.d/80-retries
+
+      - name: Install LLVM
+        run: |
+          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
+          sudo bash llvm.sh 21
+          echo "OFIR_CLANG=clang-21" >> "$GITHUB_ENV"
+
+      - name: Build the chain
+        run: tools/bootstrap_chain.sh
