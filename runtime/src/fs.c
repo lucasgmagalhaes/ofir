@@ -201,14 +201,15 @@ static int32_t make_dirs(char *name) {
         }
         char saved = *at;
         *at = 0;
+        // Only the last directory decides: a prefix such as `C:` can fail on Windows.
         struct stat info;
-        if (mkdir(name, 0777) != 0 && errno != EEXIST &&
-            (stat(name, &info) != 0 || !S_ISDIR(info.st_mode))) {   // `C:` on Windows
-            return errno;
+        int32_t code = mkdir(name, 0777) == 0 || errno == EEXIST ? 0 : errno;
+        if (code != 0 && stat(name, &info) == 0 && S_ISDIR(info.st_mode)) {
+            code = 0;
         }
         *at = saved;
         if (saved == 0) {
-            return 0;
+            return code;
         }
     }
 }
