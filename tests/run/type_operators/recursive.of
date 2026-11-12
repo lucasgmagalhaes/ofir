@@ -1,0 +1,16 @@
+// requires: stage1
+// Recursive conditional types (spec 16.5): each expansion is decided.
+
+type Deep<T> = if T is Option<infer U> { Deep<U> } else { T }
+type Last<T> = if T is (infer A, infer B) { Last<B> } else { T }
+
+fn first(x: Deep<Option<Option<int>>>) int {
+    return x + 1
+}
+
+fn main() {
+    const n: Deep<int> = 1
+    const s: Deep<Option<Option<Option<str>>>> = "deep"
+    const l: Last<(int, (bool, (str, float)))> = 2.5
+    println("{first(n)} {s} {l}")
+}
