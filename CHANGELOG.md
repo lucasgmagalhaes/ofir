@@ -8,6 +8,9 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A type alias may name itself in a branch of a conditional type
+  (`type Deep<T> = if T is Option<infer U> { Deep<U> } else { T }`); more
+  than 64 nested expansions are E0346.
 - E0815 and E0816 note where a failing compile-time call failed and the
   calls that led there.
 - E0819: outside std, an `extern "C"` function whose symbol is `main` or
