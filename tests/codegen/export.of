@@ -1,10 +1,10 @@
 // requires: stage1
 // An `extern "C" fn` is defined under its `@export` name, or its own
 // (spec 11.4).
-// CHECK: define i32 @ofir_test_add(i32 %p1, i32 %p2) nounwind {
+// CHECK: define i32 @test_add(i32 %p1, i32 %p2) nounwind {
 // CHECK: define i32 @twice(i32 %p1) nounwind {
-// CHECK: call i32 @ofir_test_add(i32 40, i32 2)
-@export("ofir_test_add")
+// CHECK: call i32 @test_add(i32 40, i32 2)
+@export("test_add")
 extern "C" fn add(a: i32, b: i32) i32 {
     return a + b
 }
