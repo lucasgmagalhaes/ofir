@@ -122,6 +122,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Source files must be valid UTF-8 (E0008) and free of bidirectional
+  control characters (E0009), in comments and literals too (spec 1.1,
+  OFIR-06). Save the file as UTF-8, and write such a character as an
+  escape (`"\u{202E}"`).
 - A type that declares `eq` no longer derives `Ord` (stage 1): `<` and
   `sort` must agree with the declared equality. Declare `cmp` as well, or
   compare a key field instead (spec 9.9, OFIR-05).
