@@ -304,6 +304,85 @@ static bool skip_trivia(Lexer *lx) {
     return true;
 }
 
+// Length of the UTF-8 character at `i`, or 0 if the bytes there are not
+// one: overlong forms, surrogates and values above U+10FFFF are invalid.
+static uint32_t utf8_length(const unsigned char *s, uint32_t i, uint32_t len) {
+    unsigned char c = s[i];
+    unsigned char lo = 0x80;
+    unsigned char hi = 0xbf;
+    uint32_t n = 0;
+    if (c >= 0xc2 && c <= 0xdf) {
+        n = 2;
+    } else if (c >= 0xe0 && c <= 0xef) {
+        n = 3;
+        lo = c == 0xe0 ? 0xa0 : lo;
+        hi = c == 0xed ? 0x9f : hi;
+    } else if (c >= 0xf0 && c <= 0xf4) {
+        n = 4;
+        lo = c == 0xf0 ? 0x90 : lo;
+        hi = c == 0xf4 ? 0x8f : hi;
+    }
+    if (n == 0 || n > len - i || s[i + 1] < lo || s[i + 1] > hi) {
+        return 0;
+    }
+    for (uint32_t k = 2; k < n; k++) {
+        if ((s[i + k] & 0xc0) != 0x80) {
+            return 0;
+        }
+    }
+    return n;
+}
+
+// U+202A to U+202E and U+2066 to U+2069 reorder how text is displayed.
+static bool is_bidi_control(const unsigned char *s, uint32_t i) {
+    return s[i] == 0xe2 && ((s[i + 1] == 0x80 && s[i + 2] >= 0xaa && s[i + 2] <= 0xae) ||
+                            (s[i + 1] == 0x81 && s[i + 2] >= 0xa6 && s[i + 2] <= 0xa9));
+}
+
+// The end of the ASCII run at `i`, read 32 bytes at a time: most source is
+// ASCII, and the check must not slow the lexer down.
+static uint32_t skip_ascii(const unsigned char *s, uint32_t i, uint32_t len) {
+    const uint64_t high = 0x8080808080808080ull;
+    while (len - i >= 32) {
+        uint64_t w[4];
+        memcpy(w, s + i, sizeof w);
+        if (((w[0] | w[1] | w[2] | w[3]) & high) != 0) {
+            break;
+        }
+        i += 32;
+    }
+    while (i < len && s[i] < 0x80) {
+        i++;
+    }
+    return i;
+}
+
+// Source must be UTF-8 without bidirectional controls (spec 1.1).
+static void check_encoding(Lexer *lx) {
+    const unsigned char *s = (const unsigned char *)lx->src;
+    uint32_t i = 0;
+    while (i < lx->len) {
+        if (s[i] < 0x80) {
+            i = skip_ascii(s, i, lx->len);
+            continue;
+        }
+        uint32_t n = utf8_length(s, i, lx->len);
+        if (n == 0) {
+            uint32_t start = i++;
+            while (i < lx->len && (s[i] & 0xc0) == 0x80) {
+                i++;
+            }
+            diag_error(&lx->session->diags, "E0008", (Span){lx->file, start, i}, "invalid UTF-8");
+            continue;
+        }
+        if (n == 3 && is_bidi_control(s, i)) {
+            diag_error(&lx->session->diags, "E0009", (Span){lx->file, i, i + 3},
+                       "bidirectional control character");
+        }
+        i += n;
+    }
+}
+
 void lex(Session *session, FileId file, TokenList *out) {
     const SourceFile *source = source_file(&session->sources, file);
     Lexer lx = {
@@ -313,6 +392,7 @@ void lex(Session *session, FileId file, TokenList *out) {
         .file = file,
         .out = out,
     };
+    check_encoding(&lx);
     while (!at_end(&lx)) {
         if (!skip_trivia(&lx)) {
             token_at(&lx);
