@@ -181,7 +181,8 @@ int64_t ofir_find_bytes(const uint8_t *text, int64_t len, const uint8_t *part, i
         if (!at) {
             return -1;
         }
-        if (n == 1 || memcmp(at + 1, part + 1, (size_t)(n - 1)) == 0) {
+        // The last byte first: a cheap filter before memcmp.
+        if (at[n - 1] == part[n - 1] && memcmp(at + 1, part + 1, (size_t)(n - 1)) == 0) {
             return at - text;
         }
         at++;
