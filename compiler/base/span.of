@@ -16,6 +16,7 @@ pub copy struct FileId(int)
  * ```ofir
  * import base.span.FileId
  * import base.span.Span
+ * import std.testing.assert
  *
  * const span = Span{file: FileId(0), start: 4, end: 9}
  * assert(span.len() == 5)

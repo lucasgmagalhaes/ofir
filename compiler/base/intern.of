@@ -16,6 +16,7 @@ pub copy struct Symbol(int)
  * @example
  * ```ofir
  * import base.intern.Interner
+ * import std.testing.assert
  *
  * let names = Interner.new()
  * const a = names.intern("main")
