@@ -117,8 +117,8 @@ every module of the program except the std modules, plus those of the root
 file, which may be a std module (`ofir test std/core/split.of` runs
 `std/core/split_test.of`); `make test-std` runs the
 tests of std. A test returns `()`; `Result` tests, `assertEq` and
-`assertNe` await interfaces (roadmap 5.1). Doc tests (12.5) run under
-stage 1 only.
+`assertNe` need interfaces, which only stage 1 has. Doc tests (12.5) run
+under stage 1 only.
 
 The asserts are in `std.testing`, not in the prelude (ADR 0036); `@test`
 and the other attributes are part of the language and need no import:
@@ -129,8 +129,9 @@ and the other attributes are part of the language and need no import:
 | `assertEq<T: Eq + Debug>(left: T, right: T)` | `left != right`, printing both values with `Debug` |
 | `assertNe<T: Eq + Debug>(left: T, right: T)` | `left == right`, printing both values with `Debug` |
 
-The compiler lowers each assert where it is called, so a failed assert
-reports the location of the call:
+`assertEq` and `assertNe` read their arguments and do not move them: a
+value compared stays usable after the call. The compiler lowers each assert
+where it is called, so a failed assert reports the location of the call:
 
 ```
 panic: assertion failed: left == right
