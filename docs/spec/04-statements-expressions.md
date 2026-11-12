@@ -209,4 +209,8 @@ Slicing (`list[a..b]`, `s[a..b]`) produces a borrowed view (chapter 2.12).
 
 ## 4.10 Order of evaluation
 
-Operands, arguments and struct literal fields are evaluated left to right.
+Operands, arguments, the fields of a struct literal and the elements of a
+list or tuple literal are evaluated left to right. Struct literal fields
+are evaluated in the order they are written, not in the order of the
+struct declaration. An argument that is itself a call is evaluated, with
+its own arguments, before the next argument.
