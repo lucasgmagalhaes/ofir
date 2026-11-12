@@ -118,6 +118,8 @@ pub struct str {
      * the end of the string
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * extern "C" {
      *     fn strlen(s: *u8) int
      * }
@@ -229,6 +231,8 @@ pub struct str {
      * @returns true if the first bytes equal `prefix`; always for `""`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert("main.of".startsWith("main"))
      * ```
      */
@@ -243,6 +247,8 @@ pub struct str {
      * @returns true if the last bytes equal `suffix`; always for `""`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert("main.of".endsWith(".of"))
      * ```
      */
@@ -261,6 +267,8 @@ pub struct str {
      * @returns true if some substring equals `part`; always for `""`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert("hello".contains("ell"))
      * ```
      */
@@ -280,6 +288,8 @@ pub struct str {
      * @returns `n` copies one after the other; `""` when `n <= 0`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert("ab".repeat(3) == "ababab")
      * ```
      */
@@ -305,6 +315,8 @@ pub struct str {
      * on a character boundary of the UTF-8 text
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * const s = "hello, world"
      * assert(s[0..5] == "hello")
      * ```
@@ -353,6 +365,8 @@ pub struct str {
      * @returns the trimmed bytes, borrowed from this string
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert("  hi \n".trim() == "hi")
      * ```
      */
@@ -395,6 +409,8 @@ pub struct str {
      * @returns the new string
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert("a-b-c".replace("-", ", ") == "a, b, c")
      * ```
      */
@@ -485,6 +501,8 @@ pub struct str {
      * @returns the new string
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert("Ofir 1.0".toLower() == "ofir 1.0")
      * ```
      */
