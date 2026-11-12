@@ -119,8 +119,8 @@ specification; the other classes are known and accepted.
 | 9.4 Embedding | none | partial | `tests/run/interfaces/embedding.of` `tests/compile_fail/types/interface_conflicts.of` | subset: interfaces; limit: embedding a generic interface |
 | 9.5 Generic interfaces | none | partial | `tests/run/interfaces/generic.of` `tests/compile_fail/types/generic_interfaces.of` | subset: interfaces; limit: `dyn` of a generic interface |
 | 9.6 Static dispatch | none | full | `tests/run/interfaces/params.of` `tests/compile_fail/types/interface_params.of` | subset: interfaces |
-| 9.7 Dynamic dispatch with `dyn` | none | full | `tests/run/dyn` `tests/compile_fail/types/dyn.of` | subset: `dyn` |
-| 9.8 Type switches | none | full | `tests/run/dyn/type_switch.of` `tests/compile_fail/types/type_switch.of` | subset: `dyn` |
+| 9.7 Dynamic dispatch with `dyn` | none | partial | `tests/run/dyn` `tests/compile_fail/types/dyn.of` `tests/compile_fail/types/dyn_params.of` | subset: `dyn`; planned: converting a `dyn` value to an embedded interface, `dyn` of a generic interface |
+| 9.8 Type switches | none | full | `tests/run/dyn/type_switch.of` `tests/run/dyn/any_generic.of` `tests/compile_fail/types/type_switch.of` | subset: `dyn` |
 | 9.9 Built-in interfaces | partial | partial | `tests/run/interfaces/derived.of` `tests/run/strings/debug.of` `tests/compile_fail/types/derived.of` `tests/compile_fail/types/debug.of` `tests/run/map/custom_keys.of` | subset: stage 0 has `Eq`, `Ord` and `Hash` on scalars, `str` and tuples of these only; planned: `Hasher` and a declared `hash`; missing: `cmp` cannot be called on a primitive or on a type parameter bounded by `Ord` |
 | 9.10 Coherence | none | full | `compiler/sema/check.of` | subset: interfaces; untested: holds by construction (methods are declared in their type) |
 | 10.1 Syntax | none | full | `tests/run/closures` `tests/compile_fail/types/closures.of` | subset: closures |
