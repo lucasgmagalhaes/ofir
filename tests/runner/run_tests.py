@@ -191,7 +191,8 @@ def make_registry_fixtures(sources: Path, dest: Path) -> None:
     index = work / "index"
     index.mkdir()
     download = (dest / "archives").as_posix() + "/{name}-{version}.tar.gz"
-    (index / "config.json").write_text(json.dumps({"download": "file://" + download}) + "\n")
+    config = json.dumps({"download": "file://" + download}) + "\n"
+    (index / "config.json").write_text(config, newline="\n")
     for package in sorted(p for p in sources.iterdir() if p.is_dir()):
         name = package.name
         lines = []
@@ -208,7 +209,7 @@ def make_registry_fixtures(sources: Path, dest: Path) -> None:
         rel = (f"{n}/{name}" if n <= 2 else f"3/{name[0]}/{name}" if n == 3
                else f"{name[0:2]}/{name[2:4]}/{name}")
         (index / rel).parent.mkdir(parents=True, exist_ok=True)
-        (index / rel).write_text("\n".join(lines) + "\n")
+        (index / rel).write_text("\n".join(lines) + "\n", newline="\n")
     env = {**os.environ, "GIT_AUTHOR_NAME": "ofir", "GIT_AUTHOR_EMAIL": "ofir@example.com",
            "GIT_COMMITTER_NAME": "ofir", "GIT_COMMITTER_EMAIL": "ofir@example.com",
            "GIT_CONFIG_GLOBAL": os.devnull}
@@ -321,7 +322,7 @@ def write_lock(cfg: Config, template: Path) -> None:
     build = Path(__file__).resolve().parents[2] / "build"
     text = template.read_text().replace("{fixtures}", (build / "git-fixtures").as_posix())
     text = text.replace("{registry}", (build / "registry-fixtures" / "index").as_posix())
-    (template.parent / "ofir.lock").write_text(text)
+    (template.parent / "ofir.lock").write_text(text, newline="\n")
 
 
 def check_diagnostics(cfg: Config, path: Path, source: str) -> Result:
