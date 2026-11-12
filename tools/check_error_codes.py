@@ -73,7 +73,7 @@ def explanation_problems(path: Path, known: set) -> list[str]:
 
 def compile_block(compiler: str, source: str, tmp: Path) -> str:
     src = tmp / "example.of"
-    src.write_text(source)
+    src.write_text(source, newline="\n")
     proc = subprocess.run([compiler, "build", str(src), "--message-format=short",
                            "-o", str(tmp / "example")],
                           capture_output=True, text=True, timeout=60)
