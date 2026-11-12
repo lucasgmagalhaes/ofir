@@ -1,0 +1,9 @@
+// Bidirectional controls can make code read differently from how it runs
+// (spec 1.1). Write them as escapes: "\u{202E}".
+
+fn main() {
+    const isAdmin = false
+    /* ‮ } if isAdmin { */  // error[E0009]: bidirectional control character
+    println("⁦admin⁩")  // error[E0009]: bidirectional control character
+    println("\u{202E} is fine")
+}
