@@ -287,7 +287,7 @@ fn ctorText(c: Checker, ty: int, ctor: int, fields: &List<str>, count: int) str 
         const isEnum = c.def(t.data).kind == DefKind.Enum
         if c.isUnion(t.data) {   // `_: IoError` (spec 17.4)
             text.push("_: ")
-            text.push(c.typeName(variantsOf(c, t.data).variants[ctor].types[0]))
+            text.push(c.typeName(t.args[ctor]))
             return text
         }
         if isEnum {   // `Shape.Empty` (ADR 0028)
