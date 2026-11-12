@@ -130,13 +130,13 @@ specification; the other classes are known and accepted.
 | 11.1 `unsafe` blocks and functions | partial | partial | `tests/compile_fail/types/unsafe.of` `tests/run/ffi/libc.of` | planned: reading the fields of `union` types |
 | 11.2 Raw pointers | full | full | `tests/run/unsafe/ref_to_ptr.of` `tests/run/ffi/libc.of` `tests/compile_fail/types/unsafe.of` | - |
 | 11.3 Calling C | full | full | `tests/run/ffi/libc.of` `tests/run/ffi/cstring.of` `tests/panic/cstring_nul.of` | - |
-| 11.4 Exporting functions to C | none | full | `tests/run/ffi/export_link.of` `tests/codegen/export.of` `tests/compile_fail/attributes/export_link.of` | subset: `@export` |
+| 11.4 Exporting functions to C | none | full | `tests/run/ffi/export_link.of` `tests/codegen/export.of` `tests/compile_fail/attributes/export_link.of` `tests/compile_fail/attributes/reserved_symbols.of` | subset: `@export` |
 | 11.5 Mutable globals | partial | partial | `tests/run/globals/app` `tests/compile_fail/types/globals.of` | subset: stage 0 has the declaration but no accesses; limit: globals of types other than numbers and `bool` |
 | 11.6 Undefined behavior | n/a | n/a | `tests/panic` `tests/run/unsafe/alignment.of` `tools/check_asan.py` `tools/check_leaks.py` | - |
 | 12.1 Attributes | partial | full | `tests/compile_fail/attributes` `tests/run/attributes` `tests/codegen/hints.of` | subset: stage 0 implements `@inline`, `@cold`, `@test` and `@lang` only |
 | 12.2 Tests | partial | full | `tests/ofir_test` `tests/run/testing/assert_eq.of` `tests/compile_fail/types/tests.of` | subset: `Result` tests, `assertEq`, `assertNe`, doc tests and concurrent runs |
 | 12.3 Benchmarks | none | full | `tests/ofir_bench` `tests/compile_fail/types/benches.of` | subset: `ofir bench` |
-| 12.4 Conditional compilation | none | full | `tests/run/attributes/cfg.of` `tests/run/attributes/cfg_windows.of` `tests/compile_fail/attributes/cfg.of` | subset: `@cfg`; target: `cfg_windows` runs on Windows only |
+| 12.4 Conditional compilation | none | full | `tests/run/attributes/cfg.of` `tests/run/attributes/cfg_windows.of` `tests/compile_fail/attributes/cfg.of` `tests/compile_fail/attributes/variant.of` | subset: `@cfg`; target: `cfg_windows` runs on Windows only |
 | 12.5 Documentation comments | partial | full | `tests/ofir_doctest` `tests/doc` `tools/check_docs.py` | subset: doc tests and `ofir doc` |
 | 12.6 Warnings | partial | partial | `tests/compile_fail/warn_unused.of` `tests/compile_fail/warn_unreachable.of` `tests/compile_fail/warn_imports` `tests/compile_fail/attributes/deprecated.of` | subset: stage 0 reports W0001, W0002 and W0004 only; planned: unused private items (W0003), needless `let` (W0005) and naming (W0007) |
 | 13.1 Primitive types | full | full | `tests/codegen/functions.of` | untested: no test checks sizes and alignments |
