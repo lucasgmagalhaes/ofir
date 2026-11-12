@@ -8,7 +8,7 @@ member it holds.
 type LoadError = IoError | ParseError
 
 fn load(path: str) Result<Config, LoadError> {
-    const text = fs.readFile(path)?      // Result<str, IoError>: IoError widens
+    const text = fs.readToString(path)?  // Result<str, IoError>: IoError widens
     const config = Config.parse(text)?   // Result<Config, ParseError>
     return Result.Ok(config)
 }
@@ -76,7 +76,7 @@ A union is inspected with **type test patterns**, `name: Type` (A.7), in
 
 ```ofir
 match err {
-    e: IoError => eprintln("cannot read: {e}"),
+    e: IoError => eprintln("cannot read: {e.message}"),
     e: ParseError => eprintln("line {e.line}: {e.message}"),
 }
 
