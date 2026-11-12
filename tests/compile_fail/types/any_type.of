@@ -1,0 +1,14 @@
+// requires: stage1
+// The builtin type `any` (spec 9.8, ADR 0039) is a `dyn` type already, and
+// the old interface name `Any` is gone.
+
+fn twice(v: dyn any) str {      // error[E0365]: `any` is a `dyn` type already: write `any`, not `dyn any`
+    return v.typeName()
+}
+
+fn old(v: &dyn Any) str {       // error[E0333]: `Any` is not an interface
+    return v.typeName()
+}
+
+fn main() {
+}
