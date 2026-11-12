@@ -75,7 +75,7 @@ specification; the other classes are known and accepted.
 | 4.7 `return`, `break`, `continue` | full | full | `tests/run/basics/loops.of` `tests/compile_fail/types/returns.of` | - |
 | 4.8 Operators and precedence | full | full | `tests/run/basics/arithmetic.of` `tests/parse/expressions.of` `tests/compile_fail/types/operators.of` `tests/compile_fail/parser/chained_comparison.of` | - |
 | 4.9 Indexing | full | full | `tests/run/list/basics.of` `tests/panic/bounds.of` `tests/panic/bounds_list.of` | - |
-| 4.10 Order of evaluation | full | full | `compiler/air/lower_expr.of` | untested: no test checks the order of side effects |
+| 4.10 Order of evaluation | full | full | `tests/run/basics/eval_order.of` | - |
 
 ## Chapters 5-8: ownership, errors, modules, generics
 
