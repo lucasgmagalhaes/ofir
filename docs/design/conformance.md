@@ -166,10 +166,10 @@ Stage 0 implements none of these chapters (bootstrap subset).
 | 16.2 Keys as generic parameters | none | full | `tests/run/type_operators/key_params.of` `tests/compile_fail/types/key_params.of` | subset: type operators |
 | 16.3 Indexed access types | none | full | `tests/run/type_operators/keys.of` `tests/compile_fail/types/key_types.of` | subset: type operators |
 | 16.4 Mapped types | none | partial | `tests/run/type_operators/mapped_types.of` `tests/run/type_operators/mapped_generic.of` `tests/run/type_operators/mapped_nested.of` `tests/compile_fail/types/mapped_types.of` `tests/compile_fail/types/mapped_unsupported.of` | subset: type operators; limit: a mapped type outside a type alias, or over a type parameter inside another type |
-| 16.5 Conditional types | none | full | `tests/run/type_operators/conditional_types.of` `tests/run/type_operators/cond_generic.of` `tests/compile_fail/types/conditional_types.of` | subset: type operators |
+| 16.5 Conditional types | none | full | `tests/run/type_operators/conditional_types.of` `tests/run/type_operators/cond_generic.of` `tests/run/type_operators/recursive.of` `tests/compile_fail/types/conditional_types.of` `tests/compile_fail/types/recursive_types.of` | subset: type operators |
 | 16.6 Mapping values | none | full | `tests/run/type_operators/generic_operators.of` `tests/run/type_operators/mapped_generic.of` | subset: type operators |
 | 16.7 The standard aliases | none | full | `tests/run/type_operators/core_aliases.of` `tests/compile_fail/types/type_operators_stage0.of` | subset: stage 0 loads the aliases as opaque (E0901 on use) |
-| 16.8 Errors | none | full | `tests/compile_fail/types/key_types.of` `tests/compile_fail/types/mapped_types.of` `tests/compile_fail/types/conditional_types.of` | subset: type operators |
+| 16.8 Errors | none | full | `tests/compile_fail/types/key_types.of` `tests/compile_fail/types/mapped_types.of` `tests/compile_fail/types/conditional_types.of` `tests/compile_fail/types/recursive_types.of` | subset: type operators |
 | 17.1 Union types | none | full | `tests/run/unions/generic.of` `tests/compile_fail/types/unions.of` | subset: union types |
 | 17.2 Equivalence | none | full | `tests/compile_fail/types/unions.of` | subset: union types |
 | 17.3 Widening | none | full | `tests/run/unions/widening.of` `tests/run/unions/widening_sub.of` | subset: union types |
