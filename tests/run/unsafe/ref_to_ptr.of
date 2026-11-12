@@ -1,0 +1,13 @@
+// Spec 11.2: making a raw pointer from a reference is safe; only reading
+// through it needs `unsafe`.
+fn main() {
+    let x = 5
+    const p = &x as *int
+    const r = &x as *int
+    println("{p == r}")
+    const q = &mut x as *mut int
+    unsafe {
+        *q = 6
+    }
+    println("{x}")
+}
