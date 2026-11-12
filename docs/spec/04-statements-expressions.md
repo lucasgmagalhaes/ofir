@@ -60,6 +60,9 @@ for mut item in list { }   // borrows each element mutably; `list` must be mutab
 for i, item in list { }    // with the index (int)
 
 for key, value in map { }  // borrows keys and values, in insertion order
+for mut key, value in map { }   // borrows each value mutably
+
+for item in list.drain() { }     // moves each element out; `list` is left empty
 
 for word in text.splitWhitespace() { }   // an iterator: `next()` until `None`
 ```
@@ -72,6 +75,27 @@ end of the loop; an iterator in a variable is advanced in place, so the
 variable must be a `let`, and the loop leaves it where it stopped. Stage 0
 recognizes the method by its name and signature, until interfaces
 (roadmap 5.1).
+
+A loop over a list, a slice or a map holds a borrow of it until the loop
+ends, so the elements cannot move while the loop sees them:
+
+- `for item in list` holds a shared borrow: the body may read `list` but
+  not change it (`list.push(x)` there is E0701).
+- `for mut item in list` holds a mutable borrow, and `item` is the element
+  itself: assigning to `item` or to its fields changes the list, and an
+  assigned element drops its old value. The body cannot use `list` except
+  through `item` (E0703 to read it, E0700 to change it), and `list` must be
+  mutable (E0315). For a map, `for mut key, value` makes `value` the
+  entry's value; keys never change in place.
+- Consuming iteration goes through an iterator that owns its items:
+  `list.drain()` moves the elements out first to last and leaves the list
+  empty, with its buffer; the elements a `break` leaves behind are dropped
+  with the iterator. `for item in make()` over a temporary list borrows
+  it, and the list drops its elements after the loop.
+
+Std has no lazy adapter chains (`iter().map(f).filter(g)`; ADR 0040): a
+loop says the same thing without an iterator type per step. A user type
+can still write adapters as iterators (chapter 9).
 
 `break` and `continue` apply to the innermost loop. A loop with a label,
 `name: for`, can be left from the loops inside it: `break name` ends that
