@@ -1,6 +1,7 @@
 // The tests of `sema.suggest` (docs/design/toolchain.md, Suggestions).
 
 import base.intern.Symbol
+import std.testing.assert
 
 fn distance(a: str, b: str) int {
     return editDistance(&bytesOf(a), &bytesOf(b))
