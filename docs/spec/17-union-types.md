@@ -1,8 +1,9 @@
-# 17. Union types **[planned]**
+# 17. Union types
 
 A union type `A | B` holds a value of one of its member types (ADR 0022).
 It is an anonymous tagged enum: each value carries a tag that says which
-member it holds.
+member it holds. Stage 1 implements the whole chapter; stage 0 has no
+union types.
 
 ```ofir
 type LoadError = IoError | ParseError

@@ -22,9 +22,9 @@ This specification describes the Ofir language. Sections marked
 12. [Attributes, testing and documentation](12-attributes-testing.md)
 13. [Memory layout and ABI](13-memory-layout.md)
 14. [Concurrency](14-concurrency.md): tasks, `Send`/`Sync`, channels, `Mutex`, `RwLock`, atomics, `Arc` and `WaitGroup`
-15. [Compile-time code](15-compile-time.md) **[planned]**
-16. [Type operators](16-type-operators.md) **[planned]**: `keyof`, `T[K]`, mapped and conditional types
-17. [Union types](17-union-types.md) **[planned]**: `A | B` as anonymous tagged enums
+15. [Compile-time code](15-compile-time.md): `comptime`, `std.meta` and the AIR interpreter
+16. [Type operators](16-type-operators.md): `keyof`, `T[K]`, mapped and conditional types
+17. [Union types](17-union-types.md): `A | B` as anonymous tagged enums
 
 Appendices:
 

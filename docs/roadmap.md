@@ -240,7 +240,7 @@ closed. These gaps remain:
 | 5.22i | Unions whose members contain type parameters (`Option<T> \| int`) are E0901 | 17.1 | **done** (stage 1): `tests/run/unions/generic` returns and narrows `Option<T> \| int` in a generic function |
 | 5.22j | A mapped type over a mapped type of a type parameter (`Partial<Partial<T>>`) is E0340 | 16.4 | **done** (stage 1): `tests/run/type_operators/mapped_nested` type-checks and runs a generic signature with `Partial<Partial<T>>` |
 | 5.22k | A conditional type over a type parameter is not decided when the pattern alone decides it: `Unwrap<Option<T>>` is not `T` | 16.5 | **done** (stage 1): `tests/run/type_operators/cond_generic` returns `x ?? d` from `first<T>(x: move Option<T>, d: move Unwrap<Option<T>>) T` |
-| 5.22l | The chapters 14-17 still carry **[planned]** marks (headers, README, appendix A) | 14-17 | the marks are gone, and each chapter says what stage 1 implements |
+| 5.22l | The chapters 14-17 still carry **[planned]** marks (headers, README, appendix A) | 14-17 | **done**: the marks are gone from the headers, the index and appendix A; each chapter says that stage 1 implements it and stage 0 does not |
 
 ## Phase 6 — Towards 1.0
 

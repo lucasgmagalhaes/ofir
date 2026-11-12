@@ -1,4 +1,4 @@
-# 15. Compile-time code **[planned]**
+# 15. Compile-time code
 
 Ofir has **no macros**. Code that must adapt to the shape of a type
 (serialization, debug printing, comparisons, builders) is written as

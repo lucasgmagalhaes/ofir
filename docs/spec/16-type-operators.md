@@ -1,9 +1,10 @@
-# 16. Type operators **[planned]**
+# 16. Type operators
 
 Type operators build types from other types during compilation, as
 TypeScript's `keyof`, indexed access, mapped and conditional types do
 (ADR 0021). Their results are ordinary Ofir types; nothing of them exists
-at run time.
+at run time. Stage 1 implements the whole chapter; stage 0 has no type
+operators.
 
 ## 16.1 Key types and `keyof`
 

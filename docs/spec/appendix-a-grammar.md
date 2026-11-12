@@ -112,7 +112,7 @@ TypeArgs      = "<" Type { "," Type } [ "," ] ">" .
 A one-element tuple type is written `(T,)`; `(T)` is the type `T`. `[T]` without a length is only
 valid behind a reference (`&[T]`, `&mut [T]`).
 
-Type operators (chapter 16) **[planned]**: `keyof` and `infer` are
+Type operators (chapter 16): `keyof` and `infer` are
 contextual keywords in types.
 
 ```ebnf
@@ -129,7 +129,7 @@ KeyLiteral    = "." ( identifier | int_lit ) .
 MappedType    = "{" "[" identifier "in" Type [ "if" Type ] "]" [ "?" ] ":" Type "}" .
 ```
 
-Union types (chapter 17) **[planned]**: `A | B` between types that are not
+Union types (chapter 17): `A | B` between types that are not
 key types. `|` binds looser than `?`, so `A? | B` is `Option<A> | B`.
 
 ```ebnf
