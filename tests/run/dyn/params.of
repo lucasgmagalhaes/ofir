@@ -1,0 +1,68 @@
+// requires: stage1
+// `mut dyn` parameters (spec 9.7): a value, a `&mut dyn I` or a
+// `Box<dyn I>` passed to a `dyn` or `mut dyn` parameter, and boxes
+// converted to `Box<dyn I>` in generic arguments.
+
+interface Counter {
+    fn bump(mut self) int
+    fn get(self) int
+}
+
+struct Clicks {
+    n: int
+
+    fn bump(mut self) int {
+        self.n += 1
+        return self.n
+    }
+
+    fn get(self) int {
+        return self.n
+    }
+}
+
+fn twice(c: mut dyn Counter) int {
+    c.bump()
+    return c.bump()
+}
+
+fn show(c: dyn Counter) {
+    println("now {c.get()}")
+}
+
+fn forward(c: mut dyn Counter) int {
+    show(c)
+    return twice(c)
+}
+
+fn wrap(b: move Box<dyn Counter>) Option<Box<dyn Counter>> {
+    return Option.Some(b)
+}
+
+fn main() {
+    let c = Clicks{n: 0}
+    const first = twice(c)
+    println("{first} {c.n}")
+    const second = forward(c)
+    println("{second} {c.n}")
+    let b: Box<dyn Counter> = Box.new(Clicks{n: 10})
+    const third = twice(b)
+    println("{third}")
+    show(b)
+    const fourth = forward(b)
+    println("{fourth}")
+    match wrap(b) {
+        Option.Some(mut k) => println("wrapped {k.bump()}")
+        Option.None => {}
+    }
+    const o: Option<Box<dyn Counter>> = Option.Some(Box.new(Clicks{n: 1}))
+    if const Option.Some(k) = o {
+        println("some {k.get()}")
+    }
+    let list: List<Box<dyn Counter>> = []
+    list.push(Box.new(Clicks{n: 3}))
+    list.push(Box.new(Clicks{n: 7}))
+    for mut k in list {
+        println("list {k.bump()}")
+    }
+}
