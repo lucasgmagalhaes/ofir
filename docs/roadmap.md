@@ -223,7 +223,9 @@ M5 check below has no open gap.
 
 Every `ofir` example of chapters 1-13 was type-checked with stage 1 and
 every E0901 the compiler reports was compared with the specification.
-These gaps remain:
+Chapters 14-17, implemented in phase 6, were checked the same way
+(5.22h-5.22l); they lose their **[planned]** marks once those gaps are
+closed. These gaps remain:
 
 | # | Gap | Spec | Done when |
 |---|-----|:----:|-----------|
@@ -234,6 +236,11 @@ These gaps remain:
 | 5.22e | `str.toCString()` | 11.3 | **done** (both stages): `tests/run/ffi/cstring` runs the chapter's `strlen` example; `panic/cstring_nul` covers a NUL inside the text |
 | 5.22f | `@bench` and `ofir bench` with a `Bencher` | 12.3 | **done** (stage 1): `tests/ofir_bench/sample` runs under `ofir bench` (checked by `run_std_tests.py`), and `compile_fail/types/benches` covers E0206 |
 | 5.22g | Chapter 12.1 still says the layout and linking attributes report E0901 | 12.1 | **done**: the note lists what each stage implements; only `@tag` reports E0901 |
+| 5.22h | The chapter 17 example called `fs.readFile` and interpolated an `IoError` | 17 | **done**: it calls `fs.readToString` and prints `e.message` |
+| 5.22i | Unions whose members contain type parameters (`Option<T> \| int`) are E0901 | 17.1 | a generic function returns and narrows `Option<T> \| int`, in a `tests/run/unions` test |
+| 5.22j | A mapped type over a mapped type of a type parameter (`Partial<Partial<T>>`) is E0340 | 16.4 | a generic signature with `Partial<Partial<T>>` type-checks and runs |
+| 5.22k | A conditional type over a type parameter is not decided when the pattern alone decides it: `Unwrap<Option<T>>` is not `T` | 16.5 | `fn first<T>(x: Option<T>, d: move Unwrap<Option<T>>) T` returns `x ?? d` |
+| 5.22l | The chapters 14-17 still carry **[planned]** marks (headers, README, appendix A) | 14-17 | the marks are gone, and each chapter says what stage 1 implements |
 
 ## Phase 6 — Towards 1.0
 
