@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The feature state registry (`docs/design/feature-states.md`, ADR 0038):
+  every planned, open and rejected feature with its owner, gate and
+  decision; `make check-docs` keeps it in step with the specification
+  markers and checks the ADR index. There are no feature flags before 1.0.
 - The compatibility policy before 1.0 (`docs/design/compatibility.md`,
   ADR 0037): no stability promise; minor releases may break, patch
   releases do not; deprecation with a shim before removal; each break has
