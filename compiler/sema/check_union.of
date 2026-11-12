@@ -53,11 +53,6 @@ pub fn unionType(c: mut Checker, a: int, spanA: Span, b: int, spanB: Span, span:
             }
         }
     }
-    for i in 0..members.len() {
-        if c.types.get(members[i]).hasParam {
-            return c.unsupported(span, "union types over type parameters are")
-        }
-    }
     return unionOf(c, &members, span)
 }
 
