@@ -9,9 +9,10 @@
 // innermost call out: `x1 + (x2 + ... + (xm + v))` overflows exactly when
 // some suffix sum leaves the range. While every term is nonnegative that
 // happens exactly when P + v > MAX, P being the exact sum x1 + ... + xm, so
-// the loop keeps P in an unsigned accumulator with a sticky carry and each
-// return checks once. Calls and their effects keep their order, and the check
-// fails where the first failing addition would have.
+// the loop keeps P in an accumulator of type T and each return checks once.
+// A term that is negative or would take P above MAX takes the original call.
+// Calls and their effects keep their order, and the check fails where the
+// first failing addition would have.
 
 #include "air/accumulate.h"
 
@@ -211,14 +212,10 @@ static AirStmt binary(LocalId dest, Op op, Operand a, Operand b) {
     return assign(dest, (Rvalue){.kind = RV_BINARY, .op = op, .a = a, .b = b});
 }
 
-static AirStmt cast(LocalId dest, Operand a, TypeId to) {
-    return assign(dest, (Rvalue){.kind = RV_CAST, .a = a, .to = to});
-}
-
 typedef struct {
     AirBody *body;
-    TypeId type, unsigned_type;   // T and the unsigned type of its width
-    LocalId acc, carry;
+    TypeId type;                  // T, also the type of acc
+    LocalId acc;
     Span span;                    // of the assertion of the site
 } Loop;
 
@@ -226,36 +223,30 @@ static LocalId temp(Loop *l, TypeId type) {
     return air_new_local(l->body, type, (Symbol){0}, l->span);
 }
 
-// The return of `block` becomes: overflow if carry or acc > MAX - v; else
-// return acc + v.
-static void finish(Loop *l, uint32_t block, uint64_t max) {
-    TypeId u = l->unsigned_type, b = type_id(TID_BOOL);
-    LocalId value = temp(l, u), limit = temp(l, u), big = temp(l, b), bad = temp(l, b);
-    LocalId sum = temp(l, u);
+static AirStmt checked_add(LocalId dest, Operand a, Operand b, LocalId flag) {
+    return assign(dest, (Rvalue){.kind = RV_CHECKED, .op = OP_ADD, .a = a, .b = b,
+                                 .flag = flag});
+}
+
+// The return of `block` becomes: overflow if acc + v does; else return it.
+static void finish(Loop *l, uint32_t block) {
+    LocalId sum = temp(l, l->type), overflow = temp(l, type_id(TID_BOOL));
     BlockId at = {block};
-    air_push(l->body, at, cast(value, copy_of((LocalId){0}, l->type), u));
-    air_push(l->body, at, binary(limit, OP_SUB, int_of(max, u), copy_of(value, u)));
-    air_push(l->body, at, binary(big, OP_GT, copy_of(l->acc, u), copy_of(limit, u)));
-    air_push(l->body, at, binary(bad, OP_OR, copy_of(l->carry, b), copy_of(big, b)));
+    air_push(l->body, at, checked_add(sum, copy_of(l->acc, l->type),
+                                      copy_of((LocalId){0}, l->type), overflow));
     BlockId done = air_new_block(l->body);
-    air_terminate(l->body, at, (Terminator){.kind = TERM_ASSERT, .cond = copy_of(bad, b),
+    air_terminate(l->body, at, (Terminator){.kind = TERM_ASSERT,
+                                            .cond = copy_of(overflow, type_id(TID_BOOL)),
                                             .target = done, .panic = PANIC_OVERFLOW,
                                             .span = l->span});
-    air_push(l->body, done, binary(sum, OP_ADD, copy_of(l->acc, u), copy_of(value, u)));
-    air_push(l->body, done, cast((LocalId){0}, copy_of(sum, u), l->type));
+    air_push(l->body, done, assign((LocalId){0}, (Rvalue){.kind = RV_USE,
+                                                         .a = copy_of(sum, l->type)}));
     air_terminate(l->body, done, (Terminator){.kind = TERM_RETURN});
 }
 
-// The statements that add the term to the accumulator, set the parameters
-// to the arguments and jump to the old entry `head`.
-static void iterate(Loop *l, BlockId block, Operand x, const AirStmt *call, BlockId head) {
-    TypeId u = l->unsigned_type, b = type_id(TID_BOOL);
-    LocalId term = temp(l, u), overflow = temp(l, b);
-    air_push(l->body, block, cast(term, x, u));
-    air_push(l->body, block, assign(l->acc, (Rvalue){.kind = RV_CHECKED, .op = OP_ADD,
-                                                     .a = copy_of(l->acc, u),
-                                                     .b = copy_of(term, u), .flag = overflow}));
-    air_push(l->body, block, binary(l->carry, OP_OR, copy_of(l->carry, b), copy_of(overflow, b)));
+// The statements that set the parameters to the arguments and jump to the
+// old entry `head`.
+static void iterate(Loop *l, BlockId block, const AirStmt *call, BlockId head) {
     uint32_t n = call->as.call.arg_count;
     LocalId *args = malloc((n + 1) * sizeof *args);
     for (uint32_t i = 0; i < n; i++) {
@@ -283,61 +274,56 @@ static void retarget(Terminator *t, uint32_t from, uint32_t to) {
     }
 }
 
-static void transform(AirBody *body, const TypeTable *types, Site site) {
-    TypeId type = body->locals.data[0].type;
-    const Ty *ty = type_get(types, type);
-    uint32_t width = INT_BITS[ty->data];
-    bool sign = ty->data <= INT_I64;
-    uint64_t max = (width == 64 ? UINT64_MAX : (1ull << width) - 1) >> (sign ? 1 : 0);
-    Loop l = {.body = body, .type = type, .unsigned_type = type_id(TID_U8 + ty->data % 4)};
+static void transform(AirBody *body, Site site) {
+    TypeId type = body->locals.data[0].type, b = type_id(TID_BOOL);
+    Loop l = {.body = body, .type = type};
     l.span = body->blocks.data[site.block].term.span;
-    l.acc = temp(&l, l.unsigned_type);
-    l.carry = temp(&l, type_id(TID_BOOL));
+    l.acc = temp(&l, type);
 
     // The old entry moves to `head`; the new entry clears the accumulator.
     BlockId head = air_new_block(body);
     body->blocks.data[head.id] = body->blocks.data[0];
     body->blocks.data[0] = (AirBlock){0};
-    for (size_t b = 1; b < body->blocks.len; b++) {
-        retarget(&body->blocks.data[b].term, 0, head.id);
+    for (size_t i = 1; i < body->blocks.len; i++) {
+        retarget(&body->blocks.data[i].term, 0, head.id);
     }
     BlockId entry = {0};
-    air_push(body, entry, assign(l.acc, (Rvalue){.kind = RV_USE, .a = int_of(0, l.unsigned_type)}));
-    air_push(body, entry, assign(l.carry, (Rvalue){.kind = RV_USE,
-                                                   .a = {.kind = OPERAND_BOOL,
-                                                         .type = type_id(TID_BOOL)}}));
+    air_push(body, entry, assign(l.acc, (Rvalue){.kind = RV_USE, .a = int_of(0, type)}));
     air_terminate(body, entry, (Terminator){.kind = TERM_GOTO, .target = head});
     uint32_t site_block = site.block;   // not 0: the entry leads to a base case
 
     size_t returns_end = body->blocks.len;
-    for (size_t b = 1; b < returns_end; b++) {
-        if (body->blocks.data[b].term.kind == TERM_RETURN) {
-            finish(&l, (uint32_t)b, max);
+    for (size_t i = 1; i < returns_end; i++) {
+        if (body->blocks.data[i].term.kind == TERM_RETURN) {
+            finish(&l, (uint32_t)i);
         }
     }
 
+    // The term goes into acc unless it is negative or the sum overflows: the
+    // slow path then restores acc and makes the original call and addition.
     AirBlock *block = &body->blocks.data[site_block];
     AirStmt call = block->stmts.data[block->stmts.len - 2];
-    if (!site.negative) {
-        block->stmts.len -= 2;
-        iterate(&l, (BlockId){site_block}, site.term, &call, head);
-        return;
-    }
     AirStmt add = block->stmts.data[block->stmts.len - 1];
     Terminator check = block->term;
     block->stmts.len -= 2;
-    LocalId negative = temp(&l, type_id(TID_BOOL));
-    air_push(body, (BlockId){site_block},
-             binary(negative, OP_LT, site.term, int_of(0, type)));
+    BlockId at = {site_block};
+    LocalId sum = temp(&l, type), bad = temp(&l, b);
+    air_push(body, at, checked_add(sum, copy_of(l.acc, type), site.term, bad));
+    if (site.negative) {
+        LocalId negative = temp(&l, b), overflow = bad;
+        bad = temp(&l, b);
+        air_push(body, at, binary(negative, OP_LT, site.term, int_of(0, type)));
+        air_push(body, at, binary(bad, OP_OR, copy_of(overflow, b), copy_of(negative, b)));
+    }
+    air_push(body, at, assign(l.acc, (Rvalue){.kind = RV_USE, .a = copy_of(sum, type)}));
     BlockId slow = air_new_block(body), fast = air_new_block(body);
-    air_terminate(body, (BlockId){site_block}, (Terminator){.kind = TERM_BRANCH,
-                                                          .cond = copy_of(negative,
-                                                                          type_id(TID_BOOL)),
-                                                          .target = slow, .other = fast});
+    air_terminate(body, at, (Terminator){.kind = TERM_BRANCH, .cond = copy_of(bad, b),
+                                         .target = slow, .other = fast});
+    air_push(body, slow, binary(l.acc, OP_SUB, copy_of(l.acc, type), site.term));
     air_push(body, slow, call);
     air_push(body, slow, add);
     air_terminate(body, slow, check);
-    iterate(&l, fast, site.term, &call, head);
+    iterate(&l, fast, &call, head);
 }
 
 void air_accumulate(AirBody *body, const TypeTable *types) {
@@ -363,6 +349,6 @@ void air_accumulate(AirBody *body, const TypeTable *types) {
     }
     free(reads);
     if (sites == 1 && found.block != 0 && has_base_case(body, found.block)) {
-        transform(body, types, found);
+        transform(body, found);
     }
 }
