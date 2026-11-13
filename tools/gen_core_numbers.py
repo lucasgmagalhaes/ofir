@@ -178,7 +178,7 @@ UNSIGNED_CHECKED = (
                          when="on overflow", t="{t}") + """
     pub fn checkedMul(self, other: {t}) Option<{t}> {{
         const product = self.wrappingMul(other)
-        return if self != 0 && product / self != other {{ Option.None }} else {{ Option.Some(product) }}
+        return if self != 0 && product / self != other {{ NONE }} else {{ SOME(product) }}
     }}
 """ + CHECKED_DOC.format(verb="Divides", operand="divisor", op="/", when="when `other` is 0",
                          t="{t}") + """
@@ -422,34 +422,44 @@ pub copy struct {t} {{
 
 # The C math library functions behind the float methods: (method, C name,
 # arity, summary, @param lines, @returns line, example or "").
+LOG_RETURNS = "the logarithm; -infinity for 0 and NaN for a negative value"
 LIBM = [
     ("sin", "sin", 1, "The sine of an angle in radians.", [], "the sine, in [-1, 1]", ""),
     ("cos", "cos", 1, "The cosine of an angle in radians.", [], "the cosine, in [-1, 1]", ""),
     ("tan", "tan", 1, "The tangent of an angle in radians.", [], "the tangent", ""),
-    ("asin", "asin", 1, "The arcsine.", [], "the angle in radians, in [-pi/2, pi/2]; NaN outside [-1, 1]", ""),
-    ("acos", "acos", 1, "The arccosine.", [], "the angle in radians, in [0, pi]; NaN outside [-1, 1]", ""),
+    ("asin", "asin", 1, "The arcsine.", [],
+     "the angle in radians, in [-pi/2, pi/2]; NaN outside [-1, 1]", ""),
+    ("acos", "acos", 1, "The arccosine.", [],
+     "the angle in radians, in [0, pi]; NaN outside [-1, 1]", ""),
     ("atan", "atan", 1, "The arctangent.", [], "the angle in radians, in [-pi/2, pi/2]", ""),
-    ("atan2", "atan2", 2, "The angle of the point (`other`, `self`): the arctangent of\n     * `self / other` in the right quadrant.",
-     ["@param other the x coordinate; `self` is the y coordinate"], "the angle in radians, in [-pi, pi]", ""),
+    ("atan2", "atan2", 2,
+     "The angle of the point (`other`, `self`): the arctangent of\n"
+     "     * `self / other` in the right quadrant.",
+     ["@param other the x coordinate; `self` is the y coordinate"],
+     "the angle in radians, in [-pi, pi]", ""),
     ("sinh", "sinh", 1, "The hyperbolic sine.", [], "the hyperbolic sine", ""),
     ("cosh", "cosh", 1, "The hyperbolic cosine.", [], "the hyperbolic cosine", ""),
     ("tanh", "tanh", 1, "The hyperbolic tangent.", [], "the hyperbolic tangent, in [-1, 1]", ""),
-    ("exp", "exp", 1, "The exponential, e to the power of `self`.", [], "e^self; infinity on overflow", ""),
-    ("exp2", "exp2", 1, "Two to the power of `self`.", [], "2^self", "assert((10.0 as {t}).exp2() == 1024.0)"),
-    ("ln", "log", 1, "The natural logarithm.", [], "the logarithm; -infinity for 0 and NaN for a negative value", ""),
-    ("log2", "log2", 1, "The base 2 logarithm.", [], "the logarithm; -infinity for 0 and NaN for a negative value",
+    ("exp", "exp", 1, "The exponential, e to the power of `self`.", [],
+     "e^self; infinity on overflow", ""),
+    ("exp2", "exp2", 1, "Two to the power of `self`.", [], "2^self",
+     "assert((10.0 as {t}).exp2() == 1024.0)"),
+    ("ln", "log", 1, "The natural logarithm.", [], LOG_RETURNS, ""),
+    ("log2", "log2", 1, "The base 2 logarithm.", [], LOG_RETURNS,
      "assert((8.0 as {t}).log2() == 3.0)"),
-    ("log10", "log10", 1, "The base 10 logarithm.", [], "the logarithm; -infinity for 0 and NaN for a negative value", ""),
+    ("log10", "log10", 1, "The base 10 logarithm.", [], LOG_RETURNS, ""),
     ("cbrt", "cbrt", 1, "The cube root.", [], "the cube root, with the sign of `self`", ""),
-    ("powf", "pow", 2, "Raises to a float power.", ["@param exp the exponent"], "self^exp, as C's `pow` gives it", ""),
+    ("powf", "pow", 2, "Raises to a float power.", ["@param exp the exponent"],
+     "self^exp, as C's `pow` gives it", ""),
     ("hypot", "hypot", 2, "The length of the hypotenuse, without overflow in the squares.",
      ["@param other the other side"], "sqrt(self^2 + other^2)", ""),
-    ("round", "round", 1, "Rounds to the nearest integral value, halfway cases away from zero.", [],
-     "the rounded value", "assert((2.5 as {t}).round() == 3.0)\n     * assert((-2.5 as {t}).round() == -3.0)"),
+    ("round", "round", 1, "Rounds to the nearest integral value, halfway cases away from zero.",
+     [], "the rounded value",
+     "assert((2.5 as {t}).round() == 3.0)\n     * assert((-2.5 as {t}).round() == -3.0)"),
     ("trunc", "trunc", 1, "Rounds toward zero.", [], "the integral part of `self`",
      "assert((-1.7 as {t}).trunc() == -1.0)"),
-    ("mulAdd", "fma", 3, "`self * a + b` with a single rounding.", ["@param a the factor", "@param b the addend"],
-     "the fused multiply-add", ""),
+    ("mulAdd", "fma", 3, "`self * a + b` with a single rounding.",
+     ["@param a the factor", "@param b the addend"], "the fused multiply-add", ""),
     ("copySign", "copysign", 2, "The magnitude of `self` with the sign of `sign`.",
      ["@param sign the value whose sign bit is taken"], "`self` with that sign", ""),
 ]
@@ -471,7 +481,8 @@ def doc(summary: str, params: list[str], returns: str, example: str) -> str:
     out += [f"     * {p}" for p in params]
     out.append(f"     * @returns {returns}")
     if example:
-        out += ["     * @example", "     * ```ofir", "     * import std.testing.assert", "     *", f"     * {example}", "     * ```"]
+        out += ["     * @example", "     * ```ofir", "     * import std.testing.assert", "     *",
+                f"     * {example}", "     * ```"]
     out.append("     */")
     return "\n".join(out) + "\n"
 
@@ -616,6 +627,8 @@ def int_file(t: str) -> str:
                       min=lo, max=hi,
                       desc=f"{bits}-bit {'signed' if signed else 'unsigned'}")
     ops = [("wrapping_add", 2), ("wrapping_sub", 2), ("wrapping_mul", 2)]
+    # The template spells `NONE` and `SOME(` where the full names pass 100 columns.
+    body = body.replace("{ NONE }", "{ Option.None }").replace("{ SOME(", "{ Option.Some(")
     return module_doc(t) + GENERATED + intrinsics(t, ops) + body
 
 
