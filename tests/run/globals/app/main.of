@@ -1,4 +1,3 @@
-// requires: stage1
 // Mutable globals (spec 11.5): reads and writes in `unsafe`, compound
 // assignment, a pointer to a global and a global of another module.
 

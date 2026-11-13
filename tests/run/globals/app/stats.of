@@ -1,4 +1,3 @@
-// requires: stage1
 // A module with a public mutable global (spec 11.5).
 
 pub let TOTAL: int = 5
