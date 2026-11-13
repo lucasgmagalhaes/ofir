@@ -1,0 +1,16 @@
+// requires: stage1
+// An `Rc` counts its owners with plain integers, so it is neither `Send`
+// nor `Sync` and cannot cross into a task (spec 5.9, 14.3).
+import std.mem.rc.Rc
+import std.task
+
+fn needSend<T: Send>(_: T) {
+}
+
+fn main() {
+    const shared = Rc.new(1)
+    const mine = shared.clone()
+    const t = task.run(move () int => *mine.get())   // error[E0360]: the closure captures `mine` of type `Rc<int>`, which is not `Send`
+    needSend(shared.downgrade())   // error[E0332]: the type `Weak<int>` does not satisfy the bound `Send` of `T`
+    const _ = t
+}
