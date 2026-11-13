@@ -213,13 +213,23 @@ static TypeExpr *base_type(Parser *p) {
 }
 
 TypeExpr *parse_simple_type(Parser *p) {
+    int steps = 1;
+    if (!nest(p)) {
+        p->depth--;
+        return new_type(p, TYPE_NEVER, peek_token(p, 0)->span);
+    }
     TypeExpr *t = base_type(p);
     while (at(p, TOK_QUESTION)) {   // T? is Option<T>
         advance(p);
+        steps++;
+        if (!nest(p)) {
+            break;
+        }
         TypeExpr *option = new_type(p, TYPE_OPTION, t->span);
         option->as.inner = t;
         t = option;
     }
+    p->depth -= steps;
     return t;
 }
 
