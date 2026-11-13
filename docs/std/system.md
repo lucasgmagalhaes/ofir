@@ -59,6 +59,7 @@ pub copy enum IoErrorKind {
 | `fn args() List<str>` | `args()[0]` is the program path | ✓ |
 | `fn env(name: str) Option<str>` | | ✓ |
 | `fn exit(code: int) !` | flushes standard output, runs no destructors | ✓ |
+| `fn abort() !` | ends by `SIGABRT`: no flush, no destructors, no exit handlers | ✓ |
 | `fn run(program: str, args: [str]) Result<Output, IoError>` | runs a process and waits: `spawn`, then `wait` | ✓ |
 | `fn spawn(program: str, args: [str]) Result<Child, IoError>` | starts a process without waiting; its output goes to temporary files | ✓ |
 | `fn wait(move self) Result<Output, IoError>` (on `Child`) | waits for the process and returns what `run` returns | ✓ |
