@@ -1,0 +1,145 @@
+// requires: stage1
+// Adversarial drops (OFIR-22): a moved field assigned again, guards,
+// labeled loops, `take`, `remove`, `swapRemove`, `mem.replace`, `clear`,
+// closures and `??`. Every value is dropped exactly once.
+
+import std.mem
+
+struct N {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+struct Pair {
+    left: N
+    right: N
+}
+
+fn mk(s: str) N {
+    return N{name: s.toOwned()}
+}
+
+fn eat(n: move N) {
+    println("eat {n.name}")
+}
+
+fn refill() {
+    let p = Pair{left: mk("rf-l"), right: mk("rf-r")}
+    eat(p.left)
+    p.left = mk("rf-l2")
+    println("refill {p.left.name} {p.right.name}")
+}
+
+fn tupleParts(flag: bool) {
+    const t = (mk("tp-0"), mk("tp-1"), 7)
+    if flag {
+        eat(t.1)
+    }
+    const a = t.0
+    println("tuple {a.name} {t.2}")
+}
+
+fn guard(o: move Option<N>, k: int) {
+    match o {
+        Option.Some(n) if k > 0 => eat(n)
+        Option.Some(n) => println("kept {n.name}")
+        Option.None => println("none")
+    }
+}
+
+fn labeled() {
+    outer: for i in 0..3 {
+        const a = mk("lb-a{i}")
+        for j in 0..3 {
+            const _b = mk("lb-b{i}{j}")
+            if j == 1 {
+                continue outer
+            }
+            if i == 2 {
+                eat(a)
+                break outer
+            }
+        }
+    }
+    println("labeled end")
+}
+
+fn whileMove() {
+    let cur = Option.Some(mk("w0"))
+    let i = 0
+    for i < 3 {
+        if i == 1 {
+            const taken = cur.take()
+            println("took {taken.isSome()}")
+        } else {
+            cur = Option.Some(mk("w{i + 10}"))
+        }
+        i = i + 1
+    }
+    println("while end")
+}
+
+fn boxed() {
+    const b = Box.new(Pair{left: mk("bx-l"), right: mk("bx-r")})
+    const inner = b.unbox()
+    eat(inner.right)
+    println("boxed end")
+}
+
+fn listOps() {
+    let xs = [mk("ls0"), mk("ls1"), mk("ls2"), mk("ls3")]
+    eat(xs.remove(1))
+    eat(xs.swapRemove(0))
+    const old = mem.replace(xs[0], mk("ls9"))
+    println("replaced {old.name}")
+    xs.clear()
+    println("cleared {xs.len()}")
+    xs.push(mk("ls10"))
+}
+
+fn closure() {
+    const n = mk("cl")
+    const f = () => {
+        println("in closure {n.name}")
+    }
+    f()
+    println("closure end")
+}
+
+fn orElse(o: move Option<N>) N {
+    return o ?? mk("default")
+}
+
+fn earlyMatch(o: move Option<N>) int {
+    const guard0 = mk("em-guard")
+    const n = match o {
+        Option.Some(v) => v
+        Option.None => {
+            return 0
+        }
+    }
+    println("em {n.name} {guard0.name}")
+    return 1
+}
+
+fn main() {
+    refill()
+    tupleParts(true)
+    tupleParts(false)
+    guard(Option.Some(mk("g1")), 1)
+    guard(Option.Some(mk("g2")), 0)
+    guard(Option.None, 0)
+    labeled()
+    whileMove()
+    boxed()
+    listOps()
+    closure()
+    eat(orElse(Option.Some(mk("oe1"))))
+    eat(orElse(Option.None))
+    println("em {earlyMatch(Option.None)}")
+    println("em {earlyMatch(Option.Some(mk("em-v")))}")
+    println("main end")
+}

@@ -1,0 +1,109 @@
+// requires: stage1
+// Adversarial drops (OFIR-22): closures never called, `if const` with a
+// partial move, errors that own values through `?`, unions and fields
+// swapped through a move. Every value is dropped exactly once.
+
+struct N {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+struct Pair {
+    left: N
+    right: N
+}
+
+enum Fail {
+    Low(n: N)
+    High(code: int)
+}
+
+fn mk(s: str) N {
+    return N{name: s.toOwned()}
+}
+
+fn eat(n: move N) {
+    println("eat {n.name}")
+}
+
+fn uncalled() {
+    const n = mk("uc")
+    const _f = move () => {
+        println("never {n.name}")
+    }
+    println("uncalled made")
+}
+
+fn calledTwiceBorrow() {
+    const n = mk("cb")
+    const f = () => println("see {n.name}")
+    f()
+    f()
+}
+
+fn ifConst(o: move Option<Pair>) {
+    if const Option.Some(p) = o {
+        eat(p.right)
+        println("ifConst some")
+    } else {
+        println("ifConst none")
+    }
+    println("ifConst end")
+}
+
+fn step(k: int) Result<N, Fail> {
+    const scratch = mk("st{k}")
+    if k == 1 {
+        return Result.Err(Fail.Low(mk("low")))
+    }
+    if k == 2 {
+        return Result.Err(Fail.High(2))
+    }
+    return Result.Ok(scratch)
+}
+
+fn steps(ks: &List<int>) Result<int, Fail> {
+    let got: List<N> = []
+    for k in ks {
+        got.push(step(k)?)
+    }
+    return Result.Ok(got.len())
+}
+
+fn show(r: Result<int, Fail>) {
+    match r {
+        Result.Ok(n) => println("ok {n}")
+        Result.Err(Fail.Low(n)) => println("low {n.name}")
+        Result.Err(Fail.High(c)) => println("high {c}")
+    }
+}
+
+fn union(flag: bool) {
+    const _v: N | int = if flag { mk("un") } else { 3 }
+    println("union {flag}")
+}
+
+fn swapFields() {
+    let p = Pair{left: mk("sw-l"), right: mk("sw-r")}
+    const l = p.left
+    p.left = p.right
+    p.right = l
+    println("swapped {p.left.name} {p.right.name}")
+}
+
+fn main() {
+    uncalled()
+    calledTwiceBorrow()
+    ifConst(Option.Some(Pair{left: mk("ic-l"), right: mk("ic-r")}))
+    ifConst(Option.None)
+    show(steps(&[0, 0, 3]))
+    show(steps(&[0, 1, 3]))
+    show(steps(&[0, 2]))
+    union(true)
+    union(false)
+    swapFields()
+    println("main end")
+}

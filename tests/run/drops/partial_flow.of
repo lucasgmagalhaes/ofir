@@ -1,0 +1,136 @@
+// Adversarial drops (OFIR-22): partial moves, moves in loops with
+// `continue` and `break`, `?` on an early return and moves in `match` arms.
+// Every value is dropped exactly once; tools/check_leaks.py runs it under
+// valgrind.
+
+struct N {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+struct Pair {
+    left: N
+    right: N
+}
+
+struct Trio {
+    a: N
+    p: Pair
+}
+
+enum Wrap {
+    One(n: N)
+    Two(a: N, b: N)
+    Empty
+}
+
+enum Err {
+    Bad(n: N)
+}
+
+fn mk(s: str) N {
+    return N{name: s.toOwned()}
+}
+
+fn eat(n: move N) {
+    println("eat {n.name}")
+}
+
+fn partialIf(flag: bool) {
+    const p = Pair{left: mk("pi-l"), right: mk("pi-r")}
+    if flag {
+        eat(p.left)
+    }
+    println("partialIf end {flag}")
+}
+
+fn nested() {
+    const t = Trio{a: mk("t-a"), p: Pair{left: mk("t-pl"), right: mk("t-pr")}}
+    eat(t.p.right)
+    println("nested end")
+}
+
+fn loopMove() {
+    for i in 0..3 {
+        const p = Pair{left: mk("lp-l{i}"), right: mk("lp-r{i}")}
+        if i == 0 {
+            eat(p.left)
+            continue
+        }
+        if i == 1 {
+            eat(p.right)
+            break
+        }
+    }
+    println("loopMove end")
+}
+
+fn fails(flag: bool) Result<N, Err> {
+    const keep = mk("f-keep")
+    if flag {
+        return Result.Err(Err.Bad(mk("f-err")))
+    }
+    return Result.Ok(keep)
+}
+
+fn chain(flag: bool) Result<int, Err> {
+    const local = mk("c-local")
+    const got = fails(flag)?
+    println("chain got {got.name} {local.name}")
+    return Result.Ok(1)
+}
+
+fn matchMove(w: move Wrap) {
+    match w {
+        Wrap.One(n) => eat(n)
+        Wrap.Two(a, _) => eat(a)
+        Wrap.Empty => println("empty")
+    }
+    println("matchMove end")
+}
+
+fn earlyInLoop() int {
+    let acc = mk("acc0")
+    for i in 0..5 {
+        acc = mk("acc{i + 1}")
+        if i == 2 {
+            return i
+        }
+    }
+    return 0
+}
+
+fn optTake() {
+    let o = Option.Some(mk("opt"))
+    const t = o.take()
+    println("took {t.isSome()} {o.isNone()}")
+}
+
+fn listPartial() {
+    const xs = [Pair{left: mk("x0l"), right: mk("x0r")}, Pair{left: mk("x1l"), right: mk("x1r")}]
+    println("list {xs.len()}")
+}
+
+fn main() {
+    partialIf(true)
+    partialIf(false)
+    nested()
+    loopMove()
+    match chain(true) {
+        Result.Ok(_) => println("ok")
+        Result.Err(e) => match e {
+            Err.Bad(n) => println("err {n.name}")
+        }
+    }
+    const _ = chain(false)
+    matchMove(Wrap.Two(mk("w-a"), mk("w-b")))
+    matchMove(Wrap.One(mk("w-one")))
+    matchMove(Wrap.Empty)
+    println("early {earlyInLoop()}")
+    optTake()
+    listPartial()
+    println("main end")
+}

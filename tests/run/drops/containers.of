@@ -1,0 +1,140 @@
+// requires: stage1
+// Adversarial drops (OFIR-22): `?` inside a loop, conditional
+// initialization, shadowing, maps, generic holders, boxed trees (a deep one
+// too) and a `drop` method before the fields. Every value is dropped once.
+
+struct N {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+struct Owner {
+    first: N
+    second: N
+
+    fn drop(mut self) {
+        println("drop owner {self.first.name}")
+    }
+}
+
+struct Holder<T> {
+    item: T
+    extra: Option<T>
+}
+
+enum Tree {
+    Leaf(n: N)
+    Node(left: Box<Tree>, right: Box<Tree>)
+}
+
+fn mk(s: str) N {
+    return N{name: s.toOwned()}
+}
+
+fn eat(n: move N) {
+    println("eat {n.name}")
+}
+
+fn find(xs: &List<int>, k: int) Option<int> {
+    for i in 0..xs.len() {
+        if xs[i] == k {
+            return Option.Some(i)
+        }
+    }
+    return Option.None
+}
+
+fn loopTry(keys: &List<int>) Option<int> {
+    const xs = [1, 2, 3]
+    let total = 0
+    for k in keys {
+        const tmp = mk("lt{k}")
+        total = total + find(&xs, k)?
+        println("found {tmp.name}")
+    }
+    return Option.Some(total)
+}
+
+fn condInit(flag: bool) {
+    let x: N
+    if flag {
+        x = mk("ci-a")
+    } else {
+        x = mk("ci-b")
+    }
+    println("condInit {x.name}")
+}
+
+fn shadow() {
+    const a = mk("sh-1")
+    {
+        const a = mk("sh-2")
+        println("inner {a.name}")
+    }
+    println("shadow {a.name}")
+}
+
+fn maps() {
+    let m: Map<str, N> = Map.new()
+    m.insert("a".toOwned(), mk("m-a"))
+    m.insert("b".toOwned(), mk("m-b"))
+    const old = m.insert("a".toOwned(), mk("m-a2"))
+    println("old {old.isSome()}")
+    const r = m.remove("b")
+    println("removed {r.isSome()}")
+    println("maps {m.len()}")
+}
+
+fn generic() {
+    const h = Holder{item: mk("h-item"), extra: Option.Some(mk("h-extra"))}
+    const h2 = Holder{item: mk("h2-item"), extra: Option.None}
+    eat(h.item)
+    println("generic {h2.item.name}")
+}
+
+fn tree() {
+    const right = Tree.Node(Box.new(Tree.Leaf(mk("tm"))), Box.new(Tree.Leaf(mk("tr"))))
+    const t = Tree.Node(Box.new(Tree.Leaf(mk("tl"))), Box.new(right))
+    match t {
+        Tree.Node(l, _) => println("left {isLeaf(&*l)}")
+        Tree.Leaf(_) => println("leaf")
+    }
+    println("tree end")
+}
+
+fn isLeaf(t: &Tree) bool {
+    return match *t {
+        Tree.Leaf(_) => true
+        _ => false
+    }
+}
+
+fn owner() {
+    const o = Owner{first: mk("o-1"), second: mk("o-2")}
+    println("owner {o.second.name}")
+}
+
+fn deep() {
+    let t = Tree.Leaf(mk("deep"))
+    for _ in 0..100000 {
+        t = Tree.Node(Box.new(t), Box.new(Tree.Leaf(N{name: ""})))
+    }
+    println("deep built")
+}
+
+fn main() {
+    println("lt {loopTry(&[1, 3]).isSome()}")
+    println("lt {loopTry(&[1, 9, 2]).isSome()}")
+    condInit(true)
+    condInit(false)
+    shadow()
+    maps()
+    generic()
+    tree()
+    owner()
+    deep()
+    println("main end")
+}

@@ -59,7 +59,9 @@ def check(compiler: str, path: Path, runtime: Path, out: Path):
     exe = build(compiler, path, runtime, out)
     if exe is None:
         return None
-    env = dict(os.environ, ASAN_OPTIONS="detect_leaks=1:abort_on_error=0",
+    # A panic runs no destructors (spec 6): what it leaves allocated is no leak.
+    leaks = 0 if "panic" in path.parts else 1
+    env = dict(os.environ, ASAN_OPTIONS=f"detect_leaks={leaks}:abort_on_error=0",
                UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1")
     run = subprocess.run([str(exe)], capture_output=True, text=True, env=env,
                          stdin=subprocess.DEVNULL, timeout=300)
