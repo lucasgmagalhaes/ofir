@@ -60,6 +60,7 @@ import sema.const_eval.constEval
 import sema.def.DefKind
 import sema.def.Res
 import sema.derive.debuggable
+import sema.derive.displayable
 import sema.program.Program
 import sema.resolve.findAttribute
 import sema.struct_exprs.checkConstructor
@@ -161,8 +162,8 @@ fn interpolation(c: mut Checker, p: Program, parts: &List<Expr>, specs: &List<st
             }
             continue
         }
-        const printable = interpolates(c, ty) ||
-                          (specs[i].len() == 0 && unionInterpolates(c, ty))
+        const printable = interpolates(c, ty) || (specs[i].len() == 0 &&
+                          (unionInterpolates(c, ty) || displayable(c, p, ty)))
         if !printable {
             c.error("E0314", parts[i].span, "a value of type `{c.typeName(ty)}` cannot be "
                     + "interpolated into a string")
