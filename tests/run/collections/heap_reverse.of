@@ -1,0 +1,33 @@
+// requires: stage1
+// A min-heap of `Reverse` values, and of a struct with its own order.
+
+import std.collections.heap.Heap
+import std.collections.heap.Reverse
+
+struct Job {
+    priority: int
+    name: str
+}
+
+fn main() {
+    let h: Heap<Reverse<int>> = Heap.new()
+    for x in [6, 2, 9, 4] {
+        h.push(Reverse{value: x})
+    }
+    for !h.isEmpty() {
+        if const Option.Some(r) = h.pop() {
+            print("{r.value} ")
+        }
+    }
+    println("")
+    let jobs: Heap<Job> = Heap.new()
+    jobs.push(Job{priority: 1, name: "sweep"})
+    jobs.push(Job{priority: 3, name: "deploy"})
+    jobs.push(Job{priority: 2, name: "test"})
+    for !jobs.isEmpty() {
+        if const Option.Some(job) = jobs.pop() {
+            print("{job.name} ")
+        }
+    }
+    println("")
+}
