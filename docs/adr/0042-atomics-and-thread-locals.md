@@ -70,3 +70,12 @@ are still C, because Ofir lacks three things they need:
 `Ordering` and the intrinsics live in `std.mem.atomic`, not `std.sync`:
 stage 0 compiles the std, `std.sync` needs stage 1, and Ofir has no
 re-exports, so `std.sync` imports them from `std.mem.atomic`.
+
+## Amendment: pointer globals first
+
+The null pointer of a global's initializer is written `0 as *T`: with the
+literal `0` the cast is safe, and it is the only constant pointer (another
+integer is E0801). Pointer globals and E0822 come first, because the pool
+needs only pointers: it allocates its bin arrays at run time. Fixed-array
+and `@repr(C)` struct globals wait until a user needs them; stage 0 has no
+lowering of fixed arrays.
