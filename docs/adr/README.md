@@ -62,6 +62,7 @@ starts with the same word as the record's status line.
 | [0049](0049-arenas-not-allocator-parameters.md) | Typed index arenas in std; no allocator parameters | Accepted |
 | [0050](0050-os-thread-tasks-no-async.md) | Tasks stay on OS threads; no async/await, no green tasks yet | Accepted |
 | [0051](0051-layout-and-abi-contracts.md) | Layout and ABI contracts, checked against C | Accepted |
+| [0052](0052-bounded-frontend.md) | A nesting limit bounds the frontend | Accepted |
 
 ## Template
 
