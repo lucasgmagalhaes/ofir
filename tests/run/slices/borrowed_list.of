@@ -1,0 +1,23 @@
+// requires: stage1
+// `&List<T>` converts to `&[T]`, also when `T` is inferred (spec 2.12).
+fn first(xs: &[int]) int {
+    return xs[0]
+}
+
+fn largest<T: Ord + Clone>(xs: &[T]) T {
+    let best = xs[0].clone()
+    for i in 0..xs.len() {
+        if xs[i] > best {
+            best = xs[i].clone()
+        }
+    }
+    return best
+}
+
+fn main() {
+    const ys: List<int> = [4, 9, 2]
+    const words: List<str> = ["pear", "apple", "zoo"]
+    print("{first(&ys)} {largest(&ys)} {largest(&words)}\n")
+    const r = &ys
+    print("{first(r)} {ys.len()}\n")
+}
