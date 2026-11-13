@@ -1,5 +1,6 @@
 // Memory allocation: blocks of up to OFIR_POOL_MAX bytes come from the pool
-// (std/core/pool.of), larger ones from malloc; both panic when out of memory.
+// (std/core/pool.of), larger ones from malloc; both panic when out of memory,
+// and a negative size panics with "capacity overflow" (spec 6.5).
 //
 // On Windows every block comes from `_aligned_malloc`, so that `ofir_free`
 // releases aligned and plain blocks alike; elsewhere `free` accepts what
@@ -18,7 +19,18 @@ static _Noreturn void out_of_memory(void) {
     ofir_panic((const uint8_t *)msg, (int64_t)strlen(msg), NULL);
 }
 
+// A negative size is a length computation that went wrong: allocating one
+// byte for it would hand out a block too small for what the caller writes.
+static _Noreturn void capacity_overflow(void) {
+    static const char msg[] = "capacity overflow";
+    ofir_panic((const uint8_t *)msg, (int64_t)strlen(msg), NULL);
+}
+
+// Only the paths past the pool reach here, so the check costs the pool nothing.
 static size_t at_least_one(int64_t size) {
+    if (size < 0) {
+        capacity_overflow();
+    }
     return size > 0 ? (size_t)size : 1;
 }
 

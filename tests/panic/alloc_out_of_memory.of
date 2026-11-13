@@ -1,0 +1,6 @@
+// panic: out of memory
+fn main() {
+    // 2^60 bytes fit in an `int` but no system provides them.
+    const xs: List<u8> = List.withCapacity(1 << 60)
+    println("{xs.capacity()}")
+}

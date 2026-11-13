@@ -242,8 +242,10 @@ const char *variant_type(Gen *g, TypeId adt, uint32_t v) {
 static const char *define_enum(Gen *g, TypeId adt, const char *name) {
     const EnumInfo *info = sema_def(g->sema, (DefId){type_get(g->types, adt)->data})->variants;
     uint64_t words = payload_words(g, adt, info);
+    bool fields = false;
     for (uint32_t v = 0; v < info->count; v++) {
         uint32_t count = info->variants[v].count;
+        fields |= count > 0;
         define(g, variant_type(g, adt, v), field_types(g, adt, v, count), count);
     }
     int niche = niche_variant(g, adt);
@@ -253,6 +255,8 @@ static const char *define_enum(Gen *g, TypeId adt, const char *name) {
     } else if (words) {
         out_fmt(&g->type_defs, "%s = type { i32, [%llu x i64] }\n", name,
                 (unsigned long long)words);
+    } else if (fields) {   // zero-sized fields still need a payload to point at
+        out_fmt(&g->type_defs, "%s = type { i32, [0 x i8] }\n", name);
     } else {
         out_fmt(&g->type_defs, "%s = type { i32 }\n", name);
     }

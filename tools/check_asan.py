@@ -61,13 +61,19 @@ def check(compiler: str, path: Path, runtime: Path, out: Path):
         return None
     # A panic runs no destructors (spec 6): what it leaves allocated is no leak.
     leaks = 0 if "panic" in path.parts else 1
-    env = dict(os.environ, ASAN_OPTIONS=f"detect_leaks={leaks}:abort_on_error=0",
+    # A request no system can satisfy must reach the runtime's "out of memory"
+    # panic as a null, not abort inside ASan (ADR 0048).
+    asan = f"detect_leaks={leaks}:abort_on_error=0:allocator_may_return_null=1"
+    env = dict(os.environ, ASAN_OPTIONS=asan,
                UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1")
     run = subprocess.run([str(exe)], capture_output=True, text=True, env=env,
                          stdin=subprocess.DEVNULL, timeout=300)
     name = path.relative_to(ROOT)
-    if "Sanitizer" in run.stderr or "runtime error:" in run.stderr:
-        report = [l for l in run.stderr.splitlines() if "ERROR" in l or "runtime error" in l]
+    # ASan warns about the request it refused; the panic that follows is the check.
+    stderr = "\n".join(l for l in run.stderr.splitlines()
+                       if "WARNING: AddressSanitizer failed to allocate" not in l)
+    if "Sanitizer" in stderr or "runtime error:" in stderr:
+        report = [l for l in stderr.splitlines() if "ERROR" in l or "runtime error" in l]
         return f"{name}: {(report or ['sanitizer report'])[0]}"
     if "panic" in path.parts:
         return None if run.returncode == 101 else f"{name}: exit status {run.returncode}"

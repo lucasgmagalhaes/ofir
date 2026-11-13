@@ -111,7 +111,21 @@ Panics are raised by:
 - failed `as` conversions;
 - `unwrap`/`expect` on `None` or `Err`;
 - `assert(cond)` (and the other asserts of `std.testing`) and `panic("message")`;
-- stack overflow (detected by the runtime).
+- stack overflow (detected by the runtime);
+- allocation failures (see below).
+
+Allocation follows one policy everywhere (std containers, `Box`, strings,
+the runtime):
+
+- a size in bytes that does not fit in an `int`, or that is negative,
+  panics with `capacity overflow` before anything is allocated;
+- an allocation the system cannot provide panics with `out of memory`;
+- a zero-sized value needs no storage: a `List` of them never holds more
+  than its bookkeeping, and allocating zero bytes returns a valid block
+  that is freed like any other.
+
+Allocation is infallible: there is no API that returns an error instead
+of panicking. Fallible allocation needs an explicit design (ADR 0048).
 
 The stack is a resource, not part of the semantics: an optimization may
 use less of it (ADR 0044 turns a recursive call into a jump), so a program
