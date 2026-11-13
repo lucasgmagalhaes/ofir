@@ -24,6 +24,7 @@ import sema.check_ref.checkReturnedRef
 import sema.check_types.compatible
 import sema.check_union.coerceToUnion
 import sema.check_types.resolveType
+import sema.check_generic.reportBadLengths
 import sema.def.DefKind
 import sema.def.Res
 import sema.exhaustive.checkExhaustive
@@ -353,6 +354,7 @@ pub fn checkBlock(c: mut Checker, p: Program, block: &Block, expected: int, asVa
         if asValue && i + 1 == stmts.len() {
             if const StmtKind.ExprStmt(tail) = s.kind {
                 let ty = checkExpr(c, p, &tail, expected)
+                reportBadLengths(c, s.span)
                 if coerceToUnion(c, &tail, ty, expected) {
                     ty = expected   // a branch widens to the union expected (spec 17.3)
                 }
@@ -360,6 +362,7 @@ pub fn checkBlock(c: mut Checker, p: Program, block: &Block, expected: int, asVa
             }
         }
         const ty = checkStmt(c, p, s)
+        reportBadLengths(c, s.span)   // a type of the statement, as `Short<0>`
         diverges = diverges || ty == NEVER
     }
     return if diverges { NEVER } else { UNIT }
