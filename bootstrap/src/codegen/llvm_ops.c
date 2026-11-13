@@ -295,7 +295,9 @@ void gen_mut_globals(Gen *g) {
         char name[160], init[64] = "zeroinitializer";
         global_name(g, id, name, sizeof name);
         const struct ConstValue *v = def->value;
-        if (v && v->kind == CV_INT) {
+        if (v && ty_of(g, def->type)->kind == TY_PTR) {   // `0 as *T`
+            fmt_into(init, sizeof init, "null");
+        } else if (v && v->kind == CV_INT) {
             int_text(init, sizeof init, v->bits, INT_BITS[ty_of(g, def->type)->data]);
         } else if (v && v->kind == CV_FLOAT) {
             float_text(init, sizeof init, v->f, ty_of(g, def->type)->data == 32);
