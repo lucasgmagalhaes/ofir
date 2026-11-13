@@ -35,7 +35,7 @@ fn main() {
 ```
 
 `task.run` starts a task and returns its handle; `join` waits for the task
-and returns its result. A task runs on an OS thread of its own. `task.run`
+and returns its result. A task runs on an OS thread of its own (ADR 0050). `task.run`
 takes a `move fn() T + Send` (chapter 10.2, 14.3), so a task can never hold
 a reference into another task's stack, nor a value that is unsafe to use
 from another thread.
