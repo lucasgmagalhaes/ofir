@@ -133,7 +133,15 @@ match code {
 - Arms are separated by newlines. An arm's body is an expression or a block.
 - Patterns: literals, ranges (`a..=b`), `_`, bindings (`x`), enum variants
   with sub-patterns (`Option.Some(x)`), struct patterns (`Point{x, y: 0}`) and
-  alternatives (`p | q`).
+  alternatives (`p | q`). String literals match by content (`"get" | "head"`).
+  `(p)` is a 1-tuple pattern, not a grouping.
+- `name @ pattern` binds the whole matched value to `name` when `pattern`
+  matches: `small @ 0..=9`, `c @ Shape.Circle(_)`. The pattern after `@`
+  takes the alternatives that follow (`x @ 10 | 20` is `x @ (10 | 20)`) and
+  may not bind names itself (E0502). It is allowed wherever a pattern is,
+  including inside variants, struct fields and `const` patterns. The binding
+  takes the value the way a plain binding does: an owned value moves into
+  it, a borrowed place is borrowed.
 - A guard may follow a pattern: `Option.Some(n) if n > 0 => ...`
 - `match` **must be exhaustive**; a missing case is a compile error that
   shows a value no arm matches (`Result.Err(SizeError.TooLarge)`). An arm
