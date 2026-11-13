@@ -100,8 +100,6 @@ void ofir_str_push_debug(OfirStr *s, const OfirStr *part);
 void ofir_str_drop(OfirStr *s);
 
 void ofir_str_concat(OfirStr *out, const OfirStr *a, const OfirStr *b);
-bool ofir_str_eq(const OfirStr *a, const OfirStr *b);
-int32_t ofir_str_cmp(const OfirStr *a, const OfirStr *b);   // <0, 0 or >0, bytewise
 
 // ---------------------------------------------------------------------------
 // The system (std.os, std.fs, std.io): 0 or an errno value. Buffers are
