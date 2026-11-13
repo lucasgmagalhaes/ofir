@@ -283,7 +283,8 @@ pub fn rvUse(a: move Operand) Rvalue {
 
 /**
  * The functions of the runtime library (runtime/include/ofir_rt.h). The lowering
- * turns `StrPushStr` and `StrPushBool` into calls of std/core/str.of.
+ * turns `StrPushStr`, `StrPushInt`, `StrPushUint` and `StrPushBool` into calls of
+ * std/core/str.of.
  */
 pub copy enum RuntimeFn {
     PrintStr
@@ -325,8 +326,8 @@ pub fn runtimeName(f: RuntimeFn) str {
         RuntimeFn.PrintBool => "ofir_print_bool"
         RuntimeFn.PrintNewline => "ofir_print_newline"
         RuntimeFn.StrPushStr => "strPushStr"
-        RuntimeFn.StrPushInt => "ofir_str_push_int"
-        RuntimeFn.StrPushUint => "ofir_str_push_uint"
+        RuntimeFn.StrPushInt => "strPushInt"
+        RuntimeFn.StrPushUint => "strPushUint"
         RuntimeFn.StrPushFloat => "ofir_str_push_float"
         RuntimeFn.StrPushF32 => "ofir_str_push_f32"
         RuntimeFn.StrPushBool => "strPushBool"
