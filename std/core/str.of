@@ -804,29 +804,41 @@ fn debugEscape(c: u8) u8 {
     }
 }
 
+// The two digits of each number below 100, for `pushDigits`.
+const DIGIT_PAIRS = (
+    "00010203040506070809101112131415161718192021222324252627282930313233343536373839"
+    + "40414243444546474849505152535455565758596061626364656667686970717273747576777879"
+    + "8081828384858687888990919293949596979899"
+)
+
 // Appends the decimal digits of `n`, two per division, from the last.
 fn pushDigits(s: mut str, n: u64) {
-    let count = 1
-    let rest = n
-    for rest >= 10 {
-        rest /= 10
+    let count = 1   // compared with powers of ten: cheaper than dividing
+    let limit: u64 = 10
+    for n >= limit {
         count += 1
+        if count == 20 {
+            break
+        }
+        limit *= 10
     }
     s.reserve(count)
     unsafe {
         const base = s.ptr.add(s.len) as *mut u8
+        const pairs = DIGIT_PAIRS.ptr
         let at = count
         let value = n
         for value >= 100 {
-            const pair = value % 100
+            const pair = (value % 100 * 2) as int
             value /= 100
             at -= 2
-            *base.add(at) = b'0' + (pair / 10) as u8
-            *base.add(at + 1) = b'0' + (pair % 10) as u8
+            *base.add(at) = *pairs.add(pair)
+            *base.add(at + 1) = *pairs.add(pair + 1)
         }
         if value >= 10 {
-            *base = b'0' + (value / 10) as u8
-            *base.add(1) = b'0' + (value % 10) as u8
+            const pair = (value * 2) as int
+            *base = *pairs.add(pair)
+            *base.add(1) = *pairs.add(pair + 1)
         } else {
             *base = b'0' + value as u8
         }
