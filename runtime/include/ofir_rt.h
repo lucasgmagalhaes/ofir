@@ -113,6 +113,8 @@ const uint8_t *ofir_os_name(int64_t *len);     // "linux", "macos", "windows"
 const uint8_t *ofir_arch_name(int64_t *len);   // "x86_64", "aarch64"
 const uint8_t *ofir_env(const uint8_t *name, int64_t len, int64_t *value_len);   // NULL: unset
 _Noreturn void ofir_exit(int64_t code);
+_Noreturn void ofir_abort(void);
+void ofir_end_begin(void);
 int64_t ofir_test_index(void);   // the test `ofir test` asked for, or -1
 int64_t ofir_now_ns(void);       // a monotonic clock, in nanoseconds
 void ofir_sleep_ns(int64_t ns);  // at least ns nanoseconds

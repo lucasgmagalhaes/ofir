@@ -93,6 +93,7 @@ const uint8_t *ofir_env(const uint8_t *name, int64_t len, int64_t *value_len) {
 }
 
 _Noreturn void ofir_exit(int64_t code) {
+    ofir_end_begin();
     ofir_stdout_flush();
     exit((int)code);
 }
