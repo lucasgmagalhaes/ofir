@@ -52,8 +52,10 @@ void *ofir_alloc_aligned(int64_t size, int64_t align);      // align > 16
 void *ofir_realloc_aligned(void *ptr, int64_t size, int64_t align);
 void ofir_free(void *ptr);
 
-// The small-block pool (pool.c): ofir_pool_alloc takes 1 to OFIR_POOL_MAX
-// bytes and returns NULL when the pool is off.
+// The small-block pool (std/core/pool.of): ofir_pool_alloc takes 1 to
+// OFIR_POOL_MAX bytes and returns NULL when the pool is off. pool.c gives it
+// its range of address space: ofir_mem_reserve returns NULL when the pool
+// is off.
 #define OFIR_POOL_MAX 512
 void *ofir_pool_alloc(int64_t size);
 bool ofir_pool_owns(const void *ptr);
@@ -61,6 +63,8 @@ int64_t ofir_pool_block_size(const void *ptr);
 void ofir_pool_free(void *ptr);
 bool ofir_pool_try_free(void *ptr);   // frees a pool block, or returns false
 void ofir_pool_thread_exit(void);   // gives a task thread's free blocks back
+void *ofir_mem_reserve(int64_t size);
+bool ofir_mem_commit(void *ptr, int64_t size);
 
 // ---------------------------------------------------------------------------
 // Standard output, buffered by the runtime and flushed at exit and on panic.
