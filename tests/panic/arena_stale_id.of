@@ -1,0 +1,12 @@
+// panic: arena id used after the arena was cleared, or of another arena
+// An id made before `clear` does not reach the value that took its place.
+import std.arena.Arena
+
+fn main() {
+    let words = Arena<str>.new()
+    const old = words.alloc("old")
+    words.clear()
+    const fresh = words.alloc("fresh")
+    println("{words.get(fresh)}")
+    println("{words.get(old)}")
+}
