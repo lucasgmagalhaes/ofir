@@ -1,0 +1,293 @@
+/**
+ * @module
+ * `Deque<T>`: a double-ended queue in a ring buffer (ADR 0055,
+ * docs/std/collections.md).
+ */
+
+extern "C" {
+    fn ofir_alloc(size: int) *mut u8
+    fn ofir_free(p: *mut u8)
+}
+
+extern "intrinsic" {
+    fn dropInPlace<T>(p: *mut T)
+}
+
+/**
+ * A queue that grows and shrinks at both ends, in one ring buffer.
+ *
+ * Pushing and popping at either end take amortized constant time, and so
+ * does `get`. The capacity is 0 or a power of two and doubles when the
+ * buffer is full; growing moves the elements, so no borrow of an element
+ * outlives a push. Popping never frees memory: `clear` keeps the buffer.
+ *
+ * @typeParam T the type of the elements
+ * @example
+ * ```ofir
+ * import std.collections.deque.Deque
+ *
+ * let queue: Deque<int> = Deque.new()
+ * queue.pushBack(2)
+ * queue.pushFront(1)
+ * println("{queue.popFront() ?? 0} {queue.len()}")   // 1 1
+ * ```
+ */
+pub struct Deque<T> {
+    ptr: *mut T
+    cap: int
+    head: int
+    len: int
+
+    /**
+     * An empty deque; nothing is allocated until the first push.
+     *
+     * @returns a deque of length 0
+     */
+    pub fn new() Deque<T> {
+        return Deque{ptr: unsafe { 0 as *mut T }, cap: 0, head: 0, len: 0}
+    }
+
+    /**
+     * An empty deque with room for `n` elements.
+     *
+     * @param n the number of elements to make room for
+     * @returns a deque of length 0 and capacity at least `n`
+     * @panics when the system is out of memory
+     */
+    pub fn withCapacity(n: int) Deque<T> {
+        let d: Deque<T> = Deque.new()
+        d.reserve(n)
+        return d
+    }
+
+    /**
+     * The number of elements.
+     *
+     * @returns the length
+     */
+    pub fn len(self) int {
+        return self.len
+    }
+
+    /**
+     * Whether the deque has no elements.
+     *
+     * @returns true when the length is 0
+     */
+    pub fn isEmpty(self) bool {
+        return self.len == 0
+    }
+
+    /**
+     * How many elements fit before the next reallocation.
+     *
+     * @returns the capacity, 0 or a power of two
+     */
+    pub fn capacity(self) int {
+        return self.cap
+    }
+
+    /**
+     * Makes room for more elements, in one reallocation.
+     *
+     * @param extra how many more elements must fit
+     * @panics with "capacity overflow" when the size does not fit an `int`, or out of memory
+     */
+    pub fn reserve(mut self, extra: int) {
+        const needed = match self.len.checkedAdd(extra) {
+            Option.Some(n) => n
+            Option.None => panic("capacity overflow")
+        }
+        if needed <= self.cap {
+            return
+        }
+        let cap = if self.cap == 0 { 4 } else { self.cap }
+        for cap < needed {
+            cap = match cap.checkedMul(2) {
+                Option.Some(n) => n
+                Option.None => panic("capacity overflow")
+            }
+        }
+        const size = match cap.checkedMul(sizeOf<T>()) {
+            Option.Some(n) => n
+            Option.None => panic("capacity overflow")
+        }
+        unsafe {
+            const fresh = ofir_alloc(size) as *mut T
+            for i in 0..self.len {   // unwrapped: element i moves to position i
+                *fresh.add(i) = *self.ptr.add(self.slot(i))
+            }
+            if self.cap > 0 {
+                ofir_free(self.ptr as *mut u8)
+            }
+            self.ptr = fresh
+        }
+        self.cap = cap
+        self.head = 0
+    }
+
+    /**
+     * Appends an element at the back, in amortized constant time.
+     *
+     * @param x the element; the deque takes ownership of it
+     * @panics when the system is out of memory
+     */
+    pub fn pushBack(mut self, x: move T) {
+        if self.len == self.cap {
+            self.reserve(1)
+        }
+        unsafe {
+            *self.ptr.add(self.slot(self.len)) = x
+        }
+        self.len += 1
+    }
+
+    /**
+     * Inserts an element at the front, in amortized constant time.
+     *
+     * @param x the element; the deque takes ownership of it
+     * @panics when the system is out of memory
+     */
+    pub fn pushFront(mut self, x: move T) {
+        if self.len == self.cap {
+            self.reserve(1)
+        }
+        self.head = (self.head + self.cap - 1) & (self.cap - 1)
+        unsafe {
+            *self.ptr.add(self.head) = x
+        }
+        self.len += 1
+    }
+
+    /**
+     * Removes the last element.
+     *
+     * @returns `Some` with the element, or `None` when the deque is empty
+     */
+    pub fn popBack(mut self) Option<T> {
+        if self.len == 0 {
+            return Option.None
+        }
+        self.len -= 1
+        return Option.Some(unsafe { *self.ptr.add(self.slot(self.len)) })
+    }
+
+    /**
+     * Removes the first element.
+     *
+     * @returns `Some` with the element, or `None` when the deque is empty
+     */
+    pub fn popFront(mut self) Option<T> {
+        if self.len == 0 {
+            return Option.None
+        }
+        const at = self.head
+        self.head = (self.head + 1) & (self.cap - 1)
+        self.len -= 1
+        return Option.Some(unsafe { *self.ptr.add(at) })
+    }
+
+    /**
+     * A borrow of an element, counted from the front.
+     *
+     * @param i the position
+     * @returns `Some` with a reference to element `i`, or `None` outside
+     * `0..len()`
+     */
+    pub fn get(self, i: int) Option<&T> {
+        if i < 0 || i >= self.len {
+            return Option.None
+        }
+        return Option.Some(unsafe { &*self.ptr.add(self.slot(i)) })
+    }
+
+    /**
+     * A mutable borrow of an element, counted from the front.
+     *
+     * @param i the position
+     * @returns `Some` with a mutable reference to element `i`, or `None`
+     * outside `0..len()`
+     */
+    pub fn getMut(mut self, i: int) Option<&mut T> {
+        if i < 0 || i >= self.len {
+            return Option.None
+        }
+        return Option.Some(unsafe { &mut *self.ptr.add(self.slot(i)) })
+    }
+
+    /**
+     * A borrow of the first element.
+     *
+     * @returns `Some` with a reference to it, or `None` when empty
+     */
+    pub fn front(self) Option<&T> {
+        return self.get(0)
+    }
+
+    /**
+     * A borrow of the last element.
+     *
+     * @returns `Some` with a reference to it, or `None` when empty
+     */
+    pub fn back(self) Option<&T> {
+        return self.get(self.len - 1)
+    }
+
+    /**
+     * Removes every element, front first; the capacity is kept for reuse.
+     */
+    pub fn clear(mut self) {
+        for self.len > 0 {
+            unsafe {
+                dropInPlace(self.ptr.add(self.head))
+            }
+            self.head = (self.head + 1) & (self.cap - 1)
+            self.len -= 1
+        }
+        self.head = 0
+    }
+
+    /**
+     * An iterator over borrows of the elements, front to back.
+     *
+     * @returns a `DequeIter` that borrows the deque
+     */
+    pub fn iter(self) DequeIter<T> {
+        return DequeIter{deque: &self, index: 0}
+    }
+
+    // The buffer position of element `i` (0 <= i <= len, len < cap).
+    fn slot(self, i: int) int {
+        return (self.head + i) & (self.cap - 1)
+    }
+
+    fn drop(mut self) {
+        self.clear()
+        if self.cap > 0 {
+            unsafe {
+                ofir_free(self.ptr as *mut u8)
+            }
+        }
+    }
+}
+
+/**
+ * An iterator over borrows of the elements of a `Deque`, front to back.
+ *
+ * @typeParam T the type of the elements
+ */
+pub ref struct DequeIter<T> {
+    deque: &Deque<T>
+    index: int
+
+    /**
+     * The next element.
+     *
+     * @returns `Some` with a reference to it, or `None` after the last one
+     */
+    pub fn next(mut self) Option<&T> {
+        const x = self.deque.get(self.index)
+        self.index += 1
+        return x
+    }
+}
