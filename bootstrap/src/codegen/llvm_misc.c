@@ -85,9 +85,11 @@ void gen_misc(Gen *g, const Rvalue *rv, Value *result) {
     case RV_PTR_ADD: {
         Value p = gen_operand(g, rv->a), n = gen_operand(g, rv->b);
         const Ty *ptr = type_get(g->types, rv->a.type);
+        const char *elem = llvm_type(g, ptr->inner);
+        elem = strcmp(elem, "void") ? elem : "{}";   // () steps by zero bytes
         next_temp(g, result->text);
-        out_fmt(&g->out, "  %s = getelementptr %s, ptr %s, i64 %s\n", result->text,
-                llvm_type(g, ptr->inner), p.text, n.text);
+        out_fmt(&g->out, "  %s = getelementptr %s, ptr %s, i64 %s\n", result->text, elem,
+                p.text, n.text);
         break;
     }
     case RV_SIZE_OF: size_of(g, rv->to, result); break;
