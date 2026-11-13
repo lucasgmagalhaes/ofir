@@ -60,6 +60,7 @@ starts with the same word as the record's status line.
 | [0047](0047-array-operations-ranges-and-128-bit.md) | Array operations; range values and 128-bit integers deferred | Accepted |
 | [0048](0048-allocation-failure-policy.md) | Allocation failure policy; fallible allocation deferred | Accepted |
 | [0049](0049-arenas-not-allocator-parameters.md) | Typed index arenas in std; no allocator parameters | Accepted |
+| [0050](0050-os-thread-tasks-no-async.md) | Tasks stay on OS threads; no async/await, no green tasks yet | Accepted |
 
 ## Template
 
