@@ -1,0 +1,41 @@
+/**
+ * @module
+ * `ofir metadata <file.of>`: the modules of a program as one JSON object on
+ * standard output, for editors and build tools (docs/design/toolchain.md,
+ * ADR 0053).
+ */
+
+import base.span.SourceMap
+import diag.jsonString
+import sema.program.Program
+
+/** The version of the JSON shape; a change that drops or renames a field raises it. */
+pub const METADATA_FORMAT: int = 1
+
+/**
+ * The metadata of a loaded program: the format version, the compiler
+ * version, the root module, and each module's name, path and whether it is
+ * part of `std`, the root first.
+ *
+ * @param program the loaded program
+ * @param map where its files are
+ * @param version the compiler version
+ * @returns the JSON object, with a final newline
+ */
+pub fn metadataJson(program: &Program, map: &SourceMap, version: str) str {
+    let out = "\{\"format\":{METADATA_FORMAT},\"compiler\":{jsonString(version)}"
+    const root = if program.modules.len() > 0 { program.modules[0].name.clone() } else { "" }
+    out.push(",\"root\":{jsonString(root)},\"modules\":[")
+    for i in 0..program.modules.len() {
+        const m = &program.modules[i]
+        if i > 0 {
+            out.push(",")
+        }
+        const path = map.file(m.module.file).path.clone()
+        const std = m.name == "std" || m.name.startsWith("std.")
+        out.push("\{\"name\":{jsonString(m.name)},\"path\":{jsonString(path)}")
+        out.push(",\"std\":{std}\}")
+    }
+    out.push("]\}\n")
+    return out
+}
