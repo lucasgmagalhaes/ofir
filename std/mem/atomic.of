@@ -30,6 +30,7 @@ extern "intrinsic" {
     /**
      * Reads `*p` atomically.
      *
+     * @typeParam T an integer, `bool` or raw pointer type
      * @param p the address
      * @param order `Relaxed`, `Acquire` or `SeqCst`
      * @returns the value
@@ -38,6 +39,7 @@ extern "intrinsic" {
     /**
      * Writes `*p` atomically.
      *
+     * @typeParam T an integer, `bool` or raw pointer type
      * @param p the address
      * @param value the new value
      * @param order `Relaxed`, `Release` or `SeqCst`
@@ -46,6 +48,7 @@ extern "intrinsic" {
     /**
      * Writes `*p` and returns the old value, in one step.
      *
+     * @typeParam T an integer, `bool` or raw pointer type
      * @param p the address
      * @param value the new value
      * @param order any ordering
@@ -55,6 +58,7 @@ extern "intrinsic" {
     /**
      * Adds to `*p`, wrapping around, and returns the old value.
      *
+     * @typeParam T an integer, `bool` or raw pointer type
      * @param p the address of an integer
      * @param delta what to add
      * @param order any ordering
@@ -64,6 +68,7 @@ extern "intrinsic" {
     /**
      * Subtracts from `*p`, wrapping around, and returns the old value.
      *
+     * @typeParam T an integer, `bool` or raw pointer type
      * @param p the address of an integer
      * @param delta what to subtract
      * @param order any ordering
@@ -73,6 +78,7 @@ extern "intrinsic" {
     /**
      * Writes `desired` to `*p` if it holds `expected`, in one step.
      *
+     * @typeParam T an integer, `bool` or raw pointer type
      * @param p the address
      * @param expected the value `*p` must hold
      * @param desired the new value
