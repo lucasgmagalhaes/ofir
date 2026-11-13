@@ -61,67 +61,6 @@ void ofir_str_push_fixed(OfirStr *s, double value, int64_t digits) {
     }
 }
 
-void ofir_str_push_radix(OfirStr *s, uint64_t value, int64_t format) {
-    uint64_t base = (uint64_t)(format & 0xff);
-    int64_t bits = (format >> 8) & 0xff;
-    if (bits < 64) {
-        value &= ((uint64_t)1 << bits) - 1;
-    }
-    const char *digits = (format >> 16) & 1 ? "0123456789ABCDEF" : "0123456789abcdef";
-    char text[64];
-    int n = 0;
-    do {
-        text[63 - n++] = digits[value % base];
-        value /= base;
-    } while (value != 0);
-    ofir_str_push_bytes(s, (const uint8_t *)text + 64 - n, n);
-}
-
-void ofir_str_push_padded(OfirStr *s, const OfirStr *part, int64_t padding) {
-    int64_t width = padding & 0xffffffff;
-    bool left = (padding >> 32) & 1;
-    bool zero = (padding >> 33) & 1;
-    int64_t count = 0;   // the width counts Unicode scalar values
-    for (int64_t i = 0; i < part->len; i++) {
-        count += (part->ptr[i] & 0xc0) != 0x80;
-    }
-    int64_t pad = width > count ? width - count : 0;
-    int64_t sign = zero && part->len > 0 && (part->ptr[0] == '-' || part->ptr[0] == '+');
-    if (left) {
-        ofir_str_push_bytes(s, part->ptr, part->len);
-    } else {
-        ofir_str_push_bytes(s, part->ptr, sign);
-    }
-    if (pad > 0) {
-        reserve(s, pad);
-        memset(s->ptr + s->len, zero ? '0' : ' ', (size_t)pad);
-        s->len += pad;
-    }
-    if (!left) {
-        ofir_str_push_bytes(s, part->ptr + sign, part->len - sign);
-    }
-}
-
-void ofir_str_push_debug(OfirStr *s, const OfirStr *part) {
-    static const char hex[] = "0123456789abcdef";
-    ofir_str_push_bytes(s, (const uint8_t *)"\"", 1);
-    for (int64_t i = 0; i < part->len; i++) {
-        uint8_t c = part->ptr[i];
-        char esc = c == '"' ? '"' : c == '\\' ? '\\' : c == '\n' ? 'n' : c == '\t' ? 't'
-                 : c == '\r' ? 'r' : c == 0 ? '0' : 0;
-        if (esc) {
-            uint8_t pair[2] = {'\\', (uint8_t)esc};
-            ofir_str_push_bytes(s, pair, 2);
-        } else if (c < 0x20 || c == 0x7f) {
-            uint8_t code[4] = {'\\', 'x', (uint8_t)hex[c >> 4], (uint8_t)hex[c & 15]};
-            ofir_str_push_bytes(s, code, 4);
-        } else {
-            ofir_str_push_bytes(s, &c, 1);
-        }
-    }
-    ofir_str_push_bytes(s, (const uint8_t *)"\"", 1);
-}
-
 void ofir_str_drop(OfirStr *s) {
     if (s->cap > 0) {
         ofir_free(s->ptr);

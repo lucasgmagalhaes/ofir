@@ -86,13 +86,6 @@ void ofir_str_push_float(OfirStr *s, double value);
 void ofir_str_push_f32(OfirStr *s, float value);
 // Format specifiers, `{x:spec}` (spec 1.7).
 void ofir_str_push_fixed(OfirStr *s, double value, int64_t digits);
-// `format`: the radix (2 or 16), the bits of the type shifted by 8, bit 16 for
-// upper case digits; the low bits of `value` are shown.
-void ofir_str_push_radix(OfirStr *s, uint64_t value, int64_t format);
-// `padding`: the width, bit 32 for left aligned, bit 33 for zero padded.
-void ofir_str_push_padded(OfirStr *s, const OfirStr *part, int64_t padding);
-// `part` quoted, with escapes: its debug representation (`{x:?}`).
-void ofir_str_push_debug(OfirStr *s, const OfirStr *part);
 void ofir_str_drop(OfirStr *s);
 
 
