@@ -99,7 +99,6 @@ void ofir_str_push_padded(OfirStr *s, const OfirStr *part, int64_t padding);
 void ofir_str_push_debug(OfirStr *s, const OfirStr *part);
 void ofir_str_drop(OfirStr *s);
 
-void ofir_str_concat(OfirStr *out, const OfirStr *a, const OfirStr *b);
 
 // ---------------------------------------------------------------------------
 // The system (std.os, std.fs, std.io): 0 or an errno value. Buffers are

@@ -147,10 +147,3 @@ void ofir_str_drop(OfirStr *s) {
     *s = (OfirStr){0};
 }
 
-void ofir_str_concat(OfirStr *out, const OfirStr *a, const OfirStr *b) {
-    OfirStr result = {0};
-    ofir_str_push_bytes(&result, a->ptr, a->len);
-    ofir_str_push_bytes(&result, b->ptr, b->len);
-    *out = result;
-}
-
