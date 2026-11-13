@@ -51,6 +51,11 @@ jobs:
           "$OFIR_CLANG" --version
           python3 --version
 
+      # gdb for tools/check_debugger.py, which make test runs.
+      - name: Install gdb
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y gdb
+
       - name: Build and test
         run: make test
 

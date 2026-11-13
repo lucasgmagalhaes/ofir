@@ -118,6 +118,8 @@ test-stage1: stage1
 	    $(PYTHON) tools/run_std_tests.py --compiler $(BUILD)/stage1/ofir$(EXE) --stage 1
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_object_cache.py --compiler $(BUILD)/stage1/ofir$(EXE)
+	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
+	    $(PYTHON) tools/check_debugger.py --compiler $(BUILD)/stage1/ofir$(EXE)
 
 test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format test-std compare-stages test-stage1 verify
 	$(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
