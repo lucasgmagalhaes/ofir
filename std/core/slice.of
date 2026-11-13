@@ -179,6 +179,7 @@ fn rangePanic(lo: int, hi: int, len: int) {
  * Whether two slices hold equal elements in the same order: `a == b` on
  * slices and arrays (spec 9.9) calls it.
  *
+ * @typeParam T the element type
  * @param a the left slice
  * @param b the right slice
  * @returns true if they have the same length and equal elements
