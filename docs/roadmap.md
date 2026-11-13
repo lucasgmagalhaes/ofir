@@ -381,6 +381,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
 | 6.25a | Bounded frontend (ADR 0052): both parsers count nesting (parentheses, blocks, operators, unary and `as` chains, postfix steps, `else if`, types and patterns) and stop at 256 levels with one E0101; deep and adversarial inputs end in that diagnostic instead of a stack overflow; `compare_stages.py` builds stage 1 in release mode, as the Makefile does | OFIR-31 | **done** |
 | 6.25b | AIR invariants: stage 1 gains the structural AIR validator of stage 0 (`air/validate.of`); both stages validate every body after lowering and again after check folding, and a malformed body prints the body, a note and `invalid AIR after <pass>` naming the function, block and fault before any LLVM IR; unit tests in both stages cover each fault | OFIR-32 | **done** |
+| 6.25c | Auditable bootstrap: `make check-seed` compiles only a seed whose SHA-256 is recorded (`tools/check_seed_sum.py`: its `.sha256`, else `seed/SEEDS.md`) and the compiler built from it rebuilds itself to a fixed point; seed and chain compilers are release builds, so they pass the deep-nesting tests; `docs/bootstrap.md` lists stage 2/3 parity, shared-subset parity and the independent `requires: stage1` tests | OFIR-33 | **done** |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
@@ -422,7 +423,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.25 with OFIR-33; OFIR-32 is done (6.25b).
+1. Continue 6.25 with OFIR-34; OFIR-33 is done (6.25c).
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
