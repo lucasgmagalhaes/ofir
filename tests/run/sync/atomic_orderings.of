@@ -1,0 +1,23 @@
+// requires: stage1
+// The `*With` methods of `AtomicInt` and `AtomicBool` take a memory
+// ordering (spec 14.4, ADR 0042); one an operation does not allow is
+// `SeqCst`.
+
+import std.mem.atomic
+import std.sync.AtomicBool
+import std.sync.AtomicInt
+
+fn main() {
+    const n = AtomicInt.new(1)
+    println("{n.loadWith(atomic.Ordering.Acquire)} {n.loadWith(atomic.Ordering.Release)}")
+    n.storeWith(5, atomic.Ordering.Release)
+    n.storeWith(6, atomic.Ordering.AcqRel)
+    println("{n.fetchAddWith(4, atomic.Ordering.Relaxed)} {n.swapWith(2, atomic.Ordering.AcqRel)}")
+    const won = n.compareExchangeWith(2, 3, atomic.Ordering.Acquire)
+    const lost = n.compareExchangeWith(2, 4, atomic.Ordering.SeqCst)
+    println("{won} {lost} {n.loadWith(atomic.Ordering.Relaxed)}")
+    const flag = AtomicBool.new(false)
+    flag.storeWith(true, atomic.Ordering.Release)
+    const was = flag.swapWith(false, atomic.Ordering.AcqRel)
+    println("{was} {flag.loadWith(atomic.Ordering.Acquire)}")
+}
