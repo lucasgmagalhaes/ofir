@@ -151,7 +151,11 @@ fn main() {
   (`get`, `getMut`), held alone.
 - `AtomicInt` (`load`, `store`, `fetchAdd`, `swap`, `compareExchange`) and
   `AtomicBool` (`load`, `store`, `swap`) change their value through shared
-  references; every operation is sequentially consistent.
+  references; these operations are sequentially consistent. Each has a
+  `...With` form (`loadWith`, `storeWith`, `fetchAddWith`, `swapWith`,
+  `compareExchangeWith`) that takes a `std.mem.atomic.Ordering` as its
+  last argument, at run time; an ordering the operation does not allow is
+  `SeqCst`. Both types are built on the intrinsics below.
 - `std.mem.atomic` (ADR 0042) declares `Ordering` (`Relaxed`, `Acquire`,
   `Release`, `AcqRel`, `SeqCst`, as in C11) and the unsafe intrinsics
   `atomicLoad`, `atomicStore`, `atomicSwap`, `atomicFetchAdd`,
@@ -163,7 +167,5 @@ fn main() {
   any ordering but `Relaxed`; the others any ordering.
   `atomicCompareExchange` returns the value it found, which equals the
   expected value when it stored the desired one.
-- *Planned (ADR 0042):* `AtomicInt` and `AtomicBool` gain `...With` forms
-  that take an ordering.
 - `WaitGroup` counts work in progress: `add(n)`, `done()` (`add(-1)`) and
   `wait()`, which waits until the count is 0. A count below 0 panics.
