@@ -29,6 +29,7 @@ import diag.jsonNoSource
 import doc.docCommand
 import driver.cfg.CfgTarget
 import driver.explain.explain
+import driver.metadata.metadataJson
 import driver.fetch.fetchCommand
 import fmt.fmtCommand
 import driver.modules.Front
@@ -62,6 +63,8 @@ fn printUsage() {
              + "  run <file.of>     compile and run a program\n"
              + "  test <file.of>    compile and run the `@test` functions\n"
              + "  bench <file.of>   compile with optimizations and time the `@bench` functions\n"
+             + "  check <file.of>   check a program for errors, without building it\n"
+             + "  metadata <file.of>  print the modules of a program as JSON\n"
              + "  explain <code>    explain an error or warning code, as E0600\n"
              + "  fmt [paths]       format the source files (--check: list those that would "
              + "change; --stdout: print them)\n"
@@ -264,7 +267,8 @@ fn main() {
         return
     }
     const known = command == "build" || command == "run" || command == "test"
-    if !known && command != "bench" {
+    const service = command == "check" || command == "metadata"
+    if !known && command != "bench" && !service {
         eprintln("error: unknown command `{command}`\n")
         printUsage()
         os.exit(2)
@@ -379,6 +383,10 @@ fn build(given: move Options) int {
     if front.diags.hasErrors() {
         return finish(front.diags, front.map, &pipeline)
     }
+    if opts.command == "metadata" {
+        print(metadataJson(&program, &front.map, VERSION))
+        return finish(front.diags, front.map, &pipeline)
+    }
     phaseStart = timerStart(opts.timePasses)
     let r = resolveProgram(program, front.names, front.diags, front.map, opts.emit == "names",
                            testing || benching, benching, false, "")
@@ -398,7 +406,7 @@ fn build(given: move Options) int {
         print(traceTypes(c, program))
         return finish(c.r.diags, c.r.map, &pipeline)
     }
-    if c.r.diags.hasErrors() || opts.stopAfter == "check" {
+    if c.r.diags.hasErrors() || opts.stopAfter == "check" || opts.command == "check" {
         return finish(c.r.diags, c.r.map, &pipeline)
     }
     const ok = backend(c, program, pipeline)
