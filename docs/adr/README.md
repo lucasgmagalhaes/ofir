@@ -58,6 +58,7 @@ starts with the same word as the record's status line.
 | [0045](0045-borrow-usability.md) | Borrow usability: reborrows and views of part of a sequence | Accepted |
 | [0046](0046-module-paths-and-reexports.md) | Module paths, re-exports and initialization | Accepted |
 | [0047](0047-array-operations-ranges-and-128-bit.md) | Array operations; range values and 128-bit integers deferred | Accepted |
+| [0048](0048-allocation-failure-policy.md) | Allocation failure policy; fallible allocation deferred | Accepted |
 
 ## Template
 
