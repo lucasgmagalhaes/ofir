@@ -1,0 +1,49 @@
+// requires: stage1
+// `&xs[a..b]` and `&mut xs[a..b]` borrow `xs` while the view is used (spec 5.6).
+
+fn grows() {
+    let a = [1, 2, 3]
+    const s = &mut a[0..2]
+    a.push(4)               // error[E0700]: cannot borrow `a` as mutable more than once: it is also borrowed by `s`
+    s[0] = 1
+}
+
+fn growsShared() {
+    let a = [1, 2, 3]
+    const v = &a[0..2]
+    a.push(4)               // error[E0701]: cannot borrow `a` as mutable because it is also borrowed as shared by `v`
+    println("{v.len()}")
+}
+
+fn immutable() {
+    const a = [1, 2, 3]
+    const s = &mut a[0..2]  // error[E0315]: this value cannot be modified: declare it with `let`
+    s[0] = 1
+}
+
+fn twoViews() {
+    let a = [1, 2, 3]
+    const s = &mut a[0..1]
+    const t = &mut a[1..3]  // error[E0700]: cannot borrow `a` as mutable more than once: it is also borrowed by `s`
+    s[0] = t[0]
+}
+
+fn readOnly(xs: &[int]) {
+    const _s = &mut xs[0..1] // error[E0301]: no method `sliceMut` on type `Slice<int>`
+}
+
+fn reslice(xs: &mut [int]) {
+    const head = &mut xs[0..1]
+    xs[1] = 2               // error[E0704]: cannot assign to `xs` while it is borrowed by `head`
+    head[0] = 1
+}
+
+fn main() {
+    grows()
+    growsShared()
+    immutable()
+    twoViews()
+    let list = [1, 2]
+    readOnly(list.asSlice())
+    reslice(&mut list)
+}
