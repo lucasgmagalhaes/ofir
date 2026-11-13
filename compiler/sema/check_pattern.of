@@ -258,7 +258,53 @@ pub fn checkPattern(c: mut Checker, p: Program, pat: &Pattern, ty: int) {
             }
         }
         PatternKind.TypeTest(_, target) => typeTest(c, p, pat, &target, ty)
+        PatternKind.At(name, _, inner) => {
+            const local = c.localAt(pat.id.0)
+            if local >= 0 {
+                c.localTypes[local] = ty
+            }
+            checkPattern(c, p, &*inner, ty)
+            if bindsName(c, &*inner) {
+                c.error("E0502", inner.span,
+                        "the pattern after `{c.text(name)} @` cannot bind names")
+            }
+        }
     }
+}
+
+// Whether a pattern binds a name.
+fn bindsName(c: Checker, pat: &Pattern) bool {
+    if c.localAt(pat.id.0) >= 0 {
+        return true
+    }
+    return match pat.kind {
+        PatternKind.Variant(_, _, args, _) | PatternKind.TupleStruct(_, args) => {
+            anyBindsName(c, &args)
+        }
+        PatternKind.Tuple(args) | PatternKind.Or(args) => anyBindsName(c, &args)
+        PatternKind.Struct(_, fields, _) => {
+            for i in 0..fields.len() {
+                if const Option.Some(inner) = fields[i].pattern {
+                    if bindsName(c, &inner) {
+                        return true
+                    }
+                } else if c.localAt(fields[i].id.0) >= 0 {
+                    return true
+                }
+            }
+            false
+        }
+        _ => false
+    }
+}
+
+fn anyBindsName(c: Checker, list: &List<Pattern>) bool {
+    for i in 0..list.len() {
+        if bindsName(c, &list[i]) {
+            return true
+        }
+    }
+    return false
 }
 
 /**
@@ -361,6 +407,7 @@ pub fn irrefutable(c: Checker, pat: &Pattern) bool {
     }
     return match pat.kind {
         PatternKind.Wildcard | PatternKind.Binding(_, _) => true
+        PatternKind.At(_, _, inner) => irrefutable(c, &*inner)
         PatternKind.Tuple(items) => allIrrefutable(c, &items)
         PatternKind.TupleStruct(_, args) => allIrrefutable(c, &args)
         PatternKind.Struct(_, fields, _) => {

@@ -106,6 +106,7 @@ fn toPat(c: mut Checker, p: Program, pattern: &Pattern) Pat {
         PatternKind.Range(_, _, _) => Pat.Opaque
         PatternKind.TypeTest(_, _) => typeTestPat(c, pattern)
         PatternKind.Or(alternatives) => Pat.Or(toPats(c, p, &alternatives))
+        PatternKind.At(_, _, inner) => toPat(c, p, &*inner)
     }
 }
 
