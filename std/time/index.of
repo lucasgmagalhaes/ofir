@@ -49,6 +49,7 @@ pub fn sleep(ns: int) {
  * ```ofir
  * import std.time
  * import std.time.Deadline
+ * import std.testing.assert
  *
  * const d = Deadline.after(10 * time.MILLISECOND)
  * assert(!d.expired())
