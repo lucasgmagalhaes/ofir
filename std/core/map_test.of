@@ -57,3 +57,17 @@ fn seededMapsKeepTheInsertionOrder() {
 fn theSeedChangesTheHash() {
     assert(hashSeeded(1, 1) != hashSeeded(1, 2) && hashSeeded(1, 1) != hashSeeded(2, 1))
 }
+
+@test
+fn keysIterateInInsertionOrder() {
+    let m = Map<str, int>.new()
+    m.insert("b", 2)
+    m.insert("a", 1)
+    m.insert("c", 3)
+    m.remove("a")
+    let joined = ""
+    for k in m.keys() {
+        joined.push(k)
+    }
+    assert(joined == "bc")
+}
