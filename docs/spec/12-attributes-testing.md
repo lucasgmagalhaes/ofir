@@ -73,9 +73,9 @@ declaration it marks (12.6). The categories are `unused` (W0001, W0002,
 W0003), `unreachable` (W0004), `deprecated` (W0006) and `naming` (W0007);
 another identifier is an error (E0809).
 
-Stage 0 and stage 1 implement `@inline`, `@cold`, `@test` and `@lang`;
-stage 1 also implements `@deprecated`, `@allow`, `@cfg`, `@repr(C)`,
-`@packed`, `@align`, `@export`, `@link`, `@bench` and `@tag`.
+Stage 0 and stage 1 implement `@inline`, `@cold`, `@test`, `@lang` and
+`@export`; stage 1 also implements `@deprecated`, `@allow`, `@cfg`,
+`@repr(C)`, `@packed`, `@align`, `@link`, `@bench` and `@tag`.
 
 ## 12.2 Tests
 

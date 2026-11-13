@@ -1,5 +1,5 @@
 // Memory allocation: blocks of up to OFIR_POOL_MAX bytes come from the pool
-// (pool.c), larger ones from malloc; both panic when out of memory.
+// (std/core/pool.of), larger ones from malloc; both panic when out of memory.
 //
 // On Windows every block comes from `_aligned_malloc`, so that `ofir_free`
 // releases aligned and plain blocks alike; elsewhere `free` accepts what
@@ -104,7 +104,7 @@ void *ofir_realloc_aligned(void *ptr, int64_t size, int64_t align) {
 }
 
 void ofir_free(void *ptr) {
-    if (ofir_pool_try_free(ptr)) {
+    if (ofir_pool_free(ptr)) {
         return;
     }
 #ifdef _WIN32

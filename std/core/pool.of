@@ -1,0 +1,446 @@
+/**
+ * @module
+ * The small-block pool behind `ofir_alloc` (ADR 0041, ADR 0042): blocks of
+ * up to 512 bytes come from chunks of one size class each, carved out of
+ * one reserved range of address space. A block has no header: `ofir_free`
+ * knows a pool block by its address, and the chunk it lies in gives its
+ * size class.
+ *
+ * Each thread keeps a free list per class. A list that grows past two
+ * batches gives one batch to a global list, where other threads take it
+ * back, so memory freed by another thread than the one that allocated it
+ * is reused. Chunks are never returned to the system.
+ *
+ * The range starts with the class of each chunk (chunks 0 to 3), then the
+ * global lists and the per-thread bins (chunk 4); blocks start at chunk 5.
+ *
+ * The runtime (`runtime/src/mem.c`) calls the exported functions, and
+ * `runtime/src/pool.c` reserves and commits the range. The pool is off,
+ * and every block comes from malloc, when no range can be reserved: on
+ * Windows, under AddressSanitizer, and when the environment sets
+ * `OFIR_SYSTEM_ALLOC` (tools/check_leaks.py does, so that valgrind sees
+ * every block).
+ */
+
+import std.mem.atomic
+
+extern "C" {
+    fn ofir_mem_reserve(size: int) *mut u8
+    fn ofir_mem_commit(p: *mut u8, size: int) bool
+}
+
+const CHUNK: int = 65536
+const CHUNK_SHIFT: uint = 16
+const RESERVE: int = 17179869184   // 16 GiB of address space, committed by chunk
+const CHUNKS: int = 262144
+const CLASSES: int = 16
+const BATCH_BYTES: int = 32768     // what a batch holds, whatever the class
+const META: int = 4                // the chunk of the global lists and the bins
+const FIRST_BLOCK_CHUNK: int = 5
+const BINS_OFFSET: int = 4096      // where the bins start in the META chunk
+const TABLE_OFFSET: int = 263168   // in the META chunk: the class of each size by 16
+const SIZES_OFFSET: int = 263232   // then the block size of each class
+const BINS_BYTES: int = 512        // the 16 bins of a thread
+
+const UNSET: int = 0
+const STARTING: int = 1
+const READY: int = 2
+const DISABLED: int = 3
+
+// The free list and the unused part of the last chunk of one class, for one
+// thread: 32 bytes, so that a bin is found with a shift.
+struct Bin {
+    free: *mut u8
+    room: int   // frees left before a batch goes back: two batches less the list
+    bump: *mut u8
+    end: *mut u8
+}
+
+let STATE: int = 0
+let BASE: *mut u8 = 0 as *mut u8   // set once, before STATE is READY
+let NEXT_CHUNK: int = 0
+let SPARE_LOCK: int = 0
+let SPARE: *mut u8 = 0 as *mut u8   // bins of threads that ended
+let ARENA: *mut u8 = 0 as *mut u8   // room for the bins of new threads
+let ARENA_END: *mut u8 = 0 as *mut u8
+
+@threadLocal
+let BINS: *mut Bin = 0 as *mut Bin
+
+fn null() *mut u8 {
+    return 0 as *mut u8
+}
+
+// 16 to 128 by 16, to 256 by 32, to 512 by 64: all multiples of 16.
+fn classSize(c: int) int {
+    if c < 8 {
+        return (c + 1) * 16
+    }
+    if c < 12 {
+        return 160 + (c - 8) * 32
+    }
+    return 320 + (c - 12) * 64
+}
+
+// The class of a size of 1 to 512 bytes, by n = (size + 15) / 16.
+fn classOf(n: int) int {
+    if n <= 8 {
+        return if n == 0 { 0 } else { n - 1 }
+    }
+    if n <= 16 {
+        return (n + 7) / 2
+    }
+    return (n + 31) / 4
+}
+
+// The length of the free list that gives a batch back: two batches.
+fn limitOf(c: int) int {
+    return 2 * (BATCH_BYTES / classSize(c))
+}
+
+// Where the pool keeps the block size of class `c`. The tables are at a
+// fixed place from BASE, so that their load does not wait for the bins.
+fn sizeAt(c: int) *mut int {
+    return unsafe { BASE.add(SIZES_OFFSET + c * 8) as *mut int }
+}
+
+fn lock(p: *mut int) {
+    for unsafe { atomic.atomicSwap(p, 1, atomic.Ordering.Acquire) } != 0 {
+    }
+}
+
+fn unlock(p: *mut int) {
+    unsafe {
+        atomic.atomicStore(p, 0, atomic.Ordering.Release)
+    }
+}
+
+// The lock of the global list of class `c`; the list follows it.
+fn global(c: int) *mut int {
+    return unsafe { BASE.add(META * CHUNK + c * 16) as *mut int }
+}
+
+fn nextOf(block: *mut u8) *mut *mut u8 {
+    return unsafe { block as *mut *mut u8 }
+}
+
+fn batchOf(block: *mut u8) *mut *mut u8 {
+    return unsafe { (block as *mut *mut u8).add(1) }
+}
+
+fn giveBatch(c: int, first: *mut u8) {
+    const g = global(c)
+    const batches = unsafe { g.add(1) as *mut *mut u8 }
+    lock(g)
+    unsafe {
+        *batchOf(first) = *batches
+        *batches = first
+    }
+    unlock(g)
+}
+
+fn takeBatch(c: int) *mut u8 {
+    const g = global(c)
+    const batches = unsafe { g.add(1) as *mut *mut u8 }
+    lock(g)
+    const first = unsafe { *batches }
+    if first != null() {
+        unsafe {
+            *batches = *batchOf(first)
+        }
+    }
+    unlock(g)
+    return first
+}
+
+// Reserves the range and commits its first chunks, once.
+@cold
+fn reserve() bool {
+    const range = unsafe { ofir_mem_reserve(RESERVE) }
+    if range == null() || !unsafe { ofir_mem_commit(range, FIRST_BLOCK_CHUNK * CHUNK) } {
+        return false
+    }
+    unsafe {
+        BASE = range
+        NEXT_CHUNK = FIRST_BLOCK_CHUNK
+        ARENA = range.add(META * CHUNK + BINS_OFFSET)
+        ARENA_END = ARENA.add((CHUNK - BINS_OFFSET) / BINS_BYTES * BINS_BYTES)
+    }
+    for n in 0..33 {
+        unsafe {
+            *range.add(TABLE_OFFSET + n) = classOf(n) as u8
+        }
+    }
+    for c in 0..CLASSES {
+        unsafe {
+            *sizeAt(c) = classSize(c)
+        }
+    }
+    return true
+}
+
+fn start() bool {
+    const state = unsafe { &mut STATE as *mut int }
+    if unsafe { atomic.atomicLoad(state, atomic.Ordering.Acquire) } == UNSET {
+        const old = unsafe {
+            atomic.atomicCompareExchange(state, UNSET, STARTING, atomic.Ordering.SeqCst)
+        }
+        if old == UNSET {
+            const now = if reserve() { READY } else { DISABLED }
+            unsafe {
+                atomic.atomicStore(state, now, atomic.Ordering.SeqCst)
+            }
+        }
+    }
+    for {
+        const now = unsafe { atomic.atomicLoad(state, atomic.Ordering.Acquire) }
+        if now != STARTING {
+            return now == READY
+        }
+    }
+}
+
+// The index of a new chunk, committed, or -1 when the range is used up.
+fn takeChunk() int {
+    const next = unsafe { &mut NEXT_CHUNK as *mut int }
+    // A plain load first: once the range is used up, misses do not keep
+    // writing the shared counter.
+    if unsafe { atomic.atomicLoad(next, atomic.Ordering.Relaxed) } >= CHUNKS {
+        return -1
+    }
+    const index = unsafe { atomic.atomicFetchAdd(next, 1, atomic.Ordering.SeqCst) }
+    if index >= CHUNKS {
+        return -1
+    }
+    if !unsafe { ofir_mem_commit(BASE.add(index * CHUNK), CHUNK) } {
+        return -1
+    }
+    return index
+}
+
+// A new chunk for class `c`, or false when the range is used up.
+fn newChunk(b: *mut Bin, c: int) bool {
+    const index = takeChunk()
+    if index < 0 {
+        return false
+    }
+    unsafe {
+        *BASE.add(index) = c as u8
+        const chunk = BASE.add(index * CHUNK)
+        (*b).bump = chunk
+        const size = classSize(c)
+        (*b).end = chunk.add(CHUNK / size * size)   // a whole number of blocks
+    }
+    return true
+}
+
+// The bins of the calling thread, made on its first use of the pool; null
+// when the pool is off.
+@cold
+fn threadBins() *mut Bin {
+    if !start() {
+        return 0 as *mut Bin
+    }
+    const spareLock = unsafe { &mut SPARE_LOCK as *mut int }
+    lock(spareLock)
+    let bins = unsafe { SPARE }
+    if bins != null() {
+        unsafe {
+            SPARE = *nextOf(bins)
+        }
+    } else {
+        if unsafe { ARENA == ARENA_END } {
+            const index = takeChunk()
+            if index >= 0 {
+                unsafe {
+                    ARENA = BASE.add(index * CHUNK)
+                    ARENA_END = ARENA.add(CHUNK / BINS_BYTES * BINS_BYTES)
+                }
+            }
+        }
+        if unsafe { ARENA != ARENA_END } {
+            unsafe {
+                bins = ARENA
+                ARENA = ARENA.add(BINS_BYTES)
+            }
+        }
+    }
+    unlock(spareLock)
+    if bins == null() {
+        return 0 as *mut Bin
+    }
+    const out = unsafe { bins as *mut Bin }
+    for c in 0..CLASSES {
+        unsafe {
+            *out.add(c) = Bin{free: null(), room: limitOf(c), bump: null(), end: null()}
+        }
+    }
+    unsafe {
+        BINS = out
+    }
+    return out
+}
+
+// Out of line, so that the fast path of the allocation saves no registers.
+@cold
+fn refill(b: *mut Bin, c: int) *mut u8 {
+    const batch = takeBatch(c)
+    if batch != null() {
+        unsafe {
+            (*b).free = *nextOf(batch)
+            (*b).room = limitOf(c)   // a batch's blocks raise it: the list stays bounded
+        }
+        return batch
+    }
+    if unsafe { (*b).bump == (*b).end } && !newChunk(b, c) {
+        return null()
+    }
+    unsafe {
+        const block = (*b).bump
+        (*b).bump = block.add(classSize(c))
+        return block
+    }
+}
+
+@cold
+fn allocFirst(size: int) *mut u8 {
+    if threadBins() == (0 as *mut Bin) {
+        return null()
+    }
+    return unsafe { poolAlloc(size) }
+}
+
+/*
+ * A block of 1 to 512 bytes, or null when the pool is off or the range is
+ * used up.
+ */
+@export("ofir_pool_alloc")
+extern "C" fn poolAlloc(size: int) *mut u8 {
+    const bins = unsafe { BINS }
+    if bins == (0 as *mut Bin) {
+        return allocFirst(size)
+    }
+    unsafe {
+        const c = *BASE.add(TABLE_OFFSET + (size.wrappingAdd(15) >> 4)) as int
+        const b = bins.add(c)
+        const block = (*b).free
+        if block != null() {
+            (*b).free = *nextOf(block)
+            (*b).room = (*b).room.wrappingAdd(1)
+            return block
+        }
+        const bump = (*b).bump
+        if bump != (*b).end {
+            (*b).bump = bump.add(*sizeAt(c))
+            return bump
+        }
+        return refill(b, c)
+    }
+}
+
+/*
+ * Whether `ptr` lies in the pool's range.
+ */
+@export("ofir_pool_owns")
+extern "C" fn poolOwns(ptr: *u8) bool {
+    const base = unsafe { BASE }
+    const offset = unsafe { (ptr as uint).wrappingSub(base as uint) }
+    return base != null() && offset < RESERVE as uint
+}
+
+fn classAt(ptr: *u8) int {
+    unsafe {
+        const offset = (ptr as uint).wrappingSub(BASE as uint) >> CHUNK_SHIFT
+        return *BASE.add(offset.wrappingCast<i64>()) as int
+    }
+}
+
+/*
+ * The size of the class of the pool block `ptr`.
+ */
+@export("ofir_pool_block_size")
+extern "C" fn poolBlockSize(ptr: *u8) int {
+    return classSize(classAt(ptr))
+}
+
+// Out of line: a full list is rare.
+@cold
+fn giveBack(b: *mut Bin, c: int, block: *mut u8) {
+    unsafe {
+        const batch = limitOf(c) / 2
+        let last = block   // the batch is the first `batch` blocks
+        for _ in 1..batch {
+            last = *nextOf(last)
+        }
+        (*b).free = *nextOf(last)
+        (*b).room += batch
+        *nextOf(last) = null()
+    }
+    giveBatch(c, block)
+}
+
+/*
+ * Puts the pool block `ptr` back on the calling thread's list, or returns
+ * false when `ptr` is not a pool block.
+ */
+@export("ofir_pool_free")
+extern "C" fn poolFree(ptr: *mut u8) bool {
+    if !unsafe { poolOwns(ptr as *u8) } {
+        return false
+    }
+    let bins = unsafe { BINS }
+    if bins == (0 as *mut Bin) {
+        bins = threadBins()
+        if bins == (0 as *mut Bin) {
+            return true   // no room for the bins: the block stays out of use
+        }
+    }
+    const c = classAt(unsafe { ptr as *u8 })
+    unsafe {
+        const b = bins.add(c)
+        *nextOf(ptr) = (*b).free
+        (*b).free = ptr
+        (*b).room = (*b).room.wrappingSub(1)
+        if (*b).room <= 0 {
+            giveBack(b, c, ptr)
+        }
+    }
+    return true
+}
+
+/*
+ * Gives the thread's free blocks, and the rest of its chunks, to the other
+ * threads, and its bins to the next thread: called when a task's thread
+ * ends.
+ */
+@export("ofir_pool_thread_exit")
+extern "C" fn poolThreadExit() {
+    const bins = unsafe { BINS }
+    if bins == (0 as *mut Bin) {
+        return
+    }
+    for c in 0..CLASSES {
+        unsafe {
+            const b = bins.add(c)
+            for (*b).bump != (*b).end {
+                const block = (*b).bump
+                *nextOf(block) = (*b).free
+                (*b).free = block
+                (*b).bump = block.add(classSize(c))
+            }
+            if (*b).free != null() {
+                giveBatch(c, (*b).free)
+            }
+            (*b).free = null()
+            (*b).room = limitOf(c)
+        }
+    }
+    const spareLock = unsafe { &mut SPARE_LOCK as *mut int }
+    lock(spareLock)
+    unsafe {
+        *nextOf(bins as *mut u8) = SPARE
+        SPARE = bins as *mut u8
+        BINS = 0 as *mut Bin
+    }
+    unlock(spareLock)
+}
