@@ -143,6 +143,7 @@ Operand lower_binary_op(Lowerer *l, Arith x);
 Operand lower_unary(Lowerer *l, Expr *e);
 Operand lower_cast(Lowerer *l, Operand value, TypeId to, Span span);
 Operand lower_interpolation(Lowerer *l, Expr *e);
+bool lower_push_interpolation(Lowerer *l, Expr *call, const FnDecl *fn);
 void lower_print(Lowerer *l, Expr *arg, bool newline);
 
 // lower_method.c

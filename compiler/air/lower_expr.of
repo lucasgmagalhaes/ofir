@@ -119,6 +119,7 @@ import diag.noSpan
 import sema.check.Checker
 import sema.check.fnOf
 import sema.resolve.findAttribute
+import sema.resolve.moduleInStd
 import sema.check.itemOf
 import sema.check.itemTypeParams
 import sema.interfaces.isInterfaceMethod
@@ -1282,6 +1283,9 @@ fn fieldCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr
     const dynBase = member > 0 && c.types.kind(adjustedType(c, base)) == TyKind.Dyn
     if dynBase && isInterfaceMethod(c, p, member) {
         return dynCall(l, c, p, e, base, member, args)
+    }
+    if member > 0 && pushInterpolation(l, c, p, base, member, args) {
+        return unit()
     }
     if member > 0 {   // a method declared in a type
         const hasSelf = fnOf(p, c.loc(member)).hasSelf
@@ -2669,6 +2673,65 @@ fn interpolation(l: mut Lowerer, c: mut Checker, p: Program, parts: &List<Expr>,
         }
     }
     return opCopy(dest, STR)
+}
+
+// A part that cannot read the str it is appended to: a literal, or a
+// scalar built from scalar locals with operators and casts. Its value is the
+// same before and after the parts ahead of it are appended.
+fn scalarPart(c: Checker, e: &Expr) bool {
+    if const ExprKind.Str(_) = e.kind {
+        return true
+    }
+    const kind = c.types.kind(c.typeOf(e.id.0))
+    if kind != TyKind.Int && kind != TyKind.Float && kind != TyKind.Bool {
+        return false
+    }
+    return match e.kind {
+        ExprKind.Int(_) | ExprKind.Float(_) | ExprKind.Byte(_) | ExprKind.Bool(_) => true
+        ExprKind.Ident(_) => match c.res(e.id.0) {
+            Res.Local(_) => true
+            _ => false
+        }
+        ExprKind.Cast(value, _) => scalarPart(c, &*value)
+        ExprKind.Unary(op, operand) => (op == Op.Neg || op == Op.Not) && scalarPart(c, &*operand)
+        ExprKind.Binary(op, lhs, rhs) => (
+            op != Op.Coalesce && scalarPart(c, &*lhs) && scalarPart(c, &*rhs)
+        )
+        _ => false
+    }
+}
+
+// `s.push("a {x} b")` appends each part to `s` directly when no part can
+// read `s`, instead of building the string and copying it.
+fn pushInterpolation(l: mut Lowerer, c: mut Checker, p: Program, base: &Expr, id: int,
+                     args: &List<Arg>) bool {
+    const def = c.def(id)
+    if args.len() != 1 || !moduleInStd(p, def.module) || c.text(def.name) != "push" {
+        return false
+    }
+    if c.typeOf(base.id.0) != STR {
+        return false
+    }
+    return match args[0].value.kind {
+        ExprKind.Interp(parts, specs) => pushParts(l, c, p, base, &parts, &specs)
+        _ => false
+    }
+}
+
+fn pushParts(l: mut Lowerer, c: mut Checker, p: Program, base: &Expr, parts: &List<Expr>,
+             specs: &List<str>) bool {
+    for i in 0..parts.len() {
+        if specs[i].len() > 0 || !scalarPart(c, &parts[i]) {
+            return false
+        }
+    }
+    const target = placeOperand(&lowerPlace(l, c, p, base), OperandKind.Addr, STR)
+    for i in 0..parts.len() {
+        let part = lowerExpr(l, c, p, &parts[i])
+        const f = partFn(l, c, part, false)
+        emitRuntime(l, f, [target.clone(), part], -1)
+    }
+    return true
 }
 
 // `"{x}"` on a union (spec 17.5): the member it holds, as it interpolates;

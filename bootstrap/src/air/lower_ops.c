@@ -206,6 +206,61 @@ Operand lower_interpolation(Lowerer *l, Expr *e) {
     return op_copy(dest, str);
 }
 
+// A part that cannot read the str it is appended to: a literal, or a
+// scalar built from scalar locals with operators and casts. Its value is the
+// same before and after the parts ahead of it are appended.
+static bool scalar_part(Lowerer *l, const Expr *e) {
+    TyKind kind = type_get(l->types, e->type)->kind;
+    if (e->kind == EXPR_STR) {
+        return true;
+    }
+    if (kind != TY_INT && kind != TY_FLOAT && kind != TY_BOOL) {
+        return false;
+    }
+    switch (e->kind) {
+    case EXPR_INT: case EXPR_FLOAT: case EXPR_BYTE: case EXPR_BOOL: return true;
+    case EXPR_IDENT: return e->as.ident.res.kind == RES_LOCAL;
+    case EXPR_CAST: return scalar_part(l, e->as.cast.value);
+    case EXPR_UNARY:
+        return (e->as.unary.op == OP_NEG || e->as.unary.op == OP_NOT) &&
+               scalar_part(l, e->as.unary.operand);
+    case EXPR_BINARY:
+        return e->as.binary.op != OP_COALESCE && scalar_part(l, e->as.binary.lhs) &&
+               scalar_part(l, e->as.binary.rhs);
+    default: return false;
+    }
+}
+
+// `s.push("a {x} b")` appends each part to `s` directly when no part can
+// read `s`, instead of building the string and copying it.
+bool lower_push_interpolation(Lowerer *l, Expr *call, const FnDecl *fn) {
+    const Def *def = sema_def(l->sema, fn->def);
+    Expr *receiver = call->as.call.callee->as.field.base;
+    if (call->as.call.args.len != 1 || !module_in_std(l->sema, def->module) ||
+        !symbol_eq(def->name, intern(&l->sema->session->names, SV("push"))) ||
+        !type_eq(receiver->type, type_id(TID_STR))) {
+        return false;
+    }
+    Expr *arg = call->as.call.args.items[0].value;
+    if (arg->kind != EXPR_INTERP) {
+        return false;
+    }
+    for (uint32_t i = 0; i < arg->as.parts.len; i++) {
+        if (!scalar_part(l, arg->as.parts.items[i])) {
+            return false;
+        }
+    }
+    TypeId str = type_id(TID_STR);
+    Operand target = place_operand(lower_place(l, receiver), OPERAND_ADDR, str);
+    for (uint32_t i = 0; i < arg->as.parts.len; i++) {
+        Operand part = lower_expr(l, arg->as.parts.items[i]);
+        RuntimeFn rt = part_fn(l, &part, false);
+        Operand args[] = {target, part};
+        emit_runtime(l, rt, args, 2, NULL);
+    }
+    return true;
+}
+
 // print("a {x}") writes each part directly, without building the string.
 void lower_print(Lowerer *l, Expr *arg, bool newline) {
     bool parts = arg->kind == EXPR_INTERP;
