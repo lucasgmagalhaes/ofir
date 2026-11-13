@@ -1,0 +1,8 @@
+// requires: stage1
+pub fn visible() int {
+    return 1
+}
+
+fn hidden() int {
+    return 2
+}
