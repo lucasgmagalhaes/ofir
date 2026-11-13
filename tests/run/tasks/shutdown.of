@@ -1,0 +1,115 @@
+// requires: stage1
+// Shutdown (spec 14.5): a pool of workers first drains its queues once the
+// senders go, then stops on a cancel token with work still queued. Either
+// way every job is dropped exactly once, the workers end before the
+// shutdown deadline, and senders blocked on a full queue are released.
+import std.sync.Arc
+import std.sync.AtomicInt
+import std.sync.CancelToken
+import std.sync.Recv
+import std.sync.Sender
+import std.sync.WaitGroup
+import std.sync.boundedChannel
+import std.task
+import std.time
+import std.time.Deadline
+
+const WORKERS: int = 4
+
+struct Job {
+    n: int
+    live: Arc<AtomicInt>
+
+    fn drop(mut self) {
+        self.live.get().fetchAdd(-1)
+    }
+}
+
+struct Pool {
+    senders: List<Sender<Job>>
+    workers: List<task.Task<int>>
+    group: Arc<WaitGroup>
+    sum: Arc<AtomicInt>
+}
+
+fn start(stop: CancelToken) Pool {
+    const group = Arc.new(WaitGroup.new())
+    const sum = Arc.new(AtomicInt.new(0))
+    let senders = List<Sender<Job>>.new()
+    let workers = List<task.Task<int>>.new()
+    for _ in 0..WORKERS {
+        const (tx, rx) = boundedChannel<Job>(8)
+        senders.push(tx)
+        group.get().add(1)
+        const myGroup = group.clone()
+        const mySum = sum.clone()
+        const myStop = stop.clone()
+        workers.push(task.run(move () int => {
+            let done = 0
+            let open = true
+            for open && !myStop.isCancelled() {
+                match rx.recvUntil(Deadline.after(2 * time.MILLISECOND)) {
+                    Recv.Value(job) => {
+                        mySum.get().fetchAdd(job.n)
+                        done += 1
+                    },
+                    Recv.TimedOut => {},
+                    Recv.Closed => {
+                        open = false
+                    },
+                }
+            }
+            myGroup.get().done()
+            return done
+        }))
+    }
+    return Pool{senders: senders, workers: workers, group: group, sum: sum}
+}
+
+// Waits for the workers, by the deadline, and returns the jobs they ran.
+fn finish(pool: move Pool, deadline: Deadline) int {
+    println("workers ended in time: {pool.group.get().waitUntil(deadline)}")
+    let ran = 0
+    let workers = pool.workers
+    for _ in 0..WORKERS {
+        ran += workers.pop().unwrap().join()
+    }
+    return ran
+}
+
+fn main() {
+    const live = Arc.new(AtomicInt.new(0))
+
+    // Drain: the senders go first, and the workers run every queued job.
+    const pool = start(CancelToken.new())
+    for i in 0..4000 {
+        live.get().fetchAdd(1)
+        pool.senders[i % WORKERS].send(Job{n: i, live: live.clone()})
+    }
+    const sum = pool.sum.clone()
+    let p = pool
+    p.senders.clear()
+    const ran = finish(p, Deadline.after(10 * time.SECOND))
+    println("drained: {ran} jobs, sum {sum.get().load()}, live {live.get().load()}")
+
+    // Cancel: the workers stop with jobs still queued; the queues drop them,
+    // and a send to a stopped worker drops its job too.
+    const stop = CancelToken.new()
+    const pool2 = start(stop.clone())
+    const canceller = task.run(move () => {
+        time.sleep(10 * time.MILLISECOND)
+        stop.cancel()
+    })
+    let sent = 0
+    for i in 0..1000000 {
+        if i > 4000 && i % 1000 == 0 && pool2.group.get().waitUntil(Deadline.after(-1)) {
+            break
+        }
+        live.get().fetchAdd(1)
+        pool2.senders[i % WORKERS].send(Job{n: 1, live: live.clone()})
+        sent += 1
+    }
+    canceller.join()
+    const ran2 = finish(pool2, Deadline.after(10 * time.SECOND))
+    println("cancelled: ran fewer than sent: {ran2 < sent}, live {live.get().load()}")
+}
