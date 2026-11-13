@@ -8,6 +8,8 @@
 
 import air.air.Operand
 import air.air.FloatFn
+import air.air.ATOMIC_CAS
+import air.air.ATOMIC_FENCE
 import air.air.CALL_VALUE
 import air.air.GLUE_CLONE
 import air.air.GLUE_DEBUG
@@ -722,10 +724,80 @@ fn intrinsicOp(name: str) Option<(RvalueKind, Op, FloatFn)> {
     return Option.None
 }
 
+// The atomic intrinsics of std.mem.atomic (ADR 0042), in `AtomicOp` order.
+fn atomicOp(name: str) int {
+    const names = ["atomicLoad", "atomicStore", "atomicSwap", "atomicFetchAdd", "atomicFetchSub",
+                   "atomicCompareExchange", "fence"]
+    for i in 0..names.len() {
+        if name == names[i] {
+            return i
+        }
+    }
+    return -1
+}
+
+// The variant an ordering argument names, if it is a constant `Ordering.X`; else -1.
+fn constantOrder(c: Checker, e: &Expr) int {
+    return match e.kind {
+        ExprKind.Variant(_, _, _) => c.members[c.module()][e.id.0]   // `.SeqCst`
+        ExprKind.Field(base, _, _) => if typeNameOf(c, &*base) != 0 && !moduleMember(c, e) {
+            c.members[c.module()][e.id.0]
+        } else {
+            -1
+        }
+        ExprKind.Ident(_) => match c.res(e.id.0) {
+            Res.Def(id) => if c.def(id).kind == DefKind.Variant { c.def(id).member } else { -1 }
+            _ => -1
+        }
+        _ => -1
+    }
+}
+
+// `atomicLoad(p, Ordering.Acquire)`, ...: the ordering is the last argument.
+fn lowerAtomic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, op: int,
+               args: &List<Arg>) Operand {
+    const order = &args[args.len() - 1].value
+    const variant = constantOrder(c, order)
+    if variant < 0 {
+        c.error("E0820", order.span,
+                "the memory ordering of an atomic operation must be a constant".toOwned())
+        return unit()
+    }
+    const allowed = [19, 21, 31, 31, 31, 31, 30]   // bits of the variants each allows
+    if (allowed[op] >> variant) & 1 == 0 {
+        const names = ["atomicLoad", "atomicStore", "atomicSwap", "atomicFetchAdd",
+                       "atomicFetchSub", "atomicCompareExchange", "fence"]
+        const orders = ["Relaxed", "Acquire", "Release", "AcqRel", "SeqCst"]
+        c.error("E0821", order.span,
+                "`{names[op]}` does not allow the ordering `{orders[variant]}`")
+        return unit()
+    }
+    let rv = rvalue(RvalueKind.Atomic, Op.Add, unit(), unit())
+    rv.to = op
+    rv.flag = variant
+    if op != ATOMIC_FENCE {
+        rv.a = lowerExpr(l, c, p, &args[0].value)
+    }
+    if args.len() > 2 {
+        rv.b = lowerExpr(l, c, p, &args[1].value)
+    }
+    if op == ATOMIC_CAS {
+        const desired = lowerExpr(l, c, p, &args[2].value)
+        rv.items.push(desired)
+    }
+    const ty = c.typeOf(e.id.0)
+    const temp = emitTemp(l, ty, rv)
+    return if ty == UNIT { unit() } else { opCopy(temp, ty) }
+}
+
 fn lowerIntrinsic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, id: int,
                   args: &List<Arg>) Operand {
     const name = c.text(fnOf(p, c.loc(id)).name).toOwned()
     const ty = c.typeOf(e.id.0)
+    const atomic = atomicOp(name)
+    if atomic >= 0 {
+        return lowerAtomic(l, c, p, e, atomic, args)
+    }
     if metaCall(c, p, e) != "" {
         return metaConstant(l, c, p, e)
     }
