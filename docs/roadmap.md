@@ -373,6 +373,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.24c | Allocation failure policy (ADR 0048, spec 6.5): `capacity overflow` for a size that does not fit an `int` or is negative, `out of memory` for a failed allocation, both tested in `tests/panic`; zero-sized values (`List<()>`, enums with zero-sized payloads) fixed in codegen of both stages; fallible allocation deferred | OFIR-23 | **done** |
 | 6.24d | Shared ownership (spec 5.9): `Rc`/`Weak` in `std.mem.rc` (stage 1), counts, `upgrade` after the last owner, a tree with `Weak` parent links freed by the root, and `Rc`/`Weak` rejected as `Send`; cycles of strong owners leak and are documented | OFIR-24 | **done** |
 | 6.24e | Concurrency contracts (spec 14): `boundedChannel` whose sends wait while full, task handles dropped without a join detach the task and drop its result, and stress tests for bounded queues, release/acquire handoff, a spin lock, nested and many joins; relocking a held mutex waits forever (spec 14.4) | OFIR-25 | **done** |
+| 6.24f | Cancellation, deadlines and shutdown (spec 14.5): `std.time` (monotonic `now`, `sleep`, `Deadline`), `Receiver.recvUntil` (`Recv<T>`), `WaitGroup.waitUntil`, cooperative `CancelToken`; a worker pool drained, then cancelled with queued work, drops every job and ends before its deadline | OFIR-26 | **done** |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
@@ -415,7 +416,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.24 with OFIR-26; OFIR-25 is done (6.24e).
+1. Continue 6.24 with OFIR-27; OFIR-26 is done (6.24f).
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

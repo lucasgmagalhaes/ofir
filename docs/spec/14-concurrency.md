@@ -1,8 +1,9 @@
 # 14. Concurrency
 
 Concurrency is not part of the bootstrap language: tasks (14.2), the
-marker interfaces (14.3), channels and the `std.sync` primitives (14.4) are
-implemented by stage 1 only.
+marker interfaces (14.3), channels and the `std.sync` primitives (14.4),
+and cancellation (14.5) are implemented by stage 1 only; `std.time`
+compiles with both stages.
 
 ## 14.1 Goals
 
@@ -175,3 +176,65 @@ fn main() {
   expected value when it stored the desired one.
 - `WaitGroup` counts work in progress: `add(n)`, `done()` (`add(-1)`) and
   `wait()`, which waits until the count is 0. A count below 0 panics.
+
+## 14.5 Cancellation, deadlines and shutdown
+
+```ofir
+import std.sync.CancelToken
+import std.sync.Recv
+import std.sync.channel
+import std.task
+import std.time
+import std.time.Deadline
+
+fn main() {
+    const (tx, rx) = channel<int>()
+    const stop = CancelToken.new()
+    const mine = stop.clone()
+    const worker = task.run(move () int => {
+        let sum = 0
+        for !mine.isCancelled() {
+            match rx.recvUntil(Deadline.after(time.MILLISECOND)) {
+                Recv.Value(v) => {
+                    sum += v
+                },
+                Recv.TimedOut => {},
+                Recv.Closed => {
+                    mine.cancel()
+                },
+            }
+        }
+        return sum
+    })
+    tx.send(42)
+    stop.cancel()
+    println("{worker.join() <= 42}")
+}
+```
+
+`std.time` reads a monotonic clock in `int` nanoseconds (`now`, with the
+constants `MICROSECOND`, `MILLISECOND` and `SECOND`) and sleeps
+(`sleep(ns)`). A `Deadline` is a point on that clock: `Deadline.after(ns)`,
+`Deadline.never()`, `expired()` and `remaining()`.
+
+The waits of `std.sync` have a form that takes a deadline:
+`Receiver.recvUntil` returns a `Recv<T>`, which is `Value(value)`,
+`TimedOut` or `Closed`; `WaitGroup.waitUntil` and `CancelToken.waitUntil`
+return whether the wait ended before the deadline. A deadline that has
+passed makes them check once without waiting.
+
+Cancellation is cooperative. A `CancelToken` is shared by its clones:
+`cancel` sets it once and wakes its waiters, and `isCancelled`, `wait` and
+`waitUntil` observe it; writes made before `cancel` are visible to a task
+that sees the token cancelled. A task stops by returning, so it drops what
+it owns, and its join returns. Nothing forces a task to stop from outside,
+since that would skip its drops (14.1): a task that never checks its token
+runs to its end, and a program ends when `main` returns, whatever its
+detached tasks are doing.
+
+A graceful shutdown drops the senders, so that the workers drain their
+queues and see `Closed`, then waits for them with
+`WaitGroup.waitUntil(deadline)`; a hurried one cancels a token first. When
+a worker ends, its receiver drops the values still queued, and a sender
+waiting on its full bounded channel is released, dropping its value.
+

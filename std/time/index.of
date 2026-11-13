@@ -1,0 +1,116 @@
+/**
+ * @module
+ * `std.time`: a monotonic clock, sleeping and deadlines (spec 14.5).
+ *
+ * Times are `int` nanoseconds on a clock that never goes back; its zero
+ * is unspecified, so only differences between readings mean anything.
+ */
+
+extern "C" {
+    fn ofir_now_ns() i64
+    fn ofir_sleep_ns(ns: i64)
+}
+
+/** One microsecond, in nanoseconds. */
+pub const MICROSECOND: int = 1_000
+
+/** One millisecond, in nanoseconds. */
+pub const MILLISECOND: int = 1_000_000
+
+/** One second, in nanoseconds. */
+pub const SECOND: int = 1_000_000_000
+
+/**
+ * Reads the monotonic clock.
+ *
+ * @returns the time, in nanoseconds
+ */
+pub fn now() int {
+    return unsafe { ofir_now_ns() }
+}
+
+/**
+ * Sleeps for at least `ns` nanoseconds; 0 or less returns at once.
+ *
+ * @param ns how long to sleep
+ */
+pub fn sleep(ns: int) {
+    unsafe {
+        ofir_sleep_ns(ns)
+    }
+}
+
+/**
+ * A point on the monotonic clock by which work should be done. Waits that
+ * take a deadline (`Receiver.recvUntil`, `WaitGroup.waitUntil`,
+ * `CancelToken.waitUntil`) give up once it passes.
+ *
+ * @example
+ * ```ofir
+ * import std.time
+ * import std.time.Deadline
+ * import std.testing.assert
+ *
+ * const d = Deadline.after(10 * time.MILLISECOND)
+ * assert(!d.expired())
+ * time.sleep(d.remaining())
+ * assert(d.expired())
+ * ```
+ */
+pub struct Deadline {
+    at: int
+
+    /**
+     * The deadline `ns` nanoseconds from now.
+     *
+     * @param ns how long from now; 0 or less is already past
+     * @returns the deadline
+     */
+    pub fn after(ns: int) Deadline {
+        const start = now()
+        if ns > i64.MAX - start {
+            return Deadline{at: i64.MAX}
+        }
+        return Deadline{at: start + ns}
+    }
+
+    /**
+     * A deadline that never passes.
+     *
+     * @returns the deadline
+     */
+    pub fn never() Deadline {
+        return Deadline{at: i64.MAX}
+    }
+
+    /**
+     * The deadline as a reading of `now`.
+     *
+     * @returns the time, in nanoseconds
+     */
+    pub fn instant(self) int {
+        return self.at
+    }
+
+    /**
+     * Whether the deadline has passed.
+     *
+     * @returns true once `now()` reached it
+     */
+    pub fn expired(self) bool {
+        return now() >= self.at
+    }
+
+    /**
+     * The time left.
+     *
+     * @returns the nanoseconds until the deadline, or 0 once it passed
+     */
+    pub fn remaining(self) int {
+        const left = self.at - now()
+        if left < 0 {
+            return 0
+        }
+        return left
+    }
+}

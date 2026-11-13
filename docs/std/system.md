@@ -1,4 +1,4 @@
-# `std.io`, `std.fs`, `std.os`, `std.task`, `std.sync`
+# `std.io`, `std.fs`, `std.os`, `std.time`, `std.task`, `std.sync`
 
 ## Errors (`std.io`)
 
@@ -76,6 +76,15 @@ pub struct Output {
 }
 ```
 
+## `std.time`
+
+Both stages (spec 14.5). Times are `int` nanoseconds on a monotonic clock.
+
+- `now() int`, `sleep(ns: int)`; the constants `MICROSECOND`,
+  `MILLISECOND` and `SECOND`.
+- `Deadline`: `after(ns)`, `never()`, `instant(self) int`,
+  `expired(self) bool`, `remaining(self) int` (0 once passed).
+
 ## `std.task`
 
 Stage 1 only (spec 14.2).
@@ -83,6 +92,8 @@ Stage 1 only (spec 14.2).
 - `run<T: Send>(f: move fn() T + Send) Task<T>`: starts a task on an OS
   thread of its own.
 - `Task<T>.join(move self) T`: waits for the task and returns its result.
+  A task dropped without a join is detached: it runs on, and its result
+  is dropped when it ends.
 
 ## `std.sync`
 
@@ -95,6 +106,11 @@ Stage 1 only (spec 14.4).
 - `Receiver<T>.recv(self) Option<T>`: waits for the next value; `None` once
   the queue is empty and every sender is dropped.
 - `Receiver<T>.tryRecv(self) Option<T>`: the next value if one is waiting.
+- `Receiver<T>.recvUntil(self, deadline: Deadline) Recv<T>`: `Value(value)`,
+  `TimedOut` or `Closed` (spec 14.5).
+- `boundedChannel<T: Send>(capacity: int)`: a channel holding at most
+  `capacity` values; `send` waits while it is full, and a capacity below 1
+  panics.
 
 Dropping the receiver drops the values it never took.
 
@@ -108,7 +124,11 @@ Dropping the receiver drops the values it never took.
 - `AtomicInt`: `new`, `load`, `store`, `fetchAdd` and `swap` (both return
   the old value), `compareExchange(expected, desired) bool`.
 - `AtomicBool`: `new`, `load`, `store`, `swap`.
-- `WaitGroup`: `new`, `add(count)` (panics below 0), `done()`, `wait()`.
+- `WaitGroup`: `new`, `add(count)` (panics below 0), `done()`, `wait()`,
+  `waitUntil(deadline) bool`.
+- `CancelToken`: `new`, `clone` (the same token), `cancel`, `isCancelled`,
+  `wait`, `waitUntil(deadline) bool`; cancellation is cooperative
+  (spec 14.5).
 
 Stage 0: `std.io`, `std.fs` and `std.os` are written in Ofir over the C
 runtime's `os.c` and `fs.c` (docs/design/runtime.md); `std.io.Buffer` is

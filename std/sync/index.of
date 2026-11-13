@@ -9,6 +9,7 @@
 
 import std.mem.atomic
 import std.mem.cell.UnsafeCell
+import std.time.Deadline
 
 @link("pthread")
 extern "C" {
@@ -20,6 +21,7 @@ extern "C" {
     fn ofir_channel_send(ch: *mut u8, value: *mut u8) bool
     fn ofir_channel_recv(ch: *mut u8) *mut u8
     fn ofir_channel_try_recv(ch: *mut u8) *mut u8
+    fn ofir_channel_recv_until(ch: *mut u8, deadline: int, timedOut: *mut bool) *mut u8
     fn ofir_channel_add_sender(ch: *mut u8)
     fn ofir_channel_drop_sender(ch: *mut u8)
     fn ofir_channel_close(ch: *mut u8)
@@ -36,6 +38,7 @@ extern "C" {
     fn ofir_waitgroup_new() *mut u8
     fn ofir_waitgroup_add(wg: *mut u8, delta: int) bool
     fn ofir_waitgroup_wait(wg: *mut u8)
+    fn ofir_waitgroup_wait_until(wg: *mut u8, deadline: int) bool
     fn ofir_waitgroup_free(wg: *mut u8)
 }
 
@@ -144,6 +147,26 @@ pub struct Receiver<T> {
     }
 
     /**
+     * Waits for the next value until a deadline.
+     *
+     * @param deadline when to stop waiting
+     * @returns the value; `TimedOut` when the deadline passed first, or
+     *          `Closed` once the queue is empty and every sender is dropped
+     */
+    pub fn recvUntil(self, deadline: Deadline) Recv<T> {
+        let timedOut = false
+        const flag = &mut timedOut as *mut bool
+        const p = unsafe { ofir_channel_recv_until(self.ch, deadline.instant(), flag) }
+        if !none(p) {
+            return Recv.Value(unboxed<T>(p))
+        }
+        if timedOut {
+            return Recv.TimedOut
+        }
+        return Recv.Closed
+    }
+
+    /**
      * Takes the next value if one is waiting.
      *
      * @returns the value, or `None` when the queue is empty
@@ -175,6 +198,20 @@ pub struct Receiver<T> {
             ofir_channel_drop_receiver(self.ch)
         }
     }
+}
+
+/**
+ * What `Receiver.recvUntil` got.
+ *
+ * @typeParam T the type of the values received
+ */
+pub enum Recv<T> {
+    /** The next value. */
+    Value(value: T)
+    /** The deadline passed before a value came. */
+    TimedOut
+    /** The queue is empty and every sender is dropped. */
+    Closed
 }
 
 /**
@@ -900,9 +937,114 @@ pub struct WaitGroup {
         }
     }
 
+    /**
+     * Waits until the count is zero or the deadline passes.
+     *
+     * @param deadline when to stop waiting
+     * @returns true when the count reached zero
+     */
+    pub fn waitUntil(self, deadline: Deadline) bool {
+        return unsafe { ofir_waitgroup_wait_until(self.raw, deadline.instant()) }
+    }
+
     fn drop(mut self) {
         unsafe {
             ofir_waitgroup_free(self.raw)
         }
+    }
+}
+
+// The shared state of a `CancelToken`: the group counts 1 until the
+// first `cancel`, so that waiting for cancellation is waiting for 0.
+struct CancelState {
+    cancelled: AtomicBool
+    group: WaitGroup
+}
+
+/**
+ * Asks tasks to stop. Cancellation is cooperative: a task polls
+ * `isCancelled`, or waits with `wait` or `waitUntil`, and then winds down
+ * on its own, dropping what it owns; nothing stops a task from outside
+ * (spec 14.5). Clones share one state, so any of them cancels all.
+ *
+ * @example
+ * ```ofir
+ * import std.sync.CancelToken
+ * import std.task
+ * import std.testing.assert
+ *
+ * const stop = CancelToken.new()
+ * const mine = stop.clone()
+ * const t = task.run(move () int => {
+ *     let polls = 0
+ *     for !mine.isCancelled() {
+ *         polls += 1
+ *     }
+ *     return polls
+ * })
+ * stop.cancel()
+ * assert(t.join() >= 0)
+ * ```
+ */
+@threadsafe
+pub struct CancelToken {
+    state: Arc<CancelState>
+
+    /**
+     * A token that is not cancelled.
+     *
+     * @returns the token
+     */
+    pub fn new() CancelToken {
+        const group = WaitGroup.new()
+        group.add(1)
+        const state = CancelState{cancelled: AtomicBool.new(false), group: group}
+        return CancelToken{state: Arc.new(state)}
+    }
+
+    /**
+     * Another handle to the same token.
+     *
+     * @returns the handle
+     */
+    pub fn clone(self) CancelToken {
+        return CancelToken{state: self.state.clone()}
+    }
+
+    /**
+     * Cancels the token and wakes its waiters; later calls do nothing.
+     */
+    pub fn cancel(self) {
+        const state = self.state.get()
+        if !state.cancelled.swapWith(true, atomic.Ordering.AcqRel) {
+            state.group.done()
+        }
+    }
+
+    /**
+     * Whether the token is cancelled. Writes made before `cancel` are
+     * visible once this returns true.
+     *
+     * @returns true after the first `cancel`
+     */
+    pub fn isCancelled(self) bool {
+        return self.state.get().cancelled.loadWith(atomic.Ordering.Acquire)
+    }
+
+    /**
+     * Waits until the token is cancelled.
+     */
+    pub fn wait(self) {
+        self.state.get().group.wait()
+    }
+
+    /**
+     * Waits until the token is cancelled or the deadline passes.
+     *
+     * @param deadline when to stop waiting
+     * @returns true when the token is cancelled
+     */
+    pub fn waitUntil(self, deadline: Deadline) bool {
+        return self.state.get().group.waitUntil(deadline)
     }
 }

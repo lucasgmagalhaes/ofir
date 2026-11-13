@@ -1,0 +1,4 @@
+workers ended in time: true
+drained: 4000 jobs, sum 7998000, live 0
+workers ended in time: true
+cancelled: ran fewer than sent: true, live 0

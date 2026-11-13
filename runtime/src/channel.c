@@ -107,6 +107,19 @@ void *ofir_channel_recv(void *c) {
     return value;
 }
 
+void *ofir_channel_recv_until(void *c, int64_t deadline, bool *timed_out) {
+    channel *ch = c;
+    pthread_mutex_lock(&ch->lock);
+    bool waiting = true;
+    while (!ch->head && ch->senders > 0 && waiting) {
+        waiting = ofir_wait_until(&ch->ready, &ch->lock, deadline);
+    }
+    *timed_out = !ch->head && ch->senders > 0;
+    void *value = pop(ch);
+    pthread_mutex_unlock(&ch->lock);
+    return value;
+}
+
 void *ofir_channel_try_recv(void *c) {
     channel *ch = c;
     pthread_mutex_lock(&ch->lock);

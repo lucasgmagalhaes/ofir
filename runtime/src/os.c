@@ -404,6 +404,20 @@ int64_t ofir_now_ns(void) {
 #endif
 }
 
+// Sleeps for at least `ns` nanoseconds; 0 or less returns at once.
+void ofir_sleep_ns(int64_t ns) {
+    if (ns <= 0) {
+        return;
+    }
+#ifdef _WIN32
+    Sleep((DWORD)((ns + 999999) / 1000000));
+#else
+    struct timespec t = {(time_t)(ns / 1000000000), (long)(ns % 1000000000)};
+    while (nanosleep(&t, &t) != 0 && errno == EINTR) {
+    }
+#endif
+}
+
 // A random nonzero word from the operating system, for `Map.seeded()` (spec 2.6).
 uint64_t ofir_random_u64(void) {
     uint64_t r = 0;
