@@ -158,6 +158,9 @@ sum(numbers[0..10])
 shout("hello")
 ```
 
+The elements of a `[T]` are read-only, `mut` parameter or not: a function
+that writes them takes a `&mut [T]` (section 5.6).
+
 A borrowed `dyn I` parameter accepts any value whose type satisfies `I`
 (chapter 9.7): `fn draw(s: dyn Shape)`.
 
@@ -252,6 +255,29 @@ println("{r.len()}")
 A function that returns a borrow receives its source by address, so that
 the borrow points into the caller's value.
 
+### Views of part of a sequence
+
+`&xs[a..b]` is a `&[T]` over the elements `a` to `b - 1` of a list or
+slice, and `&mut xs[a..b]` a `&mut [T]` over them, through which elements
+are written (`xs[a..]` and `xs[..b]` too). A mutable view needs a mutable
+list, or another `&mut [T]`; a `&[T]` has no mutable views. Either view
+borrows `xs` until its last use, like `&xs` and `&mut xs`:
+
+```ofir
+fn fill(xs: &mut [int], v: int) { ... }
+
+let a = [1, 2, 3, 4]
+fill(&mut a[1..3], 9)    // a is [1, 9, 9, 4]
+const tail = &mut a[2..]
+a.push(5)                // error: `a` is borrowed by `tail`
+tail[0] = 0
+```
+
+Two mutable views of the same list conflict even when their ranges do not
+overlap: the compiler does not compare the bounds, which are known only at
+run time. The checks are made by the self-hosted compiler; stage 0 has no
+`&mut [T]` (E0901).
+
 ### Reborrows
 
 A borrow of a place reached through a reference (`&mut *r`, `&r.field`,
@@ -288,7 +314,7 @@ error.
 
 ```ofir
 // in List<T>:  fn first(self) Option<&T> { ... }
-// in User:     fn nameMut(mut self) &mut str { ... }
+// in User:     fn tagsMut(mut self) &mut List<str> { ... }
 
 const f = list.first()     // f borrows `list`
 list.push(4)             // error: `list` is borrowed by `f`
@@ -296,6 +322,9 @@ list.push(4)             // error: `list` is borrowed by `f`
 
 The caller treats the result like any other local reference: it can be used,
 passed to functions, and returned further only under the same rule.
+
+There is no `&mut str` (E0901): text is changed through the value that
+owns it, such as a `mut` parameter or a `&mut` to the struct holding it.
 
 ### `ref struct`
 
