@@ -52,6 +52,7 @@ starts with the same word as the record's status line.
 | [0039](0039-any-type.md) | `any`: a builtin `dyn` type for values of any type | Accepted |
 | [0040](0040-iteration-without-lazy-chains.md) | Iteration contracts, without lazy adapter chains | Accepted |
 | [0041](0041-small-block-pool.md) | A small-block pool behind ofir_alloc | Accepted |
+| [0042](0042-atomics-and-thread-locals.md) | Atomic intrinsics, memory orderings and thread-local globals | Accepted |
 
 ## Template
 
