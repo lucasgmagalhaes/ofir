@@ -13,6 +13,8 @@ import sema.def.DefKind
 import sema.def.Res
 import sema.program.Program
 import sema.resolve.ImportUse
+import sema.resolve.ReExport
+import sema.resolve.enter
 import sema.resolve.Resolver
 import sema.resolve_attributes.warnDeprecated
 import sema.complete.completeMember
@@ -21,6 +23,7 @@ import sema.suggest.suggestMember
 import sema.trace.traceUse
 import syntax.ast.Expr
 import syntax.ast.ExprKind
+import syntax.ast.ItemKind
 
 // The dotted name of the first `count` segments of `path`.
 fn dotted(r: Resolver, path: &List<Symbol>, count: int) str {
@@ -49,8 +52,56 @@ fn findModule(r: Resolver, path: &List<Symbol>, count: int) int {
 }
 
 /**
+ * The member `name` of module `index`: one of its declarations, or a
+ * declaration or module it re-exports with `pub import` (spec 7.3).
+ *
+ * @param r the resolver
+ * @param index a module
+ * @param name the name
+ * @returns its `DefId`, or 0 when module `index` has no such member
+ */
+pub fn memberOf(r: Resolver, index: int, name: Symbol) int {
+    const id = r.scope.moduleIn(index, name)
+    if id == 0 {
+        return 0
+    }
+    if !r.def(id).inPrelude && r.def(id).module == index {
+        return id
+    }
+    for e in r.reexports {
+        if e.module == index && e.name.0 == name.0 {
+            return id
+        }
+    }
+    return 0
+}
+
+/**
+ * Reports E0200 for `name`, missing from module `index`, with a help line
+ * when `name` is a submodule that the module does not re-export.
+ *
+ * @param r the resolver
+ * @param index a module
+ * @param name the name
+ * @param span where it is used
+ */
+pub fn missingMember(r: mut Resolver, index: int, name: Symbol, span: Span) {
+    const parent = r.programName(index)
+    r.error("E0200", span, "cannot find `{r.text(name)}` in module `{parent}`")
+    const nested = "{parent}.{r.text(name)}"
+    for m in 0..r.moduleNames.len() {
+        if r.moduleNames[m] == nested {
+            r.diags.help("import it: `import {nested}`, or re-export it from `{parent}` "
+                         + "with `pub import {nested}`")
+            return
+        }
+    }
+    suggestMember(r, index, name)
+}
+
+/**
  * The declaration `name` of module `index`, reported when it is missing or
- * private; modules do not re-export their imports.
+ * private; a module's members are its declarations and its re-exports.
  *
  * @param r the resolver
  * @param index a module
@@ -59,11 +110,9 @@ fn findModule(r: Resolver, path: &List<Symbol>, count: int) int {
  * @returns its `DefId`, or 0 when it is missing
  */
 pub fn moduleMember(r: mut Resolver, index: int, name: Symbol, span: Span) int {
-    const id = r.scope.moduleIn(index, name)
-    if id == 0 || r.def(id).inPrelude || r.def(id).module != index {
-        r.error("E0200", span,
-                "cannot find `{r.text(name)}` in module `{r.programName(index)}`")
-        suggestMember(r, index, name)
+    const id = memberOf(r, index, name)
+    if id == 0 {
+        missingMember(r, index, name, span)
         if probing(r, name) {
             completeMember(r, index, false)
         }
@@ -96,26 +145,30 @@ fn bind(r: mut Resolver, name: Symbol, id: int, span: Span) {
 }
 
 /**
- * Binds the name of an `import` in the current module.
+ * Binds the name of an `import` in the current module; a `pub import` was
+ * bound before, by `bindReexports`.
  *
  * @param r the resolver
  * @param program the program
  * @param path the imported path
  * @param alias the `as` name, if any
  * @param span the import
+ * @param isPub a `pub import`, which counts as used
  */
 pub fn resolveImport(r: mut Resolver, program: Program, path: &List<Symbol>,
-                     alias: Option<Symbol>, span: Span) {
+                     alias: Option<Symbol>, span: Span, isPub: bool) {
     const name = alias ?? path[path.len() - 1]
-    r.imports.push(ImportUse{module: r.current, name, span, used: false})
-    bindImport(r, path, name, span)
+    r.imports.push(ImportUse{module: r.current, name, span, used: isPub})
+    if !isPub {
+        bindImport(r, path, name, span, false)
+    }
     traceUse(r, "import", name, span, Res.Def(r.scope.module(name)))
 }
 
-fn bindImport(r: mut Resolver, path: &List<Symbol>, name: Symbol, span: Span) {
+fn bindImport(r: mut Resolver, path: &List<Symbol>, name: Symbol, span: Span, isPub: bool) {
     const module = findModule(r, path, path.len())
     if module >= 0 {   // a module
-        let def = Def{kind: DefKind.Module, name, span, isPub: false, inPrelude: false, lang: false,
+        let def = Def{kind: DefKind.Module, name, span, isPub, inPrelude: false, lang: false,
                       module: r.current, item: -1, member: -1, target: module, primitive: -1}
         const id = r.addDef(def)
         bind(r, name, id, span)
@@ -129,6 +182,46 @@ fn bindImport(r: mut Resolver, path: &List<Symbol>, name: Symbol, span: Span) {
     const member = moduleMember(r, owner, path[path.len() - 1], span)   // a declaration
     if member != 0 {
         bind(r, name, member, span)
+        if isPub && r.def(member).kind != DefKind.Module {
+            r.reexports.push(ReExport{module: r.current, name})
+        }
+    }
+}
+
+/**
+ * Binds the `pub import`s of every module before the other imports, those
+ * of a module after the ones of the modules it imports from, so that a
+ * re-export may name another; a cycle of re-exports stops where it closes.
+ *
+ * @param r the resolver
+ * @param program the program
+ */
+pub fn bindReexports(r: mut Resolver, program: Program) {
+    let state = List.filled(false, program.modules.len())
+    for m in 0..program.modules.len() {
+        reexportsOf(r, program, m, state)
+    }
+}
+
+fn reexportsOf(r: mut Resolver, program: Program, m: int, seen: mut List<bool>) {
+    if seen[m] {
+        return
+    }
+    seen[m] = true
+    const items = &program.modules[m].module.items
+    for i in 0..items.len() {
+        const item = &items[i]
+        if !item.isPub {
+            continue
+        }
+        if const ItemKind.Import(path, alias) = item.kind {
+            const owner = if path.len() > 1 { findModule(r, &path, path.len() - 1) } else { -1 }
+            if owner >= 0 {
+                reexportsOf(r, program, owner, seen)
+            }
+            enter(r, program, m)
+            bindImport(r, &path, alias ?? path[path.len() - 1], item.span, true)
+        }
     }
 }
 
