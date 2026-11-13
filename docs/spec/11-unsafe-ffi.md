@@ -33,7 +33,7 @@ responsibility.
 | Operation | Example |
 |-----------|---------|
 | from reference (safe) | `const p = &x as *int` |
-| null pointer (safe) | `const p: *u8 = nullPtr()` |
+| null pointer (safe) | `const p: *u8 = 0 as *u8` |
 | dereference (unsafe) | `*p` |
 | offset (unsafe) | `p.add(3)` |
 | compare (safe) | `p == q` |
@@ -105,15 +105,17 @@ const LIMIT: int = 10         // constants are always safe
   (`stats.TOTAL`).
 - The initializer is a constant expression (chapter 3.2); a call or any
   other run-time value is E0801.
-- Both stages implement globals of numeric and `bool` types; other types
-  are E0901.
+- Both stages implement globals of numeric, `bool` and raw pointer types;
+  other types are E0901. `0 as *T` with the literal `0` is the null
+  pointer, a safe cast, and the only constant pointer: any other cast of an
+  integer to a pointer in a constant is E0801.
 - `@threadLocal let NAME: T = constant` gives each thread its own copy,
   made from the initializer when the thread starts; access requires
   `unsafe` as above. Both stages implement it. `@threadLocal` on anything
-  but a mutable global is E0808.
-- *Planned (ADR 0042):* a `@threadLocal` type must have no drop (E0822).
-  Globals will also take raw pointers (initialized to `null`), fixed
-  arrays and `@repr(C)` structs of those, in both stages.
+  but a mutable global is E0808. Its type must be Copy, because a thread
+  ends without dropping its globals (E0822).
+- *Planned (ADR 0042):* globals of fixed arrays and `@repr(C)` structs of
+  those types.
 
 ## 11.6 Undefined behavior
 
