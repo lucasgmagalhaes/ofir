@@ -264,6 +264,7 @@ static void c_decls(Gen *g) {
 }
 
 void llvm_end(Gen *g) {
+    gen_mut_globals(g);
     out_str(&g->out, RUNTIME_DECLS);
     overflow_decls(g);
     gen_float_decls(g);
@@ -278,6 +279,7 @@ void llvm_end(Gen *g) {
     out_free(&g->globals);
     VEC_FREE(g->files_emitted);
     VEC_FREE(g->c_used);
+    VEC_FREE(g->globals_used);
     out_free(&g->out);
     free(g);
 }
