@@ -1,0 +1,31 @@
+// requires: stage1
+// `Display` (spec 9.9): a type shows through `{x}` only when it declares
+// `fn format(self, out: mut str)`; it is never derived.
+
+struct Point {
+    x: int
+}
+
+struct Odd {
+    x: int
+
+    fn format(self) str {
+        return "odd"
+    }
+}
+
+fn show<T: Display>(value: T) str {
+    return "{value}"
+}
+
+fn plain<T>(value: T) str {
+    return "{value}"             // error[E0314]: a value of type `T` cannot be interpolated into a string
+}
+
+fn main() {
+    const p = Point{x: 1}
+    print("{p}")                 // error[E0314]: a value of type `Point` cannot be interpolated into a string
+    print("{Odd{x: 2}}")         // error[E0314]: a value of type `Odd` cannot be interpolated into a string
+    print(show(p))               // error[E0332]: the type `Point` does not satisfy the bound `Display` of `T`
+    print(plain(3))
+}
