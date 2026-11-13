@@ -47,7 +47,8 @@ before the feature changes state:
 | Warning for an unused private function, type or constant | stage 1 checker | available gate, with a W code | [spec 12.6](../spec/12-attributes-testing.md) |
 | Warning for an unused `mut` or `let` | stage 1 checker | available gate, with a W code | [spec 12.6](../spec/12-attributes-testing.md) |
 | Naming convention warning (W0007) | stage 1 checker | available gate | [spec 12.6](../spec/12-attributes-testing.md) |
-| Custom allocators passed to collections | std, runtime | available gate; roadmap open question 8 | [spec 13.7](../spec/13-memory-layout.md) |
+| Compact enum layout (smallest tag, payloads aligned to their fields) | codegen, both stages | available gate; benchmarks within 3% | [spec 13.3](../spec/13-memory-layout.md) |
+| `extern "C" fn` pointer types | stage 1 parser, checker, codegen | available gate (ADR 0051) | [spec 13.4](../spec/13-memory-layout.md) |
 | Editions | driver, specification | ADR on the 1.0 promise | [compatibility policy](compatibility.md) |
 
 ## Open
@@ -80,4 +81,5 @@ before the feature changes state:
 | Shorthand `.V` and bare prelude variants | variants are named through their enum (E0326) | [ADR 0028](../adr/0028-qualified-variants.md) |
 | `var` | `let` is mutable, `const` immutable | [ADR 0031](../adr/0031-let-const.md) |
 | Unicode identifiers and confusable checks | tokens are ASCII; a change needs an ADR | [spec 1.1](../spec/01-lexical.md) |
+| Allocator parameters on collections | arenas in `std.arena` instead | [ADR 0049](../adr/0049-arenas-not-allocator-parameters.md) |
 | Feature flags before 1.0 | every feature is unstable before 1.0 | [ADR 0038](../adr/0038-feature-states.md) |
