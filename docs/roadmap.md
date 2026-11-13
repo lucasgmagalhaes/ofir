@@ -369,6 +369,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.23n | Numeric and type gaps: arrays get the methods of `&[T]`, `a[lo..hi]`, `==` and `{a:?}`; `==` on `&[T]` compares elements (`sliceEqual`); range values and `i128`/`u128` deferred with a help (ADR 0047) | OFIR-21 | **done**: stage 1 only |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.24a | Atomic intrinsics with orderings, `@threadLocal` and pointer, array and `@repr(C)` globals in both stages, then the allocator pool in Ofir (ADR 0042) | OFIR-25 | in progress: `@threadLocal`, the atomic intrinsics (`std.mem.atomic`, E0820, E0821), pointer globals (`0 as *T`), E0822 and `AtomicInt`/`AtomicBool`/`Arc` on the intrinsics (`...With` forms; `ofir_atomic_*` removed) and the pool in Ofir (`std/core/pool.of`, `@export` in stage 0) done; array and `@repr(C)` globals later |
+| 6.24b | Ownership and destruction across partial moves, control flow and errors: adversarial drop tests (`tests/run/drops`), and the valgrind and ASan checks run with stage 1, which compiles every run test; a panic's leaks are by design (spec 6) | OFIR-22 | **done** |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
@@ -411,7 +412,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Start 6.24 with OFIR-22; 6.23 (OFIR-08 to OFIR-21) is done.
+1. Continue 6.24 with OFIR-23; OFIR-22 is done (6.24b).
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
