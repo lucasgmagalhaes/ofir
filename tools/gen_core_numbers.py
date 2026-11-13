@@ -35,6 +35,8 @@ pub copy struct {t} {{
      * @returns `self + other`, wrapped into the range of `{t}`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert({t}.MAX.wrappingAdd(1) == {t}.MIN)
      * ```
      */
@@ -50,6 +52,8 @@ pub copy struct {t} {{
      * @returns `self - other`, wrapped into the range of `{t}`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert({t}.MIN.wrappingSub(1) == {t}.MAX)
      * ```
      */
@@ -77,6 +81,8 @@ pub copy struct {t} {{
      * @returns `self` if it is not greater than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as {t}).min(5) == 3)
      * ```
      */
@@ -91,6 +97,8 @@ pub copy struct {t} {{
      * @returns `self` if it is not less than `other`, else `other`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((3 as {t}).max(5) == 5)
      * ```
      */
@@ -106,6 +114,8 @@ pub copy struct {t} {{
      * @returns `lo` if `self < lo`, `hi` if `self > hi`, else `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((12 as {t}).clamp(0, 10) == 10)
      * ```
      */
@@ -121,6 +131,8 @@ pub copy struct {t} {{
      * @panics when the result does not fit in `{t}`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((2 as {t}).pow(5) == 32)
      * ```
      */
@@ -155,23 +167,23 @@ UNSIGNED_CHECKED = (
     + """
     pub fn checkedAdd(self, other: {t}) Option<{t}> {{
         const sum = self.wrappingAdd(other)
-        return if sum < self {{ .None }} else {{ .Some(sum) }}
+        return if sum < self {{ Option.None }} else {{ Option.Some(sum) }}
     }}
 """ + CHECKED_DOC.format(verb="Subtracts", operand="value to subtract", op="-",
                          when="when `other > self`", t="{t}") + """
     pub fn checkedSub(self, other: {t}) Option<{t}> {{
-        return if other > self {{ .None }} else {{ .Some(self.wrappingSub(other)) }}
+        return if other > self {{ Option.None }} else {{ Option.Some(self.wrappingSub(other)) }}
     }}
 """ + CHECKED_DOC.format(verb="Multiplies", operand="value to multiply by", op="*",
                          when="on overflow", t="{t}") + """
     pub fn checkedMul(self, other: {t}) Option<{t}> {{
         const product = self.wrappingMul(other)
-        return if self != 0 && product / self != other {{ .None }} else {{ .Some(product) }}
+        return if self != 0 && product / self != other {{ Option.None }} else {{ Option.Some(product) }}
     }}
 """ + CHECKED_DOC.format(verb="Divides", operand="divisor", op="/", when="when `other` is 0",
                          t="{t}") + """
     pub fn checkedDiv(self, other: {t}) Option<{t}> {{
-        return if other == 0 {{ .None }} else {{ .Some(self / other) }}
+        return if other == 0 {{ Option.None }} else {{ Option.Some(self / other) }}
     }}
 """)
 
@@ -181,34 +193,34 @@ SIGNED_CHECKED = (
     pub fn checkedAdd(self, other: {t}) Option<{t}> {{
         const sum = self.wrappingAdd(other)
         const overflow = (self >= 0) == (other >= 0) && (sum >= 0) != (self >= 0)
-        return if overflow {{ .None }} else {{ .Some(sum) }}
+        return if overflow {{ Option.None }} else {{ Option.Some(sum) }}
     }}
 """ + CHECKED_DOC.format(verb="Subtracts", operand="value to subtract", op="-",
                          when="on overflow", t="{t}") + """
     pub fn checkedSub(self, other: {t}) Option<{t}> {{
         const difference = self.wrappingSub(other)
         const overflow = (self >= 0) != (other >= 0) && (difference >= 0) != (self >= 0)
-        return if overflow {{ .None }} else {{ .Some(difference) }}
+        return if overflow {{ Option.None }} else {{ Option.Some(difference) }}
     }}
 """ + CHECKED_DOC.format(verb="Multiplies", operand="value to multiply by", op="*",
                          when="on overflow", t="{t}") + """
     pub fn checkedMul(self, other: {t}) Option<{t}> {{
         if self == 0 || other == 0 {{
-            return .Some(0)
+            return Option.Some(0)
         }}
         if (self == -1 && other == {t}.MIN) || (other == -1 && self == {t}.MIN) {{
-            return .None
+            return Option.None
         }}
         const product = self.wrappingMul(other)
-        return if product / other != self {{ .None }} else {{ .Some(product) }}
+        return if product / other != self {{ Option.None }} else {{ Option.Some(product) }}
     }}
 """ + CHECKED_DOC.format(verb="Divides", operand="divisor", op="/",
                          when="when `other` is 0 or the quotient overflows", t="{t}") + """
     pub fn checkedDiv(self, other: {t}) Option<{t}> {{
         if other == 0 || (self == {t}.MIN && other == -1) {{
-            return .None
+            return Option.None
         }}
-        return .Some(self / other)
+        return Option.Some(self / other)
     }}
 """)
 
@@ -221,6 +233,8 @@ INT_PARSE = """
      * the value does not fit in `{t}`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert({t}.parse("42").unwrapOr(0) == 42)
      * ```
      */
@@ -228,29 +242,29 @@ INT_PARSE = """
         const negative = text.len() > 0 && text[0] == b'-'
         const start = if negative || (text.len() > 0 && text[0] == b'+') {{ 1 }} else {{ 0 }}
         if start == text.len(){negative_check} {{
-            return .Err(ParseError{{}})
+            return Result.Err(ParseError{{}})
         }}
         let value: {t} = 0
         for i in start..text.len() {{
             const c = text[i]
             if c < b'0' || c > b'9' {{
-                return .Err(ParseError{{}})
+                return Result.Err(ParseError{{}})
             }}
             const digit = (c - b'0') as {t}
-            const .Some(shifted) = value.checkedMul(10) else {{
-                return .Err(ParseError{{}})
+            const Option.Some(shifted) = value.checkedMul(10) else {{
+                return Result.Err(ParseError{{}})
             }}
             const next = if negative {{
                 shifted.checkedSub(digit)
             }} else {{
                 shifted.checkedAdd(digit)
             }}
-            const .Some(updated) = next else {{
-                return .Err(ParseError{{}})
+            const Option.Some(updated) = next else {{
+                return Result.Err(ParseError{{}})
             }}
             value = updated
         }}
-        return .Ok(value)
+        return Result.Ok(value)
     }}
 """
 
@@ -262,6 +276,8 @@ SIGNED_ABS = """
      * @panics on `{t}.MIN`, whose opposite does not fit in `{t}`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((-7 as {t}).abs() == 7)
      * ```
      */
@@ -295,6 +311,8 @@ pub copy struct {t} {{
      * @returns the non-negative square root; NaN for a negative value
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((9.0 as {t}).sqrt() == 3.0)
      * ```
      */
@@ -317,6 +335,8 @@ pub copy struct {t} {{
      * @returns the largest integral value not greater than `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((-1.5 as {t}).floor() == -2.0)
      * ```
      */
@@ -330,6 +350,8 @@ pub copy struct {t} {{
      * @returns the smallest integral value not less than `self`
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert((1.2 as {t}).ceil() == 2.0)
      * ```
      */
@@ -365,6 +387,7 @@ pub copy struct {t} {{
     pub fn isNan(self) bool {{
         return self != self
     }}
+{math}
     /**
      * The value of a decimal number, correctly rounded: digits with an
      * optional `-` or `+`, fraction and exponent (`1.5`, `-2e10`), as C's
@@ -374,12 +397,14 @@ pub copy struct {t} {{
      * @returns the value, or `ParseError` when the text is not a number
      * @example
      * ```ofir
+     * import std.testing.assert
+     *
      * assert({t}.parse("1.5").unwrapOr(0.0) == 1.5)
      * ```
      */
     pub fn parse(text: str) Result<{t}, ParseError> {{
         if text.len() == 0 || text[0] == b' ' || (text[0] >= 9 && text[0] <= 13) {{
-            return .Err(ParseError{{}})
+            return Result.Err(ParseError{{}})
         }}
         let terminated = text.toOwned()
         terminated.push("\\0")
@@ -387,11 +412,179 @@ pub copy struct {t} {{
         const value = unsafe {{ strto{c}(terminated.asPtr(), &mut end as *mut *u8) }}
         const used = unsafe {{ end as u64 }} - unsafe {{ terminated.asPtr() as u64 }}
         if used != text.len() as u64 {{
-            return .Err(ParseError{{}})
+            return Result.Err(ParseError{{}})
         }}
-        return .Ok(value)
+        return Result.Ok(value)
     }}
 }}
+"""
+
+
+# The C math library functions behind the float methods: (method, C name,
+# arity, summary, @param lines, @returns line, example or "").
+LIBM = [
+    ("sin", "sin", 1, "The sine of an angle in radians.", [], "the sine, in [-1, 1]", ""),
+    ("cos", "cos", 1, "The cosine of an angle in radians.", [], "the cosine, in [-1, 1]", ""),
+    ("tan", "tan", 1, "The tangent of an angle in radians.", [], "the tangent", ""),
+    ("asin", "asin", 1, "The arcsine.", [], "the angle in radians, in [-pi/2, pi/2]; NaN outside [-1, 1]", ""),
+    ("acos", "acos", 1, "The arccosine.", [], "the angle in radians, in [0, pi]; NaN outside [-1, 1]", ""),
+    ("atan", "atan", 1, "The arctangent.", [], "the angle in radians, in [-pi/2, pi/2]", ""),
+    ("atan2", "atan2", 2, "The angle of the point (`other`, `self`): the arctangent of\n     * `self / other` in the right quadrant.",
+     ["@param other the x coordinate; `self` is the y coordinate"], "the angle in radians, in [-pi, pi]", ""),
+    ("sinh", "sinh", 1, "The hyperbolic sine.", [], "the hyperbolic sine", ""),
+    ("cosh", "cosh", 1, "The hyperbolic cosine.", [], "the hyperbolic cosine", ""),
+    ("tanh", "tanh", 1, "The hyperbolic tangent.", [], "the hyperbolic tangent, in [-1, 1]", ""),
+    ("exp", "exp", 1, "The exponential, e to the power of `self`.", [], "e^self; infinity on overflow", ""),
+    ("exp2", "exp2", 1, "Two to the power of `self`.", [], "2^self", "assert((10.0 as {t}).exp2() == 1024.0)"),
+    ("ln", "log", 1, "The natural logarithm.", [], "the logarithm; -infinity for 0 and NaN for a negative value", ""),
+    ("log2", "log2", 1, "The base 2 logarithm.", [], "the logarithm; -infinity for 0 and NaN for a negative value",
+     "assert((8.0 as {t}).log2() == 3.0)"),
+    ("log10", "log10", 1, "The base 10 logarithm.", [], "the logarithm; -infinity for 0 and NaN for a negative value", ""),
+    ("cbrt", "cbrt", 1, "The cube root.", [], "the cube root, with the sign of `self`", ""),
+    ("powf", "pow", 2, "Raises to a float power.", ["@param exp the exponent"], "self^exp, as C's `pow` gives it", ""),
+    ("hypot", "hypot", 2, "The length of the hypotenuse, without overflow in the squares.",
+     ["@param other the other side"], "sqrt(self^2 + other^2)", ""),
+    ("round", "round", 1, "Rounds to the nearest integral value, halfway cases away from zero.", [],
+     "the rounded value", "assert((2.5 as {t}).round() == 3.0)\n     * assert((-2.5 as {t}).round() == -3.0)"),
+    ("trunc", "trunc", 1, "Rounds toward zero.", [], "the integral part of `self`",
+     "assert((-1.7 as {t}).trunc() == -1.0)"),
+    ("mulAdd", "fma", 3, "`self * a + b` with a single rounding.", ["@param a the factor", "@param b the addend"],
+     "the fused multiply-add", ""),
+    ("copySign", "copysign", 2, "The magnitude of `self` with the sign of `sign`.",
+     ["@param sign the value whose sign bit is taken"], "`self` with that sign", ""),
+]
+
+
+def libm_externs(t: str, c: str) -> str:
+    suffix = "f" if t == "f32" else ""
+    lines = ['// The C math library (`-lm`): what the math methods call.', 'extern "C" {']
+    for _, name, arity, *_ in LIBM:
+        params = ", ".join(f"{p}: {t}" for p in "xyz"[:arity])
+        lines.append(f"    fn {name}{suffix}({params}) {t}")
+    lines.append(f"    fn strto{c}(text: *u8, end: *mut *u8) {t}")
+    lines.append("}")
+    return "\n".join(lines) + "\n\n"
+
+
+def doc(summary: str, params: list[str], returns: str, example: str) -> str:
+    out = ["    /**", f"     * {summary}", "     *"]
+    out += [f"     * {p}" for p in params]
+    out.append(f"     * @returns {returns}")
+    if example:
+        out += ["     * @example", "     * ```ofir", "     * import std.testing.assert", "     *", f"     * {example}", "     * ```"]
+    out.append("     */")
+    return "\n".join(out) + "\n"
+
+
+def math_methods(t: str) -> str:
+    suffix = "f" if t == "f32" else ""
+    out = []
+    for method, name, arity, summary, params, returns, example in LIBM:
+        names = {1: [], 2: [params[0].split()[1] if params else "other"],
+                 3: ["a", "b"]}[arity]
+        sig = "".join(f", {n}: {t}" for n in names)
+        args = ", ".join(["self"] + names)
+        out.append("\n" + doc(summary, params, returns, example.format(t=t)))
+        out.append(f"    pub fn {method}(self{sig}) {t} {{\n"
+                   f"        return unsafe {{ {name}{suffix}({args}) }}\n    }}\n")
+    return "".join(out) + FLOAT_MATH.format(t=t, suffix=suffix)
+
+
+FLOAT_MATH = """
+    /**
+     * Raises to an integer power.
+     *
+     * @param n the exponent
+     * @returns self^n
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((2.0 as {t}).powi(10) == 1024.0)
+     * ```
+     */
+    pub fn powi(self, n: i32) {t} {{
+        return self.powf(n as {t})
+    }}
+
+    /**
+     * The fractional part.
+     *
+     * @returns `self - self.trunc()`, with the sign of `self`
+     */
+    pub fn fract(self) {t} {{
+        return self - self.trunc()
+    }}
+
+    /**
+     * The sign as a number.
+     *
+     * @returns 1.0 for a positive value or +0.0, -1.0 for a negative value
+     * or -0.0, and NaN for NaN
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((-3.5 as {t}).signum() == -1.0)
+     * ```
+     */
+    pub fn signum(self) {t} {{
+        if self.isNan() {{
+            return self
+        }}
+        return (1.0 as {t}).copySign(self)
+    }}
+
+    /**
+     * Limits the value to a range.
+     *
+     * @param lo the lower bound
+     * @param hi the upper bound, not less than `lo`
+     * @returns `lo` below the range, `hi` above it, `self` otherwise (NaN
+     * stays NaN)
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((7.5 as {t}).clamp(0.0, 5.0) == 5.0)
+     * ```
+     */
+    pub fn clamp(self, lo: {t}, hi: {t}) {t} {{
+        if self < lo {{
+            return lo
+        }}
+        if self > hi {{
+            return hi
+        }}
+        return self
+    }}
+
+    /**
+     * Whether the value is neither infinite nor NaN.
+     *
+     * @returns true for a finite value
+     */
+    pub fn isFinite(self) bool {{
+        return self - self == 0.0
+    }}
+
+    /**
+     * Whether the value is positive or negative infinity.
+     *
+     * @returns true for an infinity
+     */
+    pub fn isInfinite(self) bool {{
+        return self == self && self - self != 0.0
+    }}
+
+    /**
+     * Whether the sign bit is set, as in -0.0 and negative values.
+     *
+     * @returns true when the sign is negative, -0.0 included
+     */
+    pub fn isSignNegative(self) bool {{
+        return (1.0 as {t}).copySign(self) < 0.0
+    }}
 """
 
 
@@ -430,10 +623,8 @@ def float_file(t: str) -> str:
     alias = " (`float`)" if t == "f64" else ""
     ops = [("sqrt", 1), ("fabs", 1), ("floor", 1), ("ceil", 1), ("minnum", 2), ("maxnum", 2)]
     c = "d" if t == "f64" else "f"
-    externs = (f'// What `parse` calls.\nextern "C" {{\n'
-               f'    fn strto{c}(text: *u8, end: *mut *u8) {t}\n}}\n\n')
-    return module_doc(t) + GENERATED + intrinsics(t, ops) + "\n" + externs + FLOAT.format(
-        t=t, bits=t[1:], alias=alias, c=c)
+    return module_doc(t) + GENERATED + intrinsics(t, ops) + "\n" + libm_externs(t, c) + \
+        FLOAT.format(t=t, bits=t[1:], alias=alias, c=c, math=math_methods(t))
 
 
 if __name__ == "__main__":

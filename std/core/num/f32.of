@@ -15,8 +15,30 @@ extern "intrinsic" {
     fn maxnum_f32(a: f32, b: f32) f32
 }
 
-// What `parse` calls.
+// The C math library (`-lm`): what the math methods call.
 extern "C" {
+    fn sinf(x: f32) f32
+    fn cosf(x: f32) f32
+    fn tanf(x: f32) f32
+    fn asinf(x: f32) f32
+    fn acosf(x: f32) f32
+    fn atanf(x: f32) f32
+    fn atan2f(x: f32, y: f32) f32
+    fn sinhf(x: f32) f32
+    fn coshf(x: f32) f32
+    fn tanhf(x: f32) f32
+    fn expf(x: f32) f32
+    fn exp2f(x: f32) f32
+    fn logf(x: f32) f32
+    fn log2f(x: f32) f32
+    fn log10f(x: f32) f32
+    fn cbrtf(x: f32) f32
+    fn powf(x: f32, y: f32) f32
+    fn hypotf(x: f32, y: f32) f32
+    fn roundf(x: f32) f32
+    fn truncf(x: f32) f32
+    fn fmaf(x: f32, y: f32, z: f32) f32
+    fn copysignf(x: f32, y: f32) f32
     fn strtof(text: *u8, end: *mut *u8) f32
 }
 
@@ -110,6 +132,332 @@ pub copy struct f32 {
     pub fn isNan(self) bool {
         return self != self
     }
+
+    /**
+     * The sine of an angle in radians.
+     *
+     * @returns the sine, in [-1, 1]
+     */
+    pub fn sin(self) f32 {
+        return unsafe { sinf(self) }
+    }
+
+    /**
+     * The cosine of an angle in radians.
+     *
+     * @returns the cosine, in [-1, 1]
+     */
+    pub fn cos(self) f32 {
+        return unsafe { cosf(self) }
+    }
+
+    /**
+     * The tangent of an angle in radians.
+     *
+     * @returns the tangent
+     */
+    pub fn tan(self) f32 {
+        return unsafe { tanf(self) }
+    }
+
+    /**
+     * The arcsine.
+     *
+     * @returns the angle in radians, in [-pi/2, pi/2]; NaN outside [-1, 1]
+     */
+    pub fn asin(self) f32 {
+        return unsafe { asinf(self) }
+    }
+
+    /**
+     * The arccosine.
+     *
+     * @returns the angle in radians, in [0, pi]; NaN outside [-1, 1]
+     */
+    pub fn acos(self) f32 {
+        return unsafe { acosf(self) }
+    }
+
+    /**
+     * The arctangent.
+     *
+     * @returns the angle in radians, in [-pi/2, pi/2]
+     */
+    pub fn atan(self) f32 {
+        return unsafe { atanf(self) }
+    }
+
+    /**
+     * The angle of the point (`other`, `self`): the arctangent of
+     * `self / other` in the right quadrant.
+     *
+     * @param other the x coordinate; `self` is the y coordinate
+     * @returns the angle in radians, in [-pi, pi]
+     */
+    pub fn atan2(self, other: f32) f32 {
+        return unsafe { atan2f(self, other) }
+    }
+
+    /**
+     * The hyperbolic sine.
+     *
+     * @returns the hyperbolic sine
+     */
+    pub fn sinh(self) f32 {
+        return unsafe { sinhf(self) }
+    }
+
+    /**
+     * The hyperbolic cosine.
+     *
+     * @returns the hyperbolic cosine
+     */
+    pub fn cosh(self) f32 {
+        return unsafe { coshf(self) }
+    }
+
+    /**
+     * The hyperbolic tangent.
+     *
+     * @returns the hyperbolic tangent, in [-1, 1]
+     */
+    pub fn tanh(self) f32 {
+        return unsafe { tanhf(self) }
+    }
+
+    /**
+     * The exponential, e to the power of `self`.
+     *
+     * @returns e^self; infinity on overflow
+     */
+    pub fn exp(self) f32 {
+        return unsafe { expf(self) }
+    }
+
+    /**
+     * Two to the power of `self`.
+     *
+     * @returns 2^self
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((10.0 as f32).exp2() == 1024.0)
+     * ```
+     */
+    pub fn exp2(self) f32 {
+        return unsafe { exp2f(self) }
+    }
+
+    /**
+     * The natural logarithm.
+     *
+     * @returns the logarithm; -infinity for 0 and NaN for a negative value
+     */
+    pub fn ln(self) f32 {
+        return unsafe { logf(self) }
+    }
+
+    /**
+     * The base 2 logarithm.
+     *
+     * @returns the logarithm; -infinity for 0 and NaN for a negative value
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((8.0 as f32).log2() == 3.0)
+     * ```
+     */
+    pub fn log2(self) f32 {
+        return unsafe { log2f(self) }
+    }
+
+    /**
+     * The base 10 logarithm.
+     *
+     * @returns the logarithm; -infinity for 0 and NaN for a negative value
+     */
+    pub fn log10(self) f32 {
+        return unsafe { log10f(self) }
+    }
+
+    /**
+     * The cube root.
+     *
+     * @returns the cube root, with the sign of `self`
+     */
+    pub fn cbrt(self) f32 {
+        return unsafe { cbrtf(self) }
+    }
+
+    /**
+     * Raises to a float power.
+     *
+     * @param exp the exponent
+     * @returns self^exp, as C's `pow` gives it
+     */
+    pub fn powf(self, exp: f32) f32 {
+        return unsafe { powf(self, exp) }
+    }
+
+    /**
+     * The length of the hypotenuse, without overflow in the squares.
+     *
+     * @param other the other side
+     * @returns sqrt(self^2 + other^2)
+     */
+    pub fn hypot(self, other: f32) f32 {
+        return unsafe { hypotf(self, other) }
+    }
+
+    /**
+     * Rounds to the nearest integral value, halfway cases away from zero.
+     *
+     * @returns the rounded value
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((2.5 as f32).round() == 3.0)
+     * assert((-2.5 as f32).round() == -3.0)
+     * ```
+     */
+    pub fn round(self) f32 {
+        return unsafe { roundf(self) }
+    }
+
+    /**
+     * Rounds toward zero.
+     *
+     * @returns the integral part of `self`
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((-1.7 as f32).trunc() == -1.0)
+     * ```
+     */
+    pub fn trunc(self) f32 {
+        return unsafe { truncf(self) }
+    }
+
+    /**
+     * `self * a + b` with a single rounding.
+     *
+     * @param a the factor
+     * @param b the addend
+     * @returns the fused multiply-add
+     */
+    pub fn mulAdd(self, a: f32, b: f32) f32 {
+        return unsafe { fmaf(self, a, b) }
+    }
+
+    /**
+     * The magnitude of `self` with the sign of `sign`.
+     *
+     * @param sign the value whose sign bit is taken
+     * @returns `self` with that sign
+     */
+    pub fn copySign(self, sign: f32) f32 {
+        return unsafe { copysignf(self, sign) }
+    }
+
+    /**
+     * Raises to an integer power.
+     *
+     * @param n the exponent
+     * @returns self^n
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((2.0 as f32).powi(10) == 1024.0)
+     * ```
+     */
+    pub fn powi(self, n: i32) f32 {
+        return self.powf(n as f32)
+    }
+
+    /**
+     * The fractional part.
+     *
+     * @returns `self - self.trunc()`, with the sign of `self`
+     */
+    pub fn fract(self) f32 {
+        return self - self.trunc()
+    }
+
+    /**
+     * The sign as a number.
+     *
+     * @returns 1.0 for a positive value or +0.0, -1.0 for a negative value
+     * or -0.0, and NaN for NaN
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((-3.5 as f32).signum() == -1.0)
+     * ```
+     */
+    pub fn signum(self) f32 {
+        if self.isNan() {
+            return self
+        }
+        return (1.0 as f32).copySign(self)
+    }
+
+    /**
+     * Limits the value to a range.
+     *
+     * @param lo the lower bound
+     * @param hi the upper bound, not less than `lo`
+     * @returns `lo` below the range, `hi` above it, `self` otherwise (NaN
+     * stays NaN)
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert((7.5 as f32).clamp(0.0, 5.0) == 5.0)
+     * ```
+     */
+    pub fn clamp(self, lo: f32, hi: f32) f32 {
+        if self < lo {
+            return lo
+        }
+        if self > hi {
+            return hi
+        }
+        return self
+    }
+
+    /**
+     * Whether the value is neither infinite nor NaN.
+     *
+     * @returns true for a finite value
+     */
+    pub fn isFinite(self) bool {
+        return self - self == 0.0
+    }
+
+    /**
+     * Whether the value is positive or negative infinity.
+     *
+     * @returns true for an infinity
+     */
+    pub fn isInfinite(self) bool {
+        return self == self && self - self != 0.0
+    }
+
+    /**
+     * Whether the sign bit is set, as in -0.0 and negative values.
+     *
+     * @returns true when the sign is negative, -0.0 included
+     */
+    pub fn isSignNegative(self) bool {
+        return (1.0 as f32).copySign(self) < 0.0
+    }
+
     /**
      * The value of a decimal number, correctly rounded: digits with an
      * optional `-` or `+`, fraction and exponent (`1.5`, `-2e10`), as C's
