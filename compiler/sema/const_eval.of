@@ -300,6 +300,12 @@ fn cast(c: mut Checker, p: Program, ev: mut Eval, e: &Expr, value: &Expr) Option
         return fail(c, ev, "E0801", e.span,
                     "float to integer conversions are not allowed in constants")
     }
+    if target.kind == TyKind.Ptr {   // `0 as *T`, the null pointer: the only constant pointer
+        if a.bits != 0 {
+            return fail(c, ev, "E0801", e.span, "the only constant pointer is `0 as *T`")
+        }
+        return Option.Some(intValue(to, 0, 64))
+    }
     const from = c.types.get(a.ty).data
     const fromSigned = from <= 3
     const signed = if fromSigned { asSigned(a.bits, widthOf(from)) } else { 0 }
