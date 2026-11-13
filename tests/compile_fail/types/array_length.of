@@ -4,5 +4,5 @@
 fn main() {
     const _a: [int; 3] = [1, 2]   // error[E0300]: mismatched types: expected `[int; 3]`, found an array of 2 elements
     const n = 2
-    const _b: [int; 2] = [0; n]   // error[E0300]: the count of `[value; count]` as an array must be an integer literal
+    const _b: [int; 2] = [0; n]   // error[E0300]: the count of `[value; count]` as an array must be an integer literal or a length (spec 8.7)
 }
