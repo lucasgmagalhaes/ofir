@@ -64,15 +64,17 @@ pub fn checkDeref(c: mut Checker, p: Program, e: &Expr, operand: &Expr) int {
 
 /**
  * Pointer to pointer, reference to pointer, and pointer to or from
- * `uint`/`int` (spec 11.1).
+ * `uint`/`int` (spec 11.1). Only a reference to a pointer and the literal
+ * `0` to a pointer, the null pointer, are safe (11.2).
  *
  * @param c the checker
  * @param from the operand's type
  * @param to the target type
  * @param span the cast
+ * @param zero whether the operand is the literal `0`
  * @returns whether it is a pointer cast
  */
-pub fn pointerCast(c: mut Checker, from: int, to: int, span: Span) bool {
+pub fn pointerCast(c: mut Checker, from: int, to: int, span: Span, zero: bool) bool {
     const a = c.types.kind(from)
     const b = c.types.kind(to)
     const ptrPtr = (a == TyKind.Ptr || a == TyKind.Ref) && b == TyKind.Ptr
@@ -80,7 +82,7 @@ pub fn pointerCast(c: mut Checker, from: int, to: int, span: Span) bool {
                                                                      (from == U64 ||
                                                                          from == I64))
     if ptrPtr || ptrInt {
-        if a != TyKind.Ref {   // a reference to a pointer is safe (spec 11.2)
+        if a != TyKind.Ref && !(zero && b == TyKind.Ptr) {
             requireUnsafe(c, span, "converting a raw pointer")
         }
         return true

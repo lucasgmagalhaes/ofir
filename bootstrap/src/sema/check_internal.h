@@ -117,7 +117,7 @@ Expr *place_root(Expr *e);
 // check_unsafe.c
 void require_unsafe(Checker *c, Span span, const char *what);   // E0803
 TypeId check_deref(Checker *c, Expr *e, TypeId expected);
-bool pointer_cast(Checker *c, TypeId from, TypeId to, Span span);
+bool pointer_cast(Checker *c, TypeId from, TypeId to, Span span, bool zero);
 void check_c_signature(Checker *c, FnDecl *fn);                  // E0804
 bool is_unsafe_fn(const Def *def);
 // A function of an `extern "intrinsic"` block: an operation the compiler

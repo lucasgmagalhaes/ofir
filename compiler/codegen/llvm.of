@@ -1549,11 +1549,15 @@ fn mutGlobals(g: mut Gen, c: mut Checker, p: Program) {
         const llty = llvmType(g, c, p, ty)
         let init = "zeroinitializer".toOwned()
         if const Option.Some(v) = c.info[id].value {
-            init = match v.kind {
-                ConstKind.Int => intText(v.bits, intBits(c.types.get(ty).data))
-                ConstKind.Float => floatText(v.f, c.types.get(ty).data == 32)
-                ConstKind.Bool => if v.b { "true".toOwned() } else { "false".toOwned() }
-                ConstKind.Str => "zeroinitializer".toOwned()
+            init = if c.types.kind(ty) == TyKind.Ptr {   // `0 as *T`
+                "null".toOwned()
+            } else {
+                match v.kind {
+                    ConstKind.Int => intText(v.bits, intBits(c.types.get(ty).data))
+                    ConstKind.Float => floatText(v.f, c.types.get(ty).data == 32)
+                    ConstKind.Bool => if v.b { "true".toOwned() } else { "false".toOwned() }
+                    ConstKind.Str => "zeroinitializer".toOwned()
+                }
             }
         }
         const linkage = if g.units { "linkonce_odr hidden" } else { "internal" }   // shared

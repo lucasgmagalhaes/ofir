@@ -175,7 +175,9 @@ static TypeId binary(Checker *c, Expr *e, TypeId expected) {
 static TypeId cast(Checker *c, Expr *e) {
     TypeId from = check_expr(c, e->as.cast.value, NO_TYPE);
     TypeId to = resolve_type(c, e->as.cast.type);
-    if (pointer_cast(c, from, to, e->span)) {
+    const Expr *value = e->as.cast.value;
+    bool zero = value->kind == EXPR_INT && value->as.int_value == 0;   // `0 as *T`: null
+    if (pointer_cast(c, from, to, e->span, zero)) {
         return to;
     }
     bool ok = (type_is_numeric(c->types, from) && type_is_numeric(c->types, to)) ||
@@ -404,13 +406,20 @@ TypeId check_const(Checker *c, Def *def) {
     def->type = annotation ? type : found;
     if (def->kind == DEF_CONST) {
         def->value = const_eval(c, value);   // while `checking` is set: catches cycles
-    } else if (!type_eq(def->type, type_id(TID_ERROR)) && !type_is_numeric(c->types, def->type) &&
-               !type_eq(def->type, type_id(TID_BOOL))) {
+    } else if (type_eq(def->type, type_id(TID_ERROR))) {
+        // already reported
+    } else if (find_attribute(c->sema, def->item->attributes, "threadLocal") &&
+               !type_is_copy(c, def->type)) {   // a thread ends without dropping it
+        check_error(c, "E0822", def->item->span,
+                    "a `@threadLocal` global must not need drop, and `%s` is not Copy",
+                    type_name(c, def->type));
+    } else if (!type_is_numeric(c->types, def->type) && !type_eq(def->type, type_id(TID_BOOL)) &&
+               type_get(c->types, def->type)->kind != TY_PTR) {
         TypeId ty = def->type;
         char what[160];
         snprintf(what, sizeof what, "mutable globals of type `%s` are", type_name(c, ty));
         unsupported(c, def->item->span, what);
-    } else if (!type_eq(def->type, type_id(TID_ERROR))) {   // the initial value, in the binary
+    } else {   // the initial value, in the binary
         def->value = const_eval(c, value);
     }
     enter_generics(c, outer);

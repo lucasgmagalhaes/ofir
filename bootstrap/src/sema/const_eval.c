@@ -241,6 +241,13 @@ static bool cast(Eval *ev, const Expr *e, ConstValue *out) {
         return fail(ev, "E0801", e->span,
                     "float to integer conversions are not allowed in constants");
     }
+    if (to->kind == TY_PTR) {   // `0 as *T`, the null pointer: the only constant pointer
+        if (a.bits != 0) {
+            return fail(ev, "E0801", e->span, "the only constant pointer is `0 as *T`");
+        }
+        *out = (ConstValue){.kind = CV_INT, .type = e->type, .bits = 0};
+        return true;
+    }
     const Ty *from = ty(ev, a.type);
     bool from_signed = from->data <= INT_I64;
     int64_t value = from_signed ? as_signed(a.bits, INT_BITS[from->data]) : 0;

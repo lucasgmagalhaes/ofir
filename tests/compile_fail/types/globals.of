@@ -1,9 +1,12 @@
 // Mutable globals (spec 11.5): access needs `unsafe`, the initial value is
-// constant, and stage 1 stores numbers and `bool` only.
+// constant, and the compiler stores numbers, `bool` and raw pointers only.
 
 let COUNT: int = 0
 let START: int = start()   // error[E0801]: a constant may only use literals, constants and operators
 let NAME: str = "x"   // error[E0901]: mutable globals of type `str` are not supported yet
+let PAIR: (int, int) = (1, 2)   // error[E0901]: mutable globals of type `(int, int)` are not supported yet
+@threadLocal   // error[E0822]: a `@threadLocal` global must not need drop, and `str` is not Copy
+let OWNED: str = ""
 
 fn start() int {
     return 3

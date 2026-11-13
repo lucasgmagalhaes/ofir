@@ -1,0 +1,19 @@
+// Pointer globals (spec 11.5): `0 as *T` is the null pointer, the only
+// constant pointer; a `@threadLocal` global may hold a pointer too.
+
+let HEAD: *mut int = 0 as *mut int
+
+@threadLocal
+let MINE: *mut int = 0 as *mut int
+
+fn main() {
+    let x = 7
+    unsafe {
+        println("{HEAD == 0 as *mut int} {MINE == 0 as *mut int}")
+        HEAD = &mut x as *mut int
+        MINE = HEAD
+        *MINE = 9
+        println("{HEAD == MINE}")
+    }
+    println("{x}")
+}

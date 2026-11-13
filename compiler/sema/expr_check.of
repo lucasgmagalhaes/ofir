@@ -61,9 +61,11 @@ import sema.def.DefKind
 import sema.def.Res
 import sema.derive.debuggable
 import sema.program.Program
+import sema.resolve.findAttribute
 import sema.struct_exprs.checkConstructor
 import sema.struct_exprs.checkStructLiteral
 import sema.struct_exprs.checkTupleField
+import sema.structs.isCopy
 import sema.types.BOOL
 import sema.types.ERROR
 import sema.types.F64
@@ -412,7 +414,11 @@ pub fn checkBinary(c: mut Checker, p: Program, span: Span, op: Op, lhs: &Expr, r
 fn cast(c: mut Checker, p: Program, e: &Expr, value: &Expr, to: &TypeExpr) int {
     const from = checkExpr(c, p, value, ERROR)
     const target = resolveType(c, p, to)
-    if pointerCast(c, from, target, e.span) {
+    const zero = match value.kind {   // `0 as *T`: the null pointer
+        ExprKind.Int(v) => v == 0
+        _ => false
+    }
+    if pointerCast(c, from, target, e.span, zero) {
         return target
     }
     const fromNumber = c.types.isNumeric(from) || numeric(c, from) != 0
@@ -815,9 +821,15 @@ pub fn checkConst(c: mut Checker, p: Program, id: int) int {
                 c.info[id].byComptime = true
             } else if isConst {
                 c.info[id].value = constEval(c, p, &value)   // while `checking`: catches cycles
-            } else if ty != ERROR && !c.types.isNumeric(ty) && ty != BOOL {
+            } else if ty == ERROR {
+                // already reported
+            } else if findAttribute(c.r, item.attributes, "threadLocal").isSome() &&
+                    !isCopy(c, p, ty) {   // a thread ends without dropping it
+                c.error("E0822", item.span, "a `@threadLocal` global must not need drop, and "
+                        + "`{c.typeName(ty)}` is not Copy")
+            } else if !c.types.isNumeric(ty) && ty != BOOL && c.types.kind(ty) != TyKind.Ptr {
                 c.unsupported(item.span, "mutable globals of type `{c.typeName(ty)}` are")
-            } else if ty != ERROR {   // the initial value, stored in the binary
+            } else {   // the initial value, stored in the binary
                 c.info[id].value = constEval(c, p, &value)
             }
         }
