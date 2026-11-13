@@ -179,6 +179,17 @@ fn atBinding(p: mut Parser, first: move Pattern, start: Span) Pattern {
  * @returns the pattern
  */
 pub fn parsePattern(p: mut Parser) Pattern {
+    const pat = if p.nest() {
+        patternLevel(p)
+    } else {
+        const start = p.here()
+        newPattern(p, PatternKind.Wildcard, start)
+    }
+    p.depth -= 1
+    return pat
+}
+
+fn patternLevel(p: mut Parser) Pattern {
     const start = p.here()
     const first = atom(p)
     if p.at(TokenKind.At) {

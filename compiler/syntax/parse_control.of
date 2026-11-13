@@ -73,10 +73,16 @@ fn ifExpr(p: mut Parser, comptimeAt: Option<Span>) Expr {
     if p.accept(TokenKind.Else) {
         const elseStart = p.here()
         if p.at(TokenKind.If) {
-            otherwise = Option.Some(Box.new(ifExpr(p, Option.None)))
+            if p.nest() {   // an `else if` chain is as deep as it is long
+                otherwise = Option.Some(Box.new(ifExpr(p, Option.None)))
+            }
+            p.depth -= 1
         } else if p.at(TokenKind.Comptime) && p.peekAt(1) == TokenKind.If {
             const at = p.advance()
-            otherwise = Option.Some(Box.new(ifExpr(p, Option.Some(at))))
+            if p.nest() {
+                otherwise = Option.Some(Box.new(ifExpr(p, Option.Some(at))))
+            }
+            p.depth -= 1
         } else {
             const block = parseBlock(p)
             otherwise = Option.Some(Box.new(newExpr(p, ExprKind.Block(block), elseStart)))
