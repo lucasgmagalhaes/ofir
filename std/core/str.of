@@ -672,6 +672,15 @@ fn sameBytes(a: *u8, b: *u8, n: int) bool {
     return n == 0 || unsafe { memcmp(a, b, n as u64) } == 0
 }
 
+// `a + b` on strings: a new string. The lowering calls it (lower_ops.c,
+// lower_expr.of).
+fn strConcat(a: str, b: str) str {
+    let s = ""
+    s.push(a)
+    s.push(b)
+    return s
+}
+
 // `a == b` on strings: the lowering calls it (lower_ops.c, lower_expr.of).
 fn strEq(a: str, b: str) bool {
     return a.len == b.len && sameBytes(a.ptr, b.ptr, a.len)

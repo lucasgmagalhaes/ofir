@@ -2387,23 +2387,22 @@ fn shift(l: mut Lowerer, c: Checker, op: Op, ty: int, a: move Operand, b: move O
 }
 
 fn strOp(l: mut Lowerer, op: Op, a: move Operand, b: move Operand) Operand {
-    if op == Op.Add {
-        const dest = newTemp(l, STR)
-        const x = address(l, a)
-        const y = address(l, b)
-        emitRuntime(l, RuntimeFn.StrConcat, [opAddr(dest, STR), x, y], -1)
-        return opCopy(dest, STR)
-    }
     const equality = op == Op.Eq || op == Op.Ne
-    const result = if equality { BOOL } else { I32 }
+    const result = if op == Op.Add { STR } else if equality { BOOL } else { I32 }
     const dest = newTemp(l, result)
-    const callee = if equality { l.strEq } else { l.strCmp }   // std/core/str.of
+    const callee = if op == Op.Add {   // std/core/str.of
+        l.strConcat
+    } else if equality {
+        l.strEq
+    } else {
+        l.strCmp
+    }
     let x = a
     let y = b
     x.ty = STR
     y.ty = STR
     emitCall(l, callee, UNIT, [x, y], dest)
-    if op == Op.Eq {
+    if op == Op.Eq || op == Op.Add {
         return opCopy(dest, result)
     }
     if op == Op.Ne {

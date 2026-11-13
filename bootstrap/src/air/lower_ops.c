@@ -57,22 +57,19 @@ static Operand addr(Lowerer *l, Operand value) {
 }
 
 static Operand str_op(Lowerer *l, Op op, Operand a, Operand b) {
-    if (op == OP_ADD) {
-        LocalId dest = new_temp(l, type_id(TID_STR));
-        Operand args[] = {{.kind = OPERAND_ADDR, .type = type_id(TID_STR), .as.local = dest},
-                          addr(l, a), addr(l, b)};
-        emit_runtime(l, RT_STR_CONCAT, args, 3, NULL);
-        return op_copy(dest, type_id(TID_STR));
-    }
     bool equality = op == OP_EQ || op == OP_NE;
-    TypeId result = type_id(equality ? TID_BOOL : TID_I32);
+    TypeId result = type_id(op == OP_ADD ? TID_STR : equality ? TID_BOOL : TID_I32);
     LocalId dest = new_temp(l, result);
     Operand *args = ARENA_ARRAY(&l->sema->session->arena, Operand, 2);   // std/core/str.of
     args[0] = a;
     args[1] = b;
     args[0].type = args[1].type = type_id(TID_STR);
-    emit_direct_call(l, std_fn(l, "std.core.str", equality ? "strEq" : "strCmp"),
-                     type_id(TID_UNIT), (CallArgs){args, 2}, &dest);
+    const char *name = op == OP_ADD ? "strConcat" : equality ? "strEq" : "strCmp";
+    emit_direct_call(l, std_fn(l, "std.core.str", name), type_id(TID_UNIT),
+                     (CallArgs){args, 2}, &dest);
+    if (op == OP_ADD) {
+        return op_copy(dest, result);
+    }
     if (op == OP_EQ) {
         return op_copy(dest, result);
     }
