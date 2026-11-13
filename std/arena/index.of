@@ -1,0 +1,133 @@
+/**
+ * @module
+ * `std.arena`: typed index arenas (ADR 0049).
+ *
+ * An `Arena<T>` owns values that are made one at a time and freed all
+ * together: the nodes of a tree or a graph, the entries of one request.
+ * A value is reached through its `Id<T>`, a copy handle, not a reference,
+ * so ids can be stored in other values of the arena, and links can form
+ * cycles, without borrowing it. There is no per-value free: `clear` drops
+ * every value at once and keeps the storage for the next use.
+ *
+ * ```ofir
+ * import std.arena.Arena
+ * import std.testing.assert
+ *
+ * fn main() {
+ *     let names = Arena<str>.new()
+ *     const a = names.alloc("ada")
+ *     const b = names.alloc("bob")
+ *     assert(names.get(a) == "ada" && names.get(b) == "bob")
+ *     assert(names.len() == 2)
+ * }
+ * ```
+ */
+
+/**
+ * A handle to a value in an `Arena<T>`. It is checked when used: an id
+ * made before the arena's last `clear` panics instead of reaching a value
+ * that took its place. An id of another arena of the same type is not
+ * detected unless it is out of range.
+ *
+ * @typeParam T the type of the value
+ */
+pub copy struct Id<T> {
+    index: int
+    era: int
+
+    /**
+     * The position of the value in its arena, from 0 in allocation order:
+     * a dense key for tables kept beside the arena.
+     *
+     * @returns the index
+     */
+    pub fn index(self) int {
+        return self.index
+    }
+}
+
+/**
+ * Values of one type, freed all together.
+ *
+ * @typeParam T the type of the values
+ */
+pub struct Arena<T> {
+    items: List<T>
+    era: int
+
+    /**
+     * An empty arena.
+     *
+     * @returns the arena
+     */
+    pub fn new() Arena<T> {
+        return Arena { items: List.new(), era: 0 }
+    }
+
+    /**
+     * An empty arena with room for `n` values before it grows.
+     *
+     * @param n how many values to make room for
+     * @returns the arena
+     */
+    pub fn withCapacity(n: int) Arena<T> {
+        return Arena { items: List.withCapacity(n), era: 0 }
+    }
+
+    /**
+     * Moves a value into the arena.
+     *
+     * @param value the value
+     * @returns its id
+     */
+    pub fn alloc(mut self, value: move T) Id<T> {
+        self.items.push(value)
+        return Id { index: self.items.len() - 1, era: self.era }
+    }
+
+    /**
+     * The value of an id.
+     *
+     * @param id an id of this arena
+     * @returns the value
+     */
+    pub fn get(self, id: Id<T>) &T {
+        self.check(id)
+        return &self.items[id.index]
+    }
+
+    /**
+     * The value of an id, to change it.
+     *
+     * @param id an id of this arena
+     * @returns the value
+     */
+    pub fn getMut(mut self, id: Id<T>) &mut T {
+        self.check(id)
+        return &mut self.items[id.index]
+    }
+
+    /**
+     * How many values the arena holds.
+     *
+     * @returns the count
+     */
+    pub fn len(self) int {
+        return self.items.len()
+    }
+
+    /**
+     * Drops every value, the last made first, and keeps the storage. Ids
+     * made before the call panic when used.
+     */
+    pub fn clear(mut self) {
+        self.items.clear()
+        self.era += 1
+    }
+
+    fn check(self, id: Id<T>) {
+        if id.era != self.era || id.index >= self.items.len() {
+            panic("arena id used after the arena was cleared, or of another arena")
+        }
+    }
+}
