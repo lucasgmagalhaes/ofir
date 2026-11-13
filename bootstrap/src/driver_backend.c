@@ -72,22 +72,29 @@ static Next link_program(const Options *opts, const char *ll, const char *exe) {
     return STOP;
 }
 
-// Each lowered function is validated, its checks folded (air/fold.h), then
-// printed (--emit=air) or turned into LLVM IR right away.
+// Each lowered function is validated, its checks folded (air/fold.h), it is
+// validated again, then printed (--emit=air) or turned into LLVM IR.
 typedef struct {
     Sema *sema;
     Gen *gen;     // NULL for --emit=air
 } Sink;
 
-static void take_body(void *context, AirBody *body) {
-    Sink *sink = context;
+// Stops on a malformed body: a compiler bug, reported before LLVM.
+static void validate(const Sink *sink, const AirBody *body, const char *pass) {
     char error[256];
     if (!air_validate_body(body, error, sizeof error)) {
         air_print_body(body, sink->sema, stderr);   // what the bug report needs
-        fatal("invalid AIR: %s", error);
+        fputs("note: this is a compiler bug; a report needs the AIR above\n", stderr);
+        fatal("invalid AIR after %s: %s", pass, error);
     }
+}
+
+static void take_body(void *context, AirBody *body) {
+    Sink *sink = context;
+    validate(sink, body, "lowering");
     air_fold_checks(body, &sink->sema->types);
     air_accumulate(body, &sink->sema->types);
+    validate(sink, body, "check folding");
     if (sink->gen) {
         llvm_function(sink->gen, body);
     } else {

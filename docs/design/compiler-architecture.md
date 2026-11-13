@@ -252,7 +252,13 @@ Properties:
   becomes a `Goto`; the assignments left unread are then removed. Dividing
   or shifting by a constant needs no check; a narrowing cast of a constant
   that does not fit keeps its check.
-- AIR is validated after each pass in debug builds (`air/validate`).
+- Both stages validate every body after lowering and again after check
+  folding, in every build (`air/air_validate.c`, `air/validate.of`): the body
+  has its return local, parameters and entry block, every block is
+  terminated, every jump names a block and every operand a local of the
+  body. A malformed body is a compiler bug: the compiler prints the body,
+  a note and ``ofir: internal error: invalid AIR after <pass>: AIR of
+  `fnN`, bbM: <fault>``, then aborts, before any LLVM IR is written.
 
 ### Lowering highlights
 

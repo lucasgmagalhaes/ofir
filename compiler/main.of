@@ -11,11 +11,13 @@
  *     ofir version           print the compiler version
  */
 
+import air.air.AirBody
 import air.air_print.AirPrinter
 import air.accumulate.accumulate
 import air.fold.foldChecks
 import air.interp.evalComptimes
 import air.lower.lowerProgram
+import air.validate.validateBody
 import base.intern.Interner
 import base.span.SourceMap
 import codegen.llvm.generate
@@ -408,6 +410,19 @@ fn build(given: move Options) int {
     return finish(c.r.diags, c.r.map, &pipeline)
 }
 
+// Stops the compiler on a malformed body (air/validate.of), with the body:
+// a compiler bug, reported before it reaches LLVM.
+fn validateAir(c: Checker, b: &AirBody, pass: str) {
+    if const Option.Some(what) = validateBody(b) {
+        let printer = AirPrinter{out: ""}
+        printer.body(c, b)
+        eprint(printer.out)
+        eprintln("note: this is a compiler bug; a report needs the AIR above")
+        eprintln("ofir: internal error: invalid AIR after {pass}: {what}")
+        os.abort()
+    }
+}
+
 // Lowers the program, then prints its AIR (`--emit=air`), or writes its
 // LLVM IR and links it with clang. Returns false if a step failed.
 fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
@@ -423,8 +438,10 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         return false
     }
     for i in 0..l.out.len() {
+        validateAir(c, &l.out[i], "lowering")
         foldChecks(c, l.out[i])
         accumulate(c, l.out[i])
+        validateAir(c, &l.out[i], "check folding")
     }
     timerReport(opts.timePasses, "lower", phaseStart)
     for i in 0..l.tests.len() {

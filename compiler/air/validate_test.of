@@ -1,0 +1,94 @@
+// The tests of `air.validate` (stage 0: bootstrap/tests/test_air_validate.c).
+
+import air.air.AirBody
+import air.air.AirStmt
+import air.air.Rvalue
+import air.air.RuntimeFn
+import air.air.StmtKind
+import air.air.TermKind
+import air.air.branch
+import air.air.jump
+import air.air.noPath
+import air.air.opBool
+import air.air.opCopy
+import air.air.rvUse
+import air.air.terminator
+import base.intern.Symbol
+import diag.noSpan
+import sema.types.UNIT
+import std.testing.assert
+
+// fn1(x) { _0 = x; return }, the smallest valid body: 2 locals, 1 parameter.
+fn validBody() AirBody {
+    let b = AirBody{def: 1, targs: UNIT, name: Symbol(0), isMain: false, paramCount: 1,
+                    locals: [], blocks: [], closure: Option.None, span: noSpan(),
+                    at: noSpan()}
+    b.newLocal(0, Option.None, noSpan())
+    b.newLocal(0, Option.None, noSpan())
+    const entry = b.newBlock()
+    b.push(entry, assign(0, rvUse(opCopy(1, 0))))
+    b.terminate(entry, terminator(TermKind.Return))
+    return b
+}
+
+fn assign(dest: int, value: move Rvalue) AirStmt {
+    return AirStmt{kind: StmtKind.Assign, dest: dest, destPath: noPath(), hasDest: true,
+                   value: value, runtime: false, rt: RuntimeFn.PrintStr, callee: 0,
+                   targs: UNIT, args: [], span: noSpan()}
+}
+
+fn rejects(b: &AirBody, expected: str) bool {
+    if const Option.Some(error) = validateBody(b) {
+        return error == expected
+    }
+    return false
+}
+
+@test
+fn theSmallestBodyIsValid() {
+    const b = validBody()
+    assert(validateBody(&b).isNone())
+}
+
+@test
+fn aBodyNeedsItsLocalsAndEntryBlock() {
+    let b = validBody()
+    b.blocks = []
+    assert(rejects(&b, "AIR of `fn1`, bb0: missing return local, parameters or entry block"))
+}
+
+@test
+fn everyBlockIsTerminated() {
+    let b = validBody()
+    b.newBlock()
+    assert(rejects(&b, "AIR of `fn1`, bb1: block is not terminated"))
+}
+
+@test
+fn operandsNameLocalsOfTheBody() {
+    let b = validBody()
+    b.blocks[0].stmts[0].value.a.local = 9
+    assert(rejects(&b, "AIR of `fn1`, bb0: statement refers to a missing local"))
+}
+
+@test
+fn jumpsNameBlocksOfTheBody() {
+    let b = validBody()
+    b.blocks[0].term = jump(7)
+    assert(rejects(&b, "AIR of `fn1`, bb0: jump to a missing block"))
+    b.blocks[0].term = branch(opBool(true, 0), 0, 3)
+    assert(rejects(&b, "AIR of `fn1`, bb0: branch to a missing block"))
+}
+
+@test
+fn conditionsNameLocalsOfTheBody() {
+    let b = validBody()
+    let t = terminator(TermKind.Assert)
+    t.cond = opCopy(5, 0)
+    b.blocks[0].term = t
+    assert(rejects(&b, "AIR of `fn1`, bb0: condition refers to a missing local"))
+    let p = terminator(TermKind.Panic)
+    p.cond = opCopy(5, 0)
+    b.blocks[0].term = p
+    assert(rejects(&b, "AIR of `fn1`, bb0: message refers to a missing local"))
+}

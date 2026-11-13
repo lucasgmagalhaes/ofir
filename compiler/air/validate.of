@@ -1,0 +1,101 @@
+// Structural validation of AIR (stage 0: air/air_validate.c). The driver runs
+// it on every lowered body, and again after the passes that rewrite bodies,
+// so a malformed body stops the compiler before it reaches LLVM.
+
+import air.air.AirBody
+import air.air.AirStmt
+import air.air.Operand
+import air.air.OperandKind
+import air.air.RvalueKind
+import air.air.StmtKind
+import air.air.TermKind
+
+fn localOk(b: &AirBody, id: int) bool {
+    return id >= 0 && id < b.locals.len()
+}
+
+fn operandOk(b: &AirBody, o: &Operand) bool {
+    if o.kind == OperandKind.Copy || o.kind == OperandKind.Addr {
+        return localOk(b, o.local)
+    }
+    return true
+}
+
+fn stmtOk(b: &AirBody, s: &AirStmt) bool {
+    if s.hasDest && !localOk(b, s.dest) {
+        return false
+    }
+    if s.kind == StmtKind.Call {
+        for i in 0..s.args.len() {
+            if !operandOk(b, &s.args[i]) {
+                return false
+            }
+        }
+        return true
+    }
+    const rv = &s.value
+    for i in 0..rv.items.len() {
+        if !operandOk(b, &rv.items[i]) {
+            return false
+        }
+    }
+    const flagOk = rv.kind != RvalueKind.Checked || localOk(b, rv.flag)
+    return flagOk && operandOk(b, &rv.a) && operandOk(b, &rv.b)
+}
+
+fn failAt(b: &AirBody, block: int, what: str) Option<str> {
+    return Option.Some("AIR of `fn{b.def}`, bb{block}: {what}")
+}
+
+fn blockError(b: &AirBody, index: int) Option<str> {
+    const block = &b.blocks[index]
+    for i in 0..block.stmts.len() {
+        if !stmtOk(b, &block.stmts[i]) {
+            return failAt(b, index, "statement refers to a missing local")
+        }
+    }
+    const t = &block.term
+    const count = b.blocks.len()
+    if t.kind == TermKind.None {
+        return failAt(b, index, "block is not terminated")
+    }
+    if t.kind == TermKind.Branch && (t.other < 0 || t.other >= count) {
+        return failAt(b, index, "branch to a missing block")
+    }
+    if t.kind == TermKind.Branch || t.kind == TermKind.Goto || t.kind == TermKind.Assert {
+        if t.target < 0 || t.target >= count {
+            return failAt(b, index, "jump to a missing block")
+        }
+        if !operandOk(b, &t.index) || !operandOk(b, &t.len) {
+            return failAt(b, index, "bounds check refers to a missing local")
+        }
+        if !operandOk(b, &t.cond) {
+            return failAt(b, index, "condition refers to a missing local")
+        }
+    }
+    if t.kind == TermKind.Panic && !operandOk(b, &t.cond) {
+        return failAt(b, index, "message refers to a missing local")
+    }
+    return Option.None
+}
+
+/**
+ * Checks that a body is well formed: it has its return local, parameters
+ * and entry block, every block is terminated, every jump names a block of
+ * the body and every operand names one of its locals.
+ *
+ * @param b the body
+ * @returns what is wrong with it, or none
+ */
+pub fn validateBody(b: &AirBody) Option<str> {
+    if b.locals.len() < 1 + b.paramCount || b.blocks.len() == 0 {
+        return failAt(b, 0, "missing return local, parameters or entry block")
+    }
+    for i in 0..b.blocks.len() {
+        const error = blockError(b, i)
+        if error.isSome() {
+            return error
+        }
+    }
+    return Option.None
+}
