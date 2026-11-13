@@ -93,6 +93,9 @@ static void rvalue(AirPrinter *p, const Rvalue *rv) {
     case RV_PTR_ADD: operands(p, "ptr_add", rv->a, &rv->b); return;
     case RV_SIZE_OF: fprintf(p->out, "size_of %s", type_str(p, rv->to)); return;
     case RV_ALIGN_OF: fprintf(p->out, "align_of %s", type_str(p, rv->to)); return;
+    case RV_GLOBAL_ADDR:
+        fprintf(p->out, "global_addr " SV_FMT, SV_ARG(def_name(p->sema, rv->def)));
+        return;
     case RV_AGGREGATE:
         fputs("{", p->out);
         for (uint32_t i = 0; i < rv->count; i++) {
