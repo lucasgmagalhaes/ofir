@@ -14,7 +14,6 @@ static const char *const RUNTIME_NAMES[RT_COUNT] = {
     [RT_STR_PUSH_FLOAT] = "ofir_str_push_float",
     [RT_STR_PUSH_F32] = "ofir_str_push_f32",
     [RT_STR_PUSH_BOOL] = "ofir_str_push_bool",
-    [RT_STR_CONCAT] = "ofir_str_concat",
     [RT_TEST_INDEX] = "ofir_test_index",
 };
 
