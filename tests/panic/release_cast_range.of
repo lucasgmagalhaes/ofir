@@ -1,0 +1,10 @@
+// panic: value out of range for the target type of `as`
+// flags: --release
+// Optimized builds keep the range check of a narrowing `as`.
+fn narrow(byte: u8) i8 {
+    return byte as i8
+}
+
+fn main() {
+    println("{narrow(200)}")
+}

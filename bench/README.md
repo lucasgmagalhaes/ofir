@@ -9,6 +9,12 @@ runtime, then builds each Ofir program and its C (`clang -O2`), Rust
 outputs against C before measuring, performs one warmup and five timed rounds,
 then writes medians and toolchain versions to
 `build/generated-code-results.json`. It fails if any output differs.
+Besides run time, it records each executable's size and, for Ofir, the
+release compile time in an empty object cache, the peak memory of that build
+(compiler or clang, whichever is larger) and the number of functions in the
+optimized LLVM IR, so a change that multiplies monomorphized instances shows
+up. Safety checks are not traded for speed: `tests/panic/release_*.of` checks
+that `--release` keeps overflow, bounds, division and `as` range checks.
 
 For a quick baseline check without the Ofir compiler, use
 `python3 bench/run_programs.py --baselines-only --clang gcc --runs 1 --warmups 0`.
