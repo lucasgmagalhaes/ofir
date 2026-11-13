@@ -89,7 +89,7 @@ specification; the other classes are known and accepted.
 | 5.6 Explicit references (advanced) | partial | full | `tests/borrow/escape.of` `tests/borrow/escape_accepted.of` `tests/compile_fail/types/references.of` | subset: borrows are not checked against moves and mutations, and `ref struct` |
 | 5.7 Why this is fast | n/a | n/a | `tests/codegen/noalias.of` | - |
 | 5.8 Interior mutability | none | full | `tests/run/cells/cell.of` `tests/compile_fail/types/cell_copy.of` | subset: `Cell<T: Copy>` needs a bound |
-| 5.9 Shared ownership | none | none | | planned: `Rc<T>` and arena allocators |
+| 5.9 Shared ownership | none | partial | `tests/run/rc` `tests/compile_fail/types/rc_send.of` | subset: stage 0 cannot clone a generic struct by method; planned: arena allocators |
 | 6.1 `Result` and `Option` | full | full | `tests/run/errors` `tests/run/option` | - |
 | 6.2 The `?` operator | partial | full | `tests/run/errors/result.of` `tests/run/errors/try_from.of` `tests/compile_fail/types/errors.of` | subset: error conversion |
 | 6.3 Unused results | full | full | `tests/compile_fail/types/errors.of` | - |

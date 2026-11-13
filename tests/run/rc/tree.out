@@ -1,0 +1,8 @@
+mid root (root)
+root 1/1
+mid 2/1
+leaf 2/0
+drop root
+drop mid
+leaf 1, parent (dropped)
+drop leaf

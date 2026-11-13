@@ -37,7 +37,7 @@ before the feature changes state:
 
 | Feature | Owner | Gate | Source |
 |---------|-------|------|--------|
-| Shared ownership: `Rc<T>` and arena allocators in `std` | std, stage 1 checker | available gate | [spec 5.9](../spec/05-ownership.md) |
+| Arena allocators in `std` | std | available gate | [spec 5.9](../spec/05-ownership.md) |
 | `std.math` constants and functions | std | available gate | [spec 7.6](../spec/07-modules.md) |
 | The rest of the standard library beyond the bootstrap subset | std | available gate, per module ([API inventory](api-ecosystem.md)) | [spec 7.6](../spec/07-modules.md) |
 | Converting a `dyn` value to an interface it embeds (`dyn Both` to `dyn Named`) | stage 1 checker, codegen | available gate; a vtable layout for embedded interfaces | [spec 9.7](../spec/09-interfaces.md) |
