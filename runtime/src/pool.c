@@ -152,6 +152,11 @@ static Block *take_batch(int c) {
 
 // A new chunk for class `c`, or false when the range is used up.
 static bool new_chunk(Bin *b, int c) {
+    // A plain load first: once the range is used up, misses do not keep
+    // writing the shared counter.
+    if (atomic_load_explicit(&next_chunk, memory_order_relaxed) >= POOL_CHUNKS) {
+        return false;
+    }
     size_t index = atomic_fetch_add(&next_chunk, 1);
     if (index >= POOL_CHUNKS) {
         return false;
@@ -168,8 +173,9 @@ static bool new_chunk(Bin *b, int c) {
 
 // Out of line, so that the fast path of ofir_pool_alloc saves no registers.
 __attribute__((noinline, cold)) static void *refill(Bin *b, int c) {
-    if (atomic_load_explicit(&state, memory_order_acquire) != POOL_READY && !start()) {
-        return NULL;
+    int now = atomic_load_explicit(&state, memory_order_acquire);
+    if (now == POOL_DISABLED || (now != POOL_READY && !start())) {
+        return NULL;   // OFIR_SYSTEM_ALLOC, or no range: straight to malloc
     }
     Block *batch = take_batch(c);
     if (batch) {
