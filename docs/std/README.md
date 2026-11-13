@@ -11,7 +11,7 @@ required before version 1.0.
 | Module | Reference |
 |--------|-----------|
 | prelude, `std.core` | [core.md](core.md): `Option`, `Result`, `Ordering`, interfaces, numbers |
-| `std.collections` | [collections.md](collections.md): `List`, `Map`, `Box` |
+| `std.collections`, `std.arena` | [collections.md](collections.md): `List`, `Map`, `Box`, `Arena` |
 | `std.strings` | [strings.md](strings.md): `str` methods and helpers |
 | `std.io`, `std.fs`, `std.os`, `std.task`, `std.sync` | [system.md](system.md): input/output, files, processes, tasks, channels |
 | `std.mem`, `std.math`, `std.testing`, `std.fmt` | [utilities.md](utilities.md) |

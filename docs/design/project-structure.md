@@ -291,6 +291,7 @@ std/
 │   └── panic.of
 ├── mem/                      std.mem: replace and swap; take, UnsafeCell, Cell [planned]
 ├── collections/              std.collections [planned]: sets, deques; List, Map and Box are in std/core
+├── arena/                    std.arena: Arena<T> and Id<T>, values freed together
 ├── strings/                  std.strings: join, fromUtf8, Builder
 ├── fmt/                      std.fmt: formatting used by interpolation
 ├── io/                       std.io: IoError, stdin, the runtime's buffers
