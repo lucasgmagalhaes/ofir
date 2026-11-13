@@ -115,6 +115,7 @@ const uint8_t *ofir_env(const uint8_t *name, int64_t len, int64_t *value_len);  
 _Noreturn void ofir_exit(int64_t code);
 int64_t ofir_test_index(void);   // the test `ofir test` asked for, or -1
 int64_t ofir_now_ns(void);       // a monotonic clock, in nanoseconds
+void ofir_sleep_ns(int64_t ns);  // at least ns nanoseconds
 
 // Tasks (task.c, spec 14.2): std.task defines ofir_task_entry.
 void *ofir_task_spawn(void *job);   // starts a thread that runs the job
@@ -128,6 +129,8 @@ void *ofir_channel_new_bounded(int64_t capacity); // sends wait while full; 0: u
 bool ofir_channel_send(void *ch, void *value);  // false once the receiver closed
 void *ofir_channel_recv(void *ch);              // waits; NULL when no sender is left
 void *ofir_channel_try_recv(void *ch);          // NULL when the queue is empty
+// Waits until `deadline` (ofir_now_ns); NULL with *timed_out set when it passed.
+void *ofir_channel_recv_until(void *ch, int64_t deadline, bool *timed_out);
 void ofir_channel_add_sender(void *ch);
 void ofir_channel_drop_sender(void *ch);        // the last one wakes the receiver
 void ofir_channel_close(void *ch);              // later sends fail
@@ -146,6 +149,9 @@ void ofir_rwlock_free(void *l);
 void *ofir_waitgroup_new(void);
 bool ofir_waitgroup_add(void *wg, int64_t delta);   // false if the count would go below 0
 void ofir_waitgroup_wait(void *wg);                 // until the count is 0
+bool ofir_waitgroup_wait_until(void *wg, int64_t deadline); // false: not 0 by then
+// Waits on a pthread cond until `deadline` (ofir_now_ns); false once it passed.
+bool ofir_wait_until(void *cond, void *lock, int64_t deadline);
 void ofir_waitgroup_free(void *wg);
 void ofir_stdout_publish(void);     // this thread's pending line to the buffer
 // Processes (os.c, ADR 0033): `args` holds `count` NUL-terminated strings,
