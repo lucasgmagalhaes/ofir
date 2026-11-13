@@ -68,7 +68,7 @@ fn fieldBindsByMove(c: Checker, p: Program, field: &FieldPattern) bool {
  */
 pub fn bindsByMove(c: Checker, p: Program, pattern: &Pattern) bool {
     return match pattern.kind {
-        PatternKind.Binding(_, _) => c.localAt(pattern.id.0) >= 0 &&
+        PatternKind.Binding(_, _) | PatternKind.At(_, _, _) => c.localAt(pattern.id.0) >= 0 &&
                           !isCopy(c, p, c.typeOf(pattern.id.0))
         PatternKind.Variant(_, _, args, _) => anyByMove(c, p, &args)
         PatternKind.Tuple(items) => anyByMove(c, p, &items)
@@ -120,7 +120,7 @@ fn listLocals(c: Checker, list: &List<Pattern>, out: mut List<int>) {
  */
 pub fn patternLocals(c: Checker, pattern: &Pattern, out: mut List<int>) {
     match pattern.kind {
-        PatternKind.Binding(_, _) | PatternKind.TypeTest(_, _) => {
+        PatternKind.Binding(_, _) | PatternKind.TypeTest(_, _) | PatternKind.At(_, _, _) => {
             const local = c.localAt(pattern.id.0)
             if local >= 0 {
                 out.push(local)
@@ -165,7 +165,7 @@ fn initList(m: mut Moves, c: Checker, list: &List<Pattern>, s: mut State, borrow
  */
 pub fn patternInit(m: mut Moves, c: Checker, pattern: &Pattern, s: mut State, borrowed: bool) {
     match pattern.kind {
-        PatternKind.Binding(_, _) | PatternKind.TypeTest(_, _) => {
+        PatternKind.Binding(_, _) | PatternKind.TypeTest(_, _) | PatternKind.At(_, _, _) => {
             initLocal(m, c.localAt(pattern.id.0), s, borrowed)
         }
         PatternKind.Variant(_, _, args, _) => initList(m, c, &args, s, borrowed)
