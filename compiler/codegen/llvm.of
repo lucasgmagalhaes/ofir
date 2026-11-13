@@ -596,8 +596,10 @@ pub fn variantType(c: mut Checker, adt: int, v: int, units: bool) str {
 fn defineEnum(g: mut Gen, c: mut Checker, p: Program, adt: int, name: str) {
     const words = payloadWords(g, c, p, adt)
     const id = c.types.get(adt).data
+    let fields = false
     for v in 0..variantsOf(c, id).variants.len() {
         const types = fieldTypes(c, p, adt, v)
+        fields = fields || types.len() > 0
         define(g, c, p, variantType(c, adt, v, g.units), &types, false, 0)
     }
     const unit = payloadUnit(g, c, p, adt)
@@ -609,6 +611,8 @@ fn defineEnum(g: mut Gen, c: mut Checker, p: Program, adt: int, name: str) {
         g.typeDefs.push("{name} = type \{ i32, [{words} x <{unit} x i8>] \}\n")
     } else if words > 0 {
         g.typeDefs.push("{name} = type \{ i32, [{words} x i64] \}\n")
+    } else if fields {   // zero-sized fields still need a payload to point at
+        g.typeDefs.push("{name} = type \{ i32, [0 x i8] \}\n")
     } else {
         g.typeDefs.push("{name} = type \{ i32 \}\n")
     }
@@ -1298,7 +1302,7 @@ fn rvalue(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue,
         RvalueKind.PtrAdd => {
             const a = operand(g, c, p, body, &rv.a)
             const n = operand(g, c, p, body, &rv.b)
-            const elem = llvmType(g, c, p, c.types.get(rv.a.ty).inner)
+            const elem = fieldType(g, c, p, c.types.get(rv.a.ty).inner)   // `()` steps by 0
             const t = nextTemp(g)
             g.out.push("  {t} = getelementptr {elem}, ptr {a.text}, i64 {n.text}\n")
             return Value{ty: ty, text: t}
