@@ -147,6 +147,7 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0366 | an array length out of range: below 0, above 4294967295 or divided by 0 (spec 8.7) | stage 1 |
 | E0500 | non-exhaustive `match`: missing patterns | stage 0 |
 | E0501 | refutable pattern in `const` | stage 0 |
+| E0502 | the pattern after `name @` binds names (spec 4.5) | stage 1 |
 | E0600 | use of moved value `x` | stage 0 |
 | E0601 | use of possibly uninitialized variable `x` | stage 0 |
 | E0602 | cannot move out of a borrowed or indexed place | stage 0 |
