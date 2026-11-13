@@ -1,0 +1,46 @@
+// Arenas (ADR 0049): ids are copy handles, so nodes can link to each other
+// in a cycle; values are changed through getMut; clear drops every value
+// and keeps the arena usable; dropping the arena drops what it still holds.
+import std.arena.Arena
+import std.arena.Id
+
+struct City {
+    name: str
+    next: Option<Id<City>>
+    visits: int
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+fn link(cities: &mut Arena<City>, from: Id<City>, to: Id<City>) {
+    cities.getMut(from).next = Option.Some(to)
+}
+
+fn tour(cities: &Arena<City>, start: Id<City>, steps: int) str {
+    let names = cities.get(start).name.clone()
+    let at = cities.get(start).next.unwrap()
+    for _ in 1..steps {
+        names = names + " " + cities.get(at).name
+        at = cities.get(at).next.unwrap()
+    }
+    return names
+}
+
+fn main() {
+    let cities = Arena<City>.withCapacity(4)
+    const a = cities.alloc(City { name: "lisbon", next: Option.None, visits: 0 })
+    const b = cities.alloc(City { name: "porto", next: Option.None, visits: 0 })
+    const c = cities.alloc(City { name: "braga", next: Option.None, visits: 0 })
+    link(&mut cities, a, b)
+    link(&mut cities, b, c)
+    link(&mut cities, c, a)
+    println("{tour(&cities, b, 5)}")
+    cities.getMut(c).visits += 2
+    println("braga is #{c.index()}, visited {cities.get(c).visits} times; {cities.len()} cities")
+    cities.clear()
+    println("cleared: {cities.len()} cities")
+    const d = cities.alloc(City { name: "faro", next: Option.None, visits: 0 })
+    println("faro is #{d.index()}")
+}
