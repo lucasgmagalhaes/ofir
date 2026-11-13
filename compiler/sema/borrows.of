@@ -337,8 +337,28 @@ pub fn useHolder(m: Moves, c: mut Checker, s: mut State, holder: int) {
     dropConflicts(s, holder)
     const by = holderName(m, c, holder)
     for i in 0..found.len() {
-        reportConflict(m, c, &found[i], by)
+        if !reportedAt(&found, i) {
+            reportConflict(m, c, &found[i], by)
+        }
     }
+}
+
+// Whether another conflict at an overlapping place stands for the `i`th
+// one: `r.push(x)` both reads and borrows `r`, and one error is enough. A
+// read gives way to the other accesses, else the first one is kept.
+fn reportedAt(found: &List<Conflict>, i: int) bool {
+    const a = &found[i]
+    for j in 0..found.len() {
+        const b = &found[j]
+        if j != i && b.span.start < a.span.end && a.span.start < b.span.end {
+            const aRead = a.access == Access.Read
+            const bRead = b.access == Access.Read
+            if (aRead && !bRead) || (aRead == bRead && j < i) {
+                return true
+            }
+        }
+    }
+    return false
 }
 
 fn holderName(m: Moves, c: Checker, holder: int) str {
