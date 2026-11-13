@@ -1,9 +1,10 @@
 /**
  * @module
  * DWARF debug info (docs/design/toolchain.md, Debug info), written with
- * `-g`: functions and line tables, no variables or types yet. The metadata
+ * `-g`: functions, line tables, named locals and their types. The metadata
  * of the compile unit, of a `DIFile` per source file, of a `DISubprogram`
- * per function and of a `DILocation` per statement. The strings it is
+ * per function, of a `DILocation` per statement, of a `DILocalVariable` per
+ * named local and of a type node per type a local has. The strings it is
  * given are already escaped for LLVM. Stage 1 only.
  */
 
@@ -21,6 +22,8 @@ pub struct DebugInfo {
     lastScope: int
     /** The number of the last location, 0 for none. */
     lastNode: int
+    /** By type: the number of its type node. */
+    types: Map<int, int>
 
     /**
      * No metadata yet. Nodes 0 to 3 are written by `finish`: the compile
@@ -30,7 +33,7 @@ pub struct DebugInfo {
      */
     pub fn new() DebugInfo {
         return DebugInfo{nodes: "", count: 4, files: Map.new(), lastLine: 0, lastColumn: 0,
-                         lastScope: 0, lastNode: 0}
+                         lastScope: 0, lastNode: 0, types: Map.new()}
     }
 
     // A new node number.
@@ -97,15 +100,130 @@ pub struct DebugInfo {
     }
 
     /**
+     * The type node already made for a type.
+     *
+     * @param ty the type
+     * @returns its node number, or none
+     */
+    pub fn typeNode(self, ty: int) Option<int> {
+        return match self.types.get(ty) {
+            Option.Some(n) => Option.Some(*n)
+            Option.None => Option.None
+        }
+    }
+
+    /**
+     * Numbers the type node of a type before it is written, so that the
+     * types it contains can point back to it.
+     *
+     * @param ty the type
+     * @returns its node number
+     */
+    pub fn reserveType(mut self, ty: int) int {
+        const n = self.next()
+        self.types.insert(ty, n)
+        return n
+    }
+
+    /**
+     * A `DIBasicType`.
+     *
+     * @param ty the type
+     * @param name its name
+     * @param bits its size in bits
+     * @param encoding `DW_ATE_signed`, `DW_ATE_unsigned`, `DW_ATE_float` or
+     *     `DW_ATE_boolean`
+     * @returns its node number
+     */
+    pub fn basicType(mut self, ty: int, name: str, bits: int, encoding: str) int {
+        const n = self.reserveType(ty)
+        self.nodes.push("!{n} = !DIBasicType(name: \"{name}\", size: {bits}, ")
+        self.nodes.push("encoding: {encoding})\n")
+        return n
+    }
+
+    /**
+     * A pointer type, numbered by `reserveType` so that the type it points
+     * to can contain it.
+     *
+     * @param n its node number
+     * @param name its name
+     * @param pointee the node of the type it points to
+     */
+    pub fn pointerTo(mut self, n: int, name: str, pointee: int) {
+        self.nodes.push("!{n} = !DIDerivedType(tag: DW_TAG_pointer_type, name: \"{name}\", ")
+        self.nodes.push("baseType: !{pointee}, size: 64)\n")
+    }
+
+    /**
+     * A member of a struct type.
+     *
+     * @param name its name
+     * @param scope the node of the struct
+     * @param ty the node of its type
+     * @param bits its size in bits
+     * @param offset its offset in bits
+     * @returns its node number
+     */
+    pub fn member(mut self, name: str, scope: int, ty: int, bits: int, offset: int) int {
+        const n = self.next()
+        self.nodes.push("!{n} = !DIDerivedType(tag: DW_TAG_member, name: \"{name}\", ")
+        self.nodes.push("scope: !{scope}, baseType: !{ty}, size: {bits}, offset: {offset})\n")
+        return n
+    }
+
+    /**
+     * A struct type, numbered by `reserveType`; a type whose parts are not
+     * described has no members.
+     *
+     * @param n its node number
+     * @param name its name
+     * @param bits its size in bits
+     * @param members the nodes of its members
+     */
+    pub fn structType(mut self, n: int, name: str, bits: int, members: &List<int>) {
+        const elements = self.next()
+        self.nodes.push("!{n} = !DICompositeType(tag: DW_TAG_structure_type, name: \"{name}\", ")
+        self.nodes.push("size: {bits}, elements: !{elements})\n!{elements} = !\{")
+        for i in 0..members.len() {
+            self.nodes.push("{if i > 0 { ", " } else { "" }}!{members[i]}")
+        }
+        self.nodes.push("\}\n")
+    }
+
+    /**
+     * A `DILocalVariable`: a named local or parameter.
+     *
+     * @param name its name
+     * @param arg its parameter number from 1, or 0 for a local
+     * @param scope the node of its function
+     * @param file the node of its file
+     * @param line the line of its declaration
+     * @param ty the node of its type
+     * @returns its node number
+     */
+    pub fn variable(mut self, name: str, arg: int, scope: int, file: int, line: int,
+                    ty: int) int {
+        const n = self.next()
+        self.nodes.push("!{n} = !DILocalVariable(name: \"{name}\", ")
+        if arg > 0 {
+            self.nodes.push("arg: {arg}, ")
+        }
+        self.nodes.push("scope: !{scope}, file: !{file}, line: {line}, type: !{ty})\n")
+        return n
+    }
+
+    /**
      * The metadata, to write at the end of the module.
      *
      * @param root the node of the root module's file
+     * @param optimized whether the code is optimized
      * @returns the named metadata and every node
      */
-    pub fn finish(self, root: int) str {
+    pub fn finish(self, root: int, optimized: bool) str {
         let out = "!llvm.dbg.cu = !\{!0\}\n!llvm.module.flags = !\{!1\}\n\n"
         out.push("!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !{root}, ")
-        out.push("producer: \"ofir\", isOptimized: false, runtimeVersion: 0, ")
+        out.push("producer: \"ofir\", isOptimized: {optimized}, runtimeVersion: 0, ")
         out.push("emissionKind: FullDebug)\n")
         out.push("!1 = !\{i32 2, !\"Debug Info Version\", i32 3\}\n")
         out.push("!2 = !DISubroutineType(types: !3)\n!3 = !\{\}\n")

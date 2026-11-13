@@ -1965,6 +1965,154 @@ fn subprogram(g: mut Gen, c: Checker, body: &AirBody, header: str) int {
     return g.di.subprogram(name, file, line)
 }
 
+// The name of a type in debug info, escaped for LLVM.
+fn debugTypeName(c: Checker, ty: int) str {
+    let name = ""
+    escapedBytes(name, c.typeName(ty))
+    return name
+}
+
+// The debug type node of `ty`: bool, integers and floats are basic types,
+// a thin reference or pointer points to its pointee, a struct has its
+// fields as members, and any other type is a struct of its size with no
+// members.
+fn debugType(g: mut Gen, c: mut Checker, p: Program, ty: int) int {
+    if const Option.Some(n) = g.di.typeNode(ty) {
+        return n
+    }
+    const t = c.types.get(ty)
+    const kind = t.kind
+    const data = t.data
+    const inner = t.inner
+    const name = debugTypeName(c, ty)
+    if kind == TyKind.Bool {
+        return g.di.basicType(ty, name, 8, "DW_ATE_boolean")
+    }
+    if kind == TyKind.Int {
+        const encoding = if isSigned(c, ty) { "DW_ATE_signed" } else { "DW_ATE_unsigned" }
+        return g.di.basicType(ty, name, intBits(data), encoding)
+    }
+    if kind == TyKind.Float {
+        return g.di.basicType(ty, name, data, "DW_ATE_float")
+    }
+    if (kind == TyKind.Ref || kind == TyKind.Ptr) && !c.types.isFat(ty) {
+        const n = g.di.reserveType(ty)
+        const pointee = debugType(g, c, p, inner)
+        g.di.pointerTo(n, name, pointee)
+        return n
+    }
+    const bits = layout(g, c, p, ty).size * 8
+    const n = g.di.reserveType(ty)
+    let members: List<int> = []
+    if kind == TyKind.Adt && c.def(data).kind == DefKind.Struct && c.info[data].fields.isSome() {
+        members = debugMembers(g, c, p, ty, n)
+    } else if kind == TyKind.Str {
+        members = strMembers(g, n)
+    }
+    g.di.structType(n, name, bits, &members)
+    return n
+}
+
+// The members of `str` (runtime/include/ofir_rt.h), whose node is
+// `scope`: its bytes as characters, so that a debugger prints the text,
+// its length and its capacity. Their types have no type of the program, so
+// they are kept under negative numbers.
+fn strMembers(g: mut Gen, scope: int) List<int> {
+    const byte = match g.di.typeNode(-1) {
+        Option.Some(n) => n
+        Option.None => g.di.basicType(-1, "char", 8, "DW_ATE_unsigned_char")
+    }
+    const bytes = match g.di.typeNode(-2) {
+        Option.Some(n) => n
+        Option.None => {
+            const n = g.di.reserveType(-2)
+            g.di.pointerTo(n, "", byte)
+            n
+        }
+    }
+    const word = match g.di.typeNode(-3) {
+        Option.Some(n) => n
+        Option.None => g.di.basicType(-3, "i64", 64, "DW_ATE_signed")
+    }
+    let members: List<int> = []
+    members.push(g.di.member("ptr", scope, bytes, 64, 0))
+    members.push(g.di.member("len", scope, word, 64, 64))
+    members.push(g.di.member("cap", scope, word, 64, 128))
+    return members
+}
+
+// The members of the struct type `ty`, whose node is `scope`, at the
+// offsets of their slots.
+fn debugMembers(g: mut Gen, c: mut Checker, p: Program, ty: int, scope: int) List<int> {
+    const id = c.types.get(ty).data
+    const declared = fieldTypes(c, p, ty, -1)
+    const slots = fieldSlots(g, c, p, ty)
+    const types = slotTypes(g, c, p, ty, &declared)
+    const packed = isPacked(c, p, id)
+    let offsets: List<int> = []
+    let at = 0
+    for i in 0..types.len() {
+        const l = layout(g, c, p, types[i])
+        if !packed {
+            at = (at + l.align - 1) / l.align * l.align
+        }
+        offsets.push(at)
+        at += l.size
+    }
+    const info = fieldsOf(c, id)
+    const tuple = info.isTuple
+    let names: List<str> = []
+    for i in 0..declared.len() {
+        names.push(if tuple { "{i}".toOwned() } else { c.text(info.names[i]).toOwned() })
+    }
+    let members: List<int> = []
+    for i in 0..declared.len() {
+        const fieldTy = debugType(g, c, p, declared[i])
+        const bits = layout(g, c, p, declared[i]).size * 8
+        const m = g.di.member(names[i], scope, fieldTy, bits, offsets[slots[i]] * 8)
+        members.push(m)
+    }
+    return members
+}
+
+// With debug info, declares each named local of `body` to the debugger,
+// after the prologue stored the parameters: through its pointer when it is
+// held by reference, as a captured variable is.
+fn declareLocals(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, params: &List<int>) {
+    let captured = List.filled(false, body.locals.len())
+    if const Option.Some(info) = body.closure {
+        for j in 0..info.captures.len() {
+            captured[info.captures[j]] = true
+        }
+    }
+    const file = debugFile(g, c, body.span.file)
+    for i in 1..body.locals.len() {
+        const local = &body.locals[i]
+        const named = match local.name {
+            Option.Some(sym) => c.text(sym).toOwned()
+            Option.None => ""
+        }
+        if named.len() == 0 || named.startsWith("_") || !(local.byRef || hasValue(c, local.ty)) {
+            continue
+        }
+        let arg = 0
+        for k in 0..params.len() {
+            if params[k] == i {
+                arg = k + 1
+            }
+        }
+        let name = ""
+        escapedBytes(name, named)
+        const ty = debugType(g, c, p, local.ty)
+        const line = c.r.map.file(local.span.file).lineCol(local.span.start).line
+        const v = g.di.variable(name, arg, g.scope, file, line, ty)
+        const deref = local.byRef || captured[i]
+        const expr = if deref { "!DIExpression(DW_OP_deref)" } else { "!DIExpression()" }
+        g.out.push("  call void @llvm.dbg.declare(metadata ptr %l{i}, metadata !{v}, ")
+        g.out.push("metadata {expr})\n")
+    }
+}
+
 // With debug info, starts collecting the instructions of a statement:
 // returns the function so far.
 fn tagStart(g: mut Gen) str {
@@ -1980,9 +2128,16 @@ fn tagEnd(g: mut Gen, c: Checker, held: move str, span: Span) {
     if g.scope == 0 {
         return
     }
-    const text = mem.replace(g.out, held)
     const pos = c.r.map.file(span.file).lineCol(span.start)
-    const loc = g.di.location(pos.line, pos.column, g.scope)
+    tagLines(g, held, pos.line, pos.column)
+}
+
+// Appends the instructions collected since `tagStart` to `held`, each at
+// `row` and `column`; row 0 is no line, as for the prologue, so that a
+// debugger stops after it.
+fn tagLines(g: mut Gen, held: move str, row: int, column: int) {
+    const text = mem.replace(g.out, held)
+    const loc = g.di.location(row, column, g.scope)
     for line in text.lines() {
         g.out.push(line)
         if line.startsWith("  ") {   // not a label
@@ -2122,8 +2277,13 @@ fn genBody(g: mut Gen, c: mut Checker, p: Program, body: &AirBody) {
        c.types.kind(c.types.get(body.targs).args[0]) == TyKind.Dyn {
         dropDyn(g)
     }
+    if g.scope != 0 {
+        declareLocals(g, c, p, body, &params)
+    }
     g.out.push("  br label %bb0\n")
-    tagEnd(g, c, prologue, body.span)
+    if g.scope != 0 {
+        tagLines(g, prologue, 0, 0)
+    }
     for b in 0..body.blocks.len() {
         g.out.push("bb{b}:\n")
         const block = &body.blocks[b]
@@ -2320,6 +2480,9 @@ pub fn generate(c: mut Checker, p: Program, bodies: &List<AirBody>, debug: bool,
     vtables(g, c, p)
     noDrop(g)
     g.module.push(runtimeDecls())
+    if g.debug {
+        g.module.push("declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind\n")
+    }
     if g.formats {
         g.module.push("declare void @ofir_str_push_fixed(ptr, double, i64) nounwind\n")
     }
@@ -2330,7 +2493,7 @@ pub fn generate(c: mut Checker, p: Program, bodies: &List<AirBody>, debug: bool,
     g.module.push(g.globals)
     if debug {
         g.module.push("\n")
-        g.module.push(g.di.finish(root))
+        g.module.push(g.di.finish(root, g.optimize))
     }
     return g.module
 }
@@ -2477,6 +2640,9 @@ fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut
     noDrop(g)
     mutGlobals(g, c, p)
     g.module.push(runtimeDecls())
+    if g.debug {
+        g.module.push("declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind\n")
+    }
     if g.formats {
         g.module.push("declare void @ofir_str_push_fixed(ptr, double, i64) nounwind\n")
     }
@@ -2487,7 +2653,7 @@ fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut
     g.module.push(g.globals)
     if debug {
         g.module.push("\n")
-        g.module.push(g.di.finish(root))
+        g.module.push(g.di.finish(root, g.optimize))
     }
     return Draft{module: module, parts: g.parts, links: g.links, tail: g.module,
                  externs: externs}

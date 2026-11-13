@@ -27,9 +27,50 @@ fn finishWritesTheFixedNodes() {
     const file = di.file(0, "a.of", "/src")
     const f = di.subprogram("main", file, 1)
     di.location(2, 1, f)
-    const out = di.finish(file)
+    const out = di.finish(file, false)
     assert(out.startsWith("!llvm.dbg.cu = !\{!0\}\n"))
-    assert(out.contains("file: !4, producer: \"ofir\""))
+    assert(out.contains("file: !4, producer: \"ofir\", isOptimized: false"))
     assert(out.contains("!5 = distinct !DISubprogram(name: \"main\", scope: !4, "))
     assert(out.contains("!6 = !DILocation(line: 2, column: 1, scope: !5)\n"))
+}
+
+@test
+fn typesAreCreatedOnce() {
+    let di = DebugInfo.new()
+    const int = di.basicType(7, "int", 64, "DW_ATE_signed")
+    assert(int == 4)
+    assert((di.typeNode(7) ?? 0) == 4)
+    assert(di.typeNode(8).isNone())
+    const out = di.finish(0, true)
+    assert(out.contains("isOptimized: true"))
+    assert(out.contains("!4 = !DIBasicType(name: \"int\", size: 64, encoding: DW_ATE_signed)\n"))
+}
+
+@test
+fn aStructCanPointToItself() {
+    let di = DebugInfo.new()
+    const node = di.reserveType(9)
+    const next = di.reserveType(10)
+    di.pointerTo(next, "&Node", node)
+    const m = di.member("next", node, next, 64, 0)
+    di.structType(node, "Node", 64, &[m])
+    const out = di.finish(0, false)
+    assert(out.contains("!5 = !DIDerivedType(tag: DW_TAG_pointer_type, name: \"&Node\", "))
+    assert(out.contains("baseType: !4, size: 64)\n"))
+    assert(out.contains("!6 = !DIDerivedType(tag: DW_TAG_member, name: \"next\", scope: !4, "))
+    assert(out.contains("!4 = !DICompositeType(tag: DW_TAG_structure_type, name: \"Node\", "))
+    assert(out.contains("size: 64, elements: !7)\n!7 = !\{!6\}\n"))
+}
+
+@test
+fn aParameterHasItsNumber() {
+    let di = DebugInfo.new()
+    const file = di.file(0, "a.of", "/src")
+    const f = di.subprogram("area", file, 1)
+    const int = di.basicType(7, "int", 64, "DW_ATE_signed")
+    di.variable("p", 1, f, file, 1, int)
+    di.variable("w", 0, f, file, 2, int)
+    const out = di.finish(file, false)
+    assert(out.contains("!DILocalVariable(name: \"p\", arg: 1, scope: !5, file: !4, line: 1, "))
+    assert(out.contains("!DILocalVariable(name: \"w\", scope: !5, file: !4, line: 2, type: !6)"))
 }
