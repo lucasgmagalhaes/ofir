@@ -1525,6 +1525,9 @@ fn coercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
     if c.types.get(c.typeOf(e.id.0)).data == c.r.langItems[7] {
         return mutSliceCoercion(l, c, p, e, elem)
     }
+    if elem < 0 {
+        return borrowedListCoercion(l, c, p, e, -1 - elem)
+    }
     const id = langMethod(c, p, c.r.langItems[1], "asSlice")
     const forwarded = l.forward
     l.forward = false
@@ -1564,6 +1567,28 @@ fn mutSliceCoercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, elem: 
     c.sliceCoercions[m].insert(e.id.0, elem)
     const dest = newTemp(l, ty)
     const receiver = placeOperand(&place, OperandKind.Addr, c.types.ptr(list, true))
+    emitCall(l, id, c.types.tuple([elem]), [receiver], dest)
+    return opCopy(dest, ty)
+}
+
+// `&list` where a `&[T]` is expected: `list.asSlice()` through the reference.
+fn borrowedListCoercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
+                        elem: int) Operand {
+    const id = langMethod(c, p, c.r.langItems[1], "asSlice")
+    const ty = c.typeOf(e.id.0)
+    const list = c.types.adt(c.r.langItems[1], [elem])
+    const m = c.module()
+    const code = c.sliceCoercions[m].remove(e.id.0).unwrap()
+    c.setType(e.id.0, c.types.ref(list, false))
+    const place = Place{local: toLocal(l, lowerExpr(l, c, p, e)), fields: [], deref: true}
+    c.setType(e.id.0, ty)
+    c.sliceCoercions[m].insert(e.id.0, code)
+    const dest = newTemp(l, ty)
+    const receiver = if byAddress(c, p, id, -1) {
+        placeOperand(&place, OperandKind.Addr, c.types.ptr(list, false))
+    } else {
+        placeOperand(&place, OperandKind.Copy, list)
+    }
     emitCall(l, id, c.types.tuple([elem]), [receiver], dest)
     return opCopy(dest, ty)
 }
