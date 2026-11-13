@@ -208,7 +208,7 @@ struct Matrix<const R: int, const C: int> {
 }
 
 fn twice<const N: int>(xs: [int; N]) [int; N * 2] {
-    let out = [0; N * 2]
+    let out: [int; N * 2] = [0; N * 2]
     for i in 0..N {
         out[i] = xs[i]
         out[i + N] = xs[i]
