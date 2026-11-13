@@ -412,7 +412,11 @@ pub fn checkBinary(c: mut Checker, p: Program, span: Span, op: Op, lhs: &Expr, r
 fn cast(c: mut Checker, p: Program, e: &Expr, value: &Expr, to: &TypeExpr) int {
     const from = checkExpr(c, p, value, ERROR)
     const target = resolveType(c, p, to)
-    if pointerCast(c, from, target, e.span) {
+    const zero = match value.kind {   // `0 as *T`: the null pointer
+        ExprKind.Int(v) => v == 0
+        _ => false
+    }
+    if pointerCast(c, from, target, e.span, zero) {
         return target
     }
     const fromNumber = c.types.isNumeric(from) || numeric(c, from) != 0
