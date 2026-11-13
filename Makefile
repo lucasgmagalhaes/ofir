@@ -38,16 +38,17 @@ check-format:
 	$(PYTHON) tools/check_format.py
 
 # Every run test and example under valgrind: no leaks, no invalid accesses.
-check-leaks: stage0 runtime
-	$(PYTHON) tools/check_leaks.py --compiler $(BUILD)/stage0/ofir$(EXE)
+# Stage 1 compiles every program stage 0 does, and the stage 1 only ones.
+check-leaks: stage1 runtime
+	$(STAGE_ENV) $(PYTHON) tools/check_leaks.py --compiler $(BUILD)/stage1/ofir$(EXE)
 
 # The `@test` functions of std and of the stage 1 compiler (spec 12.2).
 test-std: stage0 runtime
 	$(PYTHON) tools/run_std_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
 
 # Every run and panic test and example under ASan and UBSan (needs gcc).
-check-asan: stage0 runtime
-	$(PYTHON) tools/check_asan.py --compiler $(BUILD)/stage0/ofir$(EXE)
+check-asan: stage1 runtime
+	$(STAGE_ENV) $(PYTHON) tools/check_asan.py --compiler $(BUILD)/stage1/ofir$(EXE)
 
 # Stage 1 (compiler/, built by stage 0) gives the same output as stage 0.
 compare-stages: stage1
