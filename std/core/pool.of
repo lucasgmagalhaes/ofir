@@ -380,15 +380,19 @@ fn giveBack(b: *mut Bin, c: int, block: *mut u8) {
 }
 
 /*
- * Puts the pool block `ptr` back on the calling thread's list.
+ * Puts the pool block `ptr` back on the calling thread's list, or returns
+ * false when `ptr` is not a pool block.
  */
 @export("ofir_pool_free")
-extern "C" fn poolFree(ptr: *mut u8) {
+extern "C" fn poolFree(ptr: *mut u8) bool {
+    if !unsafe { poolOwns(ptr as *u8) } {
+        return false
+    }
     let bins = unsafe { BINS }
     if bins == (0 as *mut Bin) {
         bins = threadBins()
         if bins == (0 as *mut Bin) {
-            return   // no room for the bins: the block stays out of use
+            return true   // no room for the bins: the block stays out of use
         }
     }
     const c = classAt(unsafe { ptr as *u8 })
@@ -400,19 +404,6 @@ extern "C" fn poolFree(ptr: *mut u8) {
         if (*b).room <= 0 {
             giveBack(b, c, ptr)
         }
-    }
-}
-
-/*
- * Frees a pool block, or returns false when `ptr` is not one.
- */
-@export("ofir_pool_try_free")
-extern "C" fn poolTryFree(ptr: *mut u8) bool {
-    if !unsafe { poolOwns(ptr as *u8) } {
-        return false
-    }
-    unsafe {
-        poolFree(ptr)
     }
     return true
 }

@@ -104,7 +104,7 @@ void *ofir_realloc_aligned(void *ptr, int64_t size, int64_t align) {
 }
 
 void ofir_free(void *ptr) {
-    if (ofir_pool_try_free(ptr)) {
+    if (ofir_pool_free(ptr)) {
         return;
     }
 #ifdef _WIN32

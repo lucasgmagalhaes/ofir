@@ -60,8 +60,7 @@ void ofir_free(void *ptr);
 void *ofir_pool_alloc(int64_t size);
 bool ofir_pool_owns(const void *ptr);
 int64_t ofir_pool_block_size(const void *ptr);
-void ofir_pool_free(void *ptr);
-bool ofir_pool_try_free(void *ptr);   // frees a pool block, or returns false
+bool ofir_pool_free(void *ptr);   // frees a pool block, or returns false
 void ofir_pool_thread_exit(void);   // gives a task thread's free blocks back
 void *ofir_mem_reserve(int64_t size);
 bool ofir_mem_commit(void *ptr, int64_t size);
