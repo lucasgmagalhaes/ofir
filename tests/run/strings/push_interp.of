@@ -1,0 +1,18 @@
+// `s.push("...")` with an interpolation appends the parts to `s` directly
+// when no part can read `s`; otherwise it builds the string first.
+
+fn main() {
+    let s = "n="
+    const n = 41
+    const big: u64 = 18446744073709551615
+    for i in 0..3 {
+        s.push("{i * 7},{n + 1} {-n} {big} {i < 2} {1.5} {i as u8};")
+    }
+    println(s)
+    let t = "ab"
+    t.push("{t.len()}:{t}")   // reads `t`: built first
+    println(t)
+    let u = "x"
+    u.push("{u}{u}")
+    println(u)
+}
