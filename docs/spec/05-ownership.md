@@ -429,4 +429,4 @@ println("{a.owners()} {*b.get()}")   // 2 5
 ```
 
 Stage 1 only: stage 0 cannot clone a generic struct through its `clone`
-method. Arena allocators are planned.
+method. Arena allocators are **[planned]**.
