@@ -1,0 +1,55 @@
+// The tests of `std.core.str` (OFIR-41, ADR 0056): `ofir test std/core/str.of` runs them.
+
+import std.testing.assert
+
+@test
+fn rfindFindsTheLastMatch() {
+    assert(("a/b/c".rfind("/") ?? -1) == 3)
+    assert(("abc".rfind("") ?? -1) == 3)
+    assert("abc".rfind("x").isNone())
+    assert("ab".rfind("abc").isNone())
+}
+
+@test
+fn splitOnceSplitsAtTheFirstSeparator() {
+    const pair = "a=b=c".splitOnce("=") ?? ("?", "?")
+    assert(pair.0 == "a" && pair.1 == "b=c")
+    assert("abc".splitOnce("=").isNone())
+}
+
+@test
+fn stripRemovesOnlyAMatchingAffix() {
+    assert(("v1.2".stripPrefix("v") ?? "?") == "1.2")
+    assert("1.2".stripPrefix("v").isNone())
+    assert(("main.of".stripSuffix(".of") ?? "?") == "main")
+    assert("main".stripSuffix(".of").isNone())
+}
+
+@test
+fn bytesAndCharactersAreCountedApart() {
+    const text = "aé€😀"
+    assert(text.len() == 10)
+    assert(text.charCount() == 4)
+    assert(text.asBytes().len() == 10)
+    assert(text.asBytes()[1] == 0xC3)
+    assert(text.isCharBoundary(0) && text.isCharBoundary(1) && text.isCharBoundary(10))
+    assert(!text.isCharBoundary(2) && !text.isCharBoundary(11) && !text.isCharBoundary(-1))
+}
+
+@test
+fn charIndicesGiveByteOffsets() {
+    let offsets = ""
+    for pair in "aé€😀".charIndices() {
+        offsets.push("{pair.0}:{pair.1} ")
+    }
+    assert(offsets == "0:97 1:233 3:8364 6:128512 ")
+}
+
+@test
+fn asciiChecksIgnoreOtherBytes() {
+    assert("plain text".isAscii())
+    assert(!"café".isAscii())
+    assert("HeLLo-1".eqIgnoreAsciiCase("hello-1"))
+    assert(!"É".eqIgnoreAsciiCase("é"))
+    assert(!"ab".eqIgnoreAsciiCase("abc"))
+}
