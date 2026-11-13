@@ -71,6 +71,9 @@ Operand lower_method_call(Lowerer *l, Expr *call) {
     }
     if (field->as.field.res.kind == RES_DEF) {   // a method declared in a type
         FnDecl *fn = sema_def(l->sema, (DefId){field->as.field.res.index})->fn;
+        if (lower_push_interpolation(l, call, fn)) {
+            return op_unit();
+        }
         return emit_user_call(l, call, fn, fn->has_self ? field->as.field.base : NULL);
     }
     return builtin_call(l, call);
