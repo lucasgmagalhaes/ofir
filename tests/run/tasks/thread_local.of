@@ -1,0 +1,26 @@
+// requires: stage1
+// Each thread has its own copy of a `@threadLocal` global, made from its
+// initializer (spec 11.5).
+
+import std.task
+
+@threadLocal
+let COUNT: int = 10
+
+fn bump(n: int) int {
+    for _ in 0..n {
+        unsafe {
+            COUNT += 1
+        }
+    }
+    unsafe {
+        return COUNT
+    }
+}
+
+fn main() {
+    println("{bump(5)}")
+    const handle = task.run(move () int => bump(2))
+    println("{handle.join()}")
+    println("{bump(1)}")
+}

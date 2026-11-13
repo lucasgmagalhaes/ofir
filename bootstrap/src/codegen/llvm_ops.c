@@ -301,6 +301,8 @@ void gen_mut_globals(Gen *g) {
         } else if (v && v->kind == CV_BOOL) {
             fmt_into(init, sizeof init, "%s", v->b ? "true" : "false");
         }
-        out_fmt(&g->out, "\n%s = internal global %s %s\n", name, llvm_type(g, def->type), init);
+        bool tls = find_attribute(g->sema, def->item->attributes, "threadLocal");
+        out_fmt(&g->out, "\n%s = internal %sglobal %s %s\n", name, tls ? "thread_local " : "",
+                llvm_type(g, def->type), init);
     }
 }

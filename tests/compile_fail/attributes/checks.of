@@ -37,3 +37,9 @@ extern "C" {
 
 fn main() {
 }
+
+@threadLocal   // error[E0808]: the attribute `@threadLocal` does not apply to a constant
+const LIMIT: int = 4
+
+@threadLocal(1)   // error[E0809]: invalid arguments for `@threadLocal`: write `@threadLocal`
+let SLOTS: int = 4
