@@ -699,6 +699,111 @@ fn strPushUint(s: mut str, n: u64) {
     pushDigits(s, n)
 }
 
+// A `{n:x}` part (spec 1.7) of the low `format >> 8 & 0xFF` bits of `n` in base
+// `format & 0xFF`, upper case with bit 16: the lowering calls it (lower_expr.of).
+fn strPushRadix(s: mut str, n: u64, format: i64) {
+    const base = (format & 0xFF) as u64
+    const bits = (format >> 8) & 0xFF
+    let value = n
+    if bits < 64 {
+        const one: u64 = 1
+        value &= (one << (bits as u64)) - 1
+    }
+    const digits = if (format >> 16) & 1 != 0 { "0123456789ABCDEF" } else { "0123456789abcdef" }
+    let count = 1
+    let rest = value
+    for rest >= base {
+        rest /= base
+        count += 1
+    }
+    s.reserve(count)
+    unsafe {
+        const at = s.ptr.add(s.len) as *mut u8
+        let i = count
+        for i > 0 {
+            i -= 1
+            *at.add(i) = digits[(value % base) as int]
+            value /= base
+        }
+    }
+    s.len += count
+}
+
+// A part with a width (spec 1.7): `padding` holds the width in its low 32
+// bits, left alignment in bit 32 and zero filling in bit 33. A zero fill goes
+// after the sign. The lowering calls it (lower_expr.of).
+fn strPushPadded(s: mut str, part: str, padding: i64) {
+    const width = padding & 0xFFFFFFFF
+    const left = (padding >> 32) & 1 != 0
+    const zero = (padding >> 33) & 1 != 0
+    let count = 0   // the width counts Unicode scalar values
+    for i in 0..part.len {
+        if part[i] & 0xC0 != 0x80 {
+            count += 1
+        }
+    }
+    const pad = if width > count { width - count } else { 0 }
+    const signed = zero && part.len > 0 && (part[0] == b'-' || part[0] == b'+')
+    const sign = if signed { 1 } else { 0 }
+    s.reserve(part.len + pad)
+    const head = if left { part.len } else { sign }
+    unsafe {
+        s.push(part.sliceUnchecked(0, head))
+    }
+    const fill = if zero { b'0' } else { b' ' }
+    for _ in 0..pad {
+        s.pushByte(fill)
+    }
+    if !left {
+        unsafe {
+            s.push(part.sliceUnchecked(sign, part.len))
+        }
+    }
+}
+
+// A `{t:?}` part of a str (spec 9.9): quoted, with `"`, `\`, control bytes
+// and DEL escaped. The lowering calls it (lower_expr.of).
+fn strPushDebug(s: mut str, t: str) {
+    s.reserve(t.len + 2)
+    s.pushByte(b'"')
+    let run = 0   // the start of the bytes not yet appended
+    for i in 0..t.len {
+        const c = t[i]
+        const esc = debugEscape(c)
+        if esc != 0 || c < 0x20 || c == 0x7F {
+            unsafe {
+                s.push(t.sliceUnchecked(run, i))
+            }
+            run = i + 1
+            s.pushByte(b'\\')
+            if esc != 0 {
+                s.pushByte(esc)
+            } else {
+                s.pushByte(b'x')
+                s.pushByte("0123456789abcdef"[(c >> 4) as int])
+                s.pushByte("0123456789abcdef"[(c & 15) as int])
+            }
+        }
+    }
+    unsafe {
+        s.push(t.sliceUnchecked(run, t.len))
+    }
+    s.pushByte(b'"')
+}
+
+// The letter after `\` that escapes `c` in debug output, or 0.
+fn debugEscape(c: u8) u8 {
+    return match c {
+        b'"' => b'"'
+        b'\\' => b'\\'
+        b'\n' => b'n'
+        b'\t' => b't'
+        b'\r' => b'r'
+        0 => b'0'
+        _ => 0
+    }
+}
+
 // Appends the decimal digits of `n`, two per division, from the last.
 fn pushDigits(s: mut str, n: u64) {
     let count = 1

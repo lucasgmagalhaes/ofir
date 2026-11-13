@@ -1679,8 +1679,7 @@ fn runtimeCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirSt
     if s.rt == RuntimeFn.Free {
         g.heap = true   // declared with `ofir_alloc`
     }
-    if s.rt == RuntimeFn.StrPushFixed || s.rt == RuntimeFn.StrPushRadix ||
-       s.rt == RuntimeFn.StrPushPadded || s.rt == RuntimeFn.StrPushDebug {
+    if s.rt == RuntimeFn.StrPushFixed {
         g.formats = true
     }
     let result = ""
@@ -2237,9 +2236,6 @@ pub fn generate(c: mut Checker, p: Program, bodies: &List<AirBody>, debug: bool,
     g.module.push(runtimeDecls())
     if g.formats {
         g.module.push("declare void @ofir_str_push_fixed(ptr, double, i64) nounwind\n")
-        g.module.push("declare void @ofir_str_push_radix(ptr, i64, i64) nounwind\n")
-        g.module.push("declare void @ofir_str_push_padded(ptr, ptr, i64) nounwind\n")
-        g.module.push("declare void @ofir_str_push_debug(ptr, ptr) nounwind\n")
     }
     overflowDecls(g)
     floatDecls(g)
@@ -2397,9 +2393,6 @@ fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut
     g.module.push(runtimeDecls())
     if g.formats {
         g.module.push("declare void @ofir_str_push_fixed(ptr, double, i64) nounwind\n")
-        g.module.push("declare void @ofir_str_push_radix(ptr, i64, i64) nounwind\n")
-        g.module.push("declare void @ofir_str_push_padded(ptr, ptr, i64) nounwind\n")
-        g.module.push("declare void @ofir_str_push_debug(ptr, ptr) nounwind\n")
     }
     overflowDecls(g)
     floatDecls(g)

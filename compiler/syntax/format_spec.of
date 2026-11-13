@@ -79,7 +79,7 @@ pub fn parseFormatSpec(text: str) FormatSpec {
 }
 
 /**
- * The padding of a specifier as the runtime takes it (ofir_str_push_padded):
+ * The padding of a specifier as `strPushPadded` takes it (std/core/str.of):
  * the width, bit 32 for left aligned, bit 33 for zero padded.
  *
  * @param f the specifier
@@ -97,7 +97,7 @@ pub fn paddingBits(f: FormatSpec) int {
 }
 
 /**
- * The radix of a specifier as the runtime takes it (ofir_str_push_radix):
+ * The radix of a specifier as `strPushRadix` takes it (std/core/str.of):
  * the radix, the bits of the type shifted by 8, bit 16 for upper case.
  *
  * @param f the specifier

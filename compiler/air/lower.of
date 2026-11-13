@@ -222,6 +222,10 @@ pub struct Lowerer {
     /** `strPushInt` and `strPushUint` of std/core/str.of: `{n}` parts. */
     pub strPushInt: int
     pub strPushUint: int
+    /** `strPushRadix`, `strPushPadded` and `strPushDebug`: `{x:spec}` parts. */
+    pub strPushRadix: int
+    pub strPushPadded: int
+    pub strPushDebug: int
     /** A construct stage 1 does not lower yet was met. */
     pub unsupported: bool
     /** What it was. */
@@ -302,6 +306,9 @@ fn stdRuntime(l: Lowerer, f: RuntimeFn) int {
         RuntimeFn.StrPushBool => l.strPushBool
         RuntimeFn.StrPushInt => l.strPushInt
         RuntimeFn.StrPushUint => l.strPushUint
+        RuntimeFn.StrPushRadix => l.strPushRadix
+        RuntimeFn.StrPushPadded => l.strPushPadded
+        RuntimeFn.StrPushDebug => l.strPushDebug
         _ => 0
     }
 }
@@ -318,7 +325,8 @@ pub fn emitRuntime(l: mut Lowerer, f: RuntimeFn, args: move List<Operand>, dest:
     const callee = stdRuntime(l, f)
     if callee != 0 {   // std/core/str.of
         let parts = args
-        if f == RuntimeFn.StrPushStr {   // the part is passed by value
+        if f == RuntimeFn.StrPushStr || f == RuntimeFn.StrPushPadded ||
+           f == RuntimeFn.StrPushDebug {   // the part is passed by value
             parts[1].kind = OperandKind.Copy
         }
         emitCall(l, callee, UNIT, parts, dest)
@@ -1684,7 +1692,10 @@ pub fn lowerProgram(c: mut Checker, p: Program) Lowerer {
                     strPushStr: stdFn(c, p, "std.core.str", "strPushStr"),
                     strPushBool: stdFn(c, p, "std.core.str", "strPushBool"),
                     strPushInt: stdFn(c, p, "std.core.str", "strPushInt"),
-                    strPushUint: stdFn(c, p, "std.core.str", "strPushUint"), unsupported: false,
+                    strPushUint: stdFn(c, p, "std.core.str", "strPushUint"),
+                    strPushRadix: stdFn(c, p, "std.core.str", "strPushRadix"),
+                    strPushPadded: stdFn(c, p, "std.core.str", "strPushPadded"),
+                    strPushDebug: stdFn(c, p, "std.core.str", "strPushDebug"), unsupported: false,
                     missing: "", out: [], tests: [], comptimes: []}
     if !c.r.testing {
         checkMain(c, p)
