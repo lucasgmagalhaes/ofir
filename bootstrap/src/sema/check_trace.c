@@ -115,7 +115,7 @@ static void const_line(Sema *sema, FILE *out, const Item *item) {
             SV_ARG(name_of(sema, item->name)));
     if (def && def->item == item && def->typed) {
         type_line(sema, out, def->type);
-        if (def->value) {
+        if (def->value && item->kind == ITEM_CONST) {   // not a global's initial value
             fputs(" = ", out);
             value_text(sema, out, def->value);
         }

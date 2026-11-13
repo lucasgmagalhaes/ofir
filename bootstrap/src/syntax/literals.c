@@ -48,7 +48,13 @@ static void float_rest(Lexer *lx, uint32_t start) {
             strbuf_push(&digits, lx->src[i]);
         }
     }
-    emit(lx, TOK_FLOAT, start)->as.float_value = strtod(digits.data, NULL);
+    char *end = NULL;
+    double value = strtod(digits.data, &end);
+    if (end != digits.data + digits.len) {   // `2.5e`: an exponent without digits
+        error(lx, "E0005", span_from(lx, start), "invalid float literal");
+        value = 0.0;
+    }
+    emit(lx, TOK_FLOAT, start)->as.float_value = value;
     strbuf_free(&digits);
 }
 

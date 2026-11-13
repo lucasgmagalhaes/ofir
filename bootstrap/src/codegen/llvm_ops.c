@@ -1,6 +1,7 @@
 // LLVM IR for operands and rvalues.
 
 #include "codegen/llvm_internal.h"
+#include "sema/const_eval.h"
 
 #include <inttypes.h>
 #include <string.h>
@@ -33,6 +34,26 @@ static void float_text(char *out, size_t size, double value, bool is_f32) {
     uint64_t bits;
     memcpy(&bits, &exact, sizeof bits);
     fmt_into(out, size, "0x%016" PRIX64, bits);
+}
+
+// The symbol of the mutable global `id`: `@"ofir.g.<module>.<name>"`.
+static void global_name(Gen *g, uint32_t id, char *out, size_t size) {
+    const Def *def = sema_def(g->sema, (DefId){id});
+    StrView name = def_name(g, (DefId){id});
+    Out text = {0};
+    out_to_memory(&text);
+    out_str(&text, "@\"ofir.g.");
+    if (def->module != 0) {
+        StrView module = g->sema->program.items[def->module].name;
+        out_write(&text, module.ptr, module.len);
+        out_char(&text, '.');
+    }
+    out_write(&text, name.ptr, name.len);
+    out_char(&text, '"');
+    size_t n = text.len < size - 1 ? text.len : size - 1;
+    memcpy(out, text.buf, n);
+    out[n] = '\0';
+    out_free(&text);
 }
 
 // The discriminants of the niche enum `g->niche_tag`: the variant without
@@ -253,5 +274,33 @@ void gen_rvalue(Gen *g, const Rvalue *rv, TypeId dest_type, Value *result) {
     case RV_PTR_ADD: case RV_SIZE_OF: case RV_ALIGN_OF:
         gen_misc(g, rv, result);
         break;
+    case RV_GLOBAL_ADDR:
+        while (g->globals_used.len <= rv->def) {
+            VEC_PUSH(g->globals_used, false);
+        }
+        g->globals_used.data[rv->def] = true;
+        global_name(g, rv->def, result->text, sizeof result->text);
+        break;
+    }
+}
+
+// The definitions of the mutable globals used, with their initial values.
+void gen_mut_globals(Gen *g) {
+    for (uint32_t id = 0; id < g->globals_used.len; id++) {
+        if (!g->globals_used.data[id]) {
+            continue;
+        }
+        const Def *def = sema_def(g->sema, (DefId){id});
+        char name[160], init[64] = "zeroinitializer";
+        global_name(g, id, name, sizeof name);
+        const struct ConstValue *v = def->value;
+        if (v && v->kind == CV_INT) {
+            int_text(init, sizeof init, v->bits, INT_BITS[ty_of(g, def->type)->data]);
+        } else if (v && v->kind == CV_FLOAT) {
+            float_text(init, sizeof init, v->f, ty_of(g, def->type)->data == 32);
+        } else if (v && v->kind == CV_BOOL) {
+            fmt_into(init, sizeof init, "%s", v->b ? "true" : "false");
+        }
+        out_fmt(&g->out, "\n%s = internal global %s %s\n", name, llvm_type(g, def->type), init);
     }
 }

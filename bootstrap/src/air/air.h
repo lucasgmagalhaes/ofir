@@ -72,6 +72,7 @@ typedef enum {
     RV_PTR_ADD,       // the pointer a moved by b elements
     RV_SIZE_OF,       // the size in bytes of a value of type `to` (an int)
     RV_ALIGN_OF,      // the alignment in bytes of type `to` (an int)
+    RV_GLOBAL_ADDR,   // the address of the mutable global `def`, a `*mut T` (spec 11.5)
 } RvalueKind;
 
 typedef enum { FF_SQRT, FF_FABS, FF_FLOOR, FF_CEIL, FF_MINNUM, FF_MAXNUM, FF_COUNT } FloatFn;
@@ -85,6 +86,7 @@ typedef struct {
     FloatFn fn;       // RV_FLOAT_FN
     Operand *items;   // RV_AGGREGATE
     uint32_t count;
+    uint32_t def;     // RV_GLOBAL_ADDR: the DefId of the global
 } Rvalue;
 
 // Functions of the runtime library (runtime/include/ofir_rt.h). The lowering

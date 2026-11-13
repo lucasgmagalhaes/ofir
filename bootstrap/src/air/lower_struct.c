@@ -51,10 +51,21 @@ Place lower_place(Lowerer *l, Expr *e) {
                root->as.ident.res.kind == RES_LOCAL) {
         local = air_local_of((LocalId){root->as.ident.res.index});
         deref = l->body->locals.data[local.id].by_ref;
+    } else if (root->kind == EXPR_IDENT && root->as.ident.res.kind == RES_DEF &&
+               sema_def(l->sema, (DefId){root->as.ident.res.index})->kind == DEF_GLOBAL) {
+        local = lower_global_addr(l, root->as.ident.res.index);   // `COUNTER` or `lib.COUNTER`
+        deref = true;
     } else {
         local = to_local(l, lower_expr(l, root));
     }
     return (Place){.local = local, .path = {.fields = fields, .len = len, .deref = deref}};
+}
+
+// A temporary holding the address of the mutable global `def` (spec 11.5).
+LocalId lower_global_addr(Lowerer *l, uint32_t def) {
+    TypeId ty = sema_def(l->sema, (DefId){def})->type;
+    TypeId ptr = type_intern(l->types, (Ty){.kind = TY_PTR, .data = 1, .inner = ty});
+    return emit_temp(l, ptr, (Rvalue){.kind = RV_GLOBAL_ADDR, .def = def});
 }
 
 Operand place_operand(Place place, OperandKind kind, TypeId type) {

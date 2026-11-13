@@ -1,4 +1,3 @@
-// requires: stage1
 // Mutable globals (spec 11.5): access needs `unsafe`, the initial value is
 // constant, and stage 1 stores numbers and `bool` only.
 

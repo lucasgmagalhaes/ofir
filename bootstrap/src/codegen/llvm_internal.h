@@ -29,6 +29,7 @@ struct Gen {
     const uint32_t **slots;  // by TypeId: the slot of each field of a struct (field_slots)
     size_t adt_count;        // the length of both tables
     Vec(bool) c_used;        // by DefId: functions of extern blocks to declare
+    Vec(bool) globals_used;  // by DefId: mutable globals to define
     TypeId niche_tag;        // the enum whose tag the last place_address named...
     bool has_niche_tag;      // ...when it has a niche (spec 13.3)
 };
@@ -76,6 +77,7 @@ void gen_body(Gen *g, const AirBody *body);
 // llvm_ops.c
 Value gen_operand(Gen *g, Operand o);
 void gen_rvalue(Gen *g, const Rvalue *rv, TypeId dest_type, Value *result);
+void gen_mut_globals(Gen *g);   // the definitions of the mutable globals used
 void gen_cast_fails(Gen *g, const Rvalue *rv, Value *result);
 void gen_saturate(Gen *g, const Rvalue *rv, Value *result);
 void gen_cast_value(Gen *g, TypeId from, TypeId to, Value a, Value *result);

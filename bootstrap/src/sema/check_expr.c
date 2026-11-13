@@ -59,7 +59,10 @@ static TypeId interpolation(Checker *c, Expr *e) {
 
 static TypeId def_value(Checker *c, Def *def, Span span) {
     switch (def->kind) {
-    case DEF_CONST: case DEF_GLOBAL: return check_const(c, def);
+    case DEF_CONST: return check_const(c, def);
+    case DEF_GLOBAL:   // spec 11.5: another thread may write it
+        require_unsafe(c, span, "using a mutable global");
+        return check_const(c, def);
     case DEF_FN:   // stage 1 has them (spec 10)
         check_error(c, "E0901", span, "function values are not supported by stage 0");
         return type_id(TID_ERROR);
@@ -401,6 +404,14 @@ TypeId check_const(Checker *c, Def *def) {
     def->type = annotation ? type : found;
     if (def->kind == DEF_CONST) {
         def->value = const_eval(c, value);   // while `checking` is set: catches cycles
+    } else if (!type_eq(def->type, type_id(TID_ERROR)) && !type_is_numeric(c->types, def->type) &&
+               !type_eq(def->type, type_id(TID_BOOL))) {
+        TypeId ty = def->type;
+        char what[160];
+        snprintf(what, sizeof what, "mutable globals of type `%s` are", type_name(c, ty));
+        unsupported(c, def->item->span, what);
+    } else if (!type_eq(def->type, type_id(TID_ERROR))) {   // the initial value, in the binary
+        def->value = const_eval(c, value);
     }
     enter_generics(c, outer);
     sema_enter(c->sema, saved_module);
