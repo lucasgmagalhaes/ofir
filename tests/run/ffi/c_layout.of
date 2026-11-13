@@ -1,0 +1,93 @@
+// requires: stage1
+// c: c_layout.c
+// flags: --release
+// The layout of `@repr(C)`, `@packed` and `@align(N)` types matches C's
+// (spec 13.2, 13.3): C checks sizes, alignments and offsets, reads the
+// fields Ofir wrote and writes some back, through raw pointers.
+
+@repr(C)
+struct Header {
+    tag: u8
+    len: u32
+    flags: u16
+    id: u64
+}
+
+@repr(C)
+struct Record {
+    head: Header
+    scale: f32
+    bytes: [u8; 3]
+    weight: f64
+}
+
+@packed
+struct Wire {
+    tag: u8
+    len: u32
+    flags: u16
+}
+
+@repr(C)
+@align(16)
+struct Block {
+    a: u8
+    b: i32
+}
+
+@repr(C)
+copy enum Color {
+    Red
+    Green
+    Blue
+}
+
+@link("c_layout")
+extern "C" {
+    fn c_header(h: *mut Header, size: int, align: int) i32
+    fn c_records(r: *mut Record, n: i64, size: int, align: int) i32
+    fn c_wire(w: *mut Wire, size: int, align: int) i32
+    fn c_block(b: *mut Block, size: int, align: int) i32
+    fn c_next_color(c: *mut Color)
+    fn c_color_size(size: int) i32
+}
+
+fn colorName(c: Color) str {
+    return match c {
+        Color.Red => "red"
+        Color.Green => "green"
+        Color.Blue => "blue"
+    }
+}
+
+fn main() {
+    let h = Header{tag: 7, len: 70000, flags: 0xBEEF, id: 1 << 40}
+    const hw = unsafe { c_header(&mut h as *mut Header, sizeOf<Header>(), alignOf<Header>()) }
+    println("header: {hw} wrong; {h.tag} {h.len} {h.flags:x} {h.id}")
+
+    let records: List<Record> = []
+    for i in 0..4 {
+        const head = Header{tag: i as u8, len: 0, flags: 0, id: 0}
+        const b = (3 * i) as u8
+        records.push(Record{head: head, scale: 0.0, bytes: [0, 0, b], weight: 0.5 * i as f64})
+    }
+    const rw = unsafe {
+        c_records(&mut records[0] as *mut Record, 4, sizeOf<Record>(), alignOf<Record>())
+    }
+    println("records: {rw} wrong; {records[1].scale} {records[3].scale} {records[3].bytes[0]}")
+
+    let w = Wire{tag: 1, len: 0x01020304, flags: 9}
+    const ww = unsafe { c_wire(&mut w as *mut Wire, sizeOf<Wire>(), alignOf<Wire>()) }
+    println("wire: {ww} wrong; {w.len:x}")
+
+    let blocks = [Block{a: 5, b: -6}, Block{a: 5, b: -6}]
+    const bw = unsafe { c_block(&mut blocks[1] as *mut Block, sizeOf<Block>(), alignOf<Block>()) }
+    println("block: {bw} wrong; {blocks[1].b}")
+
+    const cw = unsafe { c_color_size(sizeOf<Color>()) }
+    let color = Color.Blue
+    unsafe {
+        c_next_color(&mut color as *mut Color)
+    }
+    println("color: {cw} wrong; {colorName(color)}")
+}
