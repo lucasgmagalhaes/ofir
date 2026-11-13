@@ -119,6 +119,7 @@ int64_t ofir_now_ns(void);       // a monotonic clock, in nanoseconds
 // Tasks (task.c, spec 14.2): std.task defines ofir_task_entry.
 void *ofir_task_spawn(void *job);   // starts a thread that runs the job
 void ofir_task_join(void *thread);  // waits for it and frees the handle
+void ofir_task_detach(void *thread); // the thread frees itself when it ends
 void ofir_tasks_started(void);      // from now on stdout takes a lock
 
 // Channels (channel.c, spec 14.4): queues of values that std.sync boxed.

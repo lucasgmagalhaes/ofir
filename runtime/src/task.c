@@ -32,3 +32,8 @@ void ofir_task_join(void *thread) {
     pthread_join(*(pthread_t *)thread, NULL);
     ofir_free(thread);
 }
+
+void ofir_task_detach(void *thread) {
+    pthread_detach(*(pthread_t *)thread);
+    ofir_free(thread);
+}
