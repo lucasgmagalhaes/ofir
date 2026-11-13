@@ -128,6 +128,7 @@ import sema.check_box.adjustedType
 import sema.check_types.compatible
 import sema.check_types.fnSignature
 import sema.derive.fromMethod
+import sema.derive.displayMethod
 import sema.check_dyn.dynBorrowed
 import sema.check_dyn.dynSourceType
 import sema.check_union.memberIndex
@@ -2738,6 +2739,8 @@ fn interpolation(l: mut Lowerer, c: mut Checker, p: Program, parts: &List<Expr>,
         part.ty = narrowedType(l, c, part.ty)
         if specs[i].len() == 0 && unionMembers(c, part.ty).len() > 0 {
             pushUnion(l, c, p, dest, part, false)
+        } else if specs[i].len() == 0 && formatMethod(l, c, p, part.ty) != 0 {
+            pushDisplay(l, c, p, part, &opAddr(dest, STR))
         } else if specs[i].len() == 0 {
             const f = partFn(l, c, part, false)
             emitRuntime(l, f, [opAddr(dest, STR), part], -1)
@@ -2746,6 +2749,40 @@ fn interpolation(l: mut Lowerer, c: mut Checker, p: Program, parts: &List<Expr>,
         }
     }
     return opCopy(dest, STR)
+}
+
+// The `format` method `{x}` calls on a part (`Display`, spec 9.9), through
+// references, or 0.
+fn formatMethod(l: Lowerer, c: mut Checker, p: Program, ty: int) int {
+    const concrete = concreteType(l, c, ty)
+    if c.types.kind(concrete) == TyKind.Ref {
+        return formatMethod(l, c, p, c.types.get(concrete).inner)
+    }
+    return displayMethod(c, p, concrete)
+}
+
+// Appends a part through its `format` method.
+fn pushDisplay(l: mut Lowerer, c: mut Checker, p: Program, value: move Operand, out: &Operand) {
+    const ty = concreteType(l, c, value.ty)
+    if c.types.kind(ty) == TyKind.Ref {
+        const inner = c.types.get(ty).inner
+        const place = Place{local: toLocal(l, value), fields: [], deref: true}
+        pushDisplay(l, c, p, placeOperand(&place, OperandKind.Copy, inner), out)
+        return
+    }
+    let arg = value
+    arg.ty = ty
+    emitCall(l, displayMethod(c, p, ty), methodTargs(c, ty), [arg, out.clone()], -1)
+}
+
+// Whether a part of `print("...")` is shown through a `format` method.
+fn formatsPart(l: Lowerer, c: mut Checker, p: Program, parts: &List<Expr>) bool {
+    for i in 0..parts.len() {
+        if formatMethod(l, c, p, c.typeOf(parts[i].id.0)) != 0 {
+            return true
+        }
+    }
+    return false
 }
 
 // A part that cannot read the str it is appended to: a literal, or a
@@ -2929,7 +2966,7 @@ fn hasSpec(specs: &List<str>) bool {
 fn lowerPrint(l: mut Lowerer, c: mut Checker, p: Program, arg: &Expr, newline: bool) {
     match arg.kind {
         ExprKind.Interp(parts, specs) => {
-            if hasSpec(&specs) {
+            if hasSpec(&specs) || formatsPart(l, c, p, &parts) {
                 const text = interpolation(l, c, p, &parts, &specs)
                 emitRuntime(l, RuntimeFn.PrintStr, [opAddr(text.local, STR)], -1)
                 emitDrop(l, c, p, &localPlace(text.local), STR)
