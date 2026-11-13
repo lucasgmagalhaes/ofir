@@ -473,6 +473,7 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
     }
     const result = inferApply(c, &inf, ret)
     reportUndecided(c, span)
+    reportBadLengths(c, span)
     return result
 }
 
@@ -489,6 +490,31 @@ pub fn reportUndecided(c: mut Checker, span: Span) {
         c.error("E0344", span, "a condition must be `true` or `false`, found "
                 + "`{c.typeName(found[i])}`")
     }
+}
+
+/**
+ * E0366 for the array lengths an instantiation made out of range (spec 8.7).
+ *
+ * @param c the checker
+ * @param span the use
+ */
+pub fn reportBadLengths(c: mut Checker, span: Span) {
+    const found = c.types.takeBadLengths()
+    for i in 0..found.len() {
+        reportBadLength(c, span, c.typeName(found[i]))
+    }
+}
+
+/**
+ * E0366: the array length `len` is out of range (spec 8.7).
+ *
+ * @param c the checker
+ * @param span the length
+ * @param len the length as written
+ */
+pub fn reportBadLength(c: mut Checker, span: Span, len: str) {
+    c.error("E0366", span, "the array length `{len}` is out of range: it must be from 0 to "
+            + "4294967295, with no division by 0 (spec 8.7)")
 }
 
 // ---------------------------------------------------------------------------
