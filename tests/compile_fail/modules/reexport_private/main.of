@@ -1,0 +1,9 @@
+// requires: stage1
+// Only public declarations can be re-exported (spec 7.3).
+pub import lib.visible
+pub import lib.hidden         // error[E0202]: `hidden` is private to module `lib`
+pub import lib.missing        // error[E0200]: cannot find `missing` in module `lib`
+
+fn main() {
+    println("{visible()}")
+}

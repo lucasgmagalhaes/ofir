@@ -1,0 +1,17 @@
+// requires: stage1
+pub struct Circle {
+    pub radius: int
+}
+
+pub struct Square {
+    pub side: int
+}
+
+pub enum Kind {
+    Flat
+    Curved
+}
+
+pub fn area(c: Circle) int {
+    return 3 * c.radius * c.radius
+}

@@ -1,0 +1,19 @@
+// requires: stage1
+import ring.a
+
+pub const STEP = 3
+pub const LIMIT = a.BASE + 1
+
+pub fn pong(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return a.ping(n - 1) + 10
+}
+
+pub fn next() int {
+    unsafe {
+        a.calls += 1
+        return a.calls
+    }
+}

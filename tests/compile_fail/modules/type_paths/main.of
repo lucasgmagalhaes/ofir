@@ -1,0 +1,15 @@
+// requires: stage1
+// Nested module paths in types (spec 7.2): each module on the way must be public.
+import pkg
+
+fn fine(t: pkg.Thing) int {
+    return t.n
+}
+
+fn hidden(t: pkg.inner.Thing) {}   // error[E0202]: `inner` is private to module `pkg`
+
+fn notModule(t: pkg.Thing.Inner) {}   // error[E0200]: `Thing` is not a module
+
+fn main() {
+    println("{fine(pkg.Thing { n: 1 })}")
+}

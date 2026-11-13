@@ -365,6 +365,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.23j | Array-length expressions: `+ - * / %` on integer constants, `const` items and const parameters (`[float; R * C]`, `[0; N * 2]`); exact evaluation from 0 to 4294967295, checked where written or at each instance (E0366); other length expressions are E0362 (spec 8.7) | OFIR-17 | **done**: stage 1 only; lengths are equal only as written, so `N + 1` and `1 + N` differ |
 | 6.23k | Patterns and bindings: `name @ pattern` with alternatives (`x @ 10 \| 20`), in arms, `if const`, `const`, variants and fields; the inner pattern binds nothing (E0502); string patterns and guards confirmed; slice patterns deferred to OFIR-19 (ADR 0043) | OFIR-18 | **done**: stage 1 only |
 | 6.23l | Borrow usability: reborrows (`&mut *r`, writes through `r`) borrow the reference; `&xs[a..b]` and `&mut xs[a..b]` (`sliceMut`, `sliceFromMut`) are views that borrow `xs`; disjoint fields and reference returns confirmed; `&mut str` is not a type; slice patterns stay deferred (ADR 0045) | OFIR-19 | **done**: stage 1 only; views of one list conflict whatever their ranges |
+| 6.23m | Modules: `pub import` re-exports modules and public declarations (chains, aliases; private is E0202); nested paths `a.b.Name` in expressions and types; a submodule is reachable only by import or re-export; initialization is static and import cycles are safe (ADR 0046) | OFIR-20 | **done**: stage 1 only |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.24a | Atomic intrinsics with orderings, `@threadLocal` and pointer, array and `@repr(C)` globals in both stages, then the allocator pool in Ofir (ADR 0042) | OFIR-25 | in progress: `@threadLocal`, the atomic intrinsics (`std.mem.atomic`, E0820, E0821), pointer globals (`0 as *T`), E0822 and `AtomicInt`/`AtomicBool`/`Arc` on the intrinsics (`...With` forms; `ofir_atomic_*` removed) and the pool in Ofir (`std/core/pool.of`, `@export` in stage 0) done; array and `@repr(C)` globals later |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
@@ -409,7 +410,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.23 with OFIR-20; OFIR-08 to OFIR-19 are done.
+1. Continue 6.23 with OFIR-21; OFIR-08 to OFIR-20 are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

@@ -50,6 +50,7 @@ import sema.program.Program
 import sema.resolve.Resolver
 import sema.resolve.findAttribute
 import sema.resolve.moduleInStd
+import sema.resolve_import.memberOf
 import sema.structs.StructInfo
 import sema.structs.checkStructLayouts
 import sema.structs.hasInteriorMutability
@@ -246,11 +247,7 @@ pub fn interfaceOf(c: Checker, t: &TypeExpr) int {
 fn interfaceAt(c: Checker, segments: &List<Symbol>) int {
     let id = c.r.scope.module(segments[0])
     if segments.len() == 2 && id != 0 && c.def(id).kind == DefKind.Module {
-        const target = c.def(id).target
-        id = c.r.scope.moduleIn(target, segments[1])
-        if id != 0 && c.def(id).module != target {   // an import of that module
-            return 0
-        }
+        id = memberOf(c.r, c.def(id).target, segments[1])
     } else if segments.len() != 1 {
         return 0
     }

@@ -1,0 +1,5 @@
+// requires: stage1
+// Loaded through `main`, but `pkg` does not re-export it.
+pub fn f() int {
+    return 3
+}

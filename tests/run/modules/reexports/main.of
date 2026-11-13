@@ -1,0 +1,27 @@
+// requires: stage1
+// Re-exports, nested paths and import cycles (spec 7.2, 7.3).
+import geo
+import geo.Circle
+import facade
+import facade.Round as R
+import ring.a
+import ring.b
+
+fn describe(k: facade.Kind) str {
+    return match k {
+        facade.Kind.Flat => "flat"
+        facade.Kind.Curved => "curved"
+    }
+}
+
+fn perimeter(s: geo.shapes.Square) int {
+    return s.side * 4
+}
+
+fn main() {
+    const c = Circle{radius: 2}
+    const r = R{radius: 3}
+    println("{geo.shapes.area(c)} {facade.area(r)} {geo.unit()}")
+    println("{perimeter(geo.shapes.Square{side: 5})} {describe(facade.Kind.Curved)}")
+    println("{a.ping(4)} {b.pong(3)} {a.TOTAL} {b.next()}")
+}

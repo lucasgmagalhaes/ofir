@@ -1,0 +1,3 @@
+// requires: stage1
+import pkg.inner
+pub import pkg.inner.Thing

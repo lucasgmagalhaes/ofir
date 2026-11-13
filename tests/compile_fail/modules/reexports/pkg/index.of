@@ -1,0 +1,8 @@
+// requires: stage1
+// `pkg` re-exports one function of `pkg.inner`, and imports it privately.
+import pkg.inner
+pub import pkg.inner.visible
+
+pub fn top() int {
+    return inner.visible()
+}

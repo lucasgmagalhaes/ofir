@@ -22,6 +22,7 @@ import sema.resolve_attributes.checkAttributes
 import sema.resolve_attributes.recordDeprecated
 import sema.resolve_body.resolveExpr
 import sema.resolve_body.resolveFn
+import sema.resolve_import.bindReexports
 import sema.resolve_import.importPrelude
 import sema.resolve_import.resolveImport
 import sema.scope.Scope
@@ -72,6 +73,16 @@ pub struct ImportUse {
 }
 
 /**
+ * A declaration that a module re-exports (`pub import`, spec 7.3).
+ */
+pub struct ReExport {
+    /** The re-exporting module. */
+    pub module: int
+    /** The name it binds. */
+    pub name: Symbol
+}
+
+/**
  * The resolver's state and results.
  */
 pub struct Resolver {
@@ -118,6 +129,8 @@ pub struct Resolver {
     pub benching: bool
     /** The imports, in module order. */
     pub imports: List<ImportUse>
+    /** The declarations re-exported with `pub import`. */
+    pub reexports: List<ReExport>
     /** For each closure being resolved, outermost first: its first local. */
     pub closureBases: List<int>
     /** For each closure being resolved: the outer locals it uses. */
@@ -284,6 +297,7 @@ pub fn resolveProgram(program: Program, names: move Interner, diags: move Diagno
         }
         if pass == 0 {
             importPrelude(r, program)
+            bindReexports(r, program)
         }
     }
     enter(r, program, 0)
@@ -324,7 +338,7 @@ fn newResolver(program: Program, given: move Interner, diags: move Diagnostics,
                     trace: Trace.new(trace), moduleNames, current: 0, moduleName: "", locals: [],
                     owner: Option.None, constParams: [], deprecated: Map.new(), selfName,
                     testing: false, benching: false,
-                    imports: [], closureBases: [], closureCaptures: []}
+                    imports: [], reexports: [], closureBases: [], closureCaptures: []}
 }
 
 fn noDef() Def {
@@ -332,7 +346,14 @@ fn noDef() Def {
                lang: false, module: 0, item: -1, member: -1, target: 0, primitive: -1}
 }
 
-fn enter(r: mut Resolver, program: Program, m: int) {
+/**
+ * Makes module `m` the one being resolved.
+ *
+ * @param r the resolver
+ * @param program the program
+ * @param m a module
+ */
+pub fn enter(r: mut Resolver, program: Program, m: int) {
     r.current = m
     r.moduleName = program.modules[m].name.clone()
     r.scope.useModule(m)
@@ -709,7 +730,7 @@ fn resolvePass(r: mut Resolver, program: Program, pass: int) {
             recordDeprecated(r, item, first)
         } else if pass == 1 {
             if const ItemKind.Import(path, alias) = item.kind {
-                resolveImport(r, program, &path, alias, item.span)
+                resolveImport(r, program, &path, alias, item.span, item.isPub)
             }
         } else {
             resolveItem(r, item)
