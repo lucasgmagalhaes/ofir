@@ -24,6 +24,8 @@ static const char *std_runtime(RuntimeFn fn) {
     switch (fn) {
     case RT_STR_PUSH_STR: return "strPushStr";
     case RT_STR_PUSH_BOOL: return "strPushBool";
+    case RT_STR_PUSH_INT: return "strPushInt";
+    case RT_STR_PUSH_UINT: return "strPushUint";
     default: return NULL;
     }
 }
