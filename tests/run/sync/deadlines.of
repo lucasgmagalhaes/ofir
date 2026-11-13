@@ -1,0 +1,60 @@
+// requires: stage1
+// Deadlines (spec 14.5): a timed receive tells a value, a passed deadline
+// and a closed channel apart; a timed wait on a wait group or a token
+// gives up when its deadline passes, and returns true once the wait ends.
+import std.sync.Arc
+import std.sync.CancelToken
+import std.sync.Recv
+import std.sync.WaitGroup
+import std.sync.channel
+import std.task
+import std.testing.assert
+import std.time
+import std.time.Deadline
+
+fn describe(r: Recv<str>) str {
+    return match r {
+        Recv.Value(v) => "value {v}",
+        Recv.TimedOut => "timed out",
+        Recv.Closed => "closed",
+    }
+}
+
+fn main() {
+    const (tx, rx) = channel<str>()
+    const start = time.now()
+    println(describe(rx.recvUntil(Deadline.after(20 * time.MILLISECOND))))
+    assert(time.now() - start >= 20 * time.MILLISECOND)
+    println(describe(rx.recvUntil(Deadline.after(-1))))
+
+    const late = task.run(move () => {
+        time.sleep(5 * time.MILLISECOND)
+        tx.send("late")
+    })
+    println(describe(rx.recvUntil(Deadline.never())))
+    late.join()
+    println(describe(rx.recvUntil(Deadline.after(time.SECOND))))
+
+    const group = Arc.new(WaitGroup.new())
+    group.get().add(1)
+    println("group done in time: {group.get().waitUntil(Deadline.after(time.MILLISECOND))}")
+    const mine = group.clone()
+    const worker = task.run(move () => {
+        time.sleep(5 * time.MILLISECOND)
+        mine.get().done()
+    })
+    println("group done later: {group.get().waitUntil(Deadline.after(10 * time.SECOND))}")
+    worker.join()
+
+    const stop = CancelToken.new()
+    println("cancelled in time: {stop.waitUntil(Deadline.after(time.MILLISECOND))}")
+    const other = stop.clone()
+    const canceller = task.run(move () => {
+        time.sleep(5 * time.MILLISECOND)
+        other.cancel()
+        other.cancel()
+    })
+    stop.wait()
+    canceller.join()
+    println("cancelled: {stop.isCancelled()} {stop.waitUntil(Deadline.after(-1))}")
+}
