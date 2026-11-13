@@ -1,0 +1,12 @@
+// requires: stage1
+// Nested paths that do not resolve (spec 7.2, 7.3).
+import pkg
+import pkg.other as o
+
+fn main() {
+    const _ = pkg.visible()
+    const _ = pkg.inner.visible()   // error[E0202]: `inner` is private to module `pkg`
+    const _ = pkg.other.f()         // error[E0200]: cannot find `other` in module `pkg`
+    // note: import it: `import pkg.other`, or re-export it from `pkg` with `pub import pkg.other`
+    const _ = o.f()
+}
