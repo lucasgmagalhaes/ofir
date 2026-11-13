@@ -56,6 +56,7 @@ import air.air.VARIANT_STEP
 import base.intern.Symbol
 import base.span.Span
 import diag.noSpan
+import sema.check_generic.reportBadLengths
 import sema.check.Checker
 import sema.check.checkLate
 import sema.check.fnOf
@@ -1219,6 +1220,7 @@ fn substBlock(l: mut Lowerer, c: mut Checker, args: &List<int>, b: int, first: i
 pub fn monoBody(l: mut Lowerer, c: mut Checker, p: Program) {
     if l.body.targs != UNIT && !isGlue(l.body.def) {
         substBody(l, c)
+        reportBadLengths(c, fnOf(p, c.loc(l.body.def)).span)   // `[T; N - 1]` with `N = 0`
     }
     for i in 0..l.body.locals.len() {
         if c.types.get(l.body.locals[i].ty).hasParam {

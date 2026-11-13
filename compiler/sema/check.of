@@ -805,6 +805,18 @@ pub struct Checker {
         }
     }
 
+    // An operand of a `ValueOp`: a nested operation in parentheses.
+    fn appendOperand(self, out: mut str, ty: int, qualified: bool) {
+        const nested = self.types.get(ty).kind == TyKind.ValueOp
+        if nested {
+            out.push("(")
+        }
+        self.appendType(out, ty, qualified)
+        if nested {
+            out.push(")")
+        }
+    }
+
     fn appendType(self, out: mut str, ty: int, qualified: bool) {
         const t = self.types.get(ty)
         match t.kind {
@@ -902,6 +914,12 @@ pub struct Checker {
                 out.push("]")
             }
             TyKind.Value => out.push("{t.data}")
+            TyKind.ValueOp => {
+                self.appendOperand(out, t.args[0], qualified)
+                const ops = [" + ", " - ", " * ", " / ", " % "]
+                out.push(ops[t.data])
+                self.appendOperand(out, t.args[1], qualified)
+            }
             TyKind.Mapped => {
                 out.push(self.text(self.def(t.data).name))
                 out.push("<")

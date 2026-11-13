@@ -1,0 +1,20 @@
+// requires: stage1
+// An array length is checked exactly, where it is written or at each
+// instantiation (spec 8.7).
+
+fn shorter<const N: int>(xs: [int; N]) [int; N - 1] {
+    return [xs[0]; N - 1]
+}
+
+struct Short<const N: int> {
+    xs: [int; N - 1]
+}
+
+fn main() {
+    const xs: [int; 0] = []
+    const _a = shorter(xs)   // error[E0366]: the array length `0 - 1` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _b: [int; 0 - 1] = [1]   // error[E0366]: the array length `0 - 1` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _c: [int; 4 / 0] = [1]   // error[E0366]: the array length `4 / 0` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _e = Short<0>{xs: [1]}   // error[E0366]: the array length `0 - 1` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _d: [int; 2 < 3] = [1]   // error[E0362]: an array length is an integer constant, a const parameter or an arithmetic of them (spec 8.7)
+}

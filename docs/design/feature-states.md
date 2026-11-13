@@ -40,7 +40,6 @@ before the feature changes state:
 | Shared ownership: `Rc<T>` and arena allocators in `std` | std, stage 1 checker | available gate | [spec 5.9](../spec/05-ownership.md) |
 | `std.math` constants and functions | std | available gate | [spec 7.6](../spec/07-modules.md) |
 | The rest of the standard library beyond the bootstrap subset | std | available gate, per module ([API inventory](api-ecosystem.md)) | [spec 7.6](../spec/07-modules.md) |
-| Arithmetic on const parameters in types (`[float; R * C]`) | stage 1 checker | available gate | [spec 8.7](../spec/08-generics.md) |
 | Converting a `dyn` value to an interface it embeds (`dyn Both` to `dyn Named`) | stage 1 checker, codegen | available gate; a vtable layout for embedded interfaces | [spec 9.7](../spec/09-interfaces.md) |
 | `dyn` of generic interfaces (`dyn Iterator<int>`) | stage 1 checker, codegen | available gate | [spec 9.7](../spec/09-interfaces.md) |
 | Reading `union` fields in `unsafe` code | stage 1 checker, codegen | available gate; `union` types first (roadmap open question 9) | [spec 11.1](../spec/11-unsafe-ffi.md) |

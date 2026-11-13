@@ -107,7 +107,7 @@ specification; the other classes are known and accepted.
 | 8.4 `where` clauses | partial | full | `tests/run/generics/where.of` | subset: bounds other than `Eq`, `Ord` and `Hash` |
 | 8.5 Explicit type arguments | full | full | `tests/run/generics_basic/functions.of` | untested: no test of its own |
 | 8.6 Instantiation rules | full | full | `tests/compile_fail/types/generics_depth.of` | - |
-| 8.7 Const generics | none | partial | `tests/run/generics/const_params.of` `tests/compile_fail/types/const_params.of` | subset: const generics; planned: arithmetic on const parameters in types |
+| 8.7 Const generics | none | full | `tests/run/generics/const_params.of` `tests/run/generics/length_exprs.of` `tests/compile_fail/types/const_params.of` `tests/compile_fail/types/length_exprs.of` `tests/compile_fail/types/length_mono.of` | subset: const generics |
 
 ## Chapters 9-13: interfaces, closures, unsafe, attributes, layout
 

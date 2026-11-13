@@ -12,6 +12,7 @@ import sema.check.Loc
 import sema.check.itemOf
 import sema.check.typeGenericsOf
 import sema.check_generic.paramBounds
+import sema.check_generic.reportBadLengths
 import sema.check_ref.checkStorable
 import sema.check_types.ownerType
 import sema.check_types.resolveType
@@ -163,6 +164,7 @@ fn checkInstanceFields(c: mut Checker, p: Program, ty: int, span: Span) {
             checkNotRecursive(c, p, structFieldType(c, p, ty, i), span)
         }
     }
+    reportBadLengths(c, span)   // a field of length `N - 1` with `N = 0`
     if c.def(def).kind == DefKind.Enum && c.info[def].variants.isSome() {
         const count = variantCount(c, def)
         for v in 0..count {

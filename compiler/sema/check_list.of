@@ -21,6 +21,8 @@ import sema.check_place.placeRoot
 import sema.check_place.requireMutable
 import sema.check_ref.checkInstanceStorable
 import sema.check_types.fnSignature
+import sema.check_types.lengthType
+import sema.check_types.typeParameter
 import sema.def.DefKind
 import sema.derive.adtSatisfies
 import sema.expr_check.checkExpr
@@ -33,6 +35,7 @@ import sema.types.TyKind
 import syntax.ast.Expr
 import syntax.ast.ExprKind
 import syntax.ast.Mode
+import syntax.ast.Op
 import syntax.ast.Stmt
 import syntax.ast.StmtKind
 
@@ -163,6 +166,43 @@ fn arrayElements(c: mut Checker, p: Program, span: Span, ty: int, count: int) {
     }
 }
 
+// `[v; len]` as a `[T; N]`, `len` a length expression (spec 8.7).
+fn arrayLength(c: mut Checker, p: Program, span: Span, ty: int, len: int) {
+    if len == ERROR {
+        return
+    }
+    const t = c.types.get(ty).clone()
+    const want = if t.args.len() == 1 { t.args[0] } else { c.types.value(t.data) }
+    if len != want {
+        c.error("E0300", span, "mismatched types: expected `{c.typeName(ty)}`, found an array "
+                + "of `{c.typeName(len)}` elements")
+    }
+    if !isCopy(c, p, t.inner) && t.inner != ERROR {
+        c.unsupported(span, "arrays of a type that is not Copy are")
+    }
+}
+
+// Whether `e` is written as an array length: integers, const parameters,
+// `const` items and an arithmetic of them (spec 8.7).
+fn isLengthExpr(c: mut Checker, e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Int(_) => true
+        ExprKind.Ident(name) => {
+            if typeParameter(c, name).isSome() {
+                return true
+            }
+            const id = c.r.scope.module(name)
+            id != 0 && c.def(id).kind == DefKind.Const
+        }
+        ExprKind.Binary(op, lhs, rhs) => {
+            const arith = op == Op.Add || op == Op.Sub || op == Op.Mul || op == Op.Div ||
+                          op == Op.Rem
+            arith && isLengthExpr(c, &*lhs) && isLengthExpr(c, &*rhs)
+        }
+        _ => false
+    }
+}
+
 /**
  * `[value; count]`: `count` copies of a Copy value.
  *
@@ -185,8 +225,14 @@ pub fn checkListRepeat(c: mut Checker, p: Program, e: &Expr, value: &Expr, count
         coerce(c, p, count, I64)
         match count.kind {
             ExprKind.Int(n) => arrayElements(c, p, e.span, expected, n as int)
-            _ => c.error("E0300", count.span, "the count of `[value; count]` as an array must "
-                         + "be an integer literal")
+            _ => {
+                if isLengthExpr(c, count) {
+                    arrayLength(c, p, e.span, expected, lengthType(c, p, count))
+                } else {
+                    c.error("E0300", count.span, "the count of `[value; count]` as an array "
+                            + "must be an integer literal or a length (spec 8.7)")
+                }
+            }
         }
         return expected
     }

@@ -1,0 +1,11 @@
+// requires: stage1
+// A length in a generic body is checked at each instance (spec 8.7).
+
+fn last<const N: int>() int {   // error[E0366]: the array length `0 - 1` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const a: [int; N - 1] = [0; N - 1]
+    return a[0]
+}
+
+fn main() {
+    println("{last<0>()}")
+}
