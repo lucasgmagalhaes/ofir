@@ -672,6 +672,17 @@ fn sameBytes(a: *u8, b: *u8, n: int) bool {
     return n == 0 || unsafe { memcmp(a, b, n as u64) } == 0
 }
 
+// A `{t}` part of an interpolation, and `s += t`: the lowering calls it
+// (lower.c, lower.of).
+fn strPushStr(s: mut str, t: str) {
+    s.push(t)
+}
+
+// A `{b}` part of an interpolation: the lowering calls it (lower.c, lower.of).
+fn strPushBool(s: mut str, b: bool) {
+    s.push(if b { "true" } else { "false" })
+}
+
 // `a + b` on strings: a new string. The lowering calls it (lower_ops.c,
 // lower_expr.of).
 fn strConcat(a: str, b: str) str {
