@@ -123,6 +123,7 @@ void ofir_tasks_started(void);      // from now on stdout takes a lock
 
 // Channels (channel.c, spec 14.4): queues of values that std.sync boxed.
 void *ofir_channel_new(void);                   // one sender, one receiver
+void *ofir_channel_new_bounded(int64_t capacity); // sends wait while full; 0: unbounded
 bool ofir_channel_send(void *ch, void *value);  // false once the receiver closed
 void *ofir_channel_recv(void *ch);              // waits; NULL when no sender is left
 void *ofir_channel_try_recv(void *ch);          // NULL when the queue is empty
