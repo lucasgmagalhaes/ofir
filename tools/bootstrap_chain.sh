@@ -42,7 +42,7 @@ fi
 build() {
     local cc=$1 src=$2 std=$3 rt=$4 out=$5
     (cd "$src" && OFIR_STD="$std" OFIR_RUNTIME="$rt" \
-        "$cc" build compiler/main.of -o "$out/ofir$exe")
+        "$cc" build compiler/main.of --release -o "$out/ofir$exe")
     (cd "$src" && OFIR_STD="$std" OFIR_RUNTIME="$rt" \
         "$out/ofir$exe" build compiler/main.of -o "$out/self$exe")
     (cd "$src" && OFIR_STD="$std" OFIR_RUNTIME="$rt" \
