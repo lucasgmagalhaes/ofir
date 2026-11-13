@@ -73,7 +73,36 @@ Wall times are printed for information only, since shared runners are noisy.
 |--------|--------|----------------------------|
 | Lexer throughput (stage 0, release) | ≥ 2M lines/s | ~2.1M lines/s |
 | Front end, lex → borrow check | ≥ 200k lines/s per core | — |
-| Self-compile, debug build | < 5 s | — |
+| Self-compile, debug build | < 5 s | 16.9 s cold, 1.4 s warm (§6) |
 | Generated code vs `clang -O2` C | within 10% | — |
 | Hello world binary (stripped) | < 50 KB | — |
 | Compiler peak memory | < 20× the source size | ~8.5× (lexer only) |
+
+## 6. Build times
+
+The object cache of [ADR 0033](../adr/0033-codegen-units.md) keys each
+codegen unit, one per module, by its LLVM IR text, the clang flags, the
+clang path and `clang --version`. The text holds every type layout, constant
+and signature the unit uses, so a key changes exactly when the object would:
+`tools/check_object_cache.py` edits a copy of a program and checks that an
+edit that changes no code (a comment) compiles no unit, a new function body
+compiles its own unit, and a new struct layout compiles its module and the
+module that uses the type. The same script covers recovery: a cached file
+that is not an object is compiled again, and a link that fails with cached
+objects is retried without them.
+
+Self-compile of `compiler/main.of` with stage 1 (debug build, 4 cores,
+`--time-passes`):
+
+| Build | Units compiled | Objects | Total |
+|-------|----------------|---------|-------|
+| Cold (empty cache) | 123 | 15.6 s | 16.9 s |
+| Warm (nothing changed) | 0 | 0.01 s | 1.4 s |
+| One function body edited (`air/validate.of`) | 1 | 0.04 s | 1.3 s |
+| Release, cold (one unit) | 1 | 103.7 s | 104.7 s |
+| Release, warm | 0 | 0.01 s | 1.1 s |
+
+A warm build is now the front end: parsing, checking, lowering and codegen
+take about 1.2 s and run on every build. Caching their results is out of
+ADR 0033's scope, so it waits for a measured need; a release build stays a
+single unit so the optimizer sees the whole program.
