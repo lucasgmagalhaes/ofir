@@ -406,6 +406,11 @@ document and `$STD` the standard library's directory.
 Safety checks are never disabled by a profile. The optimizer removes the
 checks it can prove unnecessary.
 
+A debug build also passes `-mllvm -pre-RA-sched=linearize` to the clang
+calls that generate code: at `-O0` it changes nothing observable and makes
+clang about 40% faster on large functions (ADR 0054). There is no other
+backend and no JIT.
+
 ### Debug info
 
 `-g` makes the compiler emit DWARF (functions, line tables, locals and
