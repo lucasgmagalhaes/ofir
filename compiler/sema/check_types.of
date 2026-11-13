@@ -54,8 +54,9 @@ import sema.types.UNIT
 import sema.complete.completeMember
 import sema.complete.completeScope
 import sema.complete.probing
+import sema.resolve_import.memberOf
+import sema.resolve_import.missingMember
 import sema.suggest.SuggestScope
-import sema.suggest.suggestMember
 import sema.suggest.suggestName
 import syntax.ast.Expr
 import syntax.ast.ExprKind
@@ -466,11 +467,10 @@ fn namedType(c: mut Checker, p: Program, id: int, args: &List<TypeExpr>, span: S
  * @returns its `DefId`, or 0
  */
 pub fn moduleType(c: mut Checker, m: int, name: Symbol, span: Span) int {
-    const id = c.r.scope.moduleIn(m, name)
+    const id = memberOf(c.r, m, name)
     const moduleName = c.r.moduleNames[m].clone()
-    if id == 0 || c.def(id).inPrelude || c.def(id).module != m {
-        c.error("E0200", span, "cannot find `{c.text(name)}` in module `{moduleName}`")
-        suggestMember(c.r, m, name)
+    if id == 0 {
+        missingMember(c.r, m, name, span)
         if probing(c.r, name) {
             completeMember(c.r, m, true)
         }
@@ -500,11 +500,23 @@ fn pathTarget(c: mut Checker, segments: &List<Symbol>, span: Span) int {
         }
         return 0
     }
-    if segments.len() > 2 || c.def(first).kind != DefKind.Module {
+    if c.def(first).kind != DefKind.Module {
         c.unsupported(span, "nested module paths in types are")
         return 0
     }
-    const id = moduleType(c, c.def(first).target, segments[segments.len() - 1], span)
+    let module = c.def(first).target
+    for i in 1..segments.len() - 1 {   // `a.b.Name`: `b` a module that `a` re-exports
+        const inner = moduleType(c, module, segments[i], span)
+        if inner == 0 || !c.def(inner).isPub {
+            return 0   // reported by moduleType
+        }
+        if c.def(inner).kind != DefKind.Module {
+            c.error("E0200", span, "`{c.text(segments[i])}` is not a module")
+            return 0
+        }
+        module = c.def(inner).target
+    }
+    const id = moduleType(c, module, segments[segments.len() - 1], span)
     if id != 0 {
         link(c.r, span, Res.Def(id))
     }
