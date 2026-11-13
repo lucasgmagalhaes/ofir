@@ -1,6 +1,6 @@
 // panic: integer overflow
-// The terms of a u64 recursion wrap past 2^64: the carry is kept until the
-// return (ADR 0044).
+// The terms of a u64 recursion pass MAX: the original call takes over and
+// its addition fails (ADR 0044).
 
 fn wide(n: u64) u64 {
     if n == 0 {
