@@ -1,0 +1,439 @@
+// Accumulator recursion (stage 0: air/accumulate.c, ADR 0044).
+//
+// The site is a block that ends with
+//     _c = call f(args)
+//     _r = checked add x, _c (overflow: _o)
+//     assert not _o, overflow -> ...
+// and whose assertion leads, through copies of _r and gotos, to a return of
+// it. The terms x of the calls a recursion makes are summed from the
+// innermost call out: `x1 + (x2 + ... + (xm + v))` overflows exactly when
+// some suffix sum leaves the range. While every term is nonnegative that
+// happens exactly when P + v > MAX, P being the exact sum x1 + ... + xm, so
+// the loop keeps P in an unsigned accumulator with a sticky carry and each
+// return checks once. Calls and their effects keep their order, and the check
+// fails where the first failing addition would have.
+
+import air.air.AirBlock
+import air.air.AirBody
+import air.air.AirStmt
+import air.air.Operand
+import air.air.OperandKind
+import air.air.PanicKind
+import air.air.Rvalue
+import air.air.RvalueKind
+import air.air.RuntimeFn
+import air.air.StmtKind
+import air.air.TermKind
+import air.air.Terminator
+import air.air.isGlue
+import air.air.jump
+import air.air.noPath
+import air.air.opBool
+import air.air.opCopy
+import air.air.opInt
+import air.air.opUnit
+import air.air.rvUse
+import air.air.rvalue
+import air.air.terminator
+import air.fold.ONES
+import air.fold.intBits
+import sema.check.Checker
+import sema.types.BOOL
+import sema.types.TyKind
+import sema.types.U8
+import sema.types.UNIT
+import syntax.ast.Op
+import base.span.Span
+import diag.noSpan
+import std.mem
+
+fn scalar(c: mut Checker, ty: int) bool {
+    return match c.types.get(ty).kind {
+        TyKind.Unit => true
+        TyKind.Never => true
+        TyKind.Bool => true
+        TyKind.Int => true
+        TyKind.Float => true
+        _ => false
+    }
+}
+
+fn whole(o: &Operand) bool {
+    return o.path.fields.len() == 0 && !o.path.deref
+}
+
+// Counts the reads of `o` into `reads`; false if it takes an address.
+fn read(reads: mut List<int>, o: &Operand) bool {
+    if o.kind == OperandKind.Addr {
+        return false
+    }
+    if o.kind == OperandKind.Copy {
+        reads[o.local] = reads[o.local] + 1
+    }
+    return true
+}
+
+fn simpleRvalue(kind: RvalueKind) bool {
+    return match kind {
+        RvalueKind.Use => true
+        RvalueKind.Binary => true
+        RvalueKind.Checked => true
+        RvalueKind.Unary => true
+        RvalueKind.Cast => true
+        RvalueKind.CastFails => true
+        RvalueKind.Saturate => true
+        _ => false
+    }
+}
+
+// Counts the reads of every local; false if the body has a statement the
+// transformation cannot keep across iterations.
+fn countReads(body: &AirBody, reads: mut List<int>) bool {
+    for b in 0..body.blocks.len() {
+        const block = &body.blocks[b]
+        for i in 0..block.stmts.len() {
+            const s = &block.stmts[i]
+            if s.destPath.fields.len() > 0 || s.destPath.deref {
+                return false
+            }
+            if s.kind == StmtKind.Call {
+                for a in 0..s.args.len() {
+                    if !read(reads, &s.args[a]) {
+                        return false
+                    }
+                }
+            } else if !simpleRvalue(s.value.kind) || !read(reads, &s.value.a) ||
+                !read(reads, &s.value.b) {
+                return false
+            }
+        }
+        const t = &block.term
+        if !read(reads, &t.cond) || !read(reads, &t.index) || !read(reads, &t.len) {
+            return false
+        }
+    }
+    return true
+}
+
+// Whether `start`, the value the assertion of the site guards, reaches a
+// return from `from` through copies and gotos only.
+fn returns(body: &AirBody, start: int, from: int) bool {
+    let local = start
+    let block = from
+    for steps in 0..body.blocks.len() + 1 {
+        const b = &body.blocks[block]
+        for i in 0..b.stmts.len() {
+            const s = &b.stmts[i]
+            const a = &s.value.a
+            if s.kind != StmtKind.Assign || s.value.kind != RvalueKind.Use ||
+                a.kind != OperandKind.Copy || a.local != local || !whole(a) {
+                return false
+            }
+            local = s.dest
+        }
+        if b.term.kind == TermKind.Return {
+            return local == 0
+        }
+        if b.term.kind != TermKind.Goto {
+            return false
+        }
+        block = b.term.target
+    }
+    return false
+}
+
+struct Site {
+    block: int
+    /** x */
+    term: Operand
+    /** x may be negative: a branch takes the original call. */
+    negative: bool
+}
+
+fn isCallOf(o: &Operand, c: int) bool {
+    return o.kind == OperandKind.Copy && o.local == c && whole(o)
+}
+
+fn findSite(c: mut Checker, body: &AirBody, reads: &List<int>, b: int) Option<Site> {
+    const block = &body.blocks[b]
+    const n = block.stmts.len()
+    if n < 2 || block.term.kind != TermKind.Assert || block.term.panic != PanicKind.Overflow {
+        return Option.None
+    }
+    const call = &block.stmts[n - 2]
+    const add = &block.stmts[n - 1]
+    if call.kind != StmtKind.Call || call.runtime || !call.hasDest || call.callee != body.def ||
+        call.targs != body.targs || call.args.len() != body.paramCount {
+        return Option.None
+    }
+    const rv = &add.value
+    if add.kind != StmtKind.Assign || rv.kind != RvalueKind.Checked || rv.op != Op.Add {
+        return Option.None
+    }
+    const result = call.dest
+    const flag = rv.flag
+    const sum = add.dest
+    const cond = &block.term.cond
+    if sum == 0 || cond.kind != OperandKind.Copy || cond.local != flag || !whole(cond) ||
+        reads[result] != 1 || reads[flag] != 1 || reads[sum] != 1 {
+        return Option.None
+    }
+    const aIsCall = isCallOf(&rv.a, result)
+    if aIsCall == isCallOf(&rv.b, result) {
+        return Option.None
+    }
+    const x = if aIsCall { rv.b.clone() } else { rv.a.clone() }
+    const data = c.types.get(x.ty).data
+    const sign = data <= 3
+    let negative = false
+    if x.kind == OperandKind.Int {
+        if sign && (x.bits >> (intBits(data) - 1).wrappingCast<u64>()) & 1 == 1 {
+            return Option.None
+        }
+    } else if x.kind == OperandKind.Copy && whole(&x) {
+        negative = sign
+    } else {
+        return Option.None
+    }
+    if !returns(body, sum, block.term.target) {
+        return Option.None
+    }
+    return Option.Some(Site{block: b, term: x, negative: negative})
+}
+
+// Whether a return is reachable from the entry without passing through the
+// site: without such a base case the recursion never ends, and it must still
+// end in a stack overflow rather than loop.
+fn hasBaseCase(body: &AirBody, site: int) bool {
+    let seen = List.filled(false, body.blocks.len())
+    let stack: List<int> = [0]
+    seen[0] = true
+    for stack.len() > 0 {
+        const t = &body.blocks[stack.pop().unwrap()].term
+        if t.kind == TermKind.Return {
+            return true
+        }
+        let next: List<int> = []
+        if t.kind == TermKind.Goto || t.kind == TermKind.Assert || t.kind == TermKind.Branch {
+            next.push(t.target)
+        }
+        if t.kind == TermKind.Branch {
+            next.push(t.other)
+        }
+        for i in 0..next.len() {
+            if next[i] != site && !seen[next[i]] {
+                seen[next[i]] = true
+                stack.push(next[i])
+            }
+        }
+    }
+    return false
+}
+
+fn copyOf(local: int, ty: int) Operand {
+    return opCopy(local, ty)
+}
+
+fn assign(dest: int, value: move Rvalue) AirStmt {
+    return AirStmt{kind: StmtKind.Assign, dest: dest, destPath: noPath(), hasDest: true,
+                   value: value, runtime: false, rt: RuntimeFn.PrintStr, callee: 0,
+                   targs: UNIT, args: [], span: noSpan()}
+}
+
+fn binary(dest: int, op: Op, a: move Operand, b: move Operand) AirStmt {
+    return assign(dest, rvalue(RvalueKind.Binary, op, a, b))
+}
+
+fn cast(dest: int, a: move Operand, to: int) AirStmt {
+    let rv = rvalue(RvalueKind.Cast, Op.Add, a, opUnit(UNIT))
+    rv.to = to
+    return assign(dest, rv)
+}
+
+struct Loop {
+    /** T */
+    ty: int
+    /** The unsigned type of the width of T. */
+    unsignedTy: int
+    acc: int
+    carry: int
+    /** Of the assertion of the site. */
+    span: Span
+}
+
+fn temp(l: &Loop, body: mut AirBody, ty: int) int {
+    return body.newLocal(ty, Option.None, l.span)
+}
+
+// The return of `block` becomes: overflow if carry or acc > MAX - v; else
+// return acc + v.
+fn finish(l: &Loop, body: mut AirBody, block: int, max: u64) {
+    const u = l.unsignedTy
+    const value = temp(l, body, u)
+    const limit = temp(l, body, u)
+    const big = temp(l, body, BOOL)
+    const bad = temp(l, body, BOOL)
+    const sum = temp(l, body, u)
+    body.push(block, cast(value, copyOf(0, l.ty), u))
+    body.push(block, binary(limit, Op.Sub, opInt(max, u), copyOf(value, u)))
+    body.push(block, binary(big, Op.Gt, copyOf(l.acc, u), copyOf(limit, u)))
+    body.push(block, binary(bad, Op.Or, copyOf(l.carry, BOOL), copyOf(big, BOOL)))
+    const done = body.newBlock()
+    let check = terminator(TermKind.Assert)
+    check.cond = copyOf(bad, BOOL)
+    check.target = done
+    check.panic = PanicKind.Overflow
+    check.span = l.span
+    body.terminate(block, check)
+    body.push(done, binary(sum, Op.Add, copyOf(l.acc, u), copyOf(value, u)))
+    body.push(done, cast(0, copyOf(sum, u), l.ty))
+    body.terminate(done, terminator(TermKind.Return))
+}
+
+// The statements that add the term to the accumulator, set the parameters
+// to the arguments and jump to the old entry `head`.
+fn iterate(l: &Loop, body: mut AirBody, block: int, x: &Operand, args: &List<Operand>,
+           head: int) {
+    const u = l.unsignedTy
+    const term = temp(l, body, u)
+    const overflow = temp(l, body, BOOL)
+    body.push(block, cast(term, x.clone(), u))
+    let add = rvalue(RvalueKind.Checked, Op.Add, copyOf(l.acc, u), copyOf(term, u))
+    add.flag = overflow
+    body.push(block, assign(l.acc, add))
+    body.push(block, binary(l.carry, Op.Or, copyOf(l.carry, BOOL), copyOf(overflow, BOOL)))
+    let temps: List<int> = []
+    for i in 0..args.len() {
+        const t = temp(l, body, body.locals[i + 1].ty)
+        temps.push(t)
+        body.push(block, assign(t, rvUse(args[i].clone())))
+    }
+    for i in 0..args.len() {
+        const ty = body.locals[i + 1].ty
+        body.push(block, assign(i + 1, rvUse(copyOf(temps[i], ty))))
+    }
+    body.terminate(block, jump(head))
+}
+
+fn retarget(t: mut Terminator, from: int, to: int) {
+    if t.kind == TermKind.Goto || t.kind == TermKind.Branch || t.kind == TermKind.Assert {
+        if t.target == from {
+            t.target = to
+        }
+    }
+    if t.kind == TermKind.Branch && t.other == from {
+        t.other = to
+    }
+}
+
+fn emptyBlock() AirBlock {
+    return AirBlock{stmts: [], term: terminator(TermKind.None), at: noSpan()}
+}
+
+fn transform(c: mut Checker, body: mut AirBody, site: &Site) {
+    const ty = body.locals[0].ty
+    const data = c.types.get(ty).data
+    const width = intBits(data)
+    const sign = data <= 3
+    let max = if width == 64 { ONES } else { (1 as u64 << width.wrappingCast<u64>()) - 1 }
+    if sign {
+        max = max >> 1
+    }
+    const saved = body.at
+    body.at = body.blocks[site.block].at
+    const u = U8 + data % 4
+    let l = Loop{ty: ty, unsignedTy: u, acc: 0, carry: 0, span: body.blocks[site.block].term.span}
+    l.acc = temp(&l, body, u)
+    l.carry = temp(&l, body, BOOL)
+
+    // The old entry moves to `head`; the new entry clears the accumulator.
+    const head = body.newBlock()
+    const entry = mem.replace(body.blocks[0], emptyBlock())
+    body.blocks[head] = entry
+    for b in 1..body.blocks.len() {
+        retarget(body.blocks[b].term, 0, head)
+    }
+    body.push(0, assign(l.acc, rvUse(opInt(0, u))))
+    body.push(0, assign(l.carry, rvUse(opBool(false, BOOL))))
+    body.terminate(0, jump(head))
+
+    const returnsEnd = body.blocks.len()
+    for b in 1..returnsEnd {
+        if body.blocks[b].term.kind == TermKind.Return {
+            finish(&l, body, b, max)
+        }
+    }
+
+    const b = site.block   // not 0: the entry leads to a base case
+    let stmts = mem.replace(body.blocks[b].stmts, [])
+    const add = stmts.pop().unwrap()
+    const call = stmts.pop().unwrap()
+    body.blocks[b].stmts = stmts
+    if !site.negative {
+        iterate(&l, body, b, &site.term, &call.args, head)
+        body.at = saved
+        return
+    }
+    const check = body.blocks[b].term.clone()
+    const negative = temp(&l, body, BOOL)
+    body.push(b, binary(negative, Op.Lt, site.term.clone(), opInt(0, ty)))
+    const slow = body.newBlock()
+    const fast = body.newBlock()
+    const args = call.args.clone()
+    body.terminate(b, branchTo(copyOf(negative, BOOL), slow, fast))
+    body.push(slow, call)
+    body.push(slow, add)
+    body.terminate(slow, check)
+    iterate(&l, body, fast, &site.term, &args, head)
+    body.at = saved
+}
+
+fn branchTo(cond: move Operand, then: int, other: int) Terminator {
+    let t = terminator(TermKind.Branch)
+    t.cond = cond
+    t.target = then
+    t.other = other
+    return t
+}
+
+/**
+ * Turns the one self call whose result is added to a term and returned into
+ * a jump back to the entry: the terms go into an unsigned accumulator with a
+ * sticky carry, and each return adds the accumulator to its value under one
+ * overflow check. A negative term takes the original call. The function must
+ * have only scalar locals, no `mut` parameters and no address taken.
+ *
+ * @param c the checker, for the types
+ * @param body the body, changed in place
+ */
+pub fn accumulate(c: mut Checker, body: mut AirBody) {
+    if body.isMain || isGlue(body.def) || body.closure.isSome() || body.paramCount == 0 ||
+        c.types.get(body.locals[0].ty).kind != TyKind.Int {
+        return
+    }
+    for i in 0..body.locals.len() {
+        if body.locals[i].byRef || !scalar(c, body.locals[i].ty) {
+            return
+        }
+    }
+    let reads = List.filled(0, body.locals.len())
+    if !countReads(&body, reads) {
+        return
+    }
+    let found: Option<Site> = Option.None
+    let sites = 0
+    for b in 0..body.blocks.len() {
+        const site = findSite(c, &body, &reads, b)
+        if site.isSome() {
+            found = site
+            sites = sites + 1
+        }
+    }
+    if sites != 1 {
+        return
+    }
+    const site = found.unwrap()
+    if site.block != 0 && hasBaseCase(&body, site.block) {
+        transform(c, body, &site)
+    }
+}
