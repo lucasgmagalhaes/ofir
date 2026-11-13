@@ -176,8 +176,8 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0817 | a `comptime fn` can only be called from compile-time code (spec 15.1) | stage 1 |
 | E0818 | the value of a `comptime` expression must be a number, `bool`, `str`, array, tuple, struct or enum of those (spec 15.5) | stage 1 |
 | E0819 | the C symbol `x` is reserved for the runtime: `main` and the `ofir_` prefix (spec 11.4) | stage 1 |
-| E0820 | the memory ordering of an atomic operation must be a constant (spec 14.4) | planned |
-| E0821 | this atomic operation does not allow the ordering `x`: a load cannot release, a store cannot acquire (spec 14.4) | planned |
+| E0820 | the memory ordering of an atomic operation must be a constant (spec 14.4) | stage 0 |
+| E0821 | this atomic operation does not allow the ordering `x`: a load cannot release, a store cannot acquire (spec 14.4) | stage 0 |
 | E0822 | a `@threadLocal` global must have a type without drop (spec 11.5) | planned |
 | E0900 | cannot read source file | stage 0 |
 | E0901 | X is not supported yet (a feature this compiler version does not implement) | stage 0 |
