@@ -1,0 +1,19 @@
+// os.exit ends the process with its status at once: the output so far is
+// flushed and no value is dropped.
+// status: 3
+
+import std.os
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("dropped {self.name}")
+    }
+}
+
+fn main() {
+    const kept = Noisy { name: "kept" }
+    println("before exit: {kept.name}")
+    os.exit(3)
+}
