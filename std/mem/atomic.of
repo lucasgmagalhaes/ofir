@@ -1,0 +1,95 @@
+/**
+ * @module
+ * `std.mem.atomic`: memory orderings and the atomic operations the compiler
+ * turns into single instructions (ADR 0042, spec 14.4). `std.sync` builds
+ * `AtomicInt` and `AtomicBool` on them.
+ */
+
+/**
+ * How an atomic operation orders the memory accesses around it, with the
+ * meaning of the C11 orderings.
+ */
+pub enum Ordering {
+    /** Atomic, but orders nothing else: counters. */
+    Relaxed
+    /** A load: later accesses stay after it (taking a lock). */
+    Acquire
+    /** A store: earlier accesses stay before it (releasing a lock). */
+    Release
+    /** A read-modify-write that both acquires and releases. */
+    AcqRel
+    /** One total order of all the `SeqCst` operations. */
+    SeqCst
+}
+
+/*
+ * The intrinsics. `T` is an integer, `bool` or a raw pointer; the ordering
+ * is a constant `Ordering.X` (E0820) that the operation allows (E0821).
+ */
+extern "intrinsic" {
+    /**
+     * Reads `*p` atomically.
+     *
+     * @typeParam T an integer, `bool` or raw pointer type
+     * @param p the address
+     * @param order `Relaxed`, `Acquire` or `SeqCst`
+     * @returns the value
+     */
+    pub fn atomicLoad<T>(p: *mut T, order: Ordering) T
+    /**
+     * Writes `*p` atomically.
+     *
+     * @typeParam T an integer, `bool` or raw pointer type
+     * @param p the address
+     * @param value the new value
+     * @param order `Relaxed`, `Release` or `SeqCst`
+     */
+    pub fn atomicStore<T>(p: *mut T, value: T, order: Ordering)
+    /**
+     * Writes `*p` and returns the old value, in one step.
+     *
+     * @typeParam T an integer, `bool` or raw pointer type
+     * @param p the address
+     * @param value the new value
+     * @param order any ordering
+     * @returns the old value
+     */
+    pub fn atomicSwap<T>(p: *mut T, value: T, order: Ordering) T
+    /**
+     * Adds to `*p`, wrapping around, and returns the old value.
+     *
+     * @typeParam T an integer, `bool` or raw pointer type
+     * @param p the address of an integer
+     * @param delta what to add
+     * @param order any ordering
+     * @returns the old value
+     */
+    pub fn atomicFetchAdd<T>(p: *mut T, delta: T, order: Ordering) T
+    /**
+     * Subtracts from `*p`, wrapping around, and returns the old value.
+     *
+     * @typeParam T an integer, `bool` or raw pointer type
+     * @param p the address of an integer
+     * @param delta what to subtract
+     * @param order any ordering
+     * @returns the old value
+     */
+    pub fn atomicFetchSub<T>(p: *mut T, delta: T, order: Ordering) T
+    /**
+     * Writes `desired` to `*p` if it holds `expected`, in one step.
+     *
+     * @typeParam T an integer, `bool` or raw pointer type
+     * @param p the address
+     * @param expected the value `*p` must hold
+     * @param desired the new value
+     * @param order the ordering on success (a failure orders as the load part)
+     * @returns the old value: the exchange happened when it equals `expected`
+     */
+    pub fn atomicCompareExchange<T>(p: *mut T, expected: T, desired: T, order: Ordering) T
+    /**
+     * Orders memory accesses without an atomic access.
+     *
+     * @param order any ordering but `Relaxed`
+     */
+    pub fn fence(order: Ordering)
+}

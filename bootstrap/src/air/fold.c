@@ -189,7 +189,7 @@ static void stmt_operands(const AirStmt *s, Visit visit, void *context) {
     const Rvalue *rv = &s->as.rvalue;
     visit(context, rv->a);
     visit(context, rv->b);
-    for (uint32_t i = 0; rv->kind == RV_AGGREGATE && i < rv->count; i++) {
+    for (uint32_t i = 0; i < rv->count; i++) {
         visit(context, rv->items[i]);
     }
 }

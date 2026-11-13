@@ -64,3 +64,9 @@ are still C, because Ofir lacks three things they need:
   does) calls a function for it, as `ofir_pool_thread_exit` does today.
 - Globals of `str`, `List` or other owning types stay E0901: their
   initializer allocates, and no code would drop them.
+
+## Amendment: the module of the intrinsics
+
+`Ordering` and the intrinsics live in `std.mem.atomic`, not `std.sync`:
+stage 0 compiles the std, `std.sync` needs stage 1, and Ofir has no
+re-exports, so `std.sync` imports them from `std.mem.atomic`.

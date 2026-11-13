@@ -73,9 +73,21 @@ typedef enum {
     RV_SIZE_OF,       // the size in bytes of a value of type `to` (an int)
     RV_ALIGN_OF,      // the alignment in bytes of type `to` (an int)
     RV_GLOBAL_ADDR,   // the address of the mutable global `def`, a `*mut T` (spec 11.5)
+    RV_ATOMIC,        // `atomic` on the address a with `order` (ADR 0042)
 } RvalueKind;
 
 typedef enum { FF_SQRT, FF_FABS, FF_FLOOR, FF_CEIL, FF_MINNUM, FF_MAXNUM, FF_COUNT } FloatFn;
+
+// The atomic operations: b is the value (the expected value for ATOMIC_CAS,
+// whose desired value is items[0]); a fence has no operand.
+typedef enum {
+    ATOMIC_LOAD, ATOMIC_STORE, ATOMIC_SWAP, ATOMIC_ADD, ATOMIC_SUB, ATOMIC_CAS, ATOMIC_FENCE,
+} AtomicOp;
+
+// The variants of `std.mem.atomic.Ordering`, in declaration order.
+typedef enum {
+    ORDER_RELAXED, ORDER_ACQUIRE, ORDER_RELEASE, ORDER_ACQ_REL, ORDER_SEQ_CST,
+} AtomicOrder;
 
 typedef struct {
     RvalueKind kind;
@@ -84,9 +96,11 @@ typedef struct {
     TypeId to;        // casts
     LocalId flag;     // RV_CHECKED
     FloatFn fn;       // RV_FLOAT_FN
-    Operand *items;   // RV_AGGREGATE
+    Operand *items;   // RV_AGGREGATE; RV_ATOMIC: the desired value of ATOMIC_CAS
     uint32_t count;
     uint32_t def;     // RV_GLOBAL_ADDR: the DefId of the global
+    AtomicOp atomic;  // RV_ATOMIC
+    AtomicOrder order;
 } Rvalue;
 
 // Functions of the runtime library (runtime/include/ofir_rt.h). The lowering

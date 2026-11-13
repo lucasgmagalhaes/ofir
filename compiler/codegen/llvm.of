@@ -13,6 +13,10 @@
 
 import air.air.AirBody
 import air.air.AirStmt
+import air.air.ATOMIC_CAS
+import air.air.ATOMIC_FENCE
+import air.air.ATOMIC_LOAD
+import air.air.ATOMIC_STORE
 import air.air.FieldPath
 import air.air.CALL_VALUE
 import air.air.FloatFn
@@ -1167,6 +1171,71 @@ fn floatFn(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue) 
     return Value{ty: a.ty, text: t}
 }
 
+// The value `v` as an atomic instruction takes it: an `i1` becomes `i8`.
+fn widen(g: mut Gen, v: str, isBool: bool) str {
+    if !isBool {
+        return v.toOwned()
+    }
+    const t = nextTemp(g)
+    g.out.push("  {t} = zext i1 {v} to i8\n")
+    return t
+}
+
+// The result of an atomic instruction, narrowed back to `i1` for a bool.
+fn narrow(g: mut Gen, raw: str, isBool: bool) str {
+    if !isBool {
+        return raw.toOwned()
+    }
+    const t = nextTemp(g)
+    g.out.push("  {t} = trunc i8 {raw} to i1\n")
+    return t
+}
+
+// The atomic intrinsics (ADR 0042): `load atomic`, `store atomic`,
+// `atomicrmw`, `cmpxchg` and `fence`. A `bool` is a byte in memory; LLVM
+// atomics need a whole byte, so a bool is widened to `i8` around the
+// instruction.
+fn atomic(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue,
+          ty: move str) Value {
+    const orders = ["monotonic", "acquire", "release", "acq_rel", "seq_cst"]
+    const order = &orders[rv.flag]
+    if rv.to == ATOMIC_FENCE {
+        g.out.push("  fence {order}\n")
+        return Value{ty: ty, text: ""}
+    }
+    const inner = llvmType(g, c, p, c.types.get(rv.a.ty).inner)
+    const isBool = inner == "i1"
+    const vt = if isBool { "i8".toOwned() } else { inner.clone() }
+    const align = if vt == "i8" { 1 } else if vt == "i16" { 2 } else if vt == "i32" { 4 } else { 8 }
+    const at = operand(g, c, p, body, &rv.a).text
+    if rv.to == ATOMIC_LOAD {
+        const raw = nextTemp(g)
+        g.out.push("  {raw} = load atomic {vt}, ptr {at} {order}, align {align}\n")
+        return Value{ty: ty, text: narrow(g, raw, isBool)}
+    }
+    const b = operand(g, c, p, body, &rv.b).text
+    const value = widen(g, b, isBool)
+    if rv.to == ATOMIC_STORE {
+        g.out.push("  store atomic {vt} {value}, ptr {at} {order}, align {align}\n")
+        return Value{ty: ty, text: ""}
+    }
+    if rv.to == ATOMIC_CAS {
+        const fails = ["monotonic", "acquire", "monotonic", "acquire", "seq_cst"]
+        const d = operand(g, c, p, body, &rv.items[0]).text
+        const desired = widen(g, d, isBool)
+        const pair = nextTemp(g)
+        g.out.push("  {pair} = cmpxchg ptr {at}, {vt} {value}, {vt} {desired} {order} ")
+        g.out.push("{fails[rv.flag]}, align {align}\n")
+        const raw = nextTemp(g)
+        g.out.push("  {raw} = extractvalue \{ {vt}, i1 \} {pair}, 0\n")
+        return Value{ty: ty, text: narrow(g, raw, isBool)}
+    }
+    const ops = ["", "", "xchg", "add", "sub"]
+    const raw = nextTemp(g)
+    g.out.push("  {raw} = atomicrmw {ops[rv.to]} ptr {at}, {vt} {value} {order}, align {align}\n")
+    return Value{ty: ty, text: narrow(g, raw, isBool)}
+}
+
 fn rvalue(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue,
           destType: int) Value {
     const ty = llvmType(g, c, p, destType)
@@ -1312,6 +1381,9 @@ fn rvalue(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue,
             }
             g.mutGlobals[rv.flag] = true
             return Value{ty: ty, text: globalName(c, rv.flag)}
+        }
+        RvalueKind.Atomic => {
+            return atomic(g, c, p, body, rv, ty)
         }
         RvalueKind.Unsize => {
             const thin = operand(g, c, p, body, &rv.a)

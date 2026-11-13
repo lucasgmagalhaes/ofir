@@ -36,7 +36,7 @@ static bool stmt_ok(const Validator *v, const AirStmt *s) {
         return true;
     }
     const Rvalue *rv = &s->as.rvalue;
-    for (uint32_t i = 0; rv->kind == RV_AGGREGATE && i < rv->count; i++) {
+    for (uint32_t i = 0; i < rv->count; i++) {
         if (!operand_ok(v, rv->items[i])) {
             return false;
         }

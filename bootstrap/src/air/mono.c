@@ -105,7 +105,7 @@ static void subst_rvalue(const Subst *s, Rvalue *rv) {
     subst_operand(s, &rv->a);
     subst_operand(s, &rv->b);
     subst_type(s, &rv->to);
-    for (uint32_t i = 0; rv->kind == RV_AGGREGATE && i < rv->count; i++) {
+    for (uint32_t i = 0; i < rv->count; i++) {
         subst_operand(s, &rv->items[i]);
     }
 }

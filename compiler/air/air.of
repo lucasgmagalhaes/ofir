@@ -226,7 +226,19 @@ pub copy enum RvalueKind {
     TypeId
     /** the address of the mutable global `flag`, a `*mut T` (spec 11.5) */
     GlobalAddr
+    /**
+     * the atomic operation `to` (an `AtomicOp`) with the ordering `flag` (a variant of
+     * `std.mem.atomic.Ordering`) on the address a (ADR 0042): b is the value, the
+     * expected value of a compare-exchange, whose desired value is items[0]
+     */
+    Atomic
 }
+
+/** The operations of `RvalueKind.Atomic`, the codes in `Rvalue.to`. */
+pub const ATOMIC_LOAD = 0
+pub const ATOMIC_STORE = 1
+pub const ATOMIC_CAS = 5
+pub const ATOMIC_FENCE = 6
 
 /** The float functions of `RvalueKind.FloatFn`. */
 pub copy enum FloatFn {
