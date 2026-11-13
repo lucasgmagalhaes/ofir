@@ -119,6 +119,13 @@ pub fn isOrdering(c: Checker, ty: int) bool {
  * @returns true if it does
  */
 pub fn adtSatisfies(c: mut Checker, p: Program, ty: int, bit: int) bool {
+    const id = c.types.get(ty).data
+    if id != 0 && id == c.r.langItems[4] {   // `&[T]`: by its elements (spec 9.9)
+        return bit == BOUND_EQ && equatable(c, p, c.types.get(ty).args[0])
+    }
+    if id != 0 && id == c.r.langItems[7] {
+        return false   // `&mut [T]`: compare `s.asSlice()`
+    }
     if bit == BOUND_ORD && c.isUnion(c.types.get(ty).data) {
         return false   // a union has no order of its own (spec 17.5)
     }
@@ -287,7 +294,7 @@ fn debuggableIn(c: mut Checker, p: Program, ty: int, seen: &mut List<int>) bool 
        kind == TyKind.Error {
         return true
     }
-    if kind == TyKind.Ref {
+    if kind == TyKind.Ref || kind == TyKind.Array {
         return debuggableIn(c, p, c.types.get(ty).inner, seen)
     }
     if kind == TyKind.Param {

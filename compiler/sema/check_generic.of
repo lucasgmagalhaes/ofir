@@ -554,6 +554,9 @@ pub fn equatable(c: mut Checker, p: Program, ty: int) bool {
     if kind == TyKind.Param {
         return paramBounds(c, ty) & (BOUND_EQ | BOUND_NUMBER) != 0   // NUMBER: spec 15.3
     }
+    if kind == TyKind.Array {   // element by element (spec 2.7)
+        return equatable(c, p, c.types.get(ty).inner)
+    }
     if kind == TyKind.Tuple {
         const elems = c.types.get(ty).args.clone()
         for i in 0..elems.len() {
