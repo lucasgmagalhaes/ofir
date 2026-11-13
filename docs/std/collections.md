@@ -90,3 +90,23 @@ over a method of the same name of the value; `(*b).m()` calls the latter.
 Stage 0: `Box` is declared in `std/core/box.of`, marked `@lang("box")` so
 that the compiler knows which type to dereference. Dropping a box drops
 its value and frees the memory.
+
+## `std.arena`: `Arena<T>`, `Id<T>`
+
+Values of one type that are freed all together (ADR 0049). An `Id<T>` is a
+`copy` handle, so values can link to each other, cycles included, without
+borrowing the arena.
+
+| Item | Description | S0 |
+|------|-------------|:--:|
+| `fn Arena.new() Arena<T>` | an empty arena | ✓ |
+| `fn Arena.withCapacity(n: int) Arena<T>` | room for `n` values before it grows | ✓ |
+| `fn alloc(mut self, value: move T) Id<T>` | moves a value in; ids count from 0 | ✓ |
+| `fn get(self, id: Id<T>) &T` | the value of an id | ✓ |
+| `fn getMut(mut self, id: Id<T>) &mut T` | the value of an id, to change it | ✓ |
+| `fn len(self) int` | how many values it holds | ✓ |
+| `fn clear(mut self)` | drops every value, keeps the storage | ✓ |
+| `fn Id.index(self) int` | the position of the value, in allocation order | ✓ |
+
+`get` and `getMut` panic for an id made before the arena's last `clear`.
+There is no per-value free: an arena grows until `clear`.
