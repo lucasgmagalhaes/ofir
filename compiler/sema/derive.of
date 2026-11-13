@@ -7,10 +7,12 @@
  * interface. A type with a `drop` method owns a resource (`List`, `Box`),
  * so its fields say nothing about its value: it derives none of them.
  * `Debug` for `{x:?}` is derived the same way, but the std types that own a
- * resource declare `debug` themselves.
+ * resource declare `debug` themselves. `Display` for `{x}` is never
+ * derived: a struct or enum declares `format`.
  */
 
 import sema.check.BOUND_DEBUG
+import sema.check.BOUND_DISPLAY
 import sema.check.BOUND_EQ
 import sema.check.BOUND_HASH
 import sema.check.BOUND_ORD
@@ -255,7 +257,28 @@ pub fn fromMethod(c: mut Checker, p: Program, target: int, source: int) int {
  * @returns its `DefId`, or 0 when the type declares none of that shape
  */
 pub fn debugMethod(c: mut Checker, p: Program, ty: int) int {
-    const id = declaredMethod(c, p, ty, "debug")
+    return writerMethod(c, p, ty, "debug")
+}
+
+/**
+ * The method `{x}` calls on a struct or enum (`Display`, spec 9.9): one it
+ * declares as `fn format(self, out: mut str)`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns its `DefId`, or 0 when the type declares none of that shape
+ */
+pub fn displayMethod(c: mut Checker, p: Program, ty: int) int {
+    if c.types.kind(ty) != TyKind.Adt {
+        return 0
+    }
+    return writerMethod(c, p, ty, "format")
+}
+
+// A method `fn name(self, out: mut str)` the type declares, or 0.
+fn writerMethod(c: mut Checker, p: Program, ty: int, name: str) int {
+    const id = declaredMethod(c, p, ty, name)
     if id == 0 {
         return 0
     }
@@ -267,6 +290,31 @@ pub fn debugMethod(c: mut Checker, p: Program, ty: int) int {
     const sig = fnSignature(c, p, id)
     const ok = c.types.get(sig).args[0] == STR && c.types.get(sig).inner == UNIT
     return if ok { id } else { 0 }
+}
+
+/**
+ * Whether `{x}` shows a value of a type (`Display`, spec 9.9): numbers,
+ * `bool`, `str`, references to such types, type parameters bounded by
+ * `Display`, and structs and enums that declare `format`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns true if it does
+ */
+pub fn displayable(c: mut Checker, p: Program, ty: int) bool {
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Bool ||
+       kind == TyKind.Str || kind == TyKind.Never || kind == TyKind.Error {
+        return true
+    }
+    if kind == TyKind.Ref {
+        return displayable(c, p, c.types.get(ty).inner)
+    }
+    if kind == TyKind.Param {
+        return paramBounds(c, ty) & BOUND_DISPLAY != 0
+    }
+    return displayMethod(c, p, ty) != 0
 }
 
 /**

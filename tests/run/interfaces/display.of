@@ -1,0 +1,50 @@
+// requires: stage1
+// `Display`: `{x}` calls `fn format(self, out: mut str)` (spec 9.9).
+struct Money {
+    cents: int
+
+    fn format(self, out: mut str) {
+        out.push("${self.cents / 100}.{self.cents % 100:02}")
+    }
+}
+
+enum Light {
+    Red
+    Green
+
+    fn format(self, out: mut str) {
+        match self {
+            Light.Red => out.push("red")
+            Light.Green => out.push("green")
+        }
+    }
+}
+
+struct Tagged<T: Display> {
+    tag: str
+    value: T
+
+    fn format(self, out: mut str) {
+        out.push("{self.tag}={self.value}")
+    }
+}
+
+fn label<T: Display>(x: T) str {
+    return "<{x}>"
+}
+
+fn price(cents: int) Money {
+    return Money{cents: cents}
+}
+
+fn main() {
+    const m = Money{cents: 1234}
+    const r = &m
+    print("{m} {r} {Light.Green} {price(5)}\n")
+    print(label(m) + label(7) + label("s") + label(Light.Red) + "\n")
+    const t = Tagged{tag: "total", value: price(250)}
+    let s = "["
+    s.push("{t}")
+    s.push("]")
+    print("{s} {t.value.cents}\n")
+}

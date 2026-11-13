@@ -151,10 +151,12 @@ pub const BOUND_DEBUG: int = 32
 pub const BOUND_SEND: int = 64
 /** `Sync`: shared references may be used from several tasks (spec 14.3). */
 pub const BOUND_SYNC: int = 128
+/** `Display`: `{x}` through `fn format(self, out: mut str)` (spec 9.9). */
+pub const BOUND_DISPLAY: int = 256
 /** The number of bits above. */
-pub const BOUND_COUNT: int = 8
+pub const BOUND_COUNT: int = 9
 /** `const N: int`: a const parameter, its arguments integers (spec 8.7); not an interface. */
-pub const BOUND_CONST: int = 256
+pub const BOUND_CONST: int = 512
 
 /**
  * The bit of the built-in interface a bound names, or 0.
@@ -162,7 +164,7 @@ pub const BOUND_CONST: int = 256
  * @param c the checker
  * @param t the bound
  * @returns `BOUND_EQ`, `BOUND_ORD`, `BOUND_HASH`, `BOUND_CLONE`, `BOUND_COPY`,
- *          `BOUND_DEBUG`, `BOUND_SEND`, `BOUND_SYNC` or 0
+ *          `BOUND_DEBUG`, `BOUND_SEND`, `BOUND_SYNC`, `BOUND_DISPLAY` or 0
  */
 pub fn boundBit(c: Checker, t: &TypeExpr) int {
     const name = match t.kind {
@@ -192,6 +194,8 @@ pub fn boundBit(c: Checker, t: &TypeExpr) int {
         BOUND_SEND
     } else if text == "Sync" {
         BOUND_SYNC
+    } else if text == "Display" {
+        BOUND_DISPLAY
     } else {
         0
     }
@@ -497,7 +501,7 @@ pub struct Checker {
     /** The functions whose parameter defaults were checked, by `DefId`. */
     pub defaultsChecked: Map<int, bool>
     /** The values converted from `List<T>` to `&[T]` (`list.asSlice()`), by module:
-     * `NodeId` to the element type. */
+     * `NodeId` to the element type, or `-1 - elem` for a `&List<T>`. */
     pub sliceCoercions: List<Map<int, int>>
     /** The arrays converted to `&[T]` (spec 2.12), by module: `NodeId` to the type before
      * the conversion, `[T; N]` or a reference to it. */

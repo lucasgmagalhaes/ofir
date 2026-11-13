@@ -1,0 +1,10 @@
+false true true
+Some(Point { x: 1, y: 3 })
+true true
+Pair { a: Point { x: 1, y: 2 }, b: Point { x: 1, y: 3 } }
+Line(Point { x: 1, y: 2 }, Point { x: 1, y: 3 }) true
+true Some(Pair { a: Point { x: 1, y: 2 }, b: Point { x: 1, y: 3 } })
+true Ok(Point { x: 1, y: 2 })
+[Point { x: 1, y: 2 }, Point { x: 1, y: 3 }]
+Some(5)
+true

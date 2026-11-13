@@ -536,8 +536,8 @@ pub fn arraySliceReceiver(c: mut Checker, p: Program, base: &Expr, found: int,
 }
 
 /**
- * A `List<T>` where a `&[T]` is expected (spec 2.12) becomes
- * `list.asSlice()`; an array `[T; N]`, or a reference to one, becomes a
+ * A `List<T>` or a `&List<T>` where a `&[T]` is expected (spec 2.12)
+ * becomes `list.asSlice()`; an array `[T; N]`, or a reference to one, becomes a
  * slice of its N elements.
  *
  * @param c the checker
@@ -562,7 +562,9 @@ pub fn coerceToSlice(c: mut Checker, p: Program, e: &Expr, found: int, expected:
         c.setType(e.id.0, expected)
         return true
     }
-    const Option.Some(elem) = listElem(c, found) else {
+    const ft = c.types.get(found)
+    const borrowed = ft.kind == TyKind.Ref   // `&List<T>` or `&mut List<T>`
+    const Option.Some(elem) = listElem(c, if borrowed { ft.inner } else { found }) else {
         return false
     }
     if elem != t.args[0] {
@@ -575,7 +577,7 @@ pub fn coerceToSlice(c: mut Checker, p: Program, e: &Expr, found: int, expected:
     if !hasMethod(c, p, list, asSlice) {
         return false
     }
-    c.sliceCoercions[c.module()].insert(e.id.0, elem)
+    c.sliceCoercions[c.module()].insert(e.id.0, if borrowed { -1 - elem } else { elem })
     c.setType(e.id.0, expected)
     return true
 }
