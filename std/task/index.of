@@ -6,6 +6,8 @@
  */
 // requires: stage1 (closures, roadmap 5.7)
 
+import std.mem.atomic
+
 @link("pthread")
 extern "C" {
     fn ofir_alloc(size: int) *mut u8
@@ -13,6 +15,32 @@ extern "C" {
     fn ofir_free(p: *mut u8)
     fn ofir_task_spawn(job: *mut u8) *mut u8
     fn ofir_task_join(thread: *mut u8)
+    fn ofir_task_detach(thread: *mut u8)
+}
+
+extern "intrinsic" {
+    fn dropInPlace<T>(p: *mut T)
+    fn forget<T>(value: move T)
+}
+
+// Where a task leaves its result. `state` says who frees it: the handle
+// joins and takes the value, or, once dropped, leaves the slot to the
+// task, which drops the value it makes.
+struct Slot<T> {
+    state: int
+    value: T
+}
+
+const RUNNING: int = 0
+const DONE: int = 1
+const DETACHED: int = 2
+
+unsafe fn statePtr<T>(slot: *mut Slot<T>) *mut int {
+    return &(*slot).state as *int as *mut int
+}
+
+unsafe fn valuePtr<T>(slot: *mut Slot<T>) *mut T {
+    return &(*slot).value as *T as *mut T
 }
 
 // What a new thread runs: the task's closure, with its result already
@@ -33,13 +61,15 @@ extern "C" fn taskEntry(job: *mut u8) {
 }
 
 /**
- * A running task: `join` waits for it and returns its result.
+ * A running task: `join` waits for it and returns its result. Dropping the
+ * handle without a join detaches the task: it runs on, and its result is
+ * dropped when it ends.
  *
  * @typeParam T the type of the task's result
  */
 pub struct Task<T> {
     thread: *mut u8
-    slot: *mut T
+    slot: *mut Slot<T>
 
     /**
      * Waits for the task to finish.
@@ -47,11 +77,23 @@ pub struct Task<T> {
      * @returns the value the task's closure returned
      */
     pub fn join(move self) T {
-        unsafe {
+        const value = unsafe {
             ofir_task_join(self.thread)
-            const value = *self.slot
+            const v = *valuePtr(self.slot)
             ofir_free(self.slot as *mut u8)
-            return value
+            v
+        }
+        forget(self)   // the thread and the slot are gone
+        return value
+    }
+
+    fn drop(mut self) {
+        unsafe {
+            ofir_task_detach(self.thread)
+            if atomic.atomicSwap(statePtr(self.slot), DETACHED, atomic.Ordering.AcqRel) == DONE {
+                dropInPlace(valuePtr(self.slot))
+                ofir_free(self.slot as *mut u8)
+            }
         }
     }
 }
@@ -73,15 +115,22 @@ pub struct Task<T> {
  */
 pub fn run<T: Send>(f: move fn() T + Send) Task<T> {
     const slot = unsafe {
-        if alignOf<T>() > 16 {
-            ofir_alloc_aligned(sizeOf<T>(), alignOf<T>()) as *mut T
+        if alignOf<Slot<T>>() > 16 {
+            ofir_alloc_aligned(sizeOf<Slot<T>>(), alignOf<Slot<T>>()) as *mut Slot<T>
         } else {
-            ofir_alloc(sizeOf<T>()) as *mut T
+            ofir_alloc(sizeOf<Slot<T>>()) as *mut Slot<T>
         }
+    }
+    unsafe {
+        *statePtr(slot) = RUNNING
     }
     const job = Job{run: move () => {
         unsafe {
-              *slot = f()
+            *valuePtr(slot) = f()
+            if atomic.atomicSwap(statePtr(slot), DONE, atomic.Ordering.AcqRel) == DETACHED {
+                dropInPlace(valuePtr(slot))
+                ofir_free(slot as *mut u8)
+            }
         }
     }}
     const thread = unsafe {
