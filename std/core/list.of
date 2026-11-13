@@ -333,6 +333,31 @@ pub struct List<T> {
     }
 
     /**
+     * A mutable view of part of the list: `&mut l[lo..hi]`. The list cannot
+     * grow or shrink while the view is used.
+     *
+     * @param lo the first position
+     * @param hi the position after the last one
+     * @returns the elements `lo` to `hi - 1`
+     * @panics unless `0 <= lo <= hi <= len()`
+     */
+    pub fn sliceMut(mut self, lo: int, hi: int) SliceMut<T> {
+        checkRange(lo, hi, self.len)
+        return unsafe { SliceMut.fromRaw(self.ptr.add(lo), hi - lo) }
+    }
+
+    /**
+     * A mutable view of the end of the list: `&mut l[lo..]`.
+     *
+     * @param lo the first position
+     * @returns the elements from `lo` to the end
+     * @panics unless `0 <= lo <= len()`
+     */
+    pub fn sliceFromMut(mut self, lo: int) SliceMut<T> {
+        return self.sliceMut(lo, self.len)
+    }
+
+    /**
      * Removes the last element, in constant time.
      *
      * @returns `Some` with the last element, or `None` for an empty list
