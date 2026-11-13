@@ -1,0 +1,69 @@
+// The tests of the float methods (OFIR-42, ADR 0057): `ofir test std/core/num/f64.of` runs them.
+
+import std.testing.assert
+
+const INF: f64 = 1.0 / 0.0
+const NAN: f64 = 0.0 / 0.0
+
+fn near(a: f64, b: f64) bool {
+    return (a - b).abs() <= 1e-12 * (1.0 as f64).max(b.abs())
+}
+
+@test
+fn nanPropagates() {
+    assert(NAN.sin().isNan())
+    assert(NAN.powf(1.0).isNan())
+    assert(NAN.signum().isNan())
+    assert(NAN.clamp(0.0, 1.0).isNan())
+    assert(!NAN.isFinite() && !NAN.isInfinite())
+}
+
+@test
+fn infinities() {
+    assert(INF.isInfinite() && (-INF).isInfinite() && !INF.isFinite())
+    assert(INF.exp() == INF && (-INF).exp() == 0.0)
+    assert((0.0 as f64).ln() == -INF)
+    assert((-1.0 as f64).ln().isNan())
+    assert((2.0 as f64).asin().isNan())
+    assert(INF.atan2(1.0) == (1.0 as f64).atan2(0.0))
+    assert((1000.0 as f64).exp() == INF)
+}
+
+@test
+fn signedZero() {
+    const negZero: f64 = -0.0
+    assert(negZero == 0.0)
+    assert(negZero.isSignNegative() && !(0.0 as f64).isSignNegative())
+    assert(negZero.signum() == -1.0 && (0.0 as f64).signum() == 1.0)
+    assert((3.0 as f64).copySign(negZero) == -3.0)
+    assert((-0.4 as f64).round().isSignNegative())
+}
+
+@test
+fn rounding() {
+    assert((0.5 as f64).round() == 1.0 && (-0.5 as f64).round() == -1.0)
+    assert((-7.75 as f64).trunc() == -7.0 && (-7.75 as f64).fract() == -0.75)
+    assert((4.0 as f64).clamp(5.0, 6.0) == 5.0)
+}
+
+@test
+fn identities() {
+    const x: f64 = 0.7
+    assert(near(x.sin() * x.sin() + x.cos() * x.cos(), 1.0))
+    assert(near(x.tan(), x.sin() / x.cos()))
+    assert(near(x.exp().ln(), x))
+    assert(near((1000.0 as f64).log10(), 3.0))
+    assert(near((27.0 as f64).cbrt(), 3.0) && near((-8.0 as f64).cbrt(), -2.0))
+    assert(near(x.sinh() / x.cosh(), x.tanh()))
+    assert(near((2.0 as f64).powf(0.5), (2.0 as f64).sqrt()))
+    assert((1e300 as f64).hypot(1e300).isFinite())
+    assert((0.1 as f64).mulAdd(10.0, -1.0) != 0.0)
+}
+
+@test
+fn singlePrecision() {
+    const y: f32 = 0.25
+    assert(y.sqrt() == 0.5 && (16.0 as f32).log2() == 4.0)
+    assert((y.sin() as f64 - (0.25 as f64).sin()).abs() < 1e-6)
+    assert((1.0 as f32 / 0.0).isInfinite())
+}
