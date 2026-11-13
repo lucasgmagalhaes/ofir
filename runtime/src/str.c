@@ -154,15 +154,3 @@ void ofir_str_concat(OfirStr *out, const OfirStr *a, const OfirStr *b) {
     *out = result;
 }
 
-bool ofir_str_eq(const OfirStr *a, const OfirStr *b) {
-    return a->len == b->len && (a->len == 0 || memcmp(a->ptr, b->ptr, (size_t)a->len) == 0);
-}
-
-int32_t ofir_str_cmp(const OfirStr *a, const OfirStr *b) {
-    int64_t common = a->len < b->len ? a->len : b->len;
-    int order = common > 0 ? memcmp(a->ptr, b->ptr, (size_t)common) : 0;
-    if (order != 0) {
-        return order < 0 ? -1 : 1;
-    }
-    return a->len < b->len ? -1 : a->len > b->len;
-}

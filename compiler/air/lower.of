@@ -212,6 +212,9 @@ pub struct Lowerer {
     pub tooDeep: bool
     /** The function being lowered, or 0 for glue. */
     pub fnDef: int
+    /** `strEq` and `strCmp` of std/core/str.of: `==` and `<` on strings call them. */
+    pub strEq: int
+    pub strCmp: int
     /** A construct stage 1 does not lower yet was met. */
     pub unsupported: bool
     /** What it was. */
@@ -1647,8 +1650,10 @@ pub fn lowerProgram(c: mut Checker, p: Program) Lowerer {
                     instances: Map.new(), origins: Map.new(), owned: [], scopes: [], flags: [],
                     borrowed: [],
                     movedParts: [], partFlags: [], dropCache: [], temps: [], tempScopes: [],
-                    forward: false, tooDeep: false, fnDef: 0, unsupported: false, missing: "",
-                    out: [], tests: [], comptimes: []}
+                    forward: false, tooDeep: false, fnDef: 0,
+                    strEq: stdFn(c, p, "std.core.str", "strEq"),
+                    strCmp: stdFn(c, p, "std.core.str", "strCmp"), unsupported: false,
+                    missing: "", out: [], tests: [], comptimes: []}
     if !c.r.testing {
         checkMain(c, p)
     }

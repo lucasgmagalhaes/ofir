@@ -64,11 +64,15 @@ static Operand str_op(Lowerer *l, Op op, Operand a, Operand b) {
         emit_runtime(l, RT_STR_CONCAT, args, 3, NULL);
         return op_copy(dest, type_id(TID_STR));
     }
-    Operand args[] = {addr(l, a), addr(l, b)};
     bool equality = op == OP_EQ || op == OP_NE;
     TypeId result = type_id(equality ? TID_BOOL : TID_I32);
     LocalId dest = new_temp(l, result);
-    emit_runtime(l, equality ? RT_STR_EQ : RT_STR_CMP, args, 2, &dest);
+    Operand *args = ARENA_ARRAY(&l->sema->session->arena, Operand, 2);   // std/core/str.of
+    args[0] = a;
+    args[1] = b;
+    args[0].type = args[1].type = type_id(TID_STR);
+    emit_direct_call(l, std_fn(l, "std.core.str", equality ? "strEq" : "strCmp"),
+                     type_id(TID_UNIT), (CallArgs){args, 2}, &dest);
     if (op == OP_EQ) {
         return op_copy(dest, result);
     }

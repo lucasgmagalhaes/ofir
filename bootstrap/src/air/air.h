@@ -93,7 +93,7 @@ typedef enum {
     RT_PRINT_NEWLINE,
     RT_STR_PUSH_STR, RT_STR_PUSH_INT, RT_STR_PUSH_UINT, RT_STR_PUSH_FLOAT, RT_STR_PUSH_F32,
     RT_STR_PUSH_BOOL,
-    RT_STR_CONCAT, RT_STR_EQ, RT_STR_CMP,
+    RT_STR_CONCAT,
     RT_TEST_INDEX,    // the test `ofir test` asked for, or -1
     RT_COUNT,
 } RuntimeFn;
