@@ -210,6 +210,37 @@ pub struct StrChars {
     }
 }
 
+/**
+ * The characters of a string with the byte offset where each starts:
+ * `s.charIndices()`.
+ */
+pub struct StrCharIndices {
+    chars: StrChars
+
+    /**
+     * The characters of `text` with their offsets.
+     *
+     * @param text the string
+     * @returns the iterator
+     */
+    pub fn of(text: str) StrCharIndices {
+        return StrCharIndices{chars: StrChars.of(text)}
+    }
+
+    /**
+     * The next character and its byte offset.
+     *
+     * @returns `Some((offset, scalar))`, or `None` at the end
+     */
+    pub fn next(mut self) Option<(int, u32)> {
+        const at = self.chars.at
+        if const Option.Some(c) = self.chars.next() {
+            return Option.Some((at, c))
+        }
+        return Option.None
+    }
+}
+
 // ASCII whitespace: space, \t, \n, vertical tab, form feed, \r.
 fn isSpace(b: u8) bool {
     return b == b' ' || (b >= 9 && b <= 13)
