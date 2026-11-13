@@ -1,0 +1,38 @@
+struct Unit {}
+
+enum Slot {
+    Empty
+    Full(Unit)
+    Pair((), Unit)
+}
+
+fn find(xs: &List<Unit>, i: int) Option<Unit> {
+    return if i < xs.len() { Option.Some(Unit{}) } else { Option.None }
+}
+
+fn main() {
+    let xs: List<Unit> = []
+    for _ in 0..100000 {
+        xs.push(Unit{})
+    }
+    let ys: List<()> = []
+    ys.push(())
+    ys.push(())
+    const b = Box.new(Unit{})
+    let m: Map<int, Unit> = Map.new()
+    for i in 0..1000 {
+        m.insert(i, Unit{})
+    }
+    const empty: List<int> = List.withCapacity(0)
+    println("{xs.len()} {ys.len()} {m.len()} {sizeOf<Unit>()} {empty.capacity()}")
+    const _u = b.unbox()
+    const slots = [Slot.Empty, Slot.Full(Unit{}), Slot.Pair((), Unit{})]
+    for s in slots {
+        match s {
+            Slot.Empty => println("empty")
+            Slot.Full(_) => println("full")
+            Slot.Pair(_, _) => println("pair")
+        }
+    }
+    println("{find(&xs, 5).isSome()} {find(&xs, 100000).isSome()}")
+}
