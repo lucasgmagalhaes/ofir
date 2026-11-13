@@ -389,6 +389,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.25h | Fast debug compilation (ADR 0054): a profile of the self-build (front end 1.2 s, clang `-O0` 15.7 s of 17.3 s cold, 1.5-3 s edit-rebuild with the object cache, FastISel falling back on aggregates by value and `fastcc`) rules out an alternative backend or JIT; debug code generation uses the linear pre-RA scheduler (17.3 s to 11.6 s cold); aggregates by pointer in debug IR is the recorded next lever | OFIR-38 | **done** |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
 | 6.26a | Built-in interfaces audit: generic user structs and enums work through `Eq`, `Ord`, `Hash` (derived), `Clone` and `Debug`, inside `Option`, `Result`, `List`, `Map` and tuples (`tests/run/interfaces/builtin_audit.of`); stage 1 gains `Display` (`fn format(self, out: mut str)` for `{x}` and the `T: Display` bound) and the `&List<T>` to `&[T]` conversion of spec 2.12, also for an inferred `T`; open: a user-declared `hash` waits for `Hasher`, and `T.default()` on a type parameter for static interface methods | OFIR-39 | **done** |
+| 6.26b | Collections by workload in `std.collections` (ADR 0055): `Deque` (ring buffer), `Set` (over `Map`), `Heap` and `Reverse` (binary heap), `SortedMap` (sorted parallel lists, `lowerBound` ranges); `Map.keys` and `List.swap`; ordering, capacity reuse and drop-exactly-once tests; a B-tree waits for a benchmark | OFIR-40 | **done** |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
@@ -429,7 +430,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.26 with OFIR-40; OFIR-39 is 6.26a.
+1. Continue 6.26 with OFIR-41; OFIR-39 is 6.26a, OFIR-40 is 6.26b.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
