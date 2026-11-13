@@ -1,0 +1,23 @@
+// Counting pseudo-random keys in a hash map: hashing, probing and growth.
+
+fn main() {
+    const n = 2000000
+    const keys = 200000
+    let counts = Map<int, int>.new()
+    let seed = 7
+    for _ in 0..n {
+        seed = (seed * 1103515245 + 12345) % 2147483648
+        const count = counts.getOrInsert(seed % keys, 0)
+        *count += 1
+    }
+    let sum = 0
+    for k in 0..keys {
+        match counts.get(k) {
+            Option.Some(c) => {
+                sum += *c * (k % 13)
+            }
+            Option.None => {}
+        }
+    }
+    println("{counts.len()} {sum}")
+}
