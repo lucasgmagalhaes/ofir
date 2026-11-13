@@ -9,6 +9,7 @@
 
 import std.mem.atomic
 import std.mem.cell.UnsafeCell
+import std.time.Deadline
 
 @link("pthread")
 extern "C" {
@@ -20,6 +21,7 @@ extern "C" {
     fn ofir_channel_send(ch: *mut u8, value: *mut u8) bool
     fn ofir_channel_recv(ch: *mut u8) *mut u8
     fn ofir_channel_try_recv(ch: *mut u8) *mut u8
+    fn ofir_channel_recv_until(ch: *mut u8, deadline: int, timedOut: *mut bool) *mut u8
     fn ofir_channel_add_sender(ch: *mut u8)
     fn ofir_channel_drop_sender(ch: *mut u8)
     fn ofir_channel_close(ch: *mut u8)
@@ -144,6 +146,26 @@ pub struct Receiver<T> {
     }
 
     /**
+     * Waits for the next value until a deadline.
+     *
+     * @param deadline when to stop waiting
+     * @returns the value; `TimedOut` when the deadline passed first, or
+     *          `Closed` once the queue is empty and every sender is dropped
+     */
+    pub fn recvUntil(self, deadline: Deadline) Recv<T> {
+        let timedOut = false
+        const flag = &mut timedOut as *mut bool
+        const p = unsafe { ofir_channel_recv_until(self.ch, deadline.instant(), flag) }
+        if !none(p) {
+            return Recv.Value(unboxed<T>(p))
+        }
+        if timedOut {
+            return Recv.TimedOut
+        }
+        return Recv.Closed
+    }
+
+    /**
      * Takes the next value if one is waiting.
      *
      * @returns the value, or `None` when the queue is empty
@@ -175,6 +197,20 @@ pub struct Receiver<T> {
             ofir_channel_drop_receiver(self.ch)
         }
     }
+}
+
+/**
+ * What `Receiver.recvUntil` got.
+ *
+ * @typeParam T the type of the values received
+ */
+pub enum Recv<T> {
+    /** The next value. */
+    Value(value: T)
+    /** The deadline passed before a value came. */
+    TimedOut
+    /** The queue is empty and every sender is dropped. */
+    Closed
 }
 
 /**
@@ -906,3 +942,4 @@ pub struct WaitGroup {
         }
     }
 }
+
