@@ -954,3 +954,97 @@ pub struct WaitGroup {
     }
 }
 
+// The shared state of a `CancelToken`: the group counts 1 until the
+// first `cancel`, so that waiting for cancellation is waiting for 0.
+struct CancelState {
+    cancelled: AtomicBool
+    group: WaitGroup
+}
+
+/**
+ * Asks tasks to stop. Cancellation is cooperative: a task polls
+ * `isCancelled`, or waits with `wait` or `waitUntil`, and then winds down
+ * on its own, dropping what it owns; nothing stops a task from outside
+ * (spec 14.5). Clones share one state, so any of them cancels all.
+ *
+ * @example
+ * ```ofir
+ * import std.sync.CancelToken
+ * import std.task
+ * import std.testing.assert
+ *
+ * const stop = CancelToken.new()
+ * const mine = stop.clone()
+ * const t = task.run(move () int => {
+ *     let polls = 0
+ *     for !mine.isCancelled() {
+ *         polls += 1
+ *     }
+ *     return polls
+ * })
+ * stop.cancel()
+ * assert(t.join() >= 0)
+ * ```
+ */
+@threadsafe
+pub struct CancelToken {
+    state: Arc<CancelState>
+
+    /**
+     * A token that is not cancelled.
+     *
+     * @returns the token
+     */
+    pub fn new() CancelToken {
+        const group = WaitGroup.new()
+        group.add(1)
+        const state = CancelState{cancelled: AtomicBool.new(false), group: group}
+        return CancelToken{state: Arc.new(state)}
+    }
+
+    /**
+     * Another handle to the same token.
+     *
+     * @returns the handle
+     */
+    pub fn clone(self) CancelToken {
+        return CancelToken{state: self.state.clone()}
+    }
+
+    /**
+     * Cancels the token and wakes its waiters; later calls do nothing.
+     */
+    pub fn cancel(self) {
+        const state = self.state.get()
+        if !state.cancelled.swapWith(true, atomic.Ordering.AcqRel) {
+            state.group.done()
+        }
+    }
+
+    /**
+     * Whether the token is cancelled. Writes made before `cancel` are
+     * visible once this returns true.
+     *
+     * @returns true after the first `cancel`
+     */
+    pub fn isCancelled(self) bool {
+        return self.state.get().cancelled.loadWith(atomic.Ordering.Acquire)
+    }
+
+    /**
+     * Waits until the token is cancelled.
+     */
+    pub fn wait(self) {
+        self.state.get().group.wait()
+    }
+
+    /**
+     * Waits until the token is cancelled or the deadline passes.
+     *
+     * @param deadline when to stop waiting
+     * @returns true when the token is cancelled
+     */
+    pub fn waitUntil(self, deadline: Deadline) bool {
+        return self.state.get().group.waitUntil(deadline)
+    }
+}
