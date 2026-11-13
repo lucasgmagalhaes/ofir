@@ -1,0 +1,63 @@
+// requires: stage1
+// Audit (OFIR-39): generic user types through the built-in interfaces Eq, Ord,
+// Hash, Clone and Debug, in Option, Result, List, Map and tuples (spec 9.9).
+struct Point {
+    x: int
+    y: int
+}
+
+enum Shape {
+    Dot(Point)
+    Line(Point, Point)
+}
+
+struct Pair<T> {
+    a: T
+    b: T
+}
+
+fn largest<T: Ord + Clone>(items: &[T]) Option<T> {
+    if items.len() == 0 {
+        return Option.None
+    }
+    let best = items[0].clone()
+    for i in 1..items.len() {
+        if items[i] > best {
+            best = items[i].clone()
+        }
+    }
+    return Option.Some(best)
+}
+
+fn same<T: Eq>(a: &T, b: &T) bool {
+    return *a == *b
+}
+
+fn show<T: Debug>(x: T) str {
+    return "{x:?}"
+}
+
+fn main() {
+    const p = Point{x: 1, y: 2}
+    const q = Point{x: 1, y: 3}
+    print("{p == q} {p < q} {same(&p, &p)}\n")
+    const pts = [q.clone(), p.clone()]
+    print("{largest(&pts):?}\n")
+    const pair = Pair{a: p.clone(), b: q.clone()}
+    print("{pair == pair.clone()} {pair < Pair{a: q.clone(), b: p.clone()}}\n")
+    print(show(pair.clone()) + "\n")
+    const s = Shape.Line(p.clone(), q.clone())
+    print("{s:?} {s == s.clone()}\n")
+    const o: Option<Pair<Point>> = Option.Some(pair.clone())
+    print("{o == Option.Some(pair.clone())} {o:?}\n")
+    const r: Result<Point, str> = Result.Ok(p.clone())
+    print("{r == Result.Ok(p.clone())} {r:?}\n")
+    let list = [q.clone(), p.clone()]
+    list.sort()
+    print("{list:?}\n")
+    let m: Map<Point, int> = Map.new()
+    m.insert(p.clone(), 5)
+    print("{m.get(p.clone()):?}\n")
+    const t = (p.clone(), 3)
+    print("{t < (q.clone(), 1)}\n")
+}
