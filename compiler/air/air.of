@@ -301,8 +301,6 @@ pub copy enum RuntimeFn {
     StrPushPadded
     StrPushDebug
     StrConcat
-    StrEq
-    StrCmp
     /** The test `ofir test` asked for, or -1. */
     TestIndex
     /** Frees heap memory: the box a type test takes the value out of. */
@@ -335,8 +333,6 @@ pub fn runtimeName(f: RuntimeFn) str {
         RuntimeFn.StrPushPadded => "ofir_str_push_padded"
         RuntimeFn.StrPushDebug => "ofir_str_push_debug"
         RuntimeFn.StrConcat => "ofir_str_concat"
-        RuntimeFn.StrEq => "ofir_str_eq"
-        RuntimeFn.StrCmp => "ofir_str_cmp"
         RuntimeFn.TestIndex => "ofir_test_index"
         RuntimeFn.Free => "ofir_free"
     }
