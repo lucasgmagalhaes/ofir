@@ -107,9 +107,11 @@ const LIMIT: int = 10         // constants are always safe
   other run-time value is E0801.
 - Both stages implement globals of numeric and `bool` types; other types
   are E0901.
-- *Planned (ADR 0042):* `@threadLocal let NAME: T = constant` gives each
-  thread its own copy, made from the initializer when the thread starts.
-  Access requires `unsafe` as above; `T` must have no drop (E0822).
+- `@threadLocal let NAME: T = constant` gives each thread its own copy,
+  made from the initializer when the thread starts; access requires
+  `unsafe` as above. Both stages implement it. `@threadLocal` on anything
+  but a mutable global is E0808.
+- *Planned (ADR 0042):* a `@threadLocal` type must have no drop (E0822).
   Globals will also take raw pointers (initialized to `null`), fixed
   arrays and `@repr(C)` structs of those, in both stages.
 
