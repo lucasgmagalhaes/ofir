@@ -394,8 +394,39 @@ Stage 1 only: `Cell<T: Copy>` needs a bound, which stage 0 does not parse.
 A borrowed parameter whose type is a type parameter instantiated with such a
 type is still passed by value.
 
-## 5.9 Shared ownership **[planned]**
+## 5.9 Shared ownership
 
-For graphs and other structures with shared ownership, the standard library
-will provide `Rc<T>` (reference counted) and arena allocators. These are
-library types built on top of the rules above, not language features.
+A value with several owners is held through a reference-counted pointer.
+These are library types built on the rules above, not language features:
+
+| Type | Module | Counts | Crosses tasks |
+|------|--------|--------|---------------|
+| `Rc<T>`, `Weak<T>` | `std.mem.rc` | plain integers | no: neither `Send` nor `Sync` |
+| `Arc<T>` (T `Send + Sync`) | `std.sync` | atomic | yes (chapter 14.4) |
+
+- `Rc.new(value)` moves the value into one heap block with its counts.
+  `clone` adds a strong owner; `get` borrows the value. Dropping the last
+  strong owner drops the value.
+- `rc.downgrade()` gives a `Weak<T>`, an owner that does not keep the value
+  alive. `weak.upgrade()` gives `Option.Some(rc)` while a strong owner
+  remains, and `Option.None` after. The heap block is freed when the last
+  owner of either kind goes.
+- `owners()` and `weakOwners()` read the counts; `ptrEq` compares the
+  blocks.
+- The value is shared, so it is reached only by `&T`. Mutation goes
+  through interior mutability (5.8): a `Cell` or a lock inside `T`.
+- Counting cannot see a cycle of strong owners: such a cycle is never
+  dropped and its memory leaks. Leaking is safe but a bug; break cycles
+  by making the back edges `Weak`, as a child points to its parent.
+
+```ofir
+import std.mem.rc.Rc
+
+const a = Rc.new(5)
+const b = a.clone()
+const w = a.downgrade()
+println("{a.owners()} {*b.get()}")   // 2 5
+```
+
+Stage 1 only: stage 0 cannot clone a generic struct through its `clone`
+method. Arena allocators are planned.
