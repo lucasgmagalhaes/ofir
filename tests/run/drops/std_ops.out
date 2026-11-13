@@ -1,0 +1,60 @@
+eat rf-l
+drop rf-l
+refill rf-l2 rf-r
+drop rf-l2
+drop rf-r
+eat tp-1
+drop tp-1
+tuple tp-0 7
+drop tp-0
+tuple tp-0 7
+drop tp-0
+drop tp-1
+eat g1
+drop g1
+kept g2
+drop g2
+none
+drop lb-b00
+drop lb-b01
+drop lb-a0
+drop lb-b10
+drop lb-b11
+drop lb-a1
+eat lb-a2
+drop lb-a2
+drop lb-b20
+labeled end
+drop w0
+took true
+drop w10
+while end
+drop w12
+eat bx-r
+drop bx-r
+boxed end
+drop bx-l
+eat ls1
+drop ls1
+eat ls0
+drop ls0
+replaced ls3
+drop ls2
+drop ls9
+cleared 0
+drop ls3
+drop ls10
+in closure cl
+closure end
+drop cl
+eat oe1
+drop oe1
+eat default
+drop default
+em drop em-guard
+0
+em em em-v em-guard
+drop em-v
+drop em-guard
+1
+main end
