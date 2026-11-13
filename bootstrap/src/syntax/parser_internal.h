@@ -17,6 +17,8 @@ typedef struct {
     bool no_struct_literal;   // in `if`, `match` and `for` headers (spec A.6)
     bool recovering;          // an error was reported; silent until resynchronized
     bool type_tests;          // in a `match` arm or `if const` pattern: `name: T` (spec 9.8)
+    bool too_deep;            // past MAX_NESTING (E0101): the parse is unwinding to the end
+    int depth;                // open levels of nesting (`nest`)
     struct {                  // contextual keywords (spec 1.5)
         Symbol move, type, ref, where, wildcard;
     } words;
@@ -41,6 +43,13 @@ void syntax_error(Parser *p, Span span, const char *format, ...)
     __attribute__((format(printf, 3, 4)));
 void unexpected(Parser *p, const char *what);  // "expected <what>, found <token>"
 void *parser_alloc(Parser *p, size_t size);
+
+// Nesting limit (E0101): each level of expressions, types and patterns, and
+// each step of an operator or postfix chain, is one level. `nest` enters a
+// level; past the limit it reports E0101 once, moves to the end of the file
+// and returns false. The caller leaves the level (`depth--`) either way.
+#define MAX_NESTING 256
+bool nest(Parser *p);
 
 #define NEW(p, T) ((T *)parser_alloc((p), sizeof(T)))
 
