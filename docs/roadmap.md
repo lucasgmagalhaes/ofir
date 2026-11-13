@@ -385,6 +385,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.25d | Incremental builds: `tools/check_object_cache.py` edits a copy of a program and checks that the object cache key, the unit's IR text plus clang flags, path and version, follows dependencies (a comment compiles no unit, a body its own unit, a layout its module and its users) and recovers from corrupt objects and failed links; cold, warm and one-edit self-compile times are recorded in `docs/design/performance.md` §6 | OFIR-34 | **done** |
 | 6.25e | Optimization tracking: `bench/run_programs.py` reports executable sizes and, for Ofir, the release compile time, the build's peak memory and the number of functions in the optimized IR (monomorphization); `tests/panic/release_*.of` check that `--release` keeps overflow, bounds, division and `as` range checks; results in `bench/HISTORY.md` | OFIR-35 | **done** |
 | 6.25f | Debugger support: `-g` describes named parameters and locals (`DILocalVariable`, `llvm.dbg.declare`) and their types (basic types, pointers, structs with their fields, `str`), the prologue has no line so a function breakpoint stops at its first statement, `--release -g` marks the unit optimized; `tools/check_debugger.py` runs gdb on a debug and a release build | OFIR-36 | **done** |
+| 6.25g | Compiler service interface (ADR 0053): `ofir check` (diagnostics, no output), `ofir metadata` (the modules of a program as versioned JSON), a documented exit status (0, 1, 2, 101, the program's own under `run`), cancellation by signal with an object cache only renamed into, and the language server's in-order, never-cancelled requests; `tools/check_service.py` checks them | OFIR-37 | **done** |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
@@ -426,7 +427,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.25 with OFIR-37; OFIR-36 is done (6.25f).
+1. Continue 6.25 with OFIR-38; OFIR-37 is done (6.25g).
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
