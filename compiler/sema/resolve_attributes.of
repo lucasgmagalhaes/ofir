@@ -50,7 +50,7 @@ const ARGS_COUNT: int = 11
 fn ruleIndex(name: str) Option<int> {
     const names = ["inline", "cold", "test", "lang", "repr", "packed", "align", "link", "export",
                    "deprecated", "bench", "cfg", "allow", "tag", "threadsafe",
-                   "comptimeBudget"]
+                   "comptimeBudget", "threadLocal"]
     for i in 0..names.len() {
         if names[i] == name {
             return Option.Some(i)
@@ -63,14 +63,14 @@ fn ruleTargets(rule: int) int {
     const tag = ON_STRUCT | ON_ENUM | ON_FIELD | ON_VARIANT
     const targets = [ON_FN | ON_METHOD, ON_FN | ON_METHOD, ON_FN, ON_STRUCT | ON_ENUM,
                      ON_STRUCT | ON_ENUM, ON_STRUCT, ON_STRUCT, ON_EXTERN, ON_FN, ON_ANY, ON_FN,
-                     ON_ANY, ON_ANY, tag, ON_STRUCT | ON_ENUM, ON_FN | ON_METHOD]
+                     ON_ANY, ON_ANY, tag, ON_STRUCT | ON_ENUM, ON_FN | ON_METHOD, ON_GLOBAL]
     return targets[rule]
 }
 
 fn ruleArgs(rule: int) int {
     const args = [ARGS_INLINE, ARGS_NONE, ARGS_NONE, ARGS_STR, ARGS_REPR, ARGS_NONE, ARGS_ALIGN,
                   ARGS_LIB, ARGS_SYMBOL, ARGS_OPT_STR, ARGS_NONE, ARGS_ONE, ARGS_ALLOW,
-                  ARGS_TWO_STR, ARGS_NONE, ARGS_COUNT]
+                  ARGS_TWO_STR, ARGS_NONE, ARGS_COUNT, ARGS_NONE]
     return args[rule]
 }
 
@@ -82,7 +82,7 @@ fn ruleUsage(rule: int) str {
                    "`@deprecated` or `@deprecated(\"message\")`", "`@bench`", "`@cfg(condition)`",
                    "`@allow(category)`, category `unused`, `unreachable`, `deprecated` or `naming`",
                    "`@tag(\"key\", \"value\")`", "`@threadsafe`",
-                   "`@comptimeBudget(n)`, n a positive integer"]
+                   "`@comptimeBudget(n)`, n a positive integer", "`@threadLocal`"]
     return usage[rule].sliceFrom(0)
 }
 
