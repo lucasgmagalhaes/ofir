@@ -38,7 +38,7 @@ fn same<T: Eq>(a: T, b: T) bool {
     return a == b
 }
 
-fn bad<T: Display>(a: T)          // error[E0333]: `Display` is not an interface
+fn bad<T: Point>(a: T)            // error[E0333]: `Point` is not an interface
 where
     U: Eq,                         // error[E0334]: `U` is not a type parameter of this declaration
     int: Ord,                      // error[E0334]: `int` is not a type parameter of this declaration
