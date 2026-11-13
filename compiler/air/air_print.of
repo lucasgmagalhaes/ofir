@@ -6,6 +6,9 @@
 
 import air.air.AirBody
 import air.air.AirStmt
+import air.air.ATOMIC_CAS
+import air.air.ATOMIC_FENCE
+import air.air.ATOMIC_LOAD
 import air.air.CALL_VALUE
 import air.air.FloatFn
 import air.air.Operand
@@ -274,6 +277,27 @@ pub struct AirPrinter {
         }
     }
 
+    // `atomic_cas seq_cst _1, _2, _3`, `fence acquire`.
+    fn atomic(mut self, c: Checker, rv: &Rvalue) {
+        const ops = ["atomic_load", "atomic_store", "atomic_swap", "atomic_add", "atomic_sub",
+                     "atomic_cas", "fence"]
+        const orders = ["relaxed", "acquire", "release", "acq_rel", "seq_cst"]
+        self.out.push("{ops[rv.to]} {orders[rv.flag]}")
+        if rv.to == ATOMIC_FENCE {
+            return
+        }
+        self.out.push(" ")
+        self.operand(c, &rv.a)
+        if rv.to != ATOMIC_LOAD {
+            self.out.push(", ")
+            self.operand(c, &rv.b)
+        }
+        if rv.to == ATOMIC_CAS {
+            self.out.push(", ")
+            self.operand(c, &rv.items[0])
+        }
+    }
+
     fn rvalue(mut self, c: Checker, rv: &Rvalue) {
         match rv.kind {
             RvalueKind.StrLen => self.operands(c, "str_len", &rv.a, Option.None)
@@ -288,6 +312,7 @@ pub struct AirPrinter {
             RvalueKind.DynFn => self.operands(c, "dyn_fn {rv.flag}", &rv.a, Option.None)
             RvalueKind.TypeId => self.operands(c, "type_id", &rv.a, Option.None)
             RvalueKind.GlobalAddr => self.out.push("global_addr {c.text(c.def(rv.flag).name)}")
+            RvalueKind.Atomic => self.atomic(c, rv)
             RvalueKind.Aggregate => {
                 self.out.push("\{")
                 for i in 0..rv.items.len() {
