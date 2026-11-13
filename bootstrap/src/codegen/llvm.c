@@ -150,8 +150,6 @@ static const char RUNTIME_DECLS[] =
     "declare void @ofir_print_bool(i1 zeroext) nounwind\n"
     "declare void @ofir_print_newline() nounwind\n"
     "declare i64 @ofir_test_index() nounwind\n"
-    "declare void @ofir_str_push_int(ptr, i64) nounwind\n"
-    "declare void @ofir_str_push_uint(ptr, i64) nounwind\n"
     "declare void @ofir_str_push_float(ptr, double) nounwind\n"
     "declare void @ofir_str_push_f32(ptr, float) nounwind\n"
     "declare void @ofir_panic_overflow(ptr) noreturn cold nounwind\n"
