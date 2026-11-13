@@ -39,7 +39,9 @@ takes a `move fn() T + Send` (chapter 10.2, 14.3), so a task can never hold
 a reference into another task's stack, nor a value that is unsafe to use
 from another thread.
 
-`run` returns a `task.Task<T>`. A task that panics ends the whole program,
+`run` returns a `task.Task<T>`. Dropping a task without a join detaches
+it: the task runs on, and its result is dropped when it ends. A task may
+start and join tasks of its own. A task that panics ends the whole program,
 as a panic on the main thread does. The output of `print` and `println`
 reaches standard output a line at a time, so lines from different tasks
 never interleave.
@@ -118,6 +120,10 @@ sender of the same channel. `recv` waits for the next value and returns
 `None` once the queue is empty and every sender is dropped; `tryRecv`
 returns `None` instead of waiting. The values of one sender arrive in the
 order it sent them. Dropping the receiver drops the values it never took.
+
+`boundedChannel<T: Send>(capacity)` returns a channel that holds at most
+`capacity` values: `send` waits while it is full. Once the receiver is
+gone, `send` drops the value without waiting. A capacity below 1 panics.
 
 The synchronization primitives of `std.sync` are `Sync`, so an `Arc`
 shares them between tasks:
