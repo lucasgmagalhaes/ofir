@@ -1630,6 +1630,16 @@ fn dynCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, base: &Expr, id
     return result
 }
 
+// Whether `e` is `xs[a..b]`, `xs[a..]` or `xs[..b]`.
+fn isRangeIndexExpr(e: &Expr) bool {
+    if const ExprKind.Index(_, index) = e.kind {
+        if const ExprKind.Range(_, _, _) = index.kind {
+            return true
+        }
+    }
+    return false
+}
+
 // `xs[a..b]`, `xs[a..]`, `xs[..b]`: `xs.slice(a, b)` or `xs.sliceFrom(a)`,
 // methods of List, Slice and str; `a..=b` is `a..b + 1`.
 fn rangeIndex(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, base: &Expr,
@@ -2536,6 +2546,14 @@ fn unary(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, op: Op, operand: 
     if op == Op.Ref || op == Op.RefMut {
         if concreteType(l, c, ty) == STR {
             return strView(l, c, p, operand)
+        }
+        if isRangeIndexExpr(operand) {
+            const view = lowerExpr(l, c, p, operand)
+            if op == Op.RefMut {   // `&mut xs[a..b]`: the view itself
+                return view
+            }
+            const local = toLocal(l, view)   // `&xs[a..b]`: a borrow of the view
+            return placeOperand(&localPlace(local), OperandKind.Addr, ty)
         }
         return placeOperand(&lowerPlace(l, c, p, operand), OperandKind.Addr, ty)
     }
