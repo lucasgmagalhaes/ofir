@@ -128,13 +128,7 @@ void ofir_channel_drop_sender(void *ch);        // the last one wakes the receiv
 void ofir_channel_close(void *ch);              // later sends fail
 void ofir_channel_drop_receiver(void *ch);      // after close and draining
 
-// Atomics, locks and wait groups (sync.c, spec 14.4). The atomics are
-// sequentially consistent.
-int64_t ofir_atomic_load(int64_t *p);
-void ofir_atomic_store(int64_t *p, int64_t value);
-int64_t ofir_atomic_fetch_add(int64_t *p, int64_t delta);   // the old value
-int64_t ofir_atomic_swap(int64_t *p, int64_t value);        // the old value
-bool ofir_atomic_compare_exchange(int64_t *p, int64_t expected, int64_t desired);
+// Locks and wait groups (sync.c, spec 14.4).
 void *ofir_mutex_new(void);
 void ofir_mutex_lock(void *m);
 void ofir_mutex_unlock(void *m);

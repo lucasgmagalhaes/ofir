@@ -7,6 +7,7 @@
  */
 // requires: stage1 (Send, roadmap 6.1b)
 
+import std.mem.atomic
 import std.mem.cell.UnsafeCell
 
 @link("pthread")
@@ -22,11 +23,6 @@ extern "C" {
     fn ofir_channel_drop_sender(ch: *mut u8)
     fn ofir_channel_close(ch: *mut u8)
     fn ofir_channel_drop_receiver(ch: *mut u8)
-    fn ofir_atomic_load(p: *mut int) int
-    fn ofir_atomic_store(p: *mut int, value: int)
-    fn ofir_atomic_fetch_add(p: *mut int, delta: int) int
-    fn ofir_atomic_swap(p: *mut int, value: int) int
-    fn ofir_atomic_compare_exchange(p: *mut int, expected: int, desired: int) bool
     fn ofir_mutex_new() *mut u8
     fn ofir_mutex_lock(m: *mut u8)
     fn ofir_mutex_unlock(m: *mut u8)
@@ -235,7 +231,18 @@ pub struct AtomicInt {
      * @returns the current value
      */
     pub fn load(self) int {
-        return unsafe { ofir_atomic_load(self.cell.get()) }
+        return unsafe { atomic.atomicLoad(self.cell.get(), atomic.Ordering.SeqCst) }
+    }
+
+    /**
+     * Reads the value with an ordering. `Release` and `AcqRel`, which a
+     * load does not allow, are `SeqCst`.
+     *
+     * @param order the memory ordering
+     * @returns the current value
+     */
+    pub fn loadWith(self, order: atomic.Ordering) int {
+        return unsafe { loadOrdered(self.cell.get(), order) }
     }
 
     /**
@@ -245,7 +252,20 @@ pub struct AtomicInt {
      */
     pub fn store(self, value: int) {
         unsafe {
-            ofir_atomic_store(self.cell.get(), value)
+            atomic.atomicStore(self.cell.get(), value, atomic.Ordering.SeqCst)
+        }
+    }
+
+    /**
+     * Replaces the value with an ordering. `Acquire` and `AcqRel`, which a
+     * store does not allow, are `SeqCst`.
+     *
+     * @param value the new value
+     * @param order the memory ordering
+     */
+    pub fn storeWith(self, value: int, order: atomic.Ordering) {
+        unsafe {
+            storeOrdered(self.cell.get(), value, order)
         }
     }
 
@@ -256,7 +276,18 @@ pub struct AtomicInt {
      * @returns the value before the addition
      */
     pub fn fetchAdd(self, delta: int) int {
-        return unsafe { ofir_atomic_fetch_add(self.cell.get(), delta) }
+        return unsafe { atomic.atomicFetchAdd(self.cell.get(), delta, atomic.Ordering.SeqCst) }
+    }
+
+    /**
+     * Adds to the value with an ordering, wrapping on overflow.
+     *
+     * @param delta the amount added, negative to subtract
+     * @param order the memory ordering
+     * @returns the value before the addition
+     */
+    pub fn fetchAddWith(self, delta: int, order: atomic.Ordering) int {
+        return unsafe { fetchAddOrdered(self.cell.get(), delta, order) }
     }
 
     /**
@@ -266,7 +297,18 @@ pub struct AtomicInt {
      * @returns the value it replaced
      */
     pub fn swap(self, value: int) int {
-        return unsafe { ofir_atomic_swap(self.cell.get(), value) }
+        return unsafe { atomic.atomicSwap(self.cell.get(), value, atomic.Ordering.SeqCst) }
+    }
+
+    /**
+     * Replaces the value with an ordering.
+     *
+     * @param value the new value
+     * @param order the memory ordering
+     * @returns the value it replaced
+     */
+    pub fn swapWith(self, value: int, order: atomic.Ordering) int {
+        return unsafe { swapOrdered(self.cell.get(), value, order) }
     }
 
     /**
@@ -277,7 +319,24 @@ pub struct AtomicInt {
      * @returns true if the value was replaced
      */
     pub fn compareExchange(self, expected: int, desired: int) bool {
-        return unsafe { ofir_atomic_compare_exchange(self.cell.get(), expected, desired) }
+        const p = self.cell.get()
+        const old = unsafe {
+            atomic.atomicCompareExchange(p, expected, desired, atomic.Ordering.SeqCst)
+        }
+        return old == expected
+    }
+
+    /**
+     * Replaces the value only if it is `expected`, with an ordering.
+     *
+     * @param expected the value the atomic must hold
+     * @param desired the value it then holds
+     * @param order the memory ordering
+     * @returns true if the value was replaced
+     */
+    pub fn compareExchangeWith(self, expected: int, desired: int, order: atomic.Ordering) bool {
+        const old = unsafe { compareExchangeOrdered(self.cell.get(), expected, desired, order) }
+        return old == expected
     }
 }
 
@@ -314,7 +373,18 @@ pub struct AtomicBool {
      * @returns the current value
      */
     pub fn load(self) bool {
-        return unsafe { ofir_atomic_load(self.cell.get()) != 0 }
+        return unsafe { atomic.atomicLoad(self.cell.get(), atomic.Ordering.SeqCst) } != 0
+    }
+
+    /**
+     * Reads the value with an ordering. `Release` and `AcqRel`, which a
+     * load does not allow, are `SeqCst`.
+     *
+     * @param order the memory ordering
+     * @returns the current value
+     */
+    pub fn loadWith(self, order: atomic.Ordering) bool {
+        return unsafe { loadOrdered(self.cell.get(), order) } != 0
     }
 
     /**
@@ -324,7 +394,20 @@ pub struct AtomicBool {
      */
     pub fn store(self, value: bool) {
         unsafe {
-            ofir_atomic_store(self.cell.get(), if value { 1 } else { 0 })
+            atomic.atomicStore(self.cell.get(), if value { 1 } else { 0 }, atomic.Ordering.SeqCst)
+        }
+    }
+
+    /**
+     * Replaces the value with an ordering. `Acquire` and `AcqRel`, which a
+     * store does not allow, are `SeqCst`.
+     *
+     * @param value the new value
+     * @param order the memory ordering
+     */
+    pub fn storeWith(self, value: bool, order: atomic.Ordering) {
+        unsafe {
+            storeOrdered(self.cell.get(), if value { 1 } else { 0 }, order)
         }
     }
 
@@ -335,7 +418,81 @@ pub struct AtomicBool {
      * @returns the value it replaced
      */
     pub fn swap(self, value: bool) bool {
-        return unsafe { ofir_atomic_swap(self.cell.get(), if value { 1 } else { 0 }) != 0 }
+        const bits = if value { 1 } else { 0 }
+        return unsafe { atomic.atomicSwap(self.cell.get(), bits, atomic.Ordering.SeqCst) } != 0
+    }
+
+    /**
+     * Replaces the value with an ordering.
+     *
+     * @param value the new value
+     * @param order the memory ordering
+     * @returns the value it replaced
+     */
+    pub fn swapWith(self, value: bool, order: atomic.Ordering) bool {
+        return unsafe { swapOrdered(self.cell.get(), if value { 1 } else { 0 }, order) } != 0
+    }
+}
+
+// The atomic intrinsics with an ordering known only at run time: the
+// ordering of an intrinsic is a constant (E0820), so each one is a branch
+// that inlining with a constant `order` removes. An ordering the operation
+// does not allow is the stronger `SeqCst`.
+unsafe fn loadOrdered(p: *mut int, order: atomic.Ordering) int {
+    return match order {
+        atomic.Ordering.Relaxed => atomic.atomicLoad(p, atomic.Ordering.Relaxed)
+        atomic.Ordering.Acquire => atomic.atomicLoad(p, atomic.Ordering.Acquire)
+        _ => atomic.atomicLoad(p, atomic.Ordering.SeqCst)
+    }
+}
+
+unsafe fn storeOrdered(p: *mut int, value: int, order: atomic.Ordering) {
+    match order {
+        atomic.Ordering.Relaxed => atomic.atomicStore(p, value, atomic.Ordering.Relaxed)
+        atomic.Ordering.Release => atomic.atomicStore(p, value, atomic.Ordering.Release)
+        _ => atomic.atomicStore(p, value, atomic.Ordering.SeqCst)
+    }
+}
+
+unsafe fn swapOrdered(p: *mut int, value: int, order: atomic.Ordering) int {
+    return match order {
+        atomic.Ordering.Relaxed => atomic.atomicSwap(p, value, atomic.Ordering.Relaxed)
+        atomic.Ordering.Acquire => atomic.atomicSwap(p, value, atomic.Ordering.Acquire)
+        atomic.Ordering.Release => atomic.atomicSwap(p, value, atomic.Ordering.Release)
+        atomic.Ordering.AcqRel => atomic.atomicSwap(p, value, atomic.Ordering.AcqRel)
+        atomic.Ordering.SeqCst => atomic.atomicSwap(p, value, atomic.Ordering.SeqCst)
+    }
+}
+
+unsafe fn fetchAddOrdered(p: *mut int, delta: int, order: atomic.Ordering) int {
+    return match order {
+        atomic.Ordering.Relaxed => atomic.atomicFetchAdd(p, delta, atomic.Ordering.Relaxed)
+        atomic.Ordering.Acquire => atomic.atomicFetchAdd(p, delta, atomic.Ordering.Acquire)
+        atomic.Ordering.Release => atomic.atomicFetchAdd(p, delta, atomic.Ordering.Release)
+        atomic.Ordering.AcqRel => atomic.atomicFetchAdd(p, delta, atomic.Ordering.AcqRel)
+        atomic.Ordering.SeqCst => atomic.atomicFetchAdd(p, delta, atomic.Ordering.SeqCst)
+    }
+}
+
+// The value before the exchange.
+unsafe fn compareExchangeOrdered(p: *mut int, expected: int, desired: int,
+                                 order: atomic.Ordering) int {
+    return match order {
+        atomic.Ordering.Relaxed => {
+            atomic.atomicCompareExchange(p, expected, desired, atomic.Ordering.Relaxed)
+        }
+        atomic.Ordering.Acquire => {
+            atomic.atomicCompareExchange(p, expected, desired, atomic.Ordering.Acquire)
+        }
+        atomic.Ordering.Release => {
+            atomic.atomicCompareExchange(p, expected, desired, atomic.Ordering.Release)
+        }
+        atomic.Ordering.AcqRel => {
+            atomic.atomicCompareExchange(p, expected, desired, atomic.Ordering.AcqRel)
+        }
+        atomic.Ordering.SeqCst => {
+            atomic.atomicCompareExchange(p, expected, desired, atomic.Ordering.SeqCst)
+        }
     }
 }
 
@@ -393,8 +550,8 @@ pub struct Arc<T: Send + Sync> {
      * @returns the new owner
      */
     pub fn clone(self) Arc<T> {
-        unsafe {
-            ofir_atomic_fetch_add(self.count(), 1)
+        unsafe {   // a new owner comes from an existing one: no ordering is needed
+            atomic.atomicFetchAdd(self.count(), 1, atomic.Ordering.Relaxed)
         }
         return Arc{inner: self.inner}
     }
@@ -406,7 +563,7 @@ pub struct Arc<T: Send + Sync> {
      * @returns the number of owners
      */
     pub fn owners(self) int {
-        return unsafe { ofir_atomic_load(self.count()) }
+        return unsafe { atomic.atomicLoad(self.count(), atomic.Ordering.Relaxed) }
     }
 
     // The address of the count.
@@ -417,7 +574,10 @@ pub struct Arc<T: Send + Sync> {
     // The last owner drops the value and frees the memory.
     fn drop(mut self) {
         unsafe {
-            if ofir_atomic_fetch_add(self.count(), -1) == 1 {
+            // Release publishes this owner's uses of the value; the last owner's
+            // Acquire fence sees all of them before the drop.
+            if atomic.atomicFetchSub(self.count(), 1, atomic.Ordering.Release) == 1 {
+                atomic.fence(atomic.Ordering.Acquire)
                 dropInPlace(self.inner)
                 ofir_free(self.inner as *mut u8)
             }

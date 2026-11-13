@@ -1,34 +1,12 @@
-// Atomics, locks and wait groups (spec 14.4, docs/design/runtime.md).
+// Locks and wait groups (spec 14.4, docs/design/runtime.md).
 //
-// Only `std.sync` calls this file. The atomics work on an `int` that
-// `std.sync` keeps in an `UnsafeCell`; every operation is sequentially
-// consistent. The locks and wait groups live on the heap, so that the
-// Ofir values that own them can move.
+// Only `std.sync` calls this file; its atomics are compiler intrinsics
+// (`std.mem.atomic`, ADR 0042). The locks and wait groups live on the
+// heap, so that the Ofir values that own them can move.
 
 #include "ofir_rt.h"
 
 #include <pthread.h>
-
-int64_t ofir_atomic_load(int64_t *p) {
-    return __atomic_load_n(p, __ATOMIC_SEQ_CST);
-}
-
-void ofir_atomic_store(int64_t *p, int64_t value) {
-    __atomic_store_n(p, value, __ATOMIC_SEQ_CST);
-}
-
-int64_t ofir_atomic_fetch_add(int64_t *p, int64_t delta) {
-    return __atomic_fetch_add(p, delta, __ATOMIC_SEQ_CST);
-}
-
-int64_t ofir_atomic_swap(int64_t *p, int64_t value) {
-    return __atomic_exchange_n(p, value, __ATOMIC_SEQ_CST);
-}
-
-bool ofir_atomic_compare_exchange(int64_t *p, int64_t expected, int64_t desired) {
-    return __atomic_compare_exchange_n(p, &expected, desired, false, __ATOMIC_SEQ_CST,
-                                       __ATOMIC_SEQ_CST);
-}
 
 void *ofir_mutex_new(void) {
     pthread_mutex_t *m = ofir_alloc(sizeof *m);

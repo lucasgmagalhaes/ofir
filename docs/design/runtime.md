@@ -18,7 +18,7 @@ LLVM IR. Its interface is `runtime/include/ofir_rt.h`.
 | Processes | `ofir_spawn`, `ofir_wait`: `posix_spawnp` (or `CreateProcess`) with both output streams sent to temporary files, so several clang processes can run at once (ADR 0033); `ofir_cpu_count` |
 | Tasks | `ofir_task_spawn`, `ofir_task_join`: one POSIX thread per task (`std.task`, spec 14.2) |
 | Channels | `ofir_channel_new`, `_send`, `_recv`, `_try_recv` and the sender and receiver counts (`std.sync`, spec 14.4) |
-| Locks and atomics | `ofir_atomic_*`, `ofir_mutex_*`, `ofir_rwlock_*`, `ofir_waitgroup_*` (`std.sync`, spec 14.4) |
+| Locks | `ofir_mutex_*`, `ofir_rwlock_*`, `ofir_waitgroup_*` (`std.sync`, spec 14.4); the atomics are intrinsics (`std.mem.atomic`, ADR 0042) |
 
 Stage 0 implements the entry point, the panic functions, the allocator,
 the standard output buffer and the string functions used by
