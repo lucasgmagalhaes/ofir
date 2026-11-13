@@ -21,6 +21,7 @@ import sema.check_cond.condType
 import sema.check_cond.inferType
 import sema.check_cond.isType
 import sema.check_generic.checkBounds
+import sema.check_generic.reportBadLength
 import sema.check_keys.indexType
 import sema.check_keys.keyOpType
 import sema.check_keys.keyofType
@@ -41,6 +42,11 @@ import sema.types.FN_BORROWED
 import sema.types.FN_OWNED
 import sema.types.FN_SEND
 import sema.types.I64
+import sema.types.LEN_ADD
+import sema.types.LEN_DIV
+import sema.types.LEN_MUL
+import sema.types.LEN_REM
+import sema.types.LEN_SUB
 import sema.types.NEVER
 import sema.types.STR
 import sema.types.TyKind
@@ -51,9 +57,11 @@ import sema.complete.probing
 import sema.suggest.SuggestScope
 import sema.suggest.suggestMember
 import sema.suggest.suggestName
+import syntax.ast.Expr
 import syntax.ast.ExprKind
 import syntax.ast.ItemKind
 import syntax.ast.Mode
+import syntax.ast.Op
 import syntax.ast.TypeExpr
 import syntax.ast.TypeKind
 import syntax.ast_text.typeText
@@ -298,8 +306,9 @@ fn constArg(c: mut Checker, p: Program, id: int, span: Span) int {
     }
 }
 
-// `[T; N]` with a const parameter or a `const` item as its length (spec 8.7).
-fn namedLength(c: mut Checker, p: Program, name: Symbol, item: int, span: Span) int {
+// A const parameter or a `const` item in an array length (spec 8.7): a
+// value or a const parameter.
+fn namedValue(c: mut Checker, p: Program, name: Symbol, span: Span) int {
     let len = ERROR
     if const Option.Some(param) = typeParameter(c, name) {
         len = param
@@ -323,7 +332,7 @@ fn namedLength(c: mut Checker, p: Program, name: Symbol, item: int, span: Span) 
             c.error("E0362", span, "an array length cannot be negative: found {t.data}")
             return ERROR
         }
-        return c.types.intern(TyKind.Array, t.data, item, [])
+        return len
     }
     const isConst = t.kind == TyKind.Param && t.data < c.generics.bounds.len() &&
                     c.generics.bounds[t.data] & BOUND_CONST != 0
@@ -332,6 +341,77 @@ fn namedLength(c: mut Checker, p: Program, name: Symbol, item: int, span: Span) 
             c.error("E0362", span, "`{c.text(name)}` is a type: an array length is an integer "
                     + "constant or a const parameter (spec 8.7)")
         }
+        return ERROR
+    }
+    return len
+}
+
+/**
+ * The length of `[T; e]` (spec 8.7): an integer constant, a const
+ * parameter or an arithmetic of them.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the length expression
+ * @returns a value, a const parameter or a `ValueOp`, or `ERROR`
+ */
+pub fn lengthType(c: mut Checker, p: Program, e: &Expr) int {
+    match e.kind {
+        ExprKind.Int(n) => {
+            if n > 4294967295 {
+                reportBadLength(c, e.span, "{n}")
+                return ERROR
+            }
+            return c.types.value(n as int)
+        }
+        ExprKind.Ident(name) => {
+            return namedValue(c, p, name, e.span)
+        }
+        ExprKind.Binary(op, lhs, rhs) => {
+            const code = lengthOp(op)
+            if code >= 0 {
+                const a = lengthType(c, p, &*lhs)
+                const b = lengthType(c, p, &*rhs)
+                if a == ERROR || b == ERROR {
+                    return ERROR
+                }
+                return c.types.valueOp(code, a, b)
+            }
+        }
+        _ => {}
+    }
+    c.error("E0362", e.span, "an array length is an integer constant, a const parameter or an "
+            + "arithmetic of them (spec 8.7)")
+    return ERROR
+}
+
+// The `ValueOp` operation of an arithmetic operator, or -1.
+fn lengthOp(op: Op) int {
+    return match op {
+        Op.Add => LEN_ADD
+        Op.Sub => LEN_SUB
+        Op.Mul => LEN_MUL
+        Op.Div => LEN_DIV
+        Op.Rem => LEN_REM
+        _ => -1
+    }
+}
+
+// `[T; len]`: E0366 when `len` is known and out of range.
+fn arrayOfLength(c: mut Checker, item: int, len: int, span: Span) int {
+    if len == ERROR || item == ERROR {
+        return ERROR
+    }
+    const t = c.types.get(len)
+    if t.kind == TyKind.Value {
+        if t.data > 4294967295 {
+            reportBadLength(c, span, c.typeName(len))
+            return ERROR
+        }
+        return c.types.intern(TyKind.Array, t.data, item, [])
+    }
+    if !t.hasParam {
+        reportBadLength(c, span, c.typeName(len))
         return ERROR
     }
     return c.types.intern(TyKind.Array, -1, item, [len])
@@ -524,17 +604,7 @@ pub fn resolveType(c: mut Checker, p: Program, t: &TypeExpr) int {
         }
         TypeKind.Array(elem, len) => {
             const item = resolveType(c, p, &*elem)
-            match len.kind {
-                ExprKind.Int(n) => {
-                    if n > 4294967295 {
-                        return c.unsupported(len.span,
-                                             "array lengths other than integer literals are")
-                    }
-                    c.types.intern(TyKind.Array, n as int, item, [])
-                }
-                ExprKind.Ident(name) => namedLength(c, p, name, item, len.span)
-                _ => c.unsupported(len.span, "array lengths other than integer literals are")
-            }
+            arrayOfLength(c, item, lengthType(c, p, &*len), len.span)
         }
         TypeKind.Tuple(items) => {
             let types: List<int> = []
