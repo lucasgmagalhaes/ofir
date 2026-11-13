@@ -36,10 +36,6 @@ void ofir_str_push_bytes(OfirStr *s, const uint8_t *ptr, int64_t len) {
     s->len += len;
 }
 
-void ofir_str_push_str(OfirStr *s, const OfirStr *part) {
-    ofir_str_push_bytes(s, part->ptr, part->len);
-}
-
 void ofir_str_push_int(OfirStr *s, int64_t value) {
     char text[OFIR_FORMAT_SIZE];
     ofir_str_push_bytes(s, (const uint8_t *)text, ofir_format_int(text, value));
@@ -58,10 +54,6 @@ void ofir_str_push_float(OfirStr *s, double value) {
 void ofir_str_push_f32(OfirStr *s, float value) {
     char text[OFIR_FORMAT_SIZE];
     ofir_str_push_bytes(s, (const uint8_t *)text, ofir_format_f32(text, value));
-}
-
-void ofir_str_push_bool(OfirStr *s, bool value) {
-    ofir_str_push_bytes(s, (const uint8_t *)(value ? "true" : "false"), value ? 4 : 5);
 }
 
 void ofir_str_push_fixed(OfirStr *s, double value, int64_t digits) {
