@@ -41,7 +41,7 @@ fn main() {
 - A value can only be moved out of a place the function owns entirely.
   `const x = list[i]`, or moving a field out of a borrowed parameter, is an
   error; use `list.remove(i)`, `list.swapRemove(i)`, `mem.replace(list[i], v)`,
-  `mem.take(opt)` or `.clone()` instead.
+  `opt.take()` (on an `Option`) or `.clone()` instead.
 
 Stage 0 reports E0600 (use of a moved value), E0601 (a variable that may
 not be initialized) and E0602 (moving out of a borrowed, indexed or
@@ -134,7 +134,7 @@ struct Point {
 - Assigning a new value to the whole parameter (`x = T{...}`) replaces the
   caller's value; the old value is dropped.
 - Moving out of a `mut` parameter is allowed only if a new value is assigned
-  before the function returns (or `mem.replace`/`mem.take` is used).
+  before the function returns (or `mem.replace`/`Option.take` is used).
 
 ### Moved parameters
 
