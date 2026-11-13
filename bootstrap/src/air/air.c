@@ -8,12 +8,12 @@ static const char *const RUNTIME_NAMES[RT_COUNT] = {
     [RT_PRINT_F32] = "ofir_print_f32",
     [RT_PRINT_BOOL] = "ofir_print_bool",
     [RT_PRINT_NEWLINE] = "ofir_print_newline",
-    [RT_STR_PUSH_STR] = "ofir_str_push_str",
+    [RT_STR_PUSH_STR] = "strPushStr",
     [RT_STR_PUSH_INT] = "ofir_str_push_int",
     [RT_STR_PUSH_UINT] = "ofir_str_push_uint",
     [RT_STR_PUSH_FLOAT] = "ofir_str_push_float",
     [RT_STR_PUSH_F32] = "ofir_str_push_f32",
-    [RT_STR_PUSH_BOOL] = "ofir_str_push_bool",
+    [RT_STR_PUSH_BOOL] = "strPushBool",
     [RT_TEST_INDEX] = "ofir_test_index",
 };
 

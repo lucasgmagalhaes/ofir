@@ -688,16 +688,8 @@ fn push(it: mut Interp, c: mut Checker, frame: int, target: Operand, text: str) 
     write(it, place, s)
 }
 
-fn boolText(bits: u64) str {
-    return if bits == 1 { "true" } else { "false" }
-}
-
 fn runtime(it: mut Interp, c: mut Checker, frame: int, s: AirStmt) {
     match s.rt {
-        RuntimeFn.StrPushStr => {
-            const v = pointee(it, c, frame, s.args[1])
-            push(it, c, frame, s.args[0], v.text)
-        }
         RuntimeFn.StrPushInt => {
             const v = operand(it, c, frame, s.args[1])
             push(it, c, frame, s.args[0], "{v.bits.wrappingCast<i64>()}")
@@ -705,10 +697,6 @@ fn runtime(it: mut Interp, c: mut Checker, frame: int, s: AirStmt) {
         RuntimeFn.StrPushUint => {
             const v = operand(it, c, frame, s.args[1])
             push(it, c, frame, s.args[0], "{v.bits}")
-        }
-        RuntimeFn.StrPushBool => {
-            const v = operand(it, c, frame, s.args[1])
-            push(it, c, frame, s.args[0], boolText(v.bits))
         }
         RuntimeFn.StrPushFloat => {
             const v = operand(it, c, frame, s.args[1])
