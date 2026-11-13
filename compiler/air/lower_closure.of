@@ -29,7 +29,6 @@ import air.lower.localPlace
 import air.lower.monoBody
 import air.lower.noteMoved
 import air.lower.placeOperand
-import air.lower.terminate
 import air.lower_expr.aggregate
 import air.lower_expr.assignOperand
 import air.lower_expr.lowerExpr
@@ -126,7 +125,7 @@ fn lowerEnvDrop(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, envType: i
     const block = l.block
     l.block = l.body.newBlock()
     emitDrop(l, c, p, &Place{local: 1, fields: [], deref: true}, envType)
-    terminate(l, terminator(TermKind.Return))
+    l.body.terminate(l.block, terminator(TermKind.Return))
     monoBody(l, c, p)
     l.out.push(mem.replace(l.body, outer))
     l.block = block
@@ -176,7 +175,7 @@ fn lowerBody(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, params: &List
     assignOperand(l, 0, value)
     dropTemps(l, c, p, 0)
     dropScopeLeave(l, c, p)
-    terminate(l, terminator(TermKind.Return))
+    l.body.terminate(l.block, terminator(TermKind.Return))
     monoBody(l, c, p)
     l.out.push(mem.replace(l.body, outer))
     l.block = block
