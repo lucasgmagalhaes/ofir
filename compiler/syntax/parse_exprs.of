@@ -85,23 +85,36 @@ fn gtLevel(p: Parser) (int, Op, int) {
 
 fn castExpr(p: mut Parser) Expr {
     let e = unary(p)
+    let steps = 0
     for p.accept(TokenKind.As) {
+        steps += 1
+        if !p.nest() {
+            break
+        }
         const start = e.span
         const to = parseSimpleType(p)
         e = newExpr(p, ExprKind.Cast(Box.new(e), to), start)
     }
+    p.depth -= steps
     return e
 }
 
 // Precedence climbing: the operators of level `min` and above.
 fn binaryExpr(p: mut Parser, min: int) Expr {
     let lhs = castExpr(p)
+    let steps = 0
     for {
         const found = operatorAt(p)
         if found.0 == 0 || found.0 < min {
+            p.depth -= steps
             return lhs
         }
         p.pos += found.2
+        steps += 1
+        if !p.nest() {   // a chain is as deep as it is long
+            p.depth -= steps
+            return lhs
+        }
         p.skipNewlines()   // an operator at the end of a line continues it
         const rhs = binaryExpr(p, found.0 + 1)
         lhs = binary(p, found.1, lhs, rhs)
@@ -171,6 +184,17 @@ pub fn parseExprNoStruct(p: mut Parser) Expr {
 }
 
 fn unary(p: mut Parser) Expr {
+    const e = if p.nest() {
+        unaryLevel(p)
+    } else {
+        const start = p.here()
+        newExpr(p, ExprKind.Tuple([]), start)
+    }
+    p.depth -= 1
+    return e
+}
+
+fn unaryLevel(p: mut Parser) Expr {
     const start = p.here()
     const op: Op = match p.peek() {
         TokenKind.Minus => Op.Neg

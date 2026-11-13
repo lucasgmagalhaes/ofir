@@ -506,18 +506,25 @@ fn postfixOnce(p: mut Parser, base: move Expr) (Expr, bool) {
  */
 pub fn parsePostfix(p: mut Parser, base: move Expr) Expr {
     let e = base
+    let steps = 0
     for {
         if p.at(TokenKind.LBrace) && !p.noStructLiteral && isTypeName(p, &e) {
             e = structLiteral(p, e)
-            continue
+        } else {
+            const step = postfixOnce(p, e)
+            const more = step.1
+            e = step.0
+            if !more {
+                break
+            }
         }
-        const step = postfixOnce(p, e)
-        const more = step.1
-        e = step.0
-        if !more {
-            return e
+        steps += 1   // a chain is as deep as it is long
+        if !p.nest() {
+            break
         }
     }
+    p.depth -= steps
+    return e
 }
 
 // ---------------------------------------------------------------------------
