@@ -495,6 +495,15 @@ fn placeExpr(m: mut Moves, c: mut Checker, p: Program, e: &Expr, depth: int, s: 
     m.lastLocal = place.local
     if place.local {
         m.lastPlace = place.part.clone()
+    } else if place.via == Via.Deref && (use == Use.Assign || use == Use.Mutate) && !s.dead {
+        const root = refRoot(m, c, e)   // a write through a reference: `*r = v`, `r.push(v)`
+        let kind = Access.BorrowMut
+        if use == Use.Assign {
+            kind = Access.Write
+        }
+        if root >= 0 {
+            access(s, &Part{local: root, fields: []}, kind, e.span)
+        }
     }
     if use == Use.Assign {   // the target of `=`: overwritten, not read
         assignPlace(m, c, e, &place, s, e.span)
@@ -762,9 +771,33 @@ fn borrow(m: mut Moves, c: mut Checker, p: Program, operand: &Expr, s: mut State
             if !s.dead {
                 lend(m, &place.part, mutable, operand.span)
             }
+        } else if !s.dead {   // a reborrow: `&mut *r` borrows `r` itself
+            const root = refRoot(m, c, operand)
+            if root >= 0 {
+                const part = Part{local: root, fields: []}
+                access(s, &part, if mutable { Access.BorrowMut } else { Access.Borrow },
+                       operand.span)
+                lend(m, &part, mutable, operand.span)
+            }
         }
     } else {
         movesNode(m, c, p, operand, s, Use.Read)
+    }
+}
+
+// The local reference a place reached through it belongs to (`*r`,
+// `r.field`, `r[i]`), or -1.
+fn refRoot(m: Moves, c: Checker, e: &Expr) int {
+    return match e.kind {
+        ExprKind.Ident(_) => match c.res(e.id.0) {
+            Res.Local(id) => if m.refLocal[id] { id } else { -1 }
+            _ => -1
+        }
+        ExprKind.Field(base, _, _) => refRoot(m, c, &*base)
+        ExprKind.TupleField(base, _) => refRoot(m, c, &*base)
+        ExprKind.Index(base, _) => refRoot(m, c, &*base)
+        ExprKind.Unary(op, operand) => if op == Op.Deref { refRoot(m, c, &*operand) } else { -1 }
+        _ => -1
     }
 }
 
