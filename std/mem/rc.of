@@ -1,0 +1,212 @@
+/**
+ * @module
+ * `std.mem.rc`: shared ownership inside one task (spec 5.9). The counts are
+ * plain integers, so an `Rc` is neither `Send` nor `Sync`: sharing across
+ * tasks goes through `std.sync.Arc`.
+ *
+ * Stage 0 cannot clone a generic struct by method, so only stage 1
+ * compiles this module.
+ */
+// requires: stage1 (clone methods, roadmap 6.24)
+
+extern "C" {
+    fn ofir_alloc(size: int) *mut u8
+    fn ofir_alloc_aligned(size: int, align: int) *mut u8
+    fn ofir_free(p: *mut u8)
+}
+
+extern "intrinsic" {
+    fn dropInPlace<T>(p: *mut T)
+}
+
+// What an `Rc` and its `Weak`s point to. `weak` counts the weak owners,
+// plus one held by all the strong owners together, so the memory outlives
+// the value until the last weak owner goes.
+struct RcInner<T> {
+    strong: int
+    weak: int
+    value: T
+}
+
+/**
+ * A value shared by several owners in one task: each `clone` is another
+ * owner of the same value, and the last owner to go drops it. The value is
+ * read-only; shared mutation goes through a `Cell` inside the `Rc`.
+ *
+ * Owners that reach each other in a cycle keep each other alive and are
+ * never dropped: one direction of the cycle holds a `Weak` instead.
+ *
+ * @typeParam T the type of the value
+ * @example
+ * ```ofir
+ * import std.mem.rc.Rc
+ *
+ * const names = Rc.new(["ana", "bia"])
+ * const other = names.clone()
+ * println("{other.get()[1]} {names.owners()}")   // bia 2
+ * ```
+ */
+pub struct Rc<T> {
+    inner: *mut RcInner<T>
+
+    /**
+     * Moves a value to the heap, with one owner.
+     *
+     * @param value the value to share
+     * @returns the first owner
+     */
+    pub fn new(value: move T) Rc<T> {
+        const p = unsafe {
+            if alignOf<RcInner<T>>() > 16 {
+                ofir_alloc_aligned(sizeOf<RcInner<T>>(), alignOf<RcInner<T>>()) as *mut RcInner<T>
+            } else {
+                ofir_alloc(sizeOf<RcInner<T>>()) as *mut RcInner<T>
+            }
+        }
+        unsafe {
+            *p = RcInner{strong: 1, weak: 1, value}
+        }
+        return Rc{inner: p}
+    }
+
+    /**
+     * The shared value.
+     *
+     * @returns a borrow of the value, as long as this owner lives
+     */
+    pub fn get(self) &T {
+        return unsafe { &(*self.inner).value }
+    }
+
+    /**
+     * Another owner of the same value; the value itself is not copied.
+     *
+     * @returns the new owner
+     */
+    pub fn clone(self) Rc<T> {
+        unsafe {
+            (*self.inner).strong += 1
+        }
+        return Rc{inner: self.inner}
+    }
+
+    /**
+     * A weak owner of the same value: it keeps the memory, not the value.
+     *
+     * @returns the weak owner
+     */
+    pub fn downgrade(self) Weak<T> {
+        unsafe {
+            (*self.inner).weak += 1
+        }
+        return Weak{inner: self.inner}
+    }
+
+    /**
+     * How many owners the value has.
+     *
+     * @returns the number of `Rc`s of the value
+     */
+    pub fn owners(self) int {
+        return unsafe { (*self.inner).strong }
+    }
+
+    /**
+     * How many weak owners the value has.
+     *
+     * @returns the number of `Weak`s of the value
+     */
+    pub fn weakOwners(self) int {
+        return unsafe { (*self.inner).weak - 1 }
+    }
+
+    /**
+     * Whether two owners share the same value.
+     *
+     * @param other the other owner
+     * @returns true when both point to one value
+     */
+    pub fn ptrEq(self, other: &Rc<T>) bool {
+        return unsafe { self.inner as *u8 == other.inner as *u8 }
+    }
+
+    // The last owner drops the value; the memory goes with the last weak owner.
+    fn drop(mut self) {
+        unsafe {
+            (*self.inner).strong -= 1
+            if (*self.inner).strong == 0 {
+                dropInPlace(&(*self.inner).value as *T as *mut T)
+                release(self.inner)
+            }
+        }
+    }
+}
+
+/**
+ * A weak owner of a value in an `Rc`: it does not keep the value alive,
+ * so it can point back up a tree or close a cycle without leaking it.
+ * `upgrade` gives an owner while the value lives.
+ *
+ * @typeParam T the type of the value
+ * @example
+ * ```ofir
+ * import std.mem.rc.Rc
+ *
+ * const strong = Rc.new(7)
+ * const weak = strong.downgrade()
+ * println("{weak.upgrade().isSome()}")   // true
+ * ```
+ */
+pub struct Weak<T> {
+    inner: *mut RcInner<T>
+
+    /**
+     * An owner of the value, if any owner is still alive.
+     *
+     * @returns the new owner, or `None` once the value was dropped
+     */
+    pub fn upgrade(self) Option<Rc<T>> {
+        unsafe {
+            if (*self.inner).strong == 0 {
+                return Option.None
+            }
+            (*self.inner).strong += 1
+        }
+        return Option.Some(Rc{inner: self.inner})
+    }
+
+    /**
+     * Another weak owner of the same value.
+     *
+     * @returns the new weak owner
+     */
+    pub fn clone(self) Weak<T> {
+        unsafe {
+            (*self.inner).weak += 1
+        }
+        return Weak{inner: self.inner}
+    }
+
+    /**
+     * How many owners the value has; 0 once it was dropped.
+     *
+     * @returns the number of `Rc`s of the value
+     */
+    pub fn owners(self) int {
+        return unsafe { (*self.inner).strong }
+    }
+
+    fn drop(mut self) {
+        unsafe {
+            release(self.inner)
+        }
+    }
+}
+
+// Gives up one weak count; the last one frees the memory.
+unsafe fn release<T>(p: *mut RcInner<T>) {
+    (*p).weak -= 1
+    if (*p).weak == 0 {
+        ofir_free(p as *mut u8)
+    }
+}
