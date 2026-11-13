@@ -1,0 +1,29 @@
+// panic: worker gave up
+// requires: stage1
+// Many tasks panic at once: one panic message is printed and the process
+// ends with status 101; the other tasks wait for it to go.
+import std.sync.Arc
+import std.sync.WaitGroup
+import std.task
+
+fn main() {
+    const ready = Arc.new(WaitGroup.new())
+    ready.get().add(16)
+    let tasks = List<task.Task<int>>.new()
+    for i in 0..16 {
+        const mine = ready.clone()
+        tasks.push(task.run(move () int => {
+            mine.get().done()
+            mine.get().wait()
+            if i >= 0 {
+                panic("worker gave up")
+            }
+            i
+        }))
+    }
+    let sum = 0
+    for tasks.len() > 0 {
+        sum += tasks.pop().unwrap().join()
+    }
+    println("{sum}")
+}
