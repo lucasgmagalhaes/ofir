@@ -1,0 +1,154 @@
+/**
+ * @module
+ * `std.strings.utf8`: UTF-8 encoding and decoding of byte buffers
+ * (docs/std/strings.md, ADR 0056). A Unicode scalar value is a `u32` in
+ * `0..=0x10FFFF` outside the surrogates `0xD800..=0xDFFF`.
+ */
+
+/** The scalar value that stands for bytes that are not UTF-8 text. */
+pub const REPLACEMENT: u32 = 0xFFFD
+
+/**
+ * Whether `c` is a Unicode scalar value, and so can be encoded.
+ *
+ * @param c the value
+ * @returns `true` for `0..=0x10FFFF` outside the surrogates
+ * @example
+ * ```ofir
+ * import std.strings.utf8
+ * import std.testing.assert
+ *
+ * assert(utf8.isScalar(0x1F600) && !utf8.isScalar(0xD800))
+ * ```
+ */
+pub fn isScalar(c: u32) bool {
+    return c <= 0x10FFFF && (c < 0xD800 || c > 0xDFFF)
+}
+
+/**
+ * The number of bytes that encode `c`.
+ *
+ * @param c the scalar value
+ * @returns 1 to 4, or 0 when `c` is not a scalar value
+ */
+pub fn charLen(c: u32) int {
+    if !isScalar(c) {
+        return 0
+    }
+    return if c < 0x80 { 1 } else if c < 0x800 { 2 } else if c < 0x10000 { 3 } else { 4 }
+}
+
+/**
+ * Appends the UTF-8 encoding of `c` to `out`.
+ *
+ * @param c the scalar value
+ * @param out the buffer to append to
+ * @panics when `c` is not a scalar value
+ * @example
+ * ```ofir
+ * import std.strings.utf8
+ * import std.testing.assert
+ *
+ * let bytes: List<u8> = []
+ * utf8.encode(0xE9, bytes)   // é
+ * assert(bytes.len() == 2 && bytes[0] == 0xC3 && bytes[1] == 0xA9)
+ * ```
+ */
+pub fn encode(c: u32, out: mut List<u8>) {
+    const n = charLen(c)
+    if n == 0 {
+        panic("{c} is not a Unicode scalar value")
+    }
+    if n == 1 {
+        out.push(c as u8)
+        return
+    }
+    const lead: u32 = if n == 2 { 0xC0 } else if n == 3 { 0xE0 } else { 0xF0 }
+    out.push((lead | (c >> (6 * (n - 1)) as u32)) as u8)
+    let k = n - 2
+    for k >= 0 {
+        out.push((0x80 | ((c >> (6 * k) as u32) & 0x3F)) as u8)
+        k -= 1
+    }
+}
+
+/**
+ * The scalar value whose UTF-8 sequence starts at `at`, checked: no
+ * overlong encoding, surrogate, value above `0x10FFFF` or cut sequence.
+ *
+ * @param bytes the encoded text
+ * @param at the offset of the first byte of the sequence
+ * @returns `Some((scalar, length))`, or `None` when the bytes at `at` are
+ * not a valid sequence
+ * @panics unless `0 <= at < bytes.len()`
+ * @example
+ * ```ofir
+ * import std.strings.utf8
+ * import std.testing.assert
+ *
+ * const decoded = utf8.decode("é!".asBytes(), 0) ?? (0, 0)
+ * assert(decoded.0 == 0xE9 && decoded.1 == 2)
+ * ```
+ */
+pub fn decode(bytes: &[u8], at: int) Option<(u32, int)> {
+    const first = bytes[at] as u32
+    if first < 0x80 {
+        return Option.Some((first, 1))
+    }
+    const n = if first >= 0xC2 && first <= 0xDF {
+        2
+    } else if first >= 0xE0 && first <= 0xEF {
+        3
+    } else if first >= 0xF0 && first <= 0xF4 {
+        4
+    } else {
+        0
+    }
+    if n == 0 || at + n > bytes.len() {
+        return Option.None
+    }
+    const mask: u32 = 0x7F
+    let c = first & (mask >> n as u32)
+    for k in 1..n {
+        const next = bytes[at + k] as u32
+        if next & 0xC0 != 0x80 {
+            return Option.None
+        }
+        c = (c << 6) | (next & 0x3F)
+    }
+    const min: u32 = if n == 2 { 0x80 } else if n == 3 { 0x800 } else { 0x10000 }
+    if c < min || !isScalar(c) {
+        return Option.None
+    }
+    return Option.Some((c, n))
+}
+
+/**
+ * The text that the bytes encode, with each byte that does not start a
+ * valid sequence replaced by U+FFFD; it never fails.
+ *
+ * @param bytes the encoded text
+ * @returns the new string
+ * @example
+ * ```ofir
+ * import std.strings.utf8
+ * import std.testing.assert
+ *
+ * const bytes: List<u8> = [0x68, 0xFF, 0x69]
+ * assert(utf8.lossy(bytes.asSlice()) == "h\u{FFFD}i")
+ * ```
+ */
+pub fn lossy(bytes: &[u8]) str {
+    let out = str.withCapacity(bytes.len())
+    let at = 0
+    for at < bytes.len() {
+        if const Option.Some(decoded) = decode(bytes, at) {
+            out.pushChar(decoded.0)
+            at += decoded.1
+        } else {
+            out.pushChar(REPLACEMENT)
+            at += 1
+        }
+    }
+    return out
+}
