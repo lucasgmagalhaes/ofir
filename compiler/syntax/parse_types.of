@@ -377,19 +377,35 @@ fn baseType(p: mut Parser, ops: bool) TypeExpr {
 
 // A type with its postfix `?` and, with `ops`, `[K]` (spec 16.3).
 fn postfixType(p: mut Parser, ops: bool) TypeExpr {
+    let steps = 1
+    if !p.nest() {
+        p.depth -= 1
+        const here = p.here()
+        return newType(p, TypeKind.Never, here)
+    }
     let t = baseType(p, ops)
     for {
         const start = t.span
         if p.accept(TokenKind.Question) {
+            steps += 1
+            if !p.nest() {
+                break
+            }
             t = newType(p, TypeKind.Optional(Box.new(t)), start)
         } else if ops && p.accept(TokenKind.LBracket) {
+            steps += 1
+            if !p.nest() {
+                break
+            }
             const key = Box.new(parseType(p))
             p.expect(TokenKind.RBracket, "`]` to close the key")
             t = newType(p, TypeKind.Index(Box.new(t), key), start)
         } else {
-            return t
+            break
         }
     }
+    p.depth -= steps
+    return t
 }
 
 // Whether a token can start the right operand of `|`, `&` or `-`; before
@@ -405,13 +421,19 @@ fn startsOperand(kind: TokenKind) bool {
 // `&` and `-` on key types, left-associative and tighter than `|`.
 fn keyTerm(p: mut Parser) TypeExpr {
     let t = postfixType(p, true)
+    let steps = 0
     for (p.at(TokenKind.Amp) || p.at(TokenKind.Minus)) && startsOperand(p.peekAt(1)) {
         const start = t.span
         const op = if p.at(TokenKind.Amp) { Op.And } else { Op.Sub }
         p.advance()
+        steps += 1
+        if !p.nest() {
+            break
+        }
         const right = Box.new(postfixType(p, true))
         t = newType(p, TypeKind.KeyOp(op, Box.new(t), right), start)
     }
+    p.depth -= steps
     return t
 }
 
@@ -420,12 +442,18 @@ fn typeIn(p: mut Parser, ops: bool) TypeExpr {
         return postfixType(p, false)
     }
     let t = keyTerm(p)
+    let steps = 0
     for p.at(TokenKind.Pipe) && startsOperand(p.peekAt(1)) {
         p.advance()
+        steps += 1
+        if !p.nest() {
+            break
+        }
         const start = t.span
         const right = Box.new(keyTerm(p))
         t = newType(p, TypeKind.KeyOp(Op.Or, Box.new(t), right), start)
     }
+    p.depth -= steps
     return t
 }
 

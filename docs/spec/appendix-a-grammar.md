@@ -264,3 +264,10 @@ FieldPat      = identifier [ ":" Pattern ] .
   (`e: (A | B)`): a bare `|` there separates alternatives of the pattern.
 - Contextual keywords (chapter 1.5) are keywords only in the positions
   shown in this grammar.
+- Nesting is limited to 256 levels (E0101). A level is a nested
+  expression, block, type or pattern, or one step of a chain: a binary
+  operator, an `as`, a postfix operation (call, index, field access,
+  method call, `?`, struct literal) or an `else if`. A chain of 255
+  operators, or 255 nested blocks, is accepted; one more is E0101. The
+  parser reports it once and stops, so every later phase works on a tree
+  of bounded depth.

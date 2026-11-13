@@ -84,13 +84,19 @@ static Expr *unary(Parser *p);
 
 static Expr *cast(Parser *p) {
     Expr *e = unary(p);
+    int steps = 0;
     while (accept(p, TOK_KW_AS)) {
+        steps++;
+        if (!nest(p)) {
+            break;
+        }
         Expr *c = new_expr(p, EXPR_CAST, e->span);
         c->as.cast.value = e;
         c->as.cast.type = parse_simple_type(p);
         c->span = span_since(p, e->span);
         e = c;
     }
+    p->depth -= steps;
     return e;
 }
 
@@ -98,14 +104,21 @@ static Expr *cast(Parser *p) {
 // One table lookup per operator instead of one call per level.
 static Expr *binary_expr(Parser *p, Level min) {
     Expr *lhs = cast(p);
+    int steps = 0;
     for (;;) {
         Op op;
         int count;
         Level lv = operator_at(p, &op, &count);
         if (lv == LEVEL_NONE || lv < min) {
+            p->depth -= steps;
             return lhs;
         }
         p->pos += (size_t)count;
+        steps++;
+        if (!nest(p)) {   // a chain is as deep as it is long
+            p->depth -= steps;
+            return lhs;
+        }
         skip_newlines(p);   // an operator at the end of a line continues it
         Expr *rhs = binary_expr(p, lv + 1);
         lhs = binary(p, op, lhs, rhs);
@@ -159,7 +172,15 @@ Expr *parse_expr_no_struct(Parser *p) {
     return e;
 }
 
+static Expr *unary_level(Parser *p);
+
 static Expr *unary(Parser *p) {
+    Expr *e = nest(p) ? unary_level(p) : new_expr(p, EXPR_TUPLE, peek_token(p, 0)->span);
+    p->depth--;
+    return e;
+}
+
+static Expr *unary_level(Parser *p) {
     Span start = peek_token(p, 0)->span;
     Op op;
     switch (peek(p)) {

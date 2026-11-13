@@ -47,7 +47,14 @@ static Expr *if_expr(Parser *p) {
     e->as.if_.then = parse_block(p);
     if (accept(p, TOK_KW_ELSE)) {
         Span else_start = peek_token(p, 0)->span;
-        e->as.if_.else_ = at(p, TOK_KW_IF) ? if_expr(p) : block_expr(p, EXPR_BLOCK, else_start);
+        if (!at(p, TOK_KW_IF)) {
+            e->as.if_.else_ = block_expr(p, EXPR_BLOCK, else_start);
+        } else {
+            if (nest(p)) {   // an `else if` chain is as deep as it is long
+                e->as.if_.else_ = if_expr(p);
+            }
+            p->depth--;
+        }
     }
     e->span = span_since(p, start);
     return e;

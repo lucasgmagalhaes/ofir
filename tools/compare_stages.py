@@ -56,8 +56,8 @@ def comparable(path: Path) -> bool:
     return not ONE_STAGE.search(path.read_text(errors="replace"))
 
 
-def run(argv: list) -> tuple:
-    result = subprocess.run(argv, capture_output=True, timeout=60, env=ENV)
+def run(argv: list, timeout: int = 60) -> tuple:
+    result = subprocess.run(argv, capture_output=True, timeout=timeout, env=ENV)
     return result.returncode, result.stdout, result.stderr
 
 
@@ -107,7 +107,10 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         stage1 = args.stage1 or str(Path(tmp) / "ofir1")
         if not args.stage1:
-            built = run([args.compiler, "build", str(ROOT / "compiler" / "main.of"), "-o", stage1])
+            # `--release` as the Makefile builds it: a debug stage 1 needs more stack
+            # than 8 MiB for the deepest nesting the parser accepts (spec A.8)
+            main = str(ROOT / "compiler" / "main.of")
+            built = run([args.compiler, "build", main, "--release", "-o", stage1], 600)
             if built[0] != 0:
                 sys.stderr.write(built[2].decode())
                 print("stages: stage 1 does not build")

@@ -21,6 +21,9 @@ import syntax.token.TokenKind
 import syntax.token.TokenValue
 import syntax.token_print.kindText
 
+/** The nesting limit of the parser (E0101, spec A.8). */
+pub const MAX_NESTING: int = 256
+
 /**
  * What `parse` gives back: the tree and the tables it took over.
  */
@@ -49,6 +52,10 @@ pub struct Parser {
     pub typeTests: bool
     /** An error was reported: silent until resynchronized. */
     pub recovering: bool
+    /** Past the nesting limit (E0101): the parse is unwinding to the end. */
+    pub tooDeep: bool
+    /** The open levels of nesting (`nest`). */
+    pub depth: int
     /** The interner, for contextual keywords and type names. */
     pub names: Interner
     /** Where syntax errors go. */
@@ -193,11 +200,34 @@ pub struct Parser {
      * @param message what is wrong
      */
     pub fn syntaxError(mut self, span: Span, message: move str) {
-        if self.recovering {
+        if self.recovering || self.tooDeep {
             return
         }
         self.diags.error("E0100", span, message)
         self.recovering = true
+    }
+
+    /**
+     * Enters a level of nesting (E0101): each level of expressions, types
+     * and patterns, and each step of an operator or postfix chain, is one.
+     * Past the limit it reports E0101 once, moves to the end of the file and
+     * returns false. The caller leaves the level (`depth -= 1`) either way.
+     *
+     * @returns whether the parse goes on into the level
+     */
+    pub fn nest(mut self) bool {
+        self.depth += 1
+        if self.depth <= MAX_NESTING && !self.tooDeep {
+            return true
+        }
+        if !self.tooDeep {
+            const span = self.token(0).span
+            self.diags.error("E0101", span, "nesting too deep: more than {MAX_NESTING} levels")
+            self.tooDeep = true
+        }
+        self.recovering = true
+        self.pos = self.tokens.len() - 1   // the end of the file
+        return false
     }
 
     /**
@@ -424,8 +454,8 @@ pub fn parseFrom(file: FileId, src: str, tokens: move List<Token>, names: move I
                         keyof: names.find("keyof"), is: names.find("is"),
                         infer: names.find("infer"), send: names.find("Send")}
     let p = Parser{tokens: kept, pos: 0, src: src.sliceFrom(0), noStructLiteral: false,
-                   typeTests: false, recovering: false, names, diags, words, nextId: firstId,
-                   typeBounds: [], typeAsserts: [], comptimeNames: []}
+                   typeTests: false, recovering: false, tooDeep: false, depth: 0, names, diags,
+                   words, nextId: firstId, typeBounds: [], typeAsserts: [], comptimeNames: []}
     const items = if docTest { docTestItems(p) } else { moduleItems(p) }
     const module = Module{file, nodeCount: p.nextId, docs, items}
     return ParseResult{module, names: p.names, diags: p.diags}

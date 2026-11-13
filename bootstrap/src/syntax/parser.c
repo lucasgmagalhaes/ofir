@@ -68,7 +68,7 @@ void *parser_alloc(Parser *p, size_t size) {
 // Errors
 
 void syntax_error(Parser *p, Span span, const char *format, ...) {
-    if (p->recovering) {
+    if (p->recovering || p->too_deep) {
         return;   // one error per statement: the rest is usually a consequence
     }
     char message[256];
@@ -78,6 +78,20 @@ void syntax_error(Parser *p, Span span, const char *format, ...) {
     va_end(args);
     diag_error(&p->session->diags, "E0100", span, "%s", message);
     p->recovering = true;
+}
+
+bool nest(Parser *p) {
+    if (++p->depth <= MAX_NESTING && !p->too_deep) {
+        return true;
+    }
+    if (!p->too_deep) {
+        diag_error(&p->session->diags, "E0101", peek_token(p, 0)->span,
+                   "nesting too deep: more than %d levels", MAX_NESTING);
+        p->too_deep = true;
+    }
+    p->recovering = true;
+    p->pos = p->count - 1;   // the end of the file
+    return false;
 }
 
 static const char *describe(const Token *t) {

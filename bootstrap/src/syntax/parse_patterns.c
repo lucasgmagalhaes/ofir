@@ -149,7 +149,16 @@ static Pattern *atom(Parser *p) {
     }
 }
 
+static Pattern *pattern_level(Parser *p);
+
 Pattern *parse_pattern(Parser *p) {
+    Pattern *pat = nest(p) ? pattern_level(p)
+                           : new_pattern(p, PAT_WILDCARD, peek_token(p, 0)->span);
+    p->depth--;
+    return pat;
+}
+
+static Pattern *pattern_level(Parser *p) {
     Span start = peek_token(p, 0)->span;
     Pattern *first = atom(p);
     if (!at(p, TOK_PIPE)) {
