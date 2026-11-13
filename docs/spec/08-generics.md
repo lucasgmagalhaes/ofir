@@ -181,6 +181,38 @@ fn main() {
   is expected, is an error (E0362).
 - Each distinct argument is a separate instantiation: `Buffer<u8, 4>` and
   `Buffer<u8, 8>` are different types.
-- The length of an array type in a generic declaration is an integer
-  constant or a const parameter. Arithmetic on const parameters in types
-  (`[float; R * C]`) is **[planned]**.
+- The length of an array type is a **length expression**: an integer
+  literal, a `const` item of type `int`, a const parameter in scope, or
+  `+`, `-`, `*`, `/` and `%` of length expressions, in parentheses as
+  needed. A length expression without parameters is evaluated where it is
+  written; one with parameters, at each instantiation.
+- Evaluation is exact: every operation must give a value from 0 to
+  4294967295, and `/` and `%` need a divisor other than 0 (E0366, at the
+  declaration or at the instantiation that fails). `[int; N - 1]` with
+  `N = 0` is an error, not an empty array.
+- A length expression with parameters does not infer them: in
+  `fn flat<const R: int, const C: int>(m: [float; R * C])`, `R` and `C`
+  are given explicitly or inferred from another parameter. Two such
+  lengths are the same when they are written the same after substitution:
+  `[T; R * C]` and `[T; C * R]` differ until `R` and `C` are known.
+- `[value; count]` as a `[T; N]` takes for `count` the same length
+  expression as the type, or an integer literal equal to a known length.
+
+```ofir
+struct Matrix<const R: int, const C: int> {
+    cells: [float; R * C]
+
+    fn at(self, i: int, j: int) float {
+        return self.cells[i * C + j]
+    }
+}
+
+fn twice<const N: int>(xs: [int; N]) [int; N * 2] {
+    let out = [0; N * 2]
+    for i in 0..N {
+        out[i] = xs[i]
+        out[i + N] = xs[i]
+    }
+    return out
+}
+```
