@@ -82,6 +82,7 @@ void gen_cast_fails(Gen *g, const Rvalue *rv, Value *result);
 void gen_saturate(Gen *g, const Rvalue *rv, Value *result);
 void gen_cast_value(Gen *g, TypeId from, TypeId to, Value a, Value *result);
 void gen_misc(Gen *g, const Rvalue *rv, Value *result);   // select, str, float functions
+void gen_atomic(Gen *g, const Rvalue *rv, Value *result);   // llvm_atomic.c
 void gen_float_decls(Gen *g);
 
 #endif
