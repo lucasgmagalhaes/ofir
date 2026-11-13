@@ -129,6 +129,17 @@ pub struct Builder {
     }
 
     /**
+     * An empty builder with room for `n` bytes, for when the final length
+     * is known.
+     *
+     * @param n the number of bytes to make room for
+     * @returns the builder
+     */
+    pub fn withCapacity(n: int) Builder {
+        return Builder{text: str.withCapacity(n)}
+    }
+
+    /**
      * Appends a string.
      *
      * @param t the string to append

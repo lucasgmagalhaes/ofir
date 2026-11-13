@@ -27,3 +27,12 @@ fn builderCollectsPieces() {
     assert(b.len() == 8)
     assert(b.finish() == "n = 1€")
 }
+
+@test
+fn builderWithCapacityBuildsTheSameText() {
+    let b = Builder.withCapacity(16)
+    b.push("x = ")
+    b.pushChar(0x20AC)
+    assert(b.len() == 7)
+    assert(b.finish() == "x = €")
+}
