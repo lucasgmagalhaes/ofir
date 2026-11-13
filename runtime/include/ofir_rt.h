@@ -82,8 +82,6 @@ void ofir_print_newline(void);
 
 // `str` values are passed by pointer, which keeps the C ABI simple.
 void ofir_str_push_bytes(OfirStr *s, const uint8_t *ptr, int64_t len);
-void ofir_str_push_int(OfirStr *s, int64_t value);
-void ofir_str_push_uint(OfirStr *s, uint64_t value);
 void ofir_str_push_float(OfirStr *s, double value);
 void ofir_str_push_f32(OfirStr *s, float value);
 // Format specifiers, `{x:spec}` (spec 1.7).

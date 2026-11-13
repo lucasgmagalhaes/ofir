@@ -683,6 +683,52 @@ fn strPushBool(s: mut str, b: bool) {
     s.push(if b { "true" } else { "false" })
 }
 
+// A `{n}` part of a signed integer: the lowering calls it (lower.c, lower.of).
+fn strPushInt(s: mut str, n: i64) {
+    if n >= 0 {
+        pushDigits(s, n as u64)
+        return
+    }
+    s.pushByte(b'-')
+    const zero: u64 = 0
+    pushDigits(s, zero.wrappingSub(n.wrappingCast<u64>()))   // also for the minimum
+}
+
+// A `{n}` part of an unsigned integer: the lowering calls it (lower.c, lower.of).
+fn strPushUint(s: mut str, n: u64) {
+    pushDigits(s, n)
+}
+
+// Appends the decimal digits of `n`, two per division, from the last.
+fn pushDigits(s: mut str, n: u64) {
+    let count = 1
+    let rest = n
+    for rest >= 10 {
+        rest /= 10
+        count += 1
+    }
+    s.reserve(count)
+    unsafe {
+        const base = s.ptr.add(s.len) as *mut u8
+        let at = count
+        let value = n
+        for value >= 100 {
+            const pair = value % 100
+            value /= 100
+            at -= 2
+            *base.add(at) = b'0' + (pair / 10) as u8
+            *base.add(at + 1) = b'0' + (pair % 10) as u8
+        }
+        if value >= 10 {
+            *base = b'0' + (value / 10) as u8
+            *base.add(1) = b'0' + (value % 10) as u8
+        } else {
+            *base = b'0' + value as u8
+        }
+    }
+    s.len += count
+}
+
 // `a + b` on strings: a new string. The lowering calls it (lower_ops.c,
 // lower_expr.of).
 fn strConcat(a: str, b: str) str {

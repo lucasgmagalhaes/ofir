@@ -690,14 +690,6 @@ fn push(it: mut Interp, c: mut Checker, frame: int, target: Operand, text: str) 
 
 fn runtime(it: mut Interp, c: mut Checker, frame: int, s: AirStmt) {
     match s.rt {
-        RuntimeFn.StrPushInt => {
-            const v = operand(it, c, frame, s.args[1])
-            push(it, c, frame, s.args[0], "{v.bits.wrappingCast<i64>()}")
-        }
-        RuntimeFn.StrPushUint => {
-            const v = operand(it, c, frame, s.args[1])
-            push(it, c, frame, s.args[0], "{v.bits}")
-        }
         RuntimeFn.StrPushFloat => {
             const v = operand(it, c, frame, s.args[1])
             push(it, c, frame, s.args[0], "{v.float}")
@@ -733,13 +725,20 @@ fn isStrMethod(c: mut Checker, def: int) bool {
 }
 
 // `strEq` and `strCmp` of std/core/str.of, which `==` and `<` on strings
-// call: on the text, since their bodies call `memcmp` on the bytes.
+// call: on the text, since their bodies call `memcmp` on the bytes. Also
+// `strPushInt` and `strPushUint`, of `{n}` parts.
 fn strOrder(it: mut Interp, c: mut Checker, frame: int, s: AirStmt) bool {
     const owner = c.r.lang[STR]
     if owner == 0 || c.def(s.callee).module != c.def(owner).module {
         return false
     }
     const name = c.text(c.def(s.callee).name)
+    if name == "strPushInt" || name == "strPushUint" {   // they write through pointers
+        const v = operand(it, c, frame, s.args[1])
+        const text = if name == "strPushInt" { "{v.bits.wrappingCast<i64>()}" } else { "{v.bits}" }
+        push(it, c, frame, s.args[0], text)
+        return true
+    }
     if name != "strEq" && name != "strCmp" {
         return false
     }

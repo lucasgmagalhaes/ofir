@@ -219,6 +219,9 @@ pub struct Lowerer {
     /** `strPushStr` and `strPushBool` of std/core/str.of: `{t}` and `{b}` parts. */
     pub strPushStr: int
     pub strPushBool: int
+    /** `strPushInt` and `strPushUint` of std/core/str.of: `{n}` parts. */
+    pub strPushInt: int
+    pub strPushUint: int
     /** A construct stage 1 does not lower yet was met. */
     pub unsupported: bool
     /** What it was. */
@@ -292,6 +295,17 @@ pub fn emitTemp(l: mut Lowerer, ty: int, value: move Rvalue) int {
     return temp
 }
 
+// The std fn that a runtime function is lowered to, or 0 (lower.c: std_runtime).
+fn stdRuntime(l: Lowerer, f: RuntimeFn) int {
+    return match f {
+        RuntimeFn.StrPushStr => l.strPushStr
+        RuntimeFn.StrPushBool => l.strPushBool
+        RuntimeFn.StrPushInt => l.strPushInt
+        RuntimeFn.StrPushUint => l.strPushUint
+        _ => 0
+    }
+}
+
 /**
  * A call of a runtime function.
  *
@@ -301,12 +315,12 @@ pub fn emitTemp(l: mut Lowerer, ty: int, value: move Rvalue) int {
  * @param dest the local receiving the result, or -1
  */
 pub fn emitRuntime(l: mut Lowerer, f: RuntimeFn, args: move List<Operand>, dest: int) {
-    if f == RuntimeFn.StrPushStr || f == RuntimeFn.StrPushBool {   // std/core/str.of
+    const callee = stdRuntime(l, f)
+    if callee != 0 {   // std/core/str.of
         let parts = args
         if f == RuntimeFn.StrPushStr {   // the part is passed by value
             parts[1].kind = OperandKind.Copy
         }
-        const callee = if f == RuntimeFn.StrPushStr { l.strPushStr } else { l.strPushBool }
         emitCall(l, callee, UNIT, parts, dest)
         return
     }
@@ -1668,7 +1682,9 @@ pub fn lowerProgram(c: mut Checker, p: Program) Lowerer {
                     strCmp: stdFn(c, p, "std.core.str", "strCmp"),
                     strConcat: stdFn(c, p, "std.core.str", "strConcat"),
                     strPushStr: stdFn(c, p, "std.core.str", "strPushStr"),
-                    strPushBool: stdFn(c, p, "std.core.str", "strPushBool"), unsupported: false,
+                    strPushBool: stdFn(c, p, "std.core.str", "strPushBool"),
+                    strPushInt: stdFn(c, p, "std.core.str", "strPushInt"),
+                    strPushUint: stdFn(c, p, "std.core.str", "strPushUint"), unsupported: false,
                     missing: "", out: [], tests: [], comptimes: []}
     if !c.r.testing {
         checkMain(c, p)

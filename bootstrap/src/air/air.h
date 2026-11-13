@@ -88,7 +88,8 @@ typedef struct {
 } Rvalue;
 
 // Functions of the runtime library (runtime/include/ofir_rt.h). The lowering
-// turns RT_STR_PUSH_STR and RT_STR_PUSH_BOOL into calls of std/core/str.of.
+// turns RT_STR_PUSH_STR, RT_STR_PUSH_INT, RT_STR_PUSH_UINT and RT_STR_PUSH_BOOL into
+// calls of std/core/str.of.
 typedef enum {
     RT_PRINT_STR, RT_PRINT_INT, RT_PRINT_UINT, RT_PRINT_FLOAT, RT_PRINT_F32, RT_PRINT_BOOL,
     RT_PRINT_NEWLINE,
