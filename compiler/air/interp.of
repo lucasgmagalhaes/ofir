@@ -718,15 +718,6 @@ fn runtime(it: mut Interp, c: mut Checker, frame: int, s: AirStmt) {
             const v = operand(it, c, frame, s.args[1])
             push(it, c, frame, s.args[0], "{v.float as f32}")
         }
-        RuntimeFn.StrConcat => {
-            const a = pointee(it, c, frame, s.args[1])
-            const b = pointee(it, c, frame, s.args[2])
-            const p = operand(it, c, frame, s.args[0])
-            if !it.failed && p.kind == ValueKind.Ptr {
-                const place = Place{frame: p.frame, local: p.local, path: p.path.clone()}
-                write(it, place, strValue(a.text + b.text))
-            }
-        }
         RuntimeFn.Free => {}
         RuntimeFn.PrintStr => cannotPrint(it)
         RuntimeFn.PrintInt => cannotPrint(it)
