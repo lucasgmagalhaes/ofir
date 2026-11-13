@@ -55,9 +55,12 @@ fn cLen(s: str) uint {
 }
 ```
 
-- Only types with a defined C layout may cross the boundary: integers,
-  floats, `bool`, raw pointers, `@repr(C)` structs and function pointers
-  declared `extern "C" fn`.
+- Only types with a defined C layout may cross the boundary by value:
+  integers, floats, `bool` and raw pointers (E0804). A `@repr(C)` struct or
+  enum crosses behind a raw pointer; its fields keep the C layout
+  ([13.2](13-memory-layout.md)). Passing `@repr(C)` structs and enums by
+  value, and function pointers typed `extern "C" fn`, are **[planned]**
+  ([ADR 0051](../adr/0051-layout-and-abi-contracts.md)).
 - The program links against the C library by default. Other libraries are
   linked with `@link("name")` on the `extern` block: the linker gets
   `-lname`, once per library, in the order the blocks are declared.

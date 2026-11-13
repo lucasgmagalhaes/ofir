@@ -43,6 +43,7 @@ before the feature changes state:
 | Converting a `dyn` value to an interface it embeds (`dyn Both` to `dyn Named`) | stage 1 checker, codegen | available gate; a vtable layout for embedded interfaces | [spec 9.7](../spec/09-interfaces.md) |
 | `dyn` of generic interfaces (`dyn Iterator<int>`) | stage 1 checker, codegen | available gate | [spec 9.7](../spec/09-interfaces.md) |
 | Reading `union` fields in `unsafe` code | stage 1 checker, codegen | available gate; `union` types first (roadmap open question 9) | [spec 11.1](../spec/11-unsafe-ffi.md) |
+| `@repr(C)` structs and enums by value across `extern "C"`; `extern "C" fn` types | stage 1 checker, codegen | available gate; generated C shims (ADR 0051) | [spec 11.3](../spec/11-unsafe-ffi.md) |
 | Warning for an unused private function, type or constant | stage 1 checker | available gate, with a W code | [spec 12.6](../spec/12-attributes-testing.md) |
 | Warning for an unused `mut` or `let` | stage 1 checker | available gate, with a W code | [spec 12.6](../spec/12-attributes-testing.md) |
 | Naming convention warning (W0007) | stage 1 checker | available gate | [spec 12.6](../spec/12-attributes-testing.md) |
