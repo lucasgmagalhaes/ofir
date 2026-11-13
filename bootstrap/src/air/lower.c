@@ -18,6 +18,16 @@ LocalId emit_temp(Lowerer *l, TypeId type, Rvalue rvalue) {
     return temp;
 }
 
+// The function of std/core/str.of that a runtime function is lowered to,
+// or NULL.
+static const char *std_runtime(RuntimeFn fn) {
+    switch (fn) {
+    case RT_STR_PUSH_STR: return "strPushStr";
+    case RT_STR_PUSH_BOOL: return "strPushBool";
+    default: return NULL;
+    }
+}
+
 void emit_runtime(Lowerer *l, RuntimeFn fn, const Operand *args, uint32_t count, LocalId *dest) {
     AirStmt s = {.kind = AIR_CALL, .has_dest = dest != NULL};
     if (dest) {
@@ -29,6 +39,15 @@ void emit_runtime(Lowerer *l, RuntimeFn fn, const Operand *args, uint32_t count,
     s.as.call.args = ARENA_ARRAY(&l->sema->session->arena, Operand, count + 1);
     for (uint32_t i = 0; i < count; i++) {
         s.as.call.args[i] = args[i];
+    }
+    const char *name = std_runtime(fn);
+    if (name) {
+        s.as.call.runtime = false;
+        s.as.call.fn = std_fn(l, "std.core.str", name)->def;
+        s.as.call.targs = type_id(TID_UNIT);
+        if (fn == RT_STR_PUSH_STR) {   // the part is passed by value
+            s.as.call.args[1].kind = OPERAND_COPY;
+        }
     }
     air_push(l->body, l->block, s);
 }
