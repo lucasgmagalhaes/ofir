@@ -40,8 +40,8 @@ each push. Iteration in key order means sorting the keys of a map.
    - `get` is a binary search, O(log n).
    - `insert` and `remove` take O(n), because they shift the elements after
      the position.
-   - Iteration is in key order, and `range(lo, hi)` gives the entries with
-     keys from `lo` up to but not including `hi`.
+   - `keys()` and `values()` are slices in key order, and `lowerBound(key)`
+     gives the positions that delimit a range of keys.
 
    This beats a tree for the small and read-mostly maps that programs
    build. A B-tree can replace the layout later behind the same API, if a
