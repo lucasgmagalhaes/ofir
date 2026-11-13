@@ -431,12 +431,18 @@ pub fn checkForCollection(c: mut Checker, p: Program, s: &Stmt, expr: &Expr, two
  * @param e the index expression
  * @param base the indexed value
  * @param range the range
+ * @param mutable whether it is `&mut xs[a..b]`, the methods `sliceMut` and
+ * `sliceFromMut`
  * @returns the type of the slice
  */
-pub fn checkRangeIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, range: &Expr) int {
+pub fn checkRangeIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, range: &Expr,
+                       mutable: bool) int {
     match range.kind {
         ExprKind.Range(lo, hi, _) => {
-            const text = if hi.isSome() { "slice" } else { "sliceFrom" }
+            let text = if hi.isSome() { "slice" } else { "sliceFrom" }
+            if mutable {   // `&mut xs[a..b]` is `xs.sliceMut(a, b)`
+                text = if hi.isSome() { "sliceMut" } else { "sliceFromMut" }
+            }
             const name = c.r.names.intern(text)
             const found = checkExpr(c, p, base, ERROR)
             const recvType = methodReceiver(c, p, base, found, name)

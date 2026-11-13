@@ -1,0 +1,46 @@
+// requires: stage1
+// Reborrows the borrow checker accepts (spec 5.6): a reborrow ends at its
+// last use, and the reference can be used again after it.
+
+struct Pair {
+    a: List<int>
+    b: List<int>
+}
+
+fn bump(r: &mut int) {
+    *r += 1
+}
+
+fn fill(xs: &mut [int], v: int) {
+    for i in 0..xs.len() {
+        xs[i] = v
+    }
+}
+
+fn main() {
+    let list = [1, 2]
+    const r = &mut list
+    const inner = &mut *r
+    inner.push(3)
+    r.push(4)               // `inner` is no longer used
+    const view = &*r
+    const again = &*r
+    println("{view.len()} {again.len()}")
+    r.push(5)
+    let n = 0
+    const p = &mut n
+    bump(p)
+    bump(p)                 // passing a `&mut` again reborrows it
+    *p += 1
+    let v = [0, 0, 0]
+    const s: &mut [int] = &mut v
+    fill(s, 1)
+    fill(s, 2)
+    s[0] = 3
+    let pair = Pair{a: [1], b: [2]}
+    const pr = &mut pair
+    const ra = &mut pr.a
+    ra.push(1)
+    pr.b.push(2)
+    println("{n} {v[0]} {v[1]} {pair.a.len()} {pair.b.len()} {list.len()}")
+}

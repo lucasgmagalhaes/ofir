@@ -1,0 +1,35 @@
+// requires: stage1
+// Views of part of a list (spec 5.6): `&mut xs[a..b]` is a `&mut [T]`, and
+// the list is usable again after the view's last use.
+
+fn fill(xs: &mut [int], v: int) {
+    for i in 0..xs.len() {
+        xs[i] = v
+    }
+}
+
+fn sum(xs: &[int]) int {
+    let total = 0
+    for x in xs {
+        total += x
+    }
+    return total
+}
+
+fn main() {
+    let a = [1, 2, 3, 4, 5]
+    fill(&mut a[1..3], 9)
+    println("{a[0]} {a[1]} {a[2]} {a[3]}")
+    const tail = &mut a[3..]
+    tail[0] = 7
+    const inner = &mut tail[1..]   // a view of a view
+    inner[0] = 8
+    a.push(6)                      // `tail` and `inner` are no longer used
+    println("{a[3]} {a[4]} {a.len()}")
+    const view = &a[0..2]
+    println("{view.len()} {sum(a.asSlice())}")
+    const r = &mut a
+    fill(&mut r[0..1], 0)
+    r.push(1)
+    println("{a[0]} {a.len()}")
+}
