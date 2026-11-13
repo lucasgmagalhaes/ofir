@@ -963,6 +963,29 @@ pub fn hashValue(l: mut Lowerer, c: mut Checker, p: Program, value: move Operand
     return callHash(l, c, p, "hashU64", [bits])
 }
 
+// `std.core.slice.sliceEqual(a, b)`: two slices compared element by element.
+fn sliceEqual(l: mut Lowerer, c: mut Checker, p: Program, a: move Operand, b: move Operand,
+              slice: int) Operand {
+    const dest = newTemp(l, BOOL)
+    const targs = c.types.tuple([c.types.get(slice).args[0]])
+    emitCall(l, stdFn(c, p, "std.core.slice", "sliceEqual"), targs, [a, b], dest)
+    return opCopy(dest, BOOL)
+}
+
+// An array value as a slice of its elements: `Slice.fromRaw(&a, N)`.
+fn arraySlice(l: mut Lowerer, c: mut Checker, p: Program, value: move Operand,
+              array: int) Operand {
+    const elem = c.types.get(array).inner
+    const count = c.types.get(array).data
+    const place = Place{local: toLocal(l, value), fields: [], deref: false}
+    const slice = c.types.adt(c.r.langItems[4], [elem])
+    const dest = newTemp(l, slice)
+    const args = [placeOperand(&place, OperandKind.Addr, c.types.ptr(elem, false)),
+                  opInt(count as u64, I64)]
+    emitCall(l, langMethod(c, p, c.r.langItems[4], "fromRaw"), c.types.tuple([elem]), args, dest)
+    return opCopy(dest, slice)
+}
+
 /**
  * `a == b` (spec 9.9): inline for tuples, a call for structs and enums
  * with payloads or their own `eq`, the operator otherwise.
@@ -981,6 +1004,13 @@ pub fn equalValues(l: mut Lowerer, c: mut Checker, p: Program, a: move Operand,
     let y = b
     x.ty = ty
     y.ty = ty
+    if c.types.kind(ty) == TyKind.Array {   // element by element, as slices
+        const slice = c.types.adt(c.r.langItems[4], [c.types.get(ty).inner])
+        return sliceEqual(l, c, p, arraySlice(l, c, p, x, ty), arraySlice(l, c, p, y, ty), slice)
+    }
+    if c.types.kind(ty) == TyKind.Adt && c.types.get(ty).data == c.r.langItems[4] {
+        return sliceEqual(l, c, p, x, y, ty)
+    }
     if c.types.kind(ty) == TyKind.Adt && equalityCalls(c, p, ty) {
         return adtEqual(l, c, p, x, y, ty)
     }
@@ -2838,6 +2868,9 @@ pub fn debugValue(l: mut Lowerer, c: mut Checker, p: Program, value: move Operan
         const inner = c.types.get(ty).inner
         const place = Place{local: toLocal(l, value), fields: [], deref: true}
         debugValue(l, c, p, placeOperand(&place, OperandKind.Copy, inner), inner, out)
+    } else if kind == TyKind.Array {   // as a slice of its elements
+        const slice = c.types.adt(c.r.langItems[4], [c.types.get(ty).inner])
+        debugValue(l, c, p, arraySlice(l, c, p, value, ty), slice, out)
     } else if kind != TyKind.Never && kind != TyKind.Error {
         let arg = value
         arg.ty = ty
