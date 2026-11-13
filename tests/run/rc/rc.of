@@ -1,0 +1,43 @@
+// requires: stage1 (clone methods, roadmap 6.24)
+// Shared ownership inside one task (spec 5.9): `Rc` counts its owners and
+// drops the value with the last one; `Weak` does not keep it alive.
+import std.mem.rc.Rc
+import std.mem.rc.Weak
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+fn show(w: &Weak<Noisy>) {
+    match w.upgrade() {
+        Option.Some(s) => println("alive {s.get().name}, {s.owners()} owners")
+        Option.None => println("gone")
+    }
+}
+
+fn give<T>(_: move T) {
+}
+
+fn main() {
+    const a = Rc.new(Noisy{name: "a"})
+    const w = a.downgrade()
+    const w2 = w.clone()
+    println("{a.owners()} {a.weakOwners()} {w.owners()}")
+    {
+        const b = a.clone()
+        println("{b.get().name} {a.owners()} {b.ptrEq(&a)}")
+    }
+    println("{a.owners()}")
+    show(&w)
+    const c = Rc.new(Noisy{name: "c"})
+    println("{a.ptrEq(&c)}")
+    give(c)
+    println("before last drop")
+    give(a)
+    show(&w2)
+    println("{w.owners()}")
+}

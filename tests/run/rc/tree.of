@@ -1,0 +1,58 @@
+// requires: stage1 (clone methods, roadmap 6.24)
+// A tree whose children own their nodes through `Rc` and point back to
+// their parent through `Weak` (spec 5.9): no cycle of strong owners, so
+// dropping the root frees every node.
+import std.mem.rc.Rc
+import std.mem.rc.Weak
+import std.sync.Mutex
+
+struct Node {
+    name: str
+    parent: Mutex<Option<Weak<Node>>>
+    children: Mutex<List<Rc<Node>>>
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+fn node(name: move str) Rc<Node> {
+    return Rc.new(Node{name: name, parent: Mutex.new(Option.None), children: Mutex.new([])})
+}
+
+fn adopt(parent: &Rc<Node>, child: &Rc<Node>) {
+    let up = child.get().parent.lock()
+    *up.getMut() = Option.Some(parent.downgrade())
+    let down = parent.get().children.lock()
+    down.getMut().push(child.clone())
+}
+
+fn parentName(n: &Rc<Node>) str {
+    const guard = n.get().parent.lock()
+    const up = match *guard.get() {
+        Option.Some(w) => w.upgrade()
+        Option.None => {
+            return "(root)"
+        }
+    }
+    const name = match up {
+        Option.Some(p) => p.get().name.clone()
+        Option.None => "(dropped)"
+    }
+    return name
+}
+
+fn main() {
+    const leaf = node("leaf")
+    {
+        const root = node("root")
+        const mid = node("mid")
+        adopt(&root, &mid)
+        adopt(&mid, &leaf)
+        println("{parentName(&leaf)} {parentName(&mid)} {parentName(&root)}")
+        println("root {root.owners()}/{root.weakOwners()}")
+        println("mid {mid.owners()}/{mid.weakOwners()}")
+        println("leaf {leaf.owners()}/{leaf.weakOwners()}")
+    }
+    println("leaf {leaf.owners()}, parent {parentName(&leaf)}")
+}
