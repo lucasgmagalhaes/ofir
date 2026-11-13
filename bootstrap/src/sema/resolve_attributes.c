@@ -48,7 +48,7 @@ static const AttributeRule RULES[] = {
     {"packed", ON_STRUCT, ARGS_NONE, false, "`@packed`"},
     {"align", ON_STRUCT, ARGS_ALIGN, false, "`@align(N)`, N a power of two up to 4096"},
     {"link", ON_EXTERN, ARGS_STR, false, "`@link(\"name\")`"},
-    {"export", ON_FN, ARGS_STR, false, "`@export(\"name\")`"},
+    {"export", ON_FN, ARGS_STR, true, "`@export(\"name\")`"},
     {"deprecated", ON_ANY, ARGS_OPT_STR, true,
      "`@deprecated` or `@deprecated(\"message\")`"},
     {"bench", ON_FN, ARGS_NONE, false, "`@bench`"},
@@ -153,9 +153,21 @@ static void check_fns(Resolver *r, FnList fns, int target) {
     }
 }
 
+// `@export` names a C symbol: only an `extern "C" fn` has one.
+static void check_exported(Resolver *r, const Item *item) {
+    const Attribute *at = find_attribute(r->sema, item->attributes, "export");
+    if (at && item->as.fn->abi.len == 0) {
+        resolve_error(r, "E0808", at->span,
+                      "`@export` applies only to an `extern \"C\"` function");
+    }
+}
+
 void check_attributes(Resolver *r, const Item *item) {
     switch (item->kind) {
-    case ITEM_FN: check_list(r, item->attributes, ON_FN); break;
+    case ITEM_FN:
+        check_list(r, item->attributes, ON_FN);
+        check_exported(r, item);
+        break;
     case ITEM_STRUCT: case ITEM_TUPLE_STRUCT:
         check_list(r, item->attributes, ON_STRUCT);
         check_fields(r, item);

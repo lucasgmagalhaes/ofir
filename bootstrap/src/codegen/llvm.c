@@ -54,8 +54,12 @@ void function_name(Gen *g, Out *out, DefId def, TypeId targs, bool is_main) {
         return;
     }
     const Def *d = sema_def(g->sema, def);
-    if (is_c_function(d)) {   // a C function keeps its name
+    if (is_c_function(d)) {   // a C function keeps its name or takes its `@export` one
         StrView name = def_name(g, def);
+        const Attribute *at = find_attribute(g->sema, d->fn->attributes, "export");
+        if (at) {
+            name = at->args.items[0]->as.str;
+        }
         out_char(out, '@');
         out_write(out, name.ptr, name.len);
         return;
