@@ -1485,7 +1485,13 @@ fn mutGlobals(g: mut Gen, c: mut Checker, p: Program) {
             }
         }
         const linkage = if g.units { "linkonce_odr hidden" } else { "internal" }   // shared
-        g.module.push("\n{globalName(c, id)} = {linkage} global {llty} {init}\n")
+        const item = itemOf(p, c.loc(id))
+        const tls = if findAttribute(c.r, item.attributes, "threadLocal").isSome() {
+            "thread_local "
+        } else {
+            ""
+        }
+        g.module.push("\n{globalName(c, id)} = {linkage} {tls}global {llty} {init}\n")
     }
 }
 
