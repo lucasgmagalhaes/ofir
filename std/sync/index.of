@@ -38,6 +38,7 @@ extern "C" {
     fn ofir_waitgroup_new() *mut u8
     fn ofir_waitgroup_add(wg: *mut u8, delta: int) bool
     fn ofir_waitgroup_wait(wg: *mut u8)
+    fn ofir_waitgroup_wait_until(wg: *mut u8, deadline: int) bool
     fn ofir_waitgroup_free(wg: *mut u8)
 }
 
@@ -934,6 +935,16 @@ pub struct WaitGroup {
         unsafe {
             ofir_waitgroup_wait(self.raw)
         }
+    }
+
+    /**
+     * Waits until the count is zero or the deadline passes.
+     *
+     * @param deadline when to stop waiting
+     * @returns true when the count reached zero
+     */
+    pub fn waitUntil(self, deadline: Deadline) bool {
+        return unsafe { ofir_waitgroup_wait_until(self.raw, deadline.instant()) }
     }
 
     fn drop(mut self) {
