@@ -32,6 +32,22 @@ import parser.ast as ast
 - Importing the same declaration or module twice into a module is allowed
   (a test file may repeat the imports of its module).
 - An unused import produces a warning (chapter 12.6).
+- A path can go through several modules: `geo.shapes.area()` or the type
+  `geo.shapes.Square`, when `geo` re-exports `geo.shapes` (7.3). Every
+  segment but the last must name a module that the previous one makes
+  public.
+- A submodule is not a member of its parent: `import parser` does not make
+  `parser.lexer` reachable. Using it without an import or a re-export is
+  E0200, with a help that names both fixes.
+
+### Initialization
+
+A module runs no code when a program starts. A module-level `const` or
+`let` initializer is evaluated at compile time (chapter 15): it may use
+literals, constants, operators and `comptime` calls, and anything else is
+E0801. So the order in which modules are loaded is not observable, and
+import cycles cannot see a value before it is initialized. A constant that
+depends on itself, directly or through other modules, is E0800.
 
 ## 7.3 Visibility
 
@@ -47,6 +63,26 @@ pub struct Token {
 
 pub fn tokenize(src: str) List<Token> { ... }
 ```
+
+### Re-exports
+
+`pub import` makes an imported module or declaration a public member of the
+importing module:
+
+```ofir
+// geo/index.of
+pub import geo.shapes              // `geo.shapes.area()` works for importers of `geo`
+pub import geo.shapes.Circle       // `geo.Circle`
+pub import geo.shapes.Kind as Shape
+```
+
+- The re-exported name is the last segment, or the alias. It also binds in
+  the module itself, like a plain `import`, and never counts as unused.
+- Only a public declaration can be re-exported (E0202 otherwise).
+- A plain `import` is private: modules do not re-export their imports
+  unless they say `pub import`.
+- Re-exports may chain through several modules. A cycle of re-exports that
+  never reaches a declaration names nothing (E0200).
 
 ## 7.4 The prelude
 
