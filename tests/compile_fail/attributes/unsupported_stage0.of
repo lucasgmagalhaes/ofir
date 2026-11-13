@@ -16,7 +16,7 @@ struct Huge {
     x: int
 }
 
-@export("f")   // error[E0901]: the attribute `@export` is not supported by stage 0
+@export("f")   // error[E0808]: `@export` applies only to an `extern "C"` function
 fn f() {
 }
 
