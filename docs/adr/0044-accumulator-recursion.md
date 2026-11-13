@@ -35,27 +35,33 @@ rewrites one shape of function. The function must:
   overflow as before.
 
 `x` must be a constant that is not negative or a local. The pass adds an
-accumulator `acc` of the unsigned type of the width of `T` and a sticky
-`carry`. The site adds `x` to `acc` (setting `carry` on overflow), sets the
-parameters to the arguments and jumps back to the old entry. Each return
-of a value `v` checks `carry || acc > MAX - v` and returns `acc + v`.
+accumulator `acc` of type `T`, starting at 0. The site adds `x` to `acc`,
+sets the parameters to the arguments and jumps back to the old entry. If
+`x` is negative or the sum overflows, it instead restores `acc` and takes
+the original call and add, whose own check stays where it was. Each return
+of a value `v` returns `acc + v` under the usual overflow check.
 
 **Why it is exact.** The original evaluates `x1 + (x2 + ... + (xm + v))`
 from the innermost call out and fails at the first partial sum above
 `MAX`. With every `xi >= 0`, each partial sum is at most the next one, so
 some partial sum fails exactly when the whole one does: `P + v > MAX`,
-`P` being the exact sum of the terms. `acc` holds `P` modulo `2^w` and
-`carry` records that it wrapped, so the check is exact for `v` of any sign.
-A local `x` of a signed type may be negative: the site then branches on
-`x < 0` and takes the original call and add, whose own check stays where
-it was. The calls keep their order, so the effects of the other calls do
-too; the panic message and location are those of the site's addition.
+`P` being the exact sum of the terms. `acc` holds `P`, which the site keeps
+in `[0, MAX]`, so the check of `acc + v` fails exactly then, for `v` of any
+sign. A term that would leave that range takes the original call: the
+terms before it are in `acc`, and the result of the call and its add is a
+`v` like any other. The calls keep their order, so the effects of the other
+calls do too; the panic message and location are those of the site's
+addition.
 
 ## Consequences
 
-- `fib(35)`: 45 ms to 32 ms with `--release`; C takes 23 ms and Rust 27 ms
-  on the same machine. The remaining gap is the check of `n - 1` and
-  `n - 2`.
+- `fib(35)`: 45 ms to 28 ms with `--release` (478 to 388 million
+  instructions); C takes 22 ms and Rust 27 ms on the same machine. LLVM
+  already drops the checks of `n - 1` and `n - 2`. C's own `fib` linked
+  into the Ofir program also takes 28 ms, so the rest of the gap is where
+  the code lands, not what it does.
+- A first version kept `acc` unsigned with a sticky carry, which took one
+  more register in each call and ran at 32 ms.
 - A recursion that would overflow the stack may finish, since the call
   that became a jump takes no stack. The stack is a resource, not part of
   the semantics (spec 6.5).

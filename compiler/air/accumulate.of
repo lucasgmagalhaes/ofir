@@ -9,9 +9,10 @@
 // innermost call out: `x1 + (x2 + ... + (xm + v))` overflows exactly when
 // some suffix sum leaves the range. While every term is nonnegative that
 // happens exactly when P + v > MAX, P being the exact sum x1 + ... + xm, so
-// the loop keeps P in an unsigned accumulator with a sticky carry and each
-// return checks once. Calls and their effects keep their order, and the check
-// fails where the first failing addition would have.
+// the loop keeps P in an accumulator of type T and each return checks once.
+// A term that is negative or would take P above MAX takes the original call.
+// Calls and their effects keep their order, and the check fails where the
+// first failing addition would have.
 
 import air.air.AirBlock
 import air.air.AirBody
@@ -28,19 +29,16 @@ import air.air.Terminator
 import air.air.isGlue
 import air.air.jump
 import air.air.noPath
-import air.air.opBool
 import air.air.opCopy
 import air.air.opInt
 import air.air.opUnit
 import air.air.rvUse
 import air.air.rvalue
 import air.air.terminator
-import air.fold.ONES
 import air.fold.intBits
 import sema.check.Checker
 import sema.types.BOOL
 import sema.types.TyKind
-import sema.types.U8
 import sema.types.UNIT
 import syntax.ast.Op
 import base.span.Span
@@ -244,19 +242,10 @@ fn binary(dest: int, op: Op, a: move Operand, b: move Operand) AirStmt {
     return assign(dest, rvalue(RvalueKind.Binary, op, a, b))
 }
 
-fn cast(dest: int, a: move Operand, to: int) AirStmt {
-    let rv = rvalue(RvalueKind.Cast, Op.Add, a, opUnit(UNIT))
-    rv.to = to
-    return assign(dest, rv)
-}
-
 struct Loop {
-    /** T */
+    /** T, also the type of acc */
     ty: int
-    /** The unsigned type of the width of T. */
-    unsignedTy: int
     acc: int
-    carry: int
     /** Of the assertion of the site. */
     span: Span
 }
@@ -265,43 +254,31 @@ fn temp(l: &Loop, body: mut AirBody, ty: int) int {
     return body.newLocal(ty, Option.None, l.span)
 }
 
-// The return of `block` becomes: overflow if carry or acc > MAX - v; else
-// return acc + v.
-fn finish(l: &Loop, body: mut AirBody, block: int, max: u64) {
-    const u = l.unsignedTy
-    const value = temp(l, body, u)
-    const limit = temp(l, body, u)
-    const big = temp(l, body, BOOL)
-    const bad = temp(l, body, BOOL)
-    const sum = temp(l, body, u)
-    body.push(block, cast(value, copyOf(0, l.ty), u))
-    body.push(block, binary(limit, Op.Sub, opInt(max, u), copyOf(value, u)))
-    body.push(block, binary(big, Op.Gt, copyOf(l.acc, u), copyOf(limit, u)))
-    body.push(block, binary(bad, Op.Or, copyOf(l.carry, BOOL), copyOf(big, BOOL)))
+fn checkedAdd(dest: int, a: move Operand, b: move Operand, flag: int) AirStmt {
+    let add = rvalue(RvalueKind.Checked, Op.Add, a, b)
+    add.flag = flag
+    return assign(dest, add)
+}
+
+// The return of `block` becomes: overflow if acc + v does; else return it.
+fn finish(l: &Loop, body: mut AirBody, block: int) {
+    const sum = temp(l, body, l.ty)
+    const overflow = temp(l, body, BOOL)
+    body.push(block, checkedAdd(sum, copyOf(l.acc, l.ty), copyOf(0, l.ty), overflow))
     const done = body.newBlock()
     let check = terminator(TermKind.Assert)
-    check.cond = copyOf(bad, BOOL)
+    check.cond = copyOf(overflow, BOOL)
     check.target = done
     check.panic = PanicKind.Overflow
     check.span = l.span
     body.terminate(block, check)
-    body.push(done, binary(sum, Op.Add, copyOf(l.acc, u), copyOf(value, u)))
-    body.push(done, cast(0, copyOf(sum, u), l.ty))
+    body.push(done, assign(0, rvUse(copyOf(sum, l.ty))))
     body.terminate(done, terminator(TermKind.Return))
 }
 
-// The statements that add the term to the accumulator, set the parameters
-// to the arguments and jump to the old entry `head`.
-fn iterate(l: &Loop, body: mut AirBody, block: int, x: &Operand, args: &List<Operand>,
-           head: int) {
-    const u = l.unsignedTy
-    const term = temp(l, body, u)
-    const overflow = temp(l, body, BOOL)
-    body.push(block, cast(term, x.clone(), u))
-    let add = rvalue(RvalueKind.Checked, Op.Add, copyOf(l.acc, u), copyOf(term, u))
-    add.flag = overflow
-    body.push(block, assign(l.acc, add))
-    body.push(block, binary(l.carry, Op.Or, copyOf(l.carry, BOOL), copyOf(overflow, BOOL)))
+// The statements that set the parameters to the arguments and jump to the
+// old entry `head`.
+fn iterate(l: &Loop, body: mut AirBody, block: int, args: &List<Operand>, head: int) {
     let temps: List<int> = []
     for i in 0..args.len() {
         const t = temp(l, body, body.locals[i + 1].ty)
@@ -330,21 +307,12 @@ fn emptyBlock() AirBlock {
     return AirBlock{stmts: [], term: terminator(TermKind.None), at: noSpan()}
 }
 
-fn transform(c: mut Checker, body: mut AirBody, site: &Site) {
+fn transform(body: mut AirBody, site: &Site) {
     const ty = body.locals[0].ty
-    const data = c.types.get(ty).data
-    const width = intBits(data)
-    const sign = data <= 3
-    let max = if width == 64 { ONES } else { (1 as u64 << width.wrappingCast<u64>()) - 1 }
-    if sign {
-        max = max >> 1
-    }
     const saved = body.at
     body.at = body.blocks[site.block].at
-    const u = U8 + data % 4
-    let l = Loop{ty: ty, unsignedTy: u, acc: 0, carry: 0, span: body.blocks[site.block].term.span}
-    l.acc = temp(&l, body, u)
-    l.carry = temp(&l, body, BOOL)
+    let l = Loop{ty: ty, acc: 0, span: body.blocks[site.block].term.span}
+    l.acc = temp(&l, body, ty)
 
     // The old entry moves to `head`; the new entry clears the accumulator.
     const head = body.newBlock()
@@ -353,38 +321,44 @@ fn transform(c: mut Checker, body: mut AirBody, site: &Site) {
     for b in 1..body.blocks.len() {
         retarget(body.blocks[b].term, 0, head)
     }
-    body.push(0, assign(l.acc, rvUse(opInt(0, u))))
-    body.push(0, assign(l.carry, rvUse(opBool(false, BOOL))))
+    body.push(0, assign(l.acc, rvUse(opInt(0, ty))))
     body.terminate(0, jump(head))
 
     const returnsEnd = body.blocks.len()
     for b in 1..returnsEnd {
         if body.blocks[b].term.kind == TermKind.Return {
-            finish(&l, body, b, max)
+            finish(&l, body, b)
         }
     }
 
+    // The term goes into acc unless it is negative or the sum overflows: the
+    // slow path then restores acc and makes the original call and addition.
     const b = site.block   // not 0: the entry leads to a base case
     let stmts = mem.replace(body.blocks[b].stmts, [])
     const add = stmts.pop().unwrap()
     const call = stmts.pop().unwrap()
     body.blocks[b].stmts = stmts
-    if !site.negative {
-        iterate(&l, body, b, &site.term, &call.args, head)
-        body.at = saved
-        return
-    }
     const check = body.blocks[b].term.clone()
-    const negative = temp(&l, body, BOOL)
-    body.push(b, binary(negative, Op.Lt, site.term.clone(), opInt(0, ty)))
+    const sum = temp(&l, body, ty)
+    let bad = temp(&l, body, BOOL)
+    body.push(b, checkedAdd(sum, copyOf(l.acc, ty), site.term.clone(), bad))
+    if site.negative {
+        const negative = temp(&l, body, BOOL)
+        const overflow = bad
+        bad = temp(&l, body, BOOL)
+        body.push(b, binary(negative, Op.Lt, site.term.clone(), opInt(0, ty)))
+        body.push(b, binary(bad, Op.Or, copyOf(overflow, BOOL), copyOf(negative, BOOL)))
+    }
+    body.push(b, assign(l.acc, rvUse(copyOf(sum, ty))))
     const slow = body.newBlock()
     const fast = body.newBlock()
     const args = call.args.clone()
-    body.terminate(b, branchTo(copyOf(negative, BOOL), slow, fast))
+    body.terminate(b, branchTo(copyOf(bad, BOOL), slow, fast))
+    body.push(slow, binary(l.acc, Op.Sub, copyOf(l.acc, ty), site.term.clone()))
     body.push(slow, call)
     body.push(slow, add)
     body.terminate(slow, check)
-    iterate(&l, body, fast, &site.term, &args, head)
+    iterate(&l, body, fast, &args, head)
     body.at = saved
 }
 
@@ -398,10 +372,11 @@ fn branchTo(cond: move Operand, then: int, other: int) Terminator {
 
 /**
  * Turns the one self call whose result is added to a term and returned into
- * a jump back to the entry: the terms go into an unsigned accumulator with a
- * sticky carry, and each return adds the accumulator to its value under one
- * overflow check. A negative term takes the original call. The function must
- * have only scalar locals, no `mut` parameters and no address taken.
+ * a jump back to the entry: the terms go into an accumulator, and each return
+ * adds the accumulator to its value under one overflow check. A term that is
+ * negative or would overflow the accumulator takes the original call. The
+ * function must have only scalar locals, no `mut` parameters and no address
+ * taken.
  *
  * @param c the checker, for the types
  * @param body the body, changed in place
@@ -434,6 +409,6 @@ pub fn accumulate(c: mut Checker, body: mut AirBody) {
     }
     const site = found.unwrap()
     if site.block != 0 && hasBaseCase(&body, site.block) {
-        transform(c, body, &site)
+        transform(body, &site)
     }
 }

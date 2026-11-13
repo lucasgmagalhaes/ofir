@@ -8,10 +8,11 @@
 #include "sema/types.h"
 
 // Turns the one self call whose result is added to a term and returned into
-// a jump back to the entry: the terms go into an unsigned accumulator with a
-// sticky carry, and each return adds the accumulator to its value under one
-// overflow check. A negative term takes the original call. The function must
-// have only scalar locals, no `mut` parameters and no address taken.
+// a jump back to the entry: the terms go into an accumulator, and each return
+// adds the accumulator to its value under one overflow check. A term that is
+// negative or would overflow the accumulator takes the original call. The
+// function must have only scalar locals, no `mut` parameters and no address
+// taken.
 void air_accumulate(AirBody *body, const TypeTable *types);
 
 #endif
