@@ -96,16 +96,23 @@ pub struct StrSplit {
     }
 
     fn nextWord(mut self) Option<str> {
+        const n = self.rest.len()
+        const p = self.rest.asPtr()
         let lo = 0
-        for lo < self.rest.len() && isSpace(self.rest[lo]) {
-            lo += 1
+        let hi = 0
+        // Raw reads: every offset is below `n`, and ASCII whitespace is one
+        // byte, so `lo` and `hi` stay on character boundaries.
+        unsafe {
+            for lo < n && isSpace(*p.add(lo)) {
+                lo += 1
+            }
+            hi = lo
+            for hi < n && !isSpace(*p.add(hi)) {
+                hi += 1
+            }
         }
-        let hi = lo
-        for hi < self.rest.len() && !isSpace(self.rest[hi]) {
-            hi += 1
-        }
-        const word = self.rest.slice(lo, hi)
-        self.rest = self.rest.sliceFrom(hi)
+        const word = unsafe { self.rest.sliceUnchecked(lo, hi) }
+        self.rest = unsafe { self.rest.sliceUnchecked(hi, n) }
         if lo == hi {
             return Option.None
         }
