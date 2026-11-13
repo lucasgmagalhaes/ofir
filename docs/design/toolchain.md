@@ -354,10 +354,10 @@ checks it can prove unnecessary.
 
 ### Debug info
 
-`-g` makes the compiler emit DWARF (functions and line tables, no
-variables or types yet) and passes `-g` to clang, so a debugger (`lldb`,
-`gdb`) can set breakpoints on functions and source lines and step
-through them:
+`-g` makes the compiler emit DWARF (functions, line tables, locals and
+their types) and passes `-g` to clang, so a debugger (`lldb`, `gdb`) can
+set breakpoints on functions and source lines, step through them and
+print parameters and locals:
 
 - each user function, closure included, gets a `DISubprogram` at the
   line of its declaration;
@@ -365,6 +365,22 @@ through them:
   lowered from, the `return` or the tail expression included;
 - compiler-generated functions (drop and clone glue, thunks, vtables)
   have no debug info, so stepping skips them.
+- the prologue that stores the parameters has no line, so a breakpoint
+  on a function stops after it, at its first statement;
+- each named parameter and local gets a `DILocalVariable`, declared
+  with `llvm.dbg.declare` on its stack slot (through the pointer for a
+  local held by reference or captured by a closure); a generic instance
+  has the types of its instance;
+- a type is a basic type (`bool`, the integers, the floats), a pointer
+  to its pointee (a thin reference or pointer), a struct with its
+  fields at the offsets of their slots, `str` with its bytes, length and
+  capacity, or, for any other type (an enum, a tuple, an array, a
+  function, a fat pointer), a struct of its size with no fields.
+
+With `--release -g` the optimizer keeps what it can: a breakpoint on a
+line still stops, and a local it removed prints as `<optimized out>`;
+the compile unit says the code is optimized. `tools/check_debugger.py`,
+run by `make test` when gdb is installed, checks both builds.
 
 Until projects exist the flag is opt-in, and it is stage 1's: without
 it the `.ll` is the one stage 0 writes. The `debug` profile will turn
