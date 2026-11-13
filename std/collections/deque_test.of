@@ -1,0 +1,47 @@
+// The tests of `std.collections.deque`: `ofir test std/collections/deque.of` runs them.
+
+import std.testing.assert
+
+@test
+fn pushesAndPopsAtBothEnds() {
+    let d: Deque<int> = Deque.new()
+    d.pushBack(2)
+    d.pushBack(3)
+    d.pushFront(1)
+    d.pushFront(0)
+    assert(d.len() == 4 && d.capacity() == 4)
+    assert((d.popFront() ?? -1) == 0 && (d.popBack() ?? -1) == 3)
+    assert((d.popFront() ?? -1) == 1 && (d.popFront() ?? -1) == 2)
+    assert(d.popFront().isNone() && d.popBack().isNone() && d.isEmpty())
+}
+
+@test
+fn growsAcrossTheWrap() {
+    let d: Deque<int> = Deque.withCapacity(4)
+    for i in 0..3 {
+        d.pushBack(i)
+    }
+    assert((d.popFront() ?? -1) == 0)
+    d.pushBack(3)
+    d.pushBack(4)   // wraps to the start of the buffer
+    assert(d.capacity() == 4)
+    d.pushBack(5)   // grows: the elements are unwrapped
+    assert(d.capacity() == 8 && d.len() == 5)
+    for i in 0..5 {
+        assert(*(d.get(i) ?? &-1) == i + 1)
+    }
+    assert(d.get(5).isNone() && d.get(-1).isNone())
+}
+
+@test
+fn clearKeepsTheCapacity() {
+    let d: Deque<str> = Deque.new()
+    for i in 0..10 {
+        d.pushFront("item {i}")
+    }
+    const cap = d.capacity()
+    d.clear()
+    assert(d.isEmpty() && d.capacity() == cap)
+    d.pushBack("again")
+    assert(d.len() == 1 && d.capacity() == cap)
+}
