@@ -19,7 +19,8 @@ Ofir knows more than `malloc` does. Every block goes back through
 ## Decision
 
 - Blocks of 1 to 512 bytes come from a pool in the runtime
-  (`runtime/src/pool.c`); larger blocks and blocks aligned above 16 still
+  (`runtime/src/pool.c`; since ADR 0042, `std/core/pool.of`, with only
+  the `mmap` and `mprotect` calls left in `pool.c`); larger blocks and blocks aligned above 16 still
   come from the C allocator.
 - The pool reserves one range of address space (16 GiB, `PROT_NONE`) the
   first time it is used, and commits it 64 KiB at a time. Each chunk holds
