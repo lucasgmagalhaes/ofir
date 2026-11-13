@@ -1,0 +1,10 @@
+// panic: integer overflow
+// flags: --release
+// Optimized builds keep the overflow check of `+` (spec 13.5).
+fn add(a: u8, b: u8) u8 {
+    return a + b
+}
+
+fn main() {
+    println("{add(250, 10)}")
+}
