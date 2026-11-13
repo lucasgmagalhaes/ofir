@@ -1,0 +1,11 @@
+// panic: index out of bounds: the length is 3 but the index is 3
+// flags: --release
+// Optimized builds keep the bounds check of an index past the last element.
+fn at(xs: &List<int>, i: int) int {
+    return xs[i]
+}
+
+fn main() {
+    const xs = [1, 2, 3]
+    println("{at(&xs, 3)}")
+}
