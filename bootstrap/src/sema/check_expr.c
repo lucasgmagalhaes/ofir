@@ -175,7 +175,9 @@ static TypeId binary(Checker *c, Expr *e, TypeId expected) {
 static TypeId cast(Checker *c, Expr *e) {
     TypeId from = check_expr(c, e->as.cast.value, NO_TYPE);
     TypeId to = resolve_type(c, e->as.cast.type);
-    if (pointer_cast(c, from, to, e->span)) {
+    const Expr *value = e->as.cast.value;
+    bool zero = value->kind == EXPR_INT && value->as.int_value == 0;   // `0 as *T`: null
+    if (pointer_cast(c, from, to, e->span, zero)) {
         return to;
     }
     bool ok = (type_is_numeric(c->types, from) && type_is_numeric(c->types, to)) ||

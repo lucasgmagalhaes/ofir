@@ -31,14 +31,15 @@ TypeId check_deref(Checker *c, Expr *e, TypeId expected) {
 }
 
 // Pointer to pointer, reference to pointer, and pointer to or from
-// `uint`/`int` (spec 11.1). Only a reference to a pointer is safe (11.2).
-bool pointer_cast(Checker *c, TypeId from, TypeId to, Span span) {
+// `uint`/`int` (spec 11.1). Only a reference to a pointer and the literal
+// `0` to a pointer, the null pointer, are safe (11.2).
+bool pointer_cast(Checker *c, TypeId from, TypeId to, Span span, bool zero) {
     TyKind a = type_get(c->types, from)->kind, b = type_get(c->types, to)->kind;
     bool ptr_ptr = (a == TY_PTR || a == TY_REF) && b == TY_PTR;
     bool ptr_int = (a == TY_PTR && (to.id == TID_U64 || to.id == TID_I64)) ||
                    (b == TY_PTR && (from.id == TID_U64 || from.id == TID_I64));
     if (ptr_ptr || ptr_int) {
-        if (a != TY_REF) {
+        if (a != TY_REF && !(zero && b == TY_PTR)) {
             require_unsafe(c, span, "converting a raw pointer");
         }
         return true;
