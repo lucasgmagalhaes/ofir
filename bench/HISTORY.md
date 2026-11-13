@@ -168,3 +168,22 @@ codegen times of 621 ms and 607 ms, and median total times of 1,913 ms and
 1,884 ms (four old and five new runs, excluding the first cold build).
 Both compilers emitted byte-identical LLVM IR for that source. These are
 local timings; the improvement is small enough to recheck on other hosts.
+
+## Compile cost of the program benchmarks (roadmap 6.25e)
+
+Stage 0 release compiler, Linux, 4 cores, clang 18, one run, commit on
+branch `feat/ofir35`. Compile time is a `--release` build in an empty object
+cache; memory is the peak of the build (clang's); size is the executable.
+
+| program | compile ms | build MB | IR functions | Ofir KB | C KB | Rust KB | Go KB |
+|---------|-----------:|---------:|-------------:|--------:|-----:|--------:|------:|
+| binary_trees | 115 | 81 | 36 | 42.8 | 15.8 | 4259 | 2175 |
+| fib | 108 | 81 | 31 | 38.7 | 15.7 | 4257 | 2157 |
+| map_count | 168 | 82 | 68 | 42.7 | 15.8 | 4278 | 2157 |
+| nbody | 144 | 82 | 47 | 42.8 | 15.6 | 4284 | 2175 |
+| sort | 151 | 82 | 45 | 42.7 | 15.8 | 4265 | 2172 |
+| strings | 171 | 82 | 59 | 43.0 | 15.9 | 4260 | 2174 |
+
+Ofir executables, unstripped and with the runtime linked statically, stay
+under the 50 KB target of `docs/design/performance.md`.
+
