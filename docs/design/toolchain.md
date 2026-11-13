@@ -14,6 +14,7 @@ A single executable provides every tool:
 | `ofir bench [filter]` | build with optimizations and run `@bench` functions |
 | `ofir fmt [--check] [--stdout] [paths]` | format source files (below) |
 | `ofir doc [-o dir] [--stdout] [paths]` | generate HTML documentation (below) |
+| `ofir metadata <file.of>` | print the modules of a program as JSON (below) |
 | `ofir explain <code>` | describe an error code |
 | `ofir lsp` | run the language server on standard input and output (below) |
 | `ofir version` | print version and LLVM/clang versions in use |
@@ -116,6 +117,52 @@ triggers it and how to fix it. The file is looked up in, in order:
 The exit status is 0 when the explanation is printed, 1 when no file
 has it and 2 when the argument is not a code (`E` or `W` and four
 digits). The command is stage 1's.
+
+### Compiler service
+
+Editors and build tools drive the compiler through its commands; this is
+the contract they rely on (ADR 0053). Changing it is a breaking change.
+
+`ofir check <file.of>` runs every phase up to the move checker, as
+`ofir build --stop-after=check`: it writes the diagnostics and no output.
+The options of `build` apply, `--message-format` among them.
+
+`ofir metadata <file.of>` loads the program, the root and every module it
+imports, and prints one JSON object on standard output, on one line:
+
+```json
+{"format":1,"compiler":"0.5.0","root":"main","modules":[
+  {"name":"main","path":"src/main.of","std":false},
+  {"name":"std.core","path":"/usr/lib/ofir/std/core/index.of","std":true}]}
+```
+
+`format` is the version of this shape: a field may be added without
+raising it, never dropped or renamed. The modules come in load order, the
+root first; `path` is the file as the compiler read it, and `std` tells
+the standard library's modules. Names and types are not checked: an
+import that names no module is reported by `ofir check`, and a file that
+does not lex or parse gives its diagnostics and status 1, with nothing on
+standard output.
+
+Diagnostics always go to standard error, in the format `--message-format`
+asks for; with `json`, every line is one diagnostic (above), so a tool
+reads standard output for results and standard error for diagnostics.
+
+The exit status of every command:
+
+| Status | Meaning |
+|--------|---------|
+| 0 | success: no errors (warnings allowed, unless `--deny-warnings`) |
+| 1 | errors were reported, or a test or bench failed |
+| 2 | usage error: unknown command or option, missing argument |
+| 101 | internal compiler error: the compiler panicked |
+| other | `ofir run`: the program's own status (101 if it panicked) |
+
+A build may be cancelled at any point by a signal (SIGINT, SIGTERM).
+Nothing it leaves behind breaks the next build: an object enters the
+cache only by a rename once clang has written it whole, and the outputs
+are written again by the next build. `tools/check_service.py` checks the
+statuses, `metadata` and builds interrupted at several points.
 
 ## 2. Project layout
 
@@ -336,6 +383,13 @@ offered.
 
 Other requests are answered with the error -32601 (method not found), and a
 message that is not JSON with -32700.
+
+Requests are handled one at a time, in the order they arrive, and every
+request gets its answer before the next is read. A notification the server
+does not know, `$/cancelRequest` among them, is ignored: a request is never
+cancelled, it is answered. Diagnostics are published after each `didOpen`
+and `didChange`, before the next message is read, so a client sees them in
+the order of its edits.
 
 `tests/lsp` holds the tests: a `.of` file, an optional `.lsp` file with the
 client's messages, and the server's messages in `.out`, where `$URI` is the
