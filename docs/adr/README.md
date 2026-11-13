@@ -64,6 +64,7 @@ starts with the same word as the record's status line.
 | [0051](0051-layout-and-abi-contracts.md) | Layout and ABI contracts, checked against C | Accepted |
 | [0052](0052-bounded-frontend.md) | A nesting limit bounds the frontend | Accepted |
 | [0053](0053-compiler-service-interface.md) | The commands are the compiler service interface | Accepted |
+| [0054](0054-fast-debug-compilation.md) | Debug builds keep clang and schedule linearly | Accepted |
 
 ## Template
 
