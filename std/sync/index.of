@@ -16,6 +16,7 @@ extern "C" {
     fn ofir_alloc_aligned(size: int, align: int) *mut u8
     fn ofir_free(p: *mut u8)
     fn ofir_channel_new() *mut u8
+    fn ofir_channel_new_bounded(capacity: int) *mut u8
     fn ofir_channel_send(ch: *mut u8, value: *mut u8) bool
     fn ofir_channel_recv(ch: *mut u8) *mut u8
     fn ofir_channel_try_recv(ch: *mut u8) *mut u8
@@ -82,8 +83,9 @@ pub struct Sender<T> {
     ch: *mut u8
 
     /**
-     * Sends a value to the receiver; it never waits. If the receiver is
-     * gone, the value is dropped.
+     * Sends a value to the receiver. On a channel from `channel` it never
+     * waits; on one from `boundedChannel` it waits while the channel is
+     * full. If the receiver is gone, the value is dropped.
      *
      * @param value the value to send
      */
@@ -194,6 +196,45 @@ pub struct Receiver<T> {
  */
 pub fn channel<T: Send>() (Sender<T>, Receiver<T>) {
     const ch = unsafe { ofir_channel_new() }
+    return (Sender{ch: ch}, Receiver{ch: ch})
+}
+
+/**
+ * Makes a channel that holds at most `capacity` values: `send` waits for
+ * room, so a fast sender cannot run ahead of the receiver.
+ *
+ * @typeParam T the type of the values, which move between tasks
+ * @param capacity how many values may wait in the channel
+ * @returns the sender and the receiver
+ * @panics when `capacity` is less than 1
+ * @example
+ * ```ofir
+ * import std.sync.boundedChannel
+ * import std.task
+ *
+ * const (tx, rx) = boundedChannel<int>(1)
+ * const t = task.run(move () => {
+ *     for i in 0..3 {
+ *         tx.send(i)
+ *     }
+ * })
+ * let sum = 0
+ * for {
+ *     const v = rx.recv()
+ *     if v.isNone() {
+ *         break
+ *     }
+ *     sum += v.unwrap()
+ * }
+ * t.join()
+ * println("{sum}")   // 3
+ * ```
+ */
+pub fn boundedChannel<T: Send>(capacity: int) (Sender<T>, Receiver<T>) {
+    if capacity < 1 {
+        panic("channel capacity must be at least 1")
+    }
+    const ch = unsafe { ofir_channel_new_bounded(capacity) }
     return (Sender{ch: ch}, Receiver{ch: ch})
 }
 
