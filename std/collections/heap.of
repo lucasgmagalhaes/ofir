@@ -1,0 +1,197 @@
+/**
+ * @module
+ * `Heap<T>`: a priority queue in a binary heap, and `Reverse<T>` for a
+ * min-heap (ADR 0055, docs/std/collections.md).
+ */
+
+/**
+ * A priority queue: `pop` returns the greatest element.
+ *
+ * A binary heap in a `List`: `push` and `pop` take O(log n), `peek` O(1).
+ * Equal elements come out in no particular order. For the least element
+ * first, store `Reverse` values.
+ *
+ * @typeParam T the type of the elements
+ * @example
+ * ```ofir
+ * import std.collections.heap.Heap
+ *
+ * let tasks: Heap<int> = Heap.new()
+ * tasks.push(2)
+ * tasks.push(9)
+ * tasks.push(5)
+ * println("{tasks.pop() ?? 0} {tasks.len()}")   // 9 2
+ * ```
+ */
+pub struct Heap<T: Ord> {
+    items: List<T>
+
+    /**
+     * An empty heap.
+     *
+     * @returns a heap with no elements
+     */
+    pub fn new() Heap<T> {
+        return Heap{items: []}
+    }
+
+    /**
+     * A heap of the elements of a list, built in O(n).
+     *
+     * @param items the elements; the heap takes ownership of the list
+     * @returns the heap
+     */
+    pub fn fromList(items: move List<T>) Heap<T> {
+        let heap = Heap{items}
+        let i = heap.items.len() / 2
+        for i > 0 {
+            i -= 1
+            heap.siftDown(i, heap.items.len())
+        }
+        return heap
+    }
+
+    /**
+     * The number of elements.
+     *
+     * @returns the size of the heap
+     */
+    pub fn len(self) int {
+        return self.items.len()
+    }
+
+    /**
+     * Whether the heap has no elements.
+     *
+     * @returns true when the heap is empty
+     */
+    pub fn isEmpty(self) bool {
+        return self.items.isEmpty()
+    }
+
+    /**
+     * Adds an element, in O(log n).
+     *
+     * @param x the element; the heap takes ownership of it
+     * @panics when the system is out of memory
+     */
+    pub fn push(mut self, x: move T) {
+        self.items.push(x)
+        let i = self.items.len() - 1
+        for i > 0 {
+            const parent = (i - 1) / 2
+            if !(self.items[parent] < self.items[i]) {
+                return
+            }
+            self.items.swap(i, parent)
+            i = parent
+        }
+    }
+
+    /**
+     * Removes the greatest element, in O(log n).
+     *
+     * @returns `Some` with it, or `None` when the heap is empty
+     */
+    pub fn pop(mut self) Option<T> {
+        const n = self.items.len()
+        if n == 0 {
+            return Option.None
+        }
+        self.items.swap(0, n - 1)
+        const top = self.items.pop()
+        self.siftDown(0, n - 1)
+        return top
+    }
+
+    /**
+     * A borrow of the greatest element.
+     *
+     * @returns `Some` with a reference to it, or `None` when empty
+     */
+    pub fn peek(self) Option<&T> {
+        return self.items.first()
+    }
+
+    /**
+     * Removes every element; the capacity is kept for reuse.
+     */
+    pub fn clear(mut self) {
+        self.items.clear()
+    }
+
+    /**
+     * The elements in ascending order, in O(n log n).
+     *
+     * @returns a sorted list; the heap is consumed
+     */
+    pub fn intoSorted(move self) List<T> {
+        let heap = self
+        let end = heap.items.len()
+        for end > 1 {
+            end -= 1
+            heap.items.swap(0, end)
+            heap.siftDown(0, end)
+        }
+        return heap.items
+    }
+
+    // Moves element `i` down until it is not less than a child, within the
+    // first `n` elements.
+    fn siftDown(mut self, start: int, n: int) {
+        let i = start
+        for {
+            let child = 2 * i + 1
+            if child >= n {
+                return
+            }
+            if child + 1 < n && self.items[child] < self.items[child + 1] {
+                child += 1
+            }
+            if !(self.items[i] < self.items[child]) {
+                return
+            }
+            self.items.swap(i, child)
+            i = child
+        }
+    }
+}
+
+/**
+ * A value whose order is reversed: a `Heap<Reverse<T>>` pops the least
+ * element first.
+ *
+ * @typeParam T the type of the value
+ * @example
+ * ```ofir
+ * import std.collections.heap.Heap
+ * import std.collections.heap.Reverse
+ *
+ * let queue: Heap<Reverse<int>> = Heap.new()
+ * queue.push(Reverse{value: 4})
+ * queue.push(Reverse{value: 1})
+ * if const Option.Some(least) = queue.pop() {
+ *     println("{least.value}")   // 1
+ * }
+ * ```
+ */
+pub struct Reverse<T: Ord> {
+    /** The wrapped value. */
+    pub value: T
+
+    /**
+     * The order of the values, reversed.
+     *
+     * @param other the value to compare with
+     * @returns `Less` when `other.value < self.value`, and so on
+     */
+    pub fn cmp(self, other: Reverse<T>) Ordering {
+        if other.value < self.value {
+            return Ordering.Less
+        }
+        if self.value < other.value {
+            return Ordering.Greater
+        }
+        return Ordering.Equal
+    }
+}
