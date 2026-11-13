@@ -426,15 +426,22 @@ static Expr *postfix_once(Parser *p, Expr *base) {
 }
 
 Expr *parse_postfix(Parser *p, Expr *base) {
+    int steps = 0;
     for (;;) {
         if (at(p, TOK_LBRACE) && !p->no_struct_literal && is_type_name(p, base)) {
             base = struct_literal(p, base);
-            continue;
+        } else {
+            Expr *next = postfix_once(p, base);
+            if (!next || next == base) {
+                break;
+            }
+            base = next;
         }
-        Expr *next = postfix_once(p, base);
-        if (!next || next == base) {
-            return base;
+        steps++;   // a chain is as deep as it is long
+        if (!nest(p)) {
+            break;
         }
-        base = next;
     }
+    p->depth -= steps;
+    return base;
 }
