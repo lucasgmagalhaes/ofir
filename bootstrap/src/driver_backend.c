@@ -3,6 +3,7 @@
 #include "driver_internal.h"
 
 #include "air/air_print.h"
+#include "air/accumulate.h"
 #include "air/fold.h"
 #include "air/lower.h"
 #include "base/platform.h"
@@ -86,6 +87,7 @@ static void take_body(void *context, AirBody *body) {
         fatal("invalid AIR: %s", error);
     }
     air_fold_checks(body, &sink->sema->types);
+    air_accumulate(body, &sink->sema->types);
     if (sink->gen) {
         llvm_function(sink->gen, body);
     } else {

@@ -113,5 +113,9 @@ Panics are raised by:
 - `assert(cond)` (and the other asserts of `std.testing`) and `panic("message")`;
 - stack overflow (detected by the runtime).
 
+The stack is a resource, not part of the semantics: an optimization may
+use less of it (ADR 0044 turns a recursive call into a jump), so a program
+that overflows the stack without optimizations may finish with them.
+
 Panics cannot be caught. Recovering from panics is intentionally not
 supported.

@@ -54,6 +54,7 @@ starts with the same word as the record's status line.
 | [0041](0041-small-block-pool.md) | A small-block pool behind ofir_alloc | Accepted |
 | [0042](0042-atomics-and-thread-locals.md) | Atomic intrinsics, memory orderings and thread-local globals | Accepted |
 | [0043](0043-patterns-and-bindings.md) | Patterns, `name @ pattern` bindings and labeled control flow | Accepted |
+| [0044](0044-accumulator-recursion.md) | Accumulator recursion with a deferred overflow check | Accepted |
 
 ## Template
 

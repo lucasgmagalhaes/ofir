@@ -1,0 +1,90 @@
+// Self calls whose result is added to a term and returned (ADR 0044): the
+// sums and the overflow checks are those of the plain recursion.
+
+fn fib(n: int) int {
+    if n < 2 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+fn sum(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return n + sum(n - 1)
+}
+
+// The call first: `f(args) + x`.
+fn count(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return count(n - 1) + 1
+}
+
+// Negative terms take the original call.
+fn alternate(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    const term = if n % 2 == 0 { -n } else { n }
+    return term + alternate(n - 1)
+}
+
+// 100 + (100 + -100) fits in an i8, though 100 + 100 does not.
+fn late(n: i8) i8 {
+    if n == 0 {
+        return -100
+    }
+    return 100 + late(n - 1)
+}
+
+fn bytes(n: u8) u8 {
+    if n == 0 {
+        return 5
+    }
+    return 50 + bytes(n - 1)
+}
+
+// A negative base case: the sum of the terms stays below MAX - v.
+fn below(n: i16) i16 {
+    if n == 0 {
+        return -32768
+    }
+    return 32767 + below(n - 1)
+}
+
+fn wide(n: u64) u64 {
+    if n == 0 {
+        return 0
+    }
+    return 9223372036854775807 + wide(n - 1)
+}
+
+// An expression body: both branches join before the return.
+fn tri(n: i32) i32 {
+    return if n == 0 { 0 } else { n + tri(n - 1) }
+}
+
+// Calls with effects keep their order.
+fn trace(n: int) int {
+    println("enter {n}")
+    if n == 0 {
+        return 0
+    }
+    return n + trace(n - 1)
+}
+
+fn main() {
+    println("{fib(25)}")
+    println("{sum(10000)}")
+    println("{count(100000)}")
+    println("{alternate(9)} {alternate(10)}")
+    println("{late(2)}")
+    println("{bytes(5)}")
+    println("{below(1)}")
+    println("{wide(2)}")
+    println("{tri(100)}")
+    println("{trace(3)}")
+}

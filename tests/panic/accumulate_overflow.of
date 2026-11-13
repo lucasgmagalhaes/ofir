@@ -1,0 +1,14 @@
+// panic: integer overflow
+// 100 + (100 + (100 + -100)) leaves the i8 range at the second addition,
+// though the recursion becomes a loop (ADR 0044).
+
+fn late(n: i8) i8 {
+    if n == 0 {
+        return -100
+    }
+    return 100 + late(n - 1)
+}
+
+fn main() {
+    println("{late(3)}")
+}
