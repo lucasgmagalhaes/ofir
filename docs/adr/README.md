@@ -66,6 +66,7 @@ starts with the same word as the record's status line.
 | [0053](0053-compiler-service-interface.md) | The commands are the compiler service interface | Accepted |
 | [0054](0054-fast-debug-compilation.md) | Debug builds keep clang and schedule linearly | Accepted |
 | [0055](0055-std-collections.md) | Sets, deques, heaps and sorted maps in `std.collections` | Accepted |
+| [0056](0056-text-bytes-scalars.md) | Text as UTF-8 bytes, scalars as `u32`, graphemes outside std | Accepted |
 
 ## Template
 

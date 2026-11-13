@@ -1,0 +1,145 @@
+/**
+ * @module
+ * `std.strings.ascii`: classification and case mapping of single ASCII
+ * bytes (docs/std/strings.md, ADR 0056). Bytes above `0x7F` are never
+ * letters, digits or space here, and mapping leaves them unchanged.
+ *
+ * @example
+ * ```ofir
+ * import std.strings.ascii
+ * import std.testing.assert
+ *
+ * let digits = 0
+ * for b in "a1b22".bytes() {
+ *     if ascii.isDigit(b) {
+ *         digits += 1
+ *     }
+ * }
+ * assert(digits == 3)
+ * ```
+ */
+
+/**
+ * Whether `b` is `0` to `9`.
+ *
+ * @param b the byte
+ * @returns the check
+ */
+pub fn isDigit(b: u8) bool {
+    return b >= b'0' && b <= b'9'
+}
+
+/**
+ * Whether `b` is `0` to `9`, `a` to `f` or `A` to `F`.
+ *
+ * @param b the byte
+ * @returns the check
+ */
+pub fn isHexDigit(b: u8) bool {
+    return isDigit(b) || (b >= b'a' && b <= b'f') || (b >= b'A' && b <= b'F')
+}
+
+/**
+ * Whether `b` is an upper-case letter, `A` to `Z`.
+ *
+ * @param b the byte
+ * @returns the check
+ */
+pub fn isUpper(b: u8) bool {
+    return b >= b'A' && b <= b'Z'
+}
+
+/**
+ * Whether `b` is a lower-case letter, `a` to `z`.
+ *
+ * @param b the byte
+ * @returns the check
+ */
+pub fn isLower(b: u8) bool {
+    return b >= b'a' && b <= b'z'
+}
+
+/**
+ * Whether `b` is a letter.
+ *
+ * @param b the byte
+ * @returns the check
+ */
+pub fn isAlpha(b: u8) bool {
+    return isUpper(b) || isLower(b)
+}
+
+/**
+ * Whether `b` is a letter or a digit.
+ *
+ * @param b the byte
+ * @returns the check
+ */
+pub fn isAlnum(b: u8) bool {
+    return isAlpha(b) || isDigit(b)
+}
+
+/**
+ * Whether `b` is whitespace as `str.trim` sees it: space, `\t`, `\n`,
+ * vertical tab, form feed or `\r`.
+ *
+ * @param b the byte
+ * @returns the check
+ */
+pub fn isSpace(b: u8) bool {
+    return b == b' ' || (b >= 9 && b <= 13)
+}
+
+/**
+ * The lower-case form of an upper-case letter; other bytes are unchanged.
+ *
+ * @param b the byte
+ * @returns the mapped byte
+ */
+pub fn toLower(b: u8) u8 {
+    return if isUpper(b) { b + 32 } else { b }
+}
+
+/**
+ * The upper-case form of a lower-case letter; other bytes are unchanged.
+ *
+ * @param b the byte
+ * @returns the mapped byte
+ */
+pub fn toUpper(b: u8) u8 {
+    return if isLower(b) { b - 32 } else { b }
+}
+
+/**
+ * The value of `b` as a digit in base `radix`; letters stand for 10 and
+ * up in either case.
+ *
+ * @param b the byte
+ * @param radix the base, 2 to 36
+ * @returns `Some(value)`, or `None` when `b` is not a digit of the base
+ * @panics unless `2 <= radix <= 36`
+ * @example
+ * ```ofir
+ * import std.strings.ascii
+ * import std.testing.assert
+ *
+ * assert((ascii.digitValue(b'f', 16) ?? -1) == 15)
+ * assert(ascii.digitValue(b'8', 8).isNone())
+ * ```
+ */
+pub fn digitValue(b: u8, radix: int) Option<int> {
+    if radix < 2 || radix > 36 {
+        panic("radix {radix} is not in 2..=36")
+    }
+    const value = if isDigit(b) {
+        (b - b'0') as int
+    } else if isAlpha(b) {
+        (toLower(b) - b'a') as int + 10
+    } else {
+        36
+    }
+    if value >= radix {
+        return Option.None
+    }
+    return Option.Some(value)
+}

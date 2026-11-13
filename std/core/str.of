@@ -371,6 +371,194 @@ pub struct str {
     }
 
     /**
+     * The offset of the last occurrence of `part`.
+     *
+     * @param part the bytes to look for
+     * @returns `Some(offset)` of the last match, `None` when there is none;
+     * `Some(len())` for `""`
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert(("a/b/c".rfind("/") ?? -1) == 3)
+     * ```
+     */
+    pub fn rfind(self, part: str) Option<int> {
+        let at = self.len - part.len
+        for at >= 0 {
+            if unsafe { sameBytes(self.ptr.add(at), part.ptr, part.len) } {
+                return Option.Some(at)
+            }
+            at -= 1
+        }
+        return Option.None
+    }
+
+    /**
+     * The views before and after the first `sep`.
+     *
+     * @param sep the separator
+     * @returns `Some((before, after))`, or `None` when `sep` does not occur
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * if const Option.Some(pair) = "key=value=1".splitOnce("=") {
+     *     assert(pair.0 == "key" && pair.1 == "value=1")
+     * }
+     * ```
+     */
+    pub fn splitOnce(self, sep: str) Option<(str, str)> {
+        if const Option.Some(at) = self.find(sep) {
+            return Option.Some((self.slice(0, at), self.sliceFrom(at + sep.len)))
+        }
+        return Option.None
+    }
+
+    /**
+     * The view after `prefix`, when the string starts with it.
+     *
+     * @param prefix the bytes to remove
+     * @returns `Some(rest)`, or `None` when the string does not start with
+     * `prefix`
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert(("--verbose".stripPrefix("--") ?? "") == "verbose")
+     * ```
+     */
+    pub fn stripPrefix(self, prefix: str) Option<str> {
+        if !self.startsWith(prefix) {
+            return Option.None
+        }
+        return Option.Some(self.sliceFrom(prefix.len))
+    }
+
+    /**
+     * The view before `suffix`, when the string ends with it.
+     *
+     * @param suffix the bytes to remove
+     * @returns `Some(rest)`, or `None` when the string does not end with
+     * `suffix`
+     */
+    pub fn stripSuffix(self, suffix: str) Option<str> {
+        if !self.endsWith(suffix) {
+            return Option.None
+        }
+        return Option.Some(self.slice(0, self.len - suffix.len))
+    }
+
+    /**
+     * The bytes of the string, borrowed; nothing is copied.
+     *
+     * @returns the UTF-8 bytes
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * const bytes = "hi".asBytes()
+     * assert(bytes.len() == 2 && bytes[0] == 0x68)
+     * ```
+     */
+    pub fn asBytes(self) &[u8] {
+        return unsafe { Slice.fromRaw(self.ptr, self.len) }
+    }
+
+    /**
+     * Whether a character starts at byte offset `i`, so that `i` can bound
+     * a slice. The end of the string is a boundary.
+     *
+     * @param i the byte offset
+     * @returns `true` when `0 <= i <= len()` and `i` is not inside a UTF-8
+     * sequence
+     */
+    pub fn isCharBoundary(self, i: int) bool {
+        return i >= 0 && i <= self.len && self.isBoundary(i)
+    }
+
+    /**
+     * The number of Unicode scalar values; O(n), unlike `len()`.
+     *
+     * @returns the number of characters
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert("café".charCount() == 4 && "café".len() == 5)
+     * ```
+     */
+    pub fn charCount(self) int {
+        let count = 0
+        for i in 0..self.len {
+            if unsafe { *self.ptr.add(i) } & 0xC0 != 0x80 {
+                count += 1
+            }
+        }
+        return count
+    }
+
+    /**
+     * The characters with the byte offset where each starts.
+     *
+     * @returns an iterator of `(offset, scalar)`
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * let last = 0
+     * for pair in "añb".charIndices() {
+     *     last = pair.0
+     * }
+     * assert(last == 3)
+     * ```
+     */
+    pub fn charIndices(self) StrCharIndices {
+        return StrCharIndices.of(self)
+    }
+
+    /**
+     * Whether every byte is ASCII (below `0x80`).
+     *
+     * @returns `true` for `""`
+     */
+    pub fn isAscii(self) bool {
+        for i in 0..self.len {
+            if unsafe { *self.ptr.add(i) } >= 0x80 {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Whether the strings are equal when ASCII letters are compared without
+     * case; other bytes must match exactly.
+     *
+     * @param other the string to compare with
+     * @returns the comparison
+     * @example
+     * ```ofir
+     * import std.testing.assert
+     *
+     * assert("Content-Type".eqIgnoreAsciiCase("content-type"))
+     * ```
+     */
+    pub fn eqIgnoreAsciiCase(self, other: str) bool {
+        if self.len != other.len {
+            return false
+        }
+        for i in 0..self.len {
+            const a = unsafe { *self.ptr.add(i) }
+            const b = unsafe { *other.ptr.add(i) }
+            if asciiLower(a) != asciiLower(b) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
      * A view without the ASCII whitespace at both ends (space, `\t`, `\n`,
      * `\r`, form feed and vertical tab).
      *
@@ -915,4 +1103,9 @@ unsafe fn findBytes(text: *u8, len: int, part: *u8, n: int) int {
 // ASCII whitespace: space, \t, \n, vertical tab, form feed, \r.
 fn isSpace(b: u8) bool {
     return b == b' ' || (b >= 9 && b <= 13)
+}
+
+// The byte with an ASCII upper-case letter mapped to lower case.
+fn asciiLower(b: u8) u8 {
+    return if b >= b'A' && b <= b'Z' { b + 32 } else { b }
 }

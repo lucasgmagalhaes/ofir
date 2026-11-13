@@ -1,0 +1,47 @@
+// The tests of `std.strings.utf8` (ADR 0056): `ofir test std/strings/utf8.of` runs them.
+
+import std.testing.assert
+
+@test
+fn charLenFollowsTheRanges() {
+    assert(charLen(0x41) == 1 && charLen(0x7FF) == 2 && charLen(0xFFFF) == 3)
+    assert(charLen(0x10FFFF) == 4 && charLen(0x110000) == 0 && charLen(0xDC00) == 0)
+}
+
+@test
+fn encodeThenDecodeRoundTrips() {
+    const values: List<u32> = [0x24, 0xA2, 0x20AC, 0x10348, 0x10FFFF]
+    let bytes: List<u8> = []
+    for v in values {
+        encode(v, bytes)
+    }
+    assert(bytes.len() == 1 + 2 + 3 + 4 + 4)
+    let at = 0
+    let i = 0
+    for at < bytes.len() {
+        const decoded = decode(bytes.asSlice(), at) ?? (0, 1)
+        assert(decoded.0 == values[i] && decoded.1 == charLen(values[i]))
+        at += decoded.1
+        i += 1
+    }
+    assert(i == values.len())
+}
+
+@test
+fn decodeRejectsInvalidSequences() {
+    const overlong: List<u8> = [0xC0, 0xAF]
+    const surrogate: List<u8> = [0xED, 0xA0, 0x80]
+    const cut: List<u8> = [0xE2, 0x82]
+    const stray: List<u8> = [0x80]
+    assert(decode(overlong.asSlice(), 0).isNone())
+    assert(decode(surrogate.asSlice(), 0).isNone())
+    assert(decode(cut.asSlice(), 0).isNone())
+    assert(decode(stray.asSlice(), 0).isNone())
+}
+
+@test
+fn lossyReplacesEachInvalidByte() {
+    const bytes: List<u8> = [0x61, 0xFF, 0xE2, 0x82, 0x62]
+    assert(lossy(bytes.asSlice()) == "a\u{FFFD}\u{FFFD}\u{FFFD}b")
+    assert(lossy("ok €".asBytes()) == "ok €")
+}
