@@ -1,0 +1,51 @@
+// requires: stage1
+// A reborrow through a reference borrows the reference itself (spec 5.6).
+
+fn uses() {
+    let list = [1, 2]
+    const r = &mut list
+    const inner = &mut *r
+    r.push(3)               // error[E0700]: cannot borrow `r` as mutable more than once: it is also borrowed by `inner`
+    inner.push(4)
+}
+
+fn mutatesWhileShared() {
+    let list = [1, 2]
+    const r = &mut list
+    const view = &*r
+    r.push(3)               // error[E0701]: cannot borrow `r` as mutable because it is also borrowed as shared by `view`
+    println("{view.len()}")
+}
+
+fn writesWhileShared() {
+    let n = 1
+    const r = &mut n
+    const seen = &*r
+    *r = 2                  // error[E0704]: cannot assign to `r` while it is borrowed by `seen`
+    println("{*seen}")
+}
+
+fn twoReborrows() {
+    let list = [1, 2]
+    const r = &mut list
+    const a = &mut *r
+    const b = &mut *r       // error[E0700]: cannot borrow `r` as mutable more than once: it is also borrowed by `a`
+    a.push(1)
+    b.push(2)
+}
+
+fn sliceElement() {
+    let v = [1, 2]
+    const s: &mut [int] = &mut v
+    const first = &s[0]
+    s[1] = 5                // error[E0704]: cannot assign to `s` while it is borrowed by `first`
+    println("{*first}")
+}
+
+fn main() {
+    uses()
+    mutatesWhileShared()
+    writesWhileShared()
+    twoReborrows()
+    sliceElement()
+}
