@@ -3,6 +3,11 @@
  * `&[T]`: a borrowed view of a contiguous sequence (spec 2.12).
  */
 
+extern "intrinsic" {
+    // Appends the debug representation of `value` (`{x:?}`, spec 9.9).
+    fn debugOf<T>(value: T, out: mut str)
+}
+
 /**
  * A read-only view of consecutive elements of type `T`, written `&[T]`
  * (and `[T]` for a parameter): a pointer and a length.
@@ -129,6 +134,25 @@ pub ref struct Slice<T> {
     pub fn sliceFrom(self, lo: int) &[T] {
         return self.slice(lo, self.len)
     }
+
+    /**
+     * Appends the debug representation of the slice, `{s:?}`: its
+     * elements in brackets, like a list.
+     *
+     * @param out the string written to
+     */
+    pub fn debug(self, out: mut str) {
+        out.push("[")
+        for i in 0..self.len {
+            if i > 0 {
+                out.push(", ")
+            }
+            unsafe {
+                debugOf(*self.ptr.add(i), out)
+            }
+        }
+        out.push("]")
+    }
 }
 
 /**
@@ -149,6 +173,26 @@ pub fn checkRange(lo: int, hi: int, len: int) {
 @cold
 fn rangePanic(lo: int, hi: int, len: int) {
     panic("range {lo}..{hi} is out of bounds for a length of {len}")
+}
+
+/**
+ * Whether two slices hold equal elements in the same order: `a == b` on
+ * slices and arrays (spec 9.9) calls it.
+ *
+ * @param a the left slice
+ * @param b the right slice
+ * @returns true if they have the same length and equal elements
+ */
+pub fn sliceEqual<T: Eq>(a: &[T], b: &[T]) bool {
+    if a.len() != b.len() {
+        return false
+    }
+    for i in 0..a.len() {
+        if a[i] != b[i] {
+            return false
+        }
+    }
+    return true
 }
 
 /**
