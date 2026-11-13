@@ -48,6 +48,9 @@ FLAGS_RE = re.compile(r"^//\s*flags:\s*(.+)$", re.MULTILINE)
 # The exit status a run test expects instead of 0: a number, or `abort` for a
 # process ended by SIGABRT (status 3 on Windows), e.g. `// status: 3`.
 STATUS_RE = re.compile(r"^//\s*status:\s*(\S+)\s*$", re.MULTILINE)
+# A C file next to a run test, built into `lib<name>.a` for the test's
+# `@link("<name>")`, e.g. `// c: c_calls.c` (a cross-language fixture).
+C_FIXTURE_RE = re.compile(r"^//\s*c:\s*(\S+)\s*$", re.MULTILINE)
 PANIC_RE = re.compile(r"^//\s*panic:\s*(.*?)\s*$", re.MULTILINE)
 CHECK_RE = re.compile(r"^//\s*(CHECK|CHECK-NOT):\s*(.*?)\s*$")
 TOP_LEVEL_FN_RE = re.compile(r"^(pub\s+)?(unsafe\s+)?fn\b")
@@ -106,6 +109,48 @@ def test_env(cfg: Config, path: Path) -> dict[str, str]:
     rel = path.relative_to(cfg.tests_dir).as_posix().replace("/", "_")
     index = Path(__file__).resolve().parents[2] / "build" / "registry-fixtures" / "index"
     return {**os.environ, "OFIR_HOME": str(cfg.tmp / "home" / rel), "OFIR_REGISTRY": str(index)}
+
+
+def c_tools() -> tuple[str, str]:
+    """The C compiler and archiver of the C fixtures: the clang the Ofir
+    driver uses (`$OFIR_CLANG`), and the `llvm-ar` next to it or `ar`."""
+    clang = os.environ.get("OFIR_CLANG") or "clang"
+    found = shutil.which(clang)
+    if found:
+        near = Path(found).parent / ("llvm-ar" + Path(found).name[len("clang"):])
+        if Path(found).name.startswith("clang") and near.exists():
+            return clang, str(near)
+    return clang, shutil.which("llvm-ar") or "ar"
+
+
+def build_c_fixtures(cfg: Config, path: Path, source: str) -> tuple[dict[str, str], str]:
+    """Builds the C files a run test names (`// c: file.c`) into
+    `lib<file>.a` in a directory of the test's own, and returns its
+    environment with that directory on `LIBRARY_PATH`, or an error."""
+    env = test_env(cfg, path)
+    files = C_FIXTURE_RE.findall(source)
+    if not files:
+        return env, ""
+    rel = path.relative_to(cfg.tests_dir).with_suffix("").as_posix().replace("/", "_")
+    lib_dir = cfg.tmp / "clib" / rel
+    lib_dir.mkdir(parents=True, exist_ok=True)
+    clang, ar = c_tools()
+    flags = ["-O2"] if "--release" in test_flags(source) else ["-O0"]
+    for name in files:
+        c_file = path.parent / name
+        obj = lib_dir / (Path(name).stem + ".o")
+        proc = run_process([clang, *flags, "-std=c11", "-Wall", "-Werror", "-c", str(c_file),
+                            "-o", str(obj)])
+        if proc.returncode != 0:
+            return env, f"cannot compile {name}\n" + describe(proc)
+        lib = lib_dir / f"lib{Path(name).stem}.a"
+        lib.unlink(missing_ok=True)
+        proc = run_process([ar, "rcs", str(lib), str(obj)])
+        if proc.returncode != 0:
+            return env, f"cannot archive {name}\n" + describe(proc)
+    old = env.get("LIBRARY_PATH")
+    env["LIBRARY_PATH"] = str(lib_dir) + (os.pathsep + old if old else "")
+    return env, ""
 
 
 def git_version_key(name: str) -> tuple[int, ...]:
@@ -429,8 +474,11 @@ def run_built(cfg: Config, path: Path, source: str,
     rel = path.relative_to(cfg.tests_dir).with_suffix("").as_posix().replace("/", "_")
     exe = cfg.tmp / "status" / rel
     exe.parent.mkdir(parents=True, exist_ok=True)
+    env, error = build_c_fixtures(cfg, path, source)
+    if error:
+        return Result(path, "fail", error)
     proc = run_process(compiler_cmd(cfg, "build", str(path), "--deny-warnings", "-o", str(exe),
-                                    *test_flags(source)), env=test_env(cfg, path))
+                                    *test_flags(source)), env=env)
     if proc.returncode != 0:
         return Result(path, "fail", describe(proc))
     if not exe.exists() and exe.with_suffix(".exe").exists():
@@ -453,9 +501,12 @@ def check_run(cfg: Config, path: Path, source: str) -> Result:
     statuses = expected_status(source)
     if statuses is not None:
         return run_built(cfg, path, source, statuses)
+    env, error = build_c_fixtures(cfg, path, source)
+    if error:
+        return Result(path, "fail", error)
     # Programs that run are warning-free: a warning fails the test.
     proc = run_process(compiler_cmd(cfg, "run", str(path), "--deny-warnings",
-                                    *test_flags(source)), env=test_env(cfg, path))
+                                    *test_flags(source)), env=env)
     if proc.returncode != 0:
         return Result(path, "fail", describe(proc))
     return compare_output(cfg, path, proc.stdout, ".out")
