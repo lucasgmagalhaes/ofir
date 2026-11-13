@@ -762,6 +762,13 @@ fn conditional(m: mut Moves, c: mut Checker, p: Program, lhs: &Expr, rhs: &Expr,
 // `&x`, `&mut x`: a new loan of `x`, carried by the reference.
 fn borrow(m: mut Moves, c: mut Checker, p: Program, operand: &Expr, s: mut State,
           mutable: bool) {
+    if const ExprKind.Index(base, index) = operand.kind {
+        if isRangeIndex(&*index) {   // `&xs[a..b]` and `&mut xs[a..b]` borrow `xs`
+            borrow(m, c, p, &*base, s, mutable)
+            movesNode(m, c, p, &*index, s, Use.Read)
+            return
+        }
+    }
     if isPlace(c, operand) {
         const place = placeOf(m, c, p, operand, derefCount(c, operand), s)
         usePlace(m, c, &place, s, operand.span)
