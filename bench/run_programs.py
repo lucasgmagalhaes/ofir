@@ -2,7 +2,10 @@
 """Compare generated Ofir programs with equivalent C, Rust and Go baselines.
 
 Builds optimized executables, checks their outputs, and reports median wall
-times. Use --baselines-only to validate the reference programs without Ofir.
+times and executable sizes; for Ofir it also reports the compile time, the
+peak memory of the build (the largest of the compiler and clang) and the
+number of functions in the optimized LLVM IR, which tracks monomorphization.
+Use --baselines-only to validate the reference programs without Ofir.
 """
 
 import argparse
@@ -62,6 +65,41 @@ def build(program: Path, work: Path, tools: dict[str, str], languages: tuple[str
     return executables
 
 
+def measured(cmd: list[str], env: dict[str, str] | None = None) -> tuple[float, float]:
+    """Runs `cmd`; its wall time in ms and the peak resident memory, in MB, of
+    it or the processes it waited for (0 where the platform does not say)."""
+    start = time.perf_counter()
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                            env=env)
+    if hasattr(os, "wait4"):
+        _, status, usage = os.wait4(proc.pid, 0)
+        proc.returncode = os.waitstatus_to_exitcode(status)
+        peak = usage.ru_maxrss / (1024 * 1024 if sys.platform == "darwin" else 1024)
+    else:
+        proc.wait()
+        peak = 0.0
+    elapsed = (time.perf_counter() - start) * 1000
+    if proc.returncode != 0:
+        raise ValueError(f"{' '.join(cmd)} failed\n{proc.stderr.read()}")
+    return elapsed, peak
+
+
+def compile_stats(program: Path, work: Path, compiler: str) -> dict[str, float]:
+    """The cost of compiling `program` with --release, in an empty object cache
+    (a stage 1 compiler would reuse the object of the first build), and the
+    number of functions it produces."""
+    exe = work / f"{program.stem}-compile"
+    env = dict(os.environ, OFIR_HOME=str(work / f"{program.stem}-home"))
+    compile_ms, peak_mb = measured([compiler, "build", str(program), "--release", "-o", str(exe)],
+                                   env)
+    ir = work / f"{program.stem}-ir"
+    measured([compiler, "build", str(program), "--release", "--emit=llvm", "-o", str(ir)])
+    text = ir.with_suffix(".ll").read_text()
+    functions = sum(1 for line in text.splitlines() if line.startswith("define "))
+    return {"compile_ms": round(compile_ms, 1), "build_mb": round(peak_mb, 1),
+            "ir_functions": functions}
+
+
 def run_once(exe: Path) -> tuple[float, str]:
     start = time.perf_counter()
     result = subprocess.run([str(exe)], check=True, capture_output=True, text=True)
@@ -95,9 +133,13 @@ def benchmark(program: Path, work: Path, tools: dict[str, str], languages: tuple
                 raise ValueError(f"{program.stem}: {language} output changed during measurement")
             samples[language].append(elapsed)
     c_time = statistics.median(samples["c"])
-    return {language: {"wall_ms": round(statistics.median(samples[language]) * 1000, 3),
-                       "vs_c": round(statistics.median(samples[language]) / c_time, 3)}
-            for language in languages}
+    results = {language: {"wall_ms": round(statistics.median(samples[language]) * 1000, 3),
+                          "vs_c": round(statistics.median(samples[language]) / c_time, 3),
+                          "size_kb": round(executables[language].stat().st_size / 1024, 1)}
+               for language in languages}
+    if "ofir" in results:
+        results["ofir"].update(compile_stats(program, work, tools["ofir"]))
+    return results
 
 
 def main() -> int:
@@ -128,10 +170,17 @@ def main() -> int:
     except (OSError, subprocess.CalledProcessError, ValueError) as exc:
         print(f"benchmark failed: {exc}", file=sys.stderr)
         return 1
-    print(f"{'program':<14} {'language':<8} {'median ms':>10} {'vs C':>7}")
+    print(f"{'program':<14} {'language':<8} {'median ms':>10} {'vs C':>7} {'size KB':>8}")
     for program, measurements in results.items():
         for language, values in measurements.items():
-            print(f"{program:<14} {language:<8} {values['wall_ms']:10.3f} {values['vs_c']:7.3f}")
+            print(f"{program:<14} {language:<8} {values['wall_ms']:10.3f} {values['vs_c']:7.3f} "
+                  f"{values['size_kb']:8.1f}")
+    if "ofir" in languages:
+        print(f"\n{'program':<14} {'compile ms':>10} {'build MB':>11} {'IR functions':>12}")
+        for program, measurements in results.items():
+            ofir = measurements["ofir"]
+            print(f"{program:<14} {ofir['compile_ms']:10.1f} {ofir['build_mb']:11.1f} "
+                  f"{ofir['ir_functions']:12}")
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps({"platform": platform.platform(), "runs": args.runs,
