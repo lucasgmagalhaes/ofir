@@ -152,5 +152,13 @@ fn main() {
 - `AtomicInt` (`load`, `store`, `fetchAdd`, `swap`, `compareExchange`) and
   `AtomicBool` (`load`, `store`, `swap`) change their value through shared
   references; every operation is sequentially consistent.
+- *Planned (ADR 0042):* `std.sync.Ordering` (`Relaxed`, `Acquire`,
+  `Release`, `AcqRel`, `SeqCst`, as in C11) and the unsafe intrinsics
+  `atomicLoad`, `atomicStore`, `atomicSwap`, `atomicFetchAdd`,
+  `atomicFetchSub`, `atomicCompareExchange` and `fence`, which the
+  compiler lowers to single instructions on a `*mut T` of an integer,
+  `bool` or raw pointer. The ordering must be a constant (E0820) that the
+  operation allows (E0821). `AtomicInt` and `AtomicBool` gain `...With`
+  forms that take an ordering.
 - `WaitGroup` counts work in progress: `add(n)`, `done()` (`add(-1)`) and
   `wait()`, which waits until the count is 0. A count below 0 panics.
