@@ -38,23 +38,22 @@ const BATCH_BYTES: int = 32768     // what a batch holds, whatever the class
 const META: int = 4                // the chunk of the global lists and the bins
 const FIRST_BLOCK_CHUNK: int = 5
 const BINS_OFFSET: int = 4096      // where the bins start in the META chunk
-const TABLE_OFFSET: int = 768      // the class of each size, after the 16 bins
-const BINS_BYTES: int = 832        // the 16 bins and the 33 classes, rounded up
+const TABLE_OFFSET: int = 263168   // in the META chunk: the class of each size by 16
+const SIZES_OFFSET: int = 263232   // then the block size of each class
+const BINS_BYTES: int = 512        // the 16 bins of a thread
 
 const UNSET: int = 0
 const STARTING: int = 1
 const READY: int = 2
 const DISABLED: int = 3
 
-// The free list, the unused part of the last chunk, and the size of the
-// blocks of one class, for one thread.
+// The free list and the unused part of the last chunk of one class, for one
+// thread: 32 bytes, so that a bin is found with a shift.
 struct Bin {
     free: *mut u8
-    count: int   // blocks in `free`
+    room: int   // frees left before a batch goes back: two batches less the list
     bump: *mut u8
     end: *mut u8
-    size: int
-    limit: int   // the length of `free` that gives a batch back: two batches
 }
 
 let STATE: int = 0
@@ -92,6 +91,17 @@ fn classOf(n: int) int {
         return (n + 7) / 2
     }
     return (n + 31) / 4
+}
+
+// The length of the free list that gives a batch back: two batches.
+fn limitOf(c: int) int {
+    return 2 * (BATCH_BYTES / classSize(c))
+}
+
+// Where the pool keeps the block size of class `c`. The tables are at a
+// fixed place from BASE, so that their load does not wait for the bins.
+fn sizeAt(c: int) *mut int {
+    return unsafe { BASE.add(SIZES_OFFSET + c * 8) as *mut int }
 }
 
 fn lock(p: *mut int) {
@@ -156,6 +166,16 @@ fn reserve() bool {
         ARENA = range.add(META * CHUNK + BINS_OFFSET)
         ARENA_END = ARENA.add((CHUNK - BINS_OFFSET) / BINS_BYTES * BINS_BYTES)
     }
+    for n in 0..33 {
+        unsafe {
+            *range.add(TABLE_OFFSET + n) = classOf(n) as u8
+        }
+    }
+    for c in 0..CLASSES {
+        unsafe {
+            *sizeAt(c) = classSize(c)
+        }
+    }
     return true
 }
 
@@ -208,7 +228,8 @@ fn newChunk(b: *mut Bin, c: int) bool {
         *BASE.add(index) = c as u8
         const chunk = BASE.add(index * CHUNK)
         (*b).bump = chunk
-        (*b).end = chunk.add(CHUNK / (*b).size * (*b).size)   // a whole number of blocks
+        const size = classSize(c)
+        (*b).end = chunk.add(CHUNK / size * size)   // a whole number of blocks
     }
     return true
 }
@@ -250,15 +271,8 @@ fn threadBins() *mut Bin {
     }
     const out = unsafe { bins as *mut Bin }
     for c in 0..CLASSES {
-        const size = classSize(c)
-        const limit = 2 * (BATCH_BYTES / size)
         unsafe {
-            *out.add(c) = Bin{free: null(), count: 0, bump: null(), end: null(), size, limit}
-        }
-    }
-    for n in 0..33 {
-        unsafe {
-            *bins.add(TABLE_OFFSET + n) = classOf(n) as u8
+            *out.add(c) = Bin{free: null(), room: limitOf(c), bump: null(), end: null()}
         }
     }
     unsafe {
@@ -274,7 +288,7 @@ fn refill(b: *mut Bin, c: int) *mut u8 {
     if batch != null() {
         unsafe {
             (*b).free = *nextOf(batch)
-            (*b).count = 0   // at most the blocks in the list: a last batch may hold fewer
+            (*b).room = limitOf(c)   // a batch's blocks raise it: the list stays bounded
         }
         return batch
     }
@@ -283,7 +297,7 @@ fn refill(b: *mut Bin, c: int) *mut u8 {
     }
     unsafe {
         const block = (*b).bump
-        (*b).bump = block.add((*b).size)
+        (*b).bump = block.add(classSize(c))
         return block
     }
 }
@@ -307,19 +321,17 @@ extern "C" fn poolAlloc(size: int) *mut u8 {
         return allocFirst(size)
     }
     unsafe {
-        const c = *(bins as *mut u8).add(TABLE_OFFSET + (size + 15) / 16) as int
+        const c = *BASE.add(TABLE_OFFSET + (size.wrappingAdd(15) >> 4)) as int
         const b = bins.add(c)
         const block = (*b).free
         if block != null() {
             (*b).free = *nextOf(block)
-            if (*b).count > 0 {
-                (*b).count -= 1
-            }
+            (*b).room = (*b).room.wrappingAdd(1)
             return block
         }
         const bump = (*b).bump
         if bump != (*b).end {
-            (*b).bump = bump.add((*b).size)
+            (*b).bump = bump.add(*sizeAt(c))
             return bump
         }
         return refill(b, c)
@@ -355,13 +367,13 @@ extern "C" fn poolBlockSize(ptr: *u8) int {
 @cold
 fn giveBack(b: *mut Bin, c: int, block: *mut u8) {
     unsafe {
-        const batch = (*b).limit / 2
+        const batch = limitOf(c) / 2
         let last = block   // the batch is the first `batch` blocks
         for _ in 1..batch {
             last = *nextOf(last)
         }
         (*b).free = *nextOf(last)
-        (*b).count -= batch
+        (*b).room += batch
         *nextOf(last) = null()
     }
     giveBatch(c, block)
@@ -384,8 +396,8 @@ extern "C" fn poolFree(ptr: *mut u8) {
         const b = bins.add(c)
         *nextOf(ptr) = (*b).free
         (*b).free = ptr
-        (*b).count += 1
-        if (*b).count >= (*b).limit {
+        (*b).room = (*b).room.wrappingSub(1)
+        if (*b).room <= 0 {
             giveBack(b, c, ptr)
         }
     }
@@ -423,13 +435,13 @@ extern "C" fn poolThreadExit() {
                 const block = (*b).bump
                 *nextOf(block) = (*b).free
                 (*b).free = block
-                (*b).bump = block.add((*b).size)
+                (*b).bump = block.add(classSize(c))
             }
             if (*b).free != null() {
                 giveBatch(c, (*b).free)
             }
             (*b).free = null()
-            (*b).count = 0
+            (*b).room = limitOf(c)
         }
     }
     const spareLock = unsafe { &mut SPARE_LOCK as *mut int }
