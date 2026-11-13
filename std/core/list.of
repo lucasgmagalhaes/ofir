@@ -139,10 +139,13 @@ pub struct List<T> {
      * repeated pushes reallocate O(log n) times.
      *
      * @param extra how many more elements must fit
-     * @panics when the system is out of memory
+     * @panics with "capacity overflow" when the size does not fit an `int`, or out of memory
      */
     pub fn reserve(mut self, extra: int) {
-        const needed = self.len + extra
+        const needed = match self.len.checkedAdd(extra) {
+            Option.Some(n) => n
+            Option.None => panic("capacity overflow")
+        }
         if needed <= self.cap {
             return
         }
@@ -150,7 +153,10 @@ pub struct List<T> {
         if cap < needed {
             cap = needed
         }
-        const size = cap * sizeOf<T>()
+        const size = match cap.checkedMul(sizeOf<T>()) {
+            Option.Some(n) => n
+            Option.None => panic("capacity overflow")
+        }
         unsafe {
             const old = self.ptr as *mut u8
             self.ptr = if alignOf<T>() > 16 {   // above malloc's alignment (spec 13.7)
