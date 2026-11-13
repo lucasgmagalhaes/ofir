@@ -1,0 +1,14 @@
+// panic: integer overflow
+// The terms of a u64 recursion wrap past 2^64: the carry is kept until the
+// return (ADR 0044).
+
+fn wide(n: u64) u64 {
+    if n == 0 {
+        return 0
+    }
+    return 18446744073709551615 + wide(n - 1)
+}
+
+fn main() {
+    println("{wide(2)}")
+}
