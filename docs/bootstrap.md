@@ -36,7 +36,22 @@ stage3  Ofir compiler built by stage2   →  must be identical to stage2
 ### Verification
 
 Stage 2 and stage 3 must produce byte-identical output. This proves the
-compiler compiles itself correctly and is checked in CI.
+compiler compiles itself correctly and is checked in CI (`make verify`).
+Three more checks keep the bootstrap auditable:
+
+- **Shared-subset parity** (`make test`): on every test that both stages accept, stage 1
+  gives the same tokens, AST, names, types, AIR, LLVM IR, output and
+  diagnostics as stage 0 (`tools/compare_stages.py`, also on generated
+  inputs with `--fuzz`).
+- **Stage 1 extensions:** a feature stage 0 lacks is tested on its own, by
+  tests marked `// requires: stage1`, which `make test-stage1` runs with
+  stage 1 and the comparison skips.
+- **Seeds:** `make check-seed` compiles only a seed whose SHA-256 is
+  recorded, in the `.sha256` file that `make seed` writes next to it or,
+  for a published seed downloaded alone, in `seed/SEEDS.md`
+  (`tools/check_seed_sum.py`), and the
+  compiler built from it must rebuild itself to a fixed point before the
+  tests run.
 
 ### After M4: the bootstrap chain
 
