@@ -99,6 +99,7 @@ Operand lower_tail(Lowerer *l, Expr *e);   // the value of a block or an arm
 Operand lower_condition(Lowerer *l, Expr *e);   // its temporaries end with it
 // lower_stmt.c: the body of a loop; `latch` is where `continue` goes.
 void lower_loop_body(Lowerer *l, Block *body, BlockId latch, BlockId exit);
+LocalId lower_global_addr(Lowerer *l, uint32_t def);   // a `*mut T` temporary
 LocalId to_local(Lowerer *l, Operand operand);   // a local holding the operand
 
 // lower_expr.c
