@@ -672,6 +672,22 @@ fn sameBytes(a: *u8, b: *u8, n: int) bool {
     return n == 0 || unsafe { memcmp(a, b, n as u64) } == 0
 }
 
+// `a == b` on strings: the lowering calls it (lower_ops.c, lower_expr.of).
+fn strEq(a: str, b: str) bool {
+    return a.len == b.len && sameBytes(a.ptr, b.ptr, a.len)
+}
+
+// The order of `a` and `b`: -1, 0 or 1. The lowering calls it for `<`,
+// `<=`, `>` and `>=` on strings.
+fn strCmp(a: str, b: str) i32 {
+    const common = if a.len < b.len { a.len } else { b.len }
+    const order: i32 = if common == 0 { 0 } else { unsafe { memcmp(a.ptr, b.ptr, common as u64) } }
+    if order != 0 {
+        return if order < 0 { -1 } else { 1 }
+    }
+    return if a.len < b.len { -1 } else if a.len > b.len { 1 } else { 0 }
+}
+
 // The offset of the first `part` at or after `from`, or None.
 fn findFrom(text: str, part: str, from: int) Option<int> {
     if from > text.len - part.len {
