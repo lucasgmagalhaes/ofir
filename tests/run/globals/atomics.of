@@ -1,0 +1,26 @@
+// Atomic intrinsics on a global (ADR 0042, spec 14.4).
+
+import std.mem.atomic
+
+let COUNT: int = 5
+let FLAG: bool = false
+
+fn main() {
+    unsafe {
+        const p = &mut COUNT as *mut int
+        const loaded: int = atomic.atomicLoad(p, atomic.Ordering.Acquire)
+        atomic.atomicStore(p, 7, atomic.Ordering.Release)
+        const added: int = atomic.atomicFetchAdd(p, 3, atomic.Ordering.Relaxed)
+        const subbed: int = atomic.atomicFetchSub(p, 1, atomic.Ordering.AcqRel)
+        const swapped: int = atomic.atomicSwap(p, 20, atomic.Ordering.SeqCst)
+        const won: int = atomic.atomicCompareExchange(p, 20, 30, atomic.Ordering.SeqCst)
+        const lost: int = atomic.atomicCompareExchange(p, 20, 40, atomic.Ordering.Acquire)
+        println("{loaded} {added} {subbed} {swapped} {won} {lost} {COUNT}")
+        const f = &mut FLAG as *mut bool
+        const was: bool = atomic.atomicSwap(f, true, atomic.Ordering.SeqCst)
+        const old: bool = atomic.atomicCompareExchange(f, true, false, atomic.Ordering.SeqCst)
+        const now: bool = atomic.atomicLoad(f, atomic.Ordering.SeqCst)
+        atomic.fence(atomic.Ordering.SeqCst)
+        println("{was} {old} {now}")
+    }
+}
