@@ -1,0 +1,5 @@
+// requires: stage1
+// A re-export of a re-export, under another name.
+pub import geo.Circle as Round
+pub import geo.shapes.Kind
+pub import geo.shapes.area

@@ -1,0 +1,15 @@
+// requires: stage1
+// `ring.a` and `ring.b` import each other: functions, constants and a
+// global cross the cycle; every initializer is evaluated at compile time.
+import ring.b
+
+pub const BASE = b.STEP * 10
+pub const TOTAL = BASE + b.LIMIT
+pub let calls = BASE + b.STEP
+
+pub fn ping(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return b.pong(n - 1) + 1
+}

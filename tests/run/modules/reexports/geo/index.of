@@ -1,0 +1,8 @@
+// requires: stage1
+// The package re-exports its submodule and one of its types.
+pub import geo.shapes
+pub import geo.shapes.Circle
+
+pub fn unit() int {
+    return 1
+}
