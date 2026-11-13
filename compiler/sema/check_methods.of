@@ -19,6 +19,7 @@ import sema.check.itemOf
 import sema.check.itemTypeParams
 import sema.check_box.autoDeref
 import sema.check_box.methodReceiver
+import sema.check_list.arraySliceReceiver
 import sema.check_comptime_for.comptimeMember
 import sema.check_comptime_for.comptimeVariantGet
 import sema.check_keys.keyIndex
@@ -573,6 +574,11 @@ pub fn checkMethodCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, ar
                                            false, selfType, expected)
                 }
                 return noMethod(c, p, field, name, args, selfType)
+            }
+            const sliceType = arraySliceReceiver(c, p, base, found, name)
+            if sliceType >= 0 {   // `a.len()` on an array is `(&a[..]).len()`
+                return checkUserMethod(c, p, call, field, base, name, &explicit, args,
+                                       c.r.langItems[4], false, sliceType, expected)
             }
             if c.types.kind(selfType) == TyKind.Adt {
                 const id = c.types.get(selfType).data
