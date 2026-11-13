@@ -67,6 +67,9 @@ for item in list.drain() { }     // moves each element out; `list` is left empty
 for word in text.splitWhitespace() { }   // an iterator: `next()` until `None`
 ```
 
+A range `a..b` or `a..=b` is written only in a `for` and in an index
+(`xs[a..b]`); it is not a value, and elsewhere it is E0901 (ADR 0047).
+
 A value whose type has `fn next(mut self) Option<T>` is an iterator
 (`Iterator<T>`, chapter 9): the loop calls `next` until it returns `None`,
 and the variable owns each item, which is dropped at the end of its
