@@ -32,6 +32,9 @@ static Operand def_value(Lowerer *l, Expr *e, Def *def) {
     if (def->kind == DEF_VARIANT) {   // `None`
         return build_variant(l, e->type, def->variant, (ArgList){0});
     }
+    if (def->kind == DEF_GLOBAL) {
+        return place_operand(lower_place(l, e), OPERAND_COPY, e->type);
+    }
     diag_error(&l->sema->session->diags, "E0901", e->span,
                "global variables are not supported yet");
     return op_unit();

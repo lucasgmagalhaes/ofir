@@ -174,9 +174,6 @@ static void find_roots(Lowerer *l, ItemList items) {
             if (is_main || item->as.fn->abi.len > 0) {
                 reach(l, item->as.fn, type_id(TID_UNIT));
             }
-        } else if (item->kind == ITEM_GLOBAL) {
-            diag_error(&l->sema->session->diags, "E0901", item->span,
-                       "compiling this declaration is not supported yet");
         }
     }
 }
