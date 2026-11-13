@@ -1,0 +1,16 @@
+// Building a long string from formatted numbers, then splitting it again.
+
+fn main() {
+    const n = 1000000
+    let text = str.new()
+    for i in 0..n {
+        text.push("{i * 7},")
+    }
+    let parts = 0
+    let digits = 0
+    for part in text.split(",") {
+        parts += 1
+        digits += part.len()
+    }
+    println("{text.len()} {parts} {digits}")
+}
