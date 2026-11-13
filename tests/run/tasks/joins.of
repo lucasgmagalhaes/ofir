@@ -1,0 +1,71 @@
+// requires: stage1
+// Joins under load (spec 14.2): many tasks joined in any order hand back
+// their results, owned heap values included; a task may start and join
+// tasks of its own; a task dropped without a join runs on, and its result
+// is dropped when it ends.
+
+import std.sync.Arc
+import std.sync.WaitGroup
+import std.task
+
+struct Token {
+    wg: Arc<WaitGroup>
+
+    fn drop(mut self) {
+        self.wg.get().done()
+    }
+}
+
+fn detach<T>(_: move task.Task<T>) {
+}
+
+fn tree(depth: int) int {
+    if depth == 0 {
+        return 1
+    }
+    const left = task.run(move () int => tree(depth - 1))
+    const right = task.run(move () int => tree(depth - 1))
+    return left.join() + right.join() + 1
+}
+
+fn main() {
+    let tasks: List<task.Task<List<str>>> = []
+    for i in 0..64 {
+        tasks.push(task.run(move () List<str> => {
+            let words: List<str> = []
+            for j in 0..i % 5 {
+                words.push("w{i}.{j}")
+            }
+            return words
+        }))
+    }
+    let words = 0
+    let last = ""
+    for _ in 0..64 {
+        const got = tasks.pop().unwrap().join()
+        words += got.len()
+        if got.len() > 0 {
+            last = got[got.len() - 1].clone()
+        }
+    }
+    println("{words} words, last {last}")
+    println("tree of tasks: {tree(5)} nodes")
+
+    // A detached task's result is dropped by the task, or by the handle
+    // when the task ended first; each drop counts down.
+    const wg = Arc.new(WaitGroup.new())
+    wg.get().add(16)
+    for i in 0..16 {
+        const mine = wg.clone()
+        const t = task.run(move () Token => Token{wg: mine.clone()})
+        if i % 2 == 0 {
+            detach(t)
+        } else {
+            for _ in 0..1000 {
+            }
+            detach(t)
+        }
+    }
+    wg.get().wait()
+    println("16 detached results dropped")
+}
