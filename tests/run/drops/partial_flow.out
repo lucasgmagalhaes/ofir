@@ -1,0 +1,48 @@
+eat pi-l
+drop pi-l
+partialIf end true
+drop pi-r
+partialIf end false
+drop pi-l
+drop pi-r
+eat t-pr
+drop t-pr
+nested end
+drop t-a
+drop t-pl
+eat lp-l0
+drop lp-l0
+drop lp-r0
+eat lp-r1
+drop lp-r1
+drop lp-l1
+loopMove end
+drop f-keep
+drop c-local
+err f-err
+drop f-err
+chain got f-keep c-local
+drop f-keep
+drop c-local
+eat w-a
+drop w-a
+drop w-b
+matchMove end
+eat w-one
+drop w-one
+matchMove end
+empty
+matchMove end
+early drop acc0
+drop acc1
+drop acc2
+drop acc3
+2
+took true true
+drop opt
+list 2
+drop x1l
+drop x1r
+drop x0l
+drop x0r
+main end
