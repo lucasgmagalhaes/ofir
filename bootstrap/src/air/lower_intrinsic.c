@@ -43,8 +43,84 @@ static Operand size_of(Lowerer *l, Expr *call, RvalueKind kind) {
     return op_copy(emit_temp(l, type_id(TID_INT), rv), type_id(TID_INT));
 }
 
+// The atomic intrinsics of std.mem.atomic (ADR 0042), in AtomicOp order,
+// with the orderings each one allows.
+#define ORDER_BIT(o) (1u << (o))
+#define ALL_ORDERS 0x1Fu
+
+static const struct {
+    const char *name;
+    unsigned allowed;
+} ATOMICS[] = {
+    {"atomicLoad", ORDER_BIT(ORDER_RELAXED) | ORDER_BIT(ORDER_ACQUIRE) | ORDER_BIT(ORDER_SEQ_CST)},
+    {"atomicStore", ORDER_BIT(ORDER_RELAXED) | ORDER_BIT(ORDER_RELEASE) | ORDER_BIT(ORDER_SEQ_CST)},
+    {"atomicSwap", ALL_ORDERS},
+    {"atomicFetchAdd", ALL_ORDERS},
+    {"atomicFetchSub", ALL_ORDERS},
+    {"atomicCompareExchange", ALL_ORDERS},
+    {"fence", ALL_ORDERS & ~ORDER_BIT(ORDER_RELAXED)},
+};
+
+static const char *const ORDER_NAMES[] = {"Relaxed", "Acquire", "Release", "AcqRel", "SeqCst"};
+
+// The variant an ordering argument names, if it is a constant `Ordering.X`.
+static bool constant_order(Lowerer *l, const Expr *e, uint32_t *variant) {
+    if (e->kind == EXPR_FIELD && e->as.field.res.kind == RES_VARIANT) {
+        *variant = e->as.field.res.index;
+        return true;
+    }
+    if (e->kind == EXPR_VARIANT) {   // `.SeqCst`
+        *variant = e->as.variant.index;
+        return true;
+    }
+    if (e->kind == EXPR_IDENT && e->as.ident.res.kind == RES_DEF) {
+        const Def *def = sema_def(l->sema, (DefId){e->as.ident.res.index});
+        if (def->kind == DEF_VARIANT) {
+            *variant = def->variant;
+            return true;
+        }
+    }
+    return false;
+}
+
+// `atomicLoad(p, Ordering.Acquire)`, ...: the ordering is the last argument.
+static Operand lower_atomic(Lowerer *l, Expr *call, AtomicOp op) {
+    ArgList args = call->as.call.args;
+    const Expr *order = args.items[args.len - 1].value;
+    uint32_t variant = 0;
+    Diagnostics *diags = &l->sema->session->diags;
+    if (!constant_order(l, order, &variant)) {
+        diag_error(diags, "E0820", order->span,
+                   "the memory ordering of an atomic operation must be a constant");
+        return op_unit();
+    }
+    if (!(ATOMICS[op].allowed & ORDER_BIT(variant))) {
+        diag_error(diags, "E0821", order->span, "`%s` does not allow the ordering `%s`",
+                   ATOMICS[op].name, ORDER_NAMES[variant]);
+        return op_unit();
+    }
+    Rvalue rv = {.kind = RV_ATOMIC, .atomic = op, .order = (AtomicOrder)variant};
+    if (op != ATOMIC_FENCE) {
+        rv.a = lower_expr(l, args.items[0].value);
+    }
+    if (args.len > 2) {
+        rv.b = lower_expr(l, args.items[1].value);
+    }
+    if (op == ATOMIC_CAS) {
+        rv.items = ARENA_NEW(&l->sema->session->arena, Operand);
+        rv.items[0] = lower_expr(l, args.items[2].value);
+    }
+    LocalId result = emit_temp(l, call->type, rv);
+    return call->type.id == TID_UNIT ? op_unit() : op_copy(result, call->type);
+}
+
 Operand lower_intrinsic(Lowerer *l, Expr *call, FnDecl *fn) {
     StrView name = symbol_name(&l->sema->session->names, fn->name);
+    for (uint32_t i = 0; i < ARRAY_LEN(ATOMICS); i++) {
+        if (sv_eq(name, sv_from_cstr(ATOMICS[i].name))) {
+            return lower_atomic(l, call, (AtomicOp)i);
+        }
+    }
     if (sv_eq(name, SV("sizeOf"))) {
         return size_of(l, call, RV_SIZE_OF);
     }
