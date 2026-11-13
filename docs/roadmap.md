@@ -361,6 +361,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.23g | Compile-time execution: E0815 and E0816 note the function and line where a called function failed and the calls that led there; a random seed is rejected (E0815); the test runner checks diagnostic notes | OFIR-14 | **done**: stage 1 only |
 | 6.23h | Type operators: a type alias may name itself in a branch of a conditional type, decided per expansion, up to 64 nested expansions (E0346); visibility (`key_visibility`), inference (`mapped_generic`) and ownership (`key_params`, E0600) of keys stay tested | OFIR-15 | **done**: stage 1 only; recursion on a type parameter is E0901 |
 | 6.23i | Union types: normalization (`unions/normalization`), layout (`unions/layout`), exhaustiveness (`union_unreachable`, W0004) and invalid narrowing (`union_narrowing`: E0352 for sub-unions and `if const`, E0500, E0602 from a borrowed member) are tested | OFIR-16 | **done**: stage 1 only; the spec needed no change |
+| 6.23j | Array-length expressions: `+ - * / %` on integer constants, `const` items and const parameters (`[float; R * C]`, `[0; N * 2]`); exact evaluation from 0 to 4294967295, checked where written or at each instance (E0366); other length expressions are E0362 (spec 8.7) | OFIR-17 | **done**: stage 1 only; lengths are equal only as written, so `N + 1` and `1 + N` differ |
 | 6.24 | Runtime, ownership, allocation, concurrency and ABI | OFIR-22 to OFIR-30 | Resource, failure, layout and concurrency contracts verified |
 | 6.24a | Atomic intrinsics with orderings, `@threadLocal` and pointer, array and `@repr(C)` globals in both stages, then the allocator pool in Ofir (ADR 0042) | OFIR-25 | in progress: `@threadLocal`, the atomic intrinsics (`std.mem.atomic`, E0820, E0821), pointer globals (`0 as *T`), E0822 and `AtomicInt`/`AtomicBool`/`Arc` on the intrinsics (`...With` forms; `ofir_atomic_*` removed) and the pool in Ofir (`std/core/pool.of`, `@export` in stage 0) done; array and `@repr(C)` globals later |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
@@ -405,8 +406,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.23 with OFIR-17 (const generics and array-length expressions);
-   OFIR-08 to OFIR-16 are done.
+1. Continue 6.23 with OFIR-18; OFIR-08 to OFIR-17 are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
