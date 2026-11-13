@@ -277,6 +277,7 @@ pub struct Map<K: Eq + Hash, V> {
     }
 
     // The slot holding the entry of `key`, or -1.
+    @inline
     fn slotOf(self, key: K) int {
         if self.entries.isEmpty() {
             return -1
@@ -297,6 +298,7 @@ pub struct Map<K: Eq + Hash, V> {
     }
 
     // The hash of `key` in this map: keyed by the seed, if there is one.
+    @inline
     fn hashKey(self, key: K) u64 {
         const hash = hashOf(key)
         if self.seed == 0 {
