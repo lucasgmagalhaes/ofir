@@ -105,8 +105,8 @@ const LIMIT: int = 10         // constants are always safe
   (`stats.TOTAL`).
 - The initializer is a constant expression (chapter 3.2); a call or any
   other run-time value is E0801.
-- Stage 1 implements globals of numeric and `bool` types; other types are
-  E0901. Stage 0 has the declaration but no accesses.
+- Both stages implement globals of numeric and `bool` types; other types
+  are E0901.
 - *Planned (ADR 0042):* `@threadLocal let NAME: T = constant` gives each
   thread its own copy, made from the initializer when the thread starts.
   Access requires `unsafe` as above; `T` must have no drop (E0822).
