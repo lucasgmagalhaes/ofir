@@ -10,6 +10,8 @@ import base.span.Span
 import sema.check.Checker
 import sema.check.fnOf
 import sema.check.itemOf
+import sema.check_box.adjustedType
+import sema.check_list.checkRangeIndex
 import sema.check_place.placeRoot
 import sema.check_place.requireMutable
 import sema.def.Res
@@ -43,6 +45,13 @@ import syntax.ast.StmtKind
  */
 pub fn checkRef(c: mut Checker, p: Program, e: &Expr, operand: &Expr, mutable: bool,
                 expected: int) int {
+    if mutable {
+        if const ExprKind.Index(base, index) = operand.kind {
+            if const ExprKind.Range(_, _, _) = index.kind {
+                return mutableSlice(c, p, operand, &*base, &*index)
+            }
+        }
+    }
     const isRef = c.types.kind(expected) == TyKind.Ref
     const hint = if isRef { c.types.get(expected).inner } else { ERROR }
     const ty = checkExpr(c, p, operand, hint)
@@ -57,6 +66,20 @@ pub fn checkRef(c: mut Checker, p: Program, e: &Expr, operand: &Expr, mutable: b
         return ty
     }
     return if ty == ERROR { ty } else { c.types.ref(ty, mutable) }
+}
+
+// `&mut xs[a..b]`: a `&mut [T]` over part of a list, which must be
+// mutable, or of another `&mut [T]`.
+fn mutableSlice(c: mut Checker, p: Program, e: &Expr, base: &Expr, range: &Expr) int {
+    const ty = checkRangeIndex(c, p, e, base, range, true)
+    c.setType(e.id.0, ty)
+    const baseType = adjustedType(c, base)
+    const sliceMut = c.r.langItems[7]
+    const viaSlice = c.types.kind(baseType) == TyKind.Adt && c.types.get(baseType).data == sliceMut
+    if ty != ERROR && !viaSlice {
+        requireMutable(c, p, base)
+    }
+    return ty
 }
 
 /**

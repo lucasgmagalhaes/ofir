@@ -668,7 +668,7 @@ pub fn checkField(c: mut Checker, p: Program, e: &Expr, base: &Expr, name: Symbo
  */
 pub fn checkIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, index: &Expr) int {
     if const ExprKind.Range(_, _, _) = index.kind {
-        return checkRangeIndex(c, p, e, base, index)
+        return checkRangeIndex(c, p, e, base, index, false)
     }
     if comptimeVariantGet(c, e, index) {
         checkExpr(c, p, base, ERROR)
