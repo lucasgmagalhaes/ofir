@@ -83,6 +83,11 @@ pub copy enum TyKind {
      * placeholders are parameters from `INFER_BASE`.
      */
     Cond
+    /**
+     * An array length expression on const parameters (spec 8.7): `data` is
+     * the operation (`LEN_ADD` to `LEN_REM`), `args` its two operands.
+     */
+    ValueOp
 }
 
 /**
@@ -103,6 +108,16 @@ pub struct Ty {
 
 /** The index of the first `infer` placeholder of a conditional type (spec 16.5). */
 pub const INFER_BASE: int = 1048576
+
+/** The largest array length (spec 8.7). */
+pub const MAX_LENGTH: int = 4294967295
+
+/** The operations of a `ValueOp` length: `+`, `-`, `*`, `/` and `%`. */
+pub const LEN_ADD: int = 0
+pub const LEN_SUB: int = 1
+pub const LEN_MUL: int = 2
+pub const LEN_DIV: int = 3
+pub const LEN_REM: int = 4
 
 /** The error type. */
 pub const ERROR: int = 0
@@ -170,6 +185,7 @@ pub struct TypeTable {
     expanded: List<int>   // by type id: the struct of a known `Mapped`, or 0
     pending: List<int>   // the known `Mapped` types with no struct yet
     undecided: List<int>   // the non-`bool` conditions `subst` met
+    badLengths: List<int>   // the out of range array lengths `subst` met
 
     /**
      * A table with the built-in types, in the order of their ids.
@@ -179,7 +195,7 @@ pub struct TypeTable {
     pub fn new() TypeTable {
         let table = TypeTable{types: [], slots: List.filled(0, 256), fields: [],
                               indexNames: [], expanded: [], pending: [],
-                              undecided: []}
+                              undecided: [], badLengths: []}
         table.intern(TyKind.Error, 0, 0, [])
         table.intern(TyKind.Unit, 0, 0, [])
         table.intern(TyKind.Never, 0, 0, [])
@@ -479,6 +495,25 @@ pub struct TypeTable {
     }
 
     /**
+     * The length `a op b` (spec 8.7): a value when both operands are values
+     * and the result is in range, else the operation itself.
+     *
+     * @param op `LEN_ADD` to `LEN_REM`
+     * @param a the left operand: a value, a const parameter or a `ValueOp`
+     * @param b the right operand
+     * @returns its type
+     */
+    pub fn valueOp(mut self, op: int, a: int, b: int) int {
+        if self.types[a].kind == TyKind.Value && self.types[b].kind == TyKind.Value {
+            const n = foldLength(op, self.types[a].data, self.types[b].data)
+            if n >= 0 {
+                return self.value(n)
+            }
+        }
+        return self.intern(TyKind.ValueOp, op, 0, [a, b])
+    }
+
+    /**
      * `ty` with each type parameter `i` replaced by `args[i]` (spec 8.6).
      *
      * @param ty a type
@@ -514,8 +549,18 @@ pub struct TypeTable {
            !self.types[items[1]].hasParam {
             return self.keyOp(data, items[0], items[1])
         }
-        if kind == TyKind.Array && items.len() == 1 && self.types[items[0]].kind == TyKind.Value {
+        if kind == TyKind.ValueOp && !self.types[items[0]].hasParam &&
+           !self.types[items[1]].hasParam {
+            return self.valueOp(data, items[0], items[1])
+        }
+        if kind == TyKind.Array && items.len() == 1 && isLength(&self.types[items[0]]) {
             return self.intern(kind, self.types[items[0]].data, inner, [])   // `[T; N]`
+        }
+        if kind == TyKind.Array && items.len() == 1 && !self.types[items[0]].hasParam &&
+           (self.types[items[0]].kind == TyKind.Value ||
+            self.types[items[0]].kind == TyKind.ValueOp) {
+            self.badLengths.push(items[0])   // E0366 at the use
+            return ERROR
         }
         if kind == TyKind.Array && items.len() == 1 && !self.types[items[0]].hasParam {
             return ERROR   // a type given for `N`: E0362
@@ -709,6 +754,16 @@ pub struct TypeTable {
      */
     pub fn takeUndecided(mut self) List<int> {
         return mem.replace(self.undecided, [])
+    }
+
+    /**
+     * The array lengths that `subst` found out of range since the last
+     * call (spec 8.7): E0366 at the use.
+     *
+     * @returns their types, in order
+     */
+    pub fn takeBadLengths(mut self) List<int> {
+        return mem.replace(self.badLengths, [])
     }
 
     /**
@@ -959,7 +1014,41 @@ pub fn kindNumber(kind: TyKind) int {
         TyKind.Mapped => 20
         TyKind.KeyOp => 21
         TyKind.Cond => 22
+        TyKind.ValueOp => 23
     }
+}
+
+// A value that is an array length: from 0 to `MAX_LENGTH`.
+fn isLength(t: &Ty) bool {
+    return t.kind == TyKind.Value && t.data >= 0 && t.data <= MAX_LENGTH
+}
+
+/**
+ * `x op y` for array lengths (spec 8.7): every operand and the result from
+ * 0 to `MAX_LENGTH`, and no division by 0.
+ *
+ * @param op `LEN_ADD` to `LEN_REM`
+ * @param x the left operand
+ * @param y the right operand
+ * @returns the result, or -1 when it is out of range
+ */
+pub fn foldLength(op: int, x: int, y: int) int {
+    if x < 0 || y < 0 || x > MAX_LENGTH || y > MAX_LENGTH {
+        return -1
+    }
+    let n = -1
+    if op == LEN_ADD {
+        n = x + y
+    } else if op == LEN_SUB {
+        n = x - y
+    } else if op == LEN_MUL {
+        if y == 0 || x <= MAX_LENGTH / y {
+            n = x * y
+        }
+    } else if y != 0 {
+        n = if op == LEN_DIV { x / y } else { x % y }
+    }
+    return if n > MAX_LENGTH { -1 } else { n }
 }
 
 fn mix(h: int, value: int) int {
