@@ -97,7 +97,7 @@ fn isEnum(c: Checker, ty: int) bool {
  */
 pub fn equalityCalls(c: mut Checker, p: Program, ty: int) bool {
     const kind = c.types.kind(ty)
-    if kind == TyKind.Tuple {
+    if kind == TyKind.Tuple || kind == TyKind.Array {
         return true
     }
     if kind != TyKind.Adt {

@@ -6,6 +6,7 @@
  * conversion of a list to a slice.
  */
 
+import base.intern.Symbol
 import base.span.Span
 import sema.check.BOUND_EQ
 import sema.check.BOUND_HASH
@@ -445,7 +446,10 @@ pub fn checkRangeIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, range:
             }
             const name = c.r.names.intern(text)
             const found = checkExpr(c, p, base, ERROR)
-            const recvType = methodReceiver(c, p, base, found, name)
+            let recvType = arraySliceReceiver(c, p, base, found, name)   // `a[1..3]` on an array
+            if recvType < 0 {
+                recvType = methodReceiver(c, p, base, found, name)
+            }
             let owner = 0
             if c.types.kind(recvType) == TyKind.Adt {
                 owner = c.types.get(recvType).data
@@ -503,6 +507,32 @@ fn arrayBehind(c: Checker, ty: int) int {
         return t.inner
     }
     return -1
+}
+
+/**
+ * A method of `&[T]` called on an array `[T; N]`, or a reference to one
+ * (spec 2.7): the receiver becomes a slice of its N elements.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param base the receiver
+ * @param found its type
+ * @param name the method
+ * @returns the slice type, or -1 when it does not apply
+ */
+pub fn arraySliceReceiver(c: mut Checker, p: Program, base: &Expr, found: int,
+                          name: Symbol) int {
+    const array = arrayBehind(c, found)
+    const slice = c.r.langItems[4]
+    if array < 0 || slice == 0 || !hasMethod(c, p, slice, name) {
+        return -1
+    }
+    const ty = c.types.adt(slice, [c.types.get(array).inner])
+    const _ = c.derefs[c.module()].remove(base.id.0)
+    const _ = c.adjusted[c.module()].remove(base.id.0)
+    c.arrayCoercions[c.module()].insert(base.id.0, found)
+    c.setType(base.id.0, ty)
+    return ty
 }
 
 /**

@@ -653,7 +653,11 @@ fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
                     + "arguments")
             ERROR
         }
-        ExprKind.Range(_, _, _) => c.unsupported(e.span, "ranges outside of `for` are")
+        ExprKind.Range(_, _, _) => {
+            c.unsupported(e.span, "ranges outside of `for` are")
+            c.r.diags.help("write the range in a `for` or an index, `xs[a..b]` (ADR 0047)")
+            ERROR
+        }
         ExprKind.Index(base, index) => checkIndex(c, p, e, &*base, &*index)
         ExprKind.Field(base, name, _) => checkField(c, p, e, &*base, name, expected)
         ExprKind.TupleField(base, index) => checkTupleField(c, p, e, &*base, index as int)

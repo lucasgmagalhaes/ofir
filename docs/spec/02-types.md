@@ -16,6 +16,8 @@ fields are always annotated.
 | `float` | alias for `f64` |
 | `bool` | `true` or `false` |
 
+There are no 128-bit integers (`i128`, `u128`); ADR 0047 defers them.
+
 **Lengths and indices are `int`**, as in Go: `len()` returns `int` and
 indexing takes an `int`. A negative index is simply out of range and panics.
 This avoids conversions between signed and unsigned values in everyday code.
@@ -183,6 +185,11 @@ const zeros: [int; 8] = [0; 8]
   `for i, x in a` read the elements.
 - `&[T; N]` converts to `&[T]`, and a `[T]` parameter accepts an array
   (chapter 2.12).
+- An array has the methods of `&[T]`, called on a slice of its elements
+  (`a.len()`, `a.get(i)`, `a.first()`), and `a[lo..hi]` and `a[lo..]` are
+  slices of it (ADR 0047).
+- `a == b` compares two arrays element by element when `T` is `Eq`, and
+  `{a:?}` prints the elements in brackets, like a list.
 - Stage 1 implements arrays whose element type is Copy; arrays of other
   types are E0901. Stage 0 has the type but no array values.
 
@@ -270,6 +277,10 @@ const hello: &str = s[0..5]
   and `&mut array` convert to it; `view[i] = v` writes the element, and the
   slice borrows its source exclusively while it is used. Stage 1 implements
   it; stage 0 does not.
+- `a == b` on `&[T]` compares the lengths and then the elements in order;
+  it needs `T: Eq` (chapter 9.9). `&mut [T]` has no `==`: compare
+  `s.asSlice()`. `{s:?}` prints the elements in brackets. Stage 0 rejects
+  comparing slices.
 - As **parameter types**, `[T]` and `str` accept lists, arrays, slices and
   strings without writing `&`: `fn sum(xs: [int])` can be called as
   `sum(list)` or `sum(list[2..5])` (chapter 5.3).

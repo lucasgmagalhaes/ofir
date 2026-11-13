@@ -1,0 +1,12 @@
+// requires: stage1
+// `&mut [T]` has no `==`; 128-bit integers and range values are not
+// supported (spec 2.1, 2.7; ADR 0047).
+
+fn same(a: &mut [int], b: &mut [int]) bool {
+    return a == b   // error[E0313]: operator cannot be applied to type `SliceMut<int>`
+}
+
+fn main() {
+    const big: i128 = 0   // error[E0200]: cannot find type `i128` in this scope
+    const r = 0..10   // error[E0901]: ranges outside of `for` are not supported yet
+}

@@ -540,6 +540,10 @@ fn resolvePath(c: mut Checker, p: Program, segments: &List<Symbol>, args: &List<
     if id == 0 {
         const name = segments[segments.len() - 1]
         c.error("E0200", span, "cannot find type `{c.text(name)}` in this scope")
+        const text = c.text(name)
+        if text == "i128" || text == "u128" {   // deferred (ADR 0047)
+            c.r.diags.help("128-bit integers are not supported: use two `u64` halves")
+        }
         suggestName(c.r, name, SuggestScope.Type)
         if probing(c.r, name) {
             completeScope(c.r, true)
