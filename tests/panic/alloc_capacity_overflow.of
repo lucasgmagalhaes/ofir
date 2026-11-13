@@ -1,0 +1,6 @@
+// panic: capacity overflow
+fn main() {
+    // 2^62 elements of 8 bytes do not fit in an `int`.
+    const xs: List<int> = List.withCapacity(1 << 62)
+    println("{xs.capacity()}")
+}
