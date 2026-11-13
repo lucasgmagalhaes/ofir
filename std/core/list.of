@@ -444,6 +444,28 @@ pub struct List<T> {
     }
 
     /**
+     * Exchanges two elements, in constant time.
+     *
+     * @param i the position of one element
+     * @param j the position of the other; it may equal `i`
+     * @panics when `i` or `j` is outside `0..len()`
+     * @example
+     * ```ofir
+     * let xs = ["a", "b", "c"]
+     * xs.swap(0, 2)   // ["c", "b", "a"]
+     * ```
+     */
+    pub fn swap(mut self, i: int, j: int) {
+        self.checkIndex(i)
+        self.checkIndex(j)
+        unsafe {
+            const x = *self.ptr.add(i)
+            *self.ptr.add(i) = *self.ptr.add(j)
+            *self.ptr.add(j) = x
+        }
+    }
+
+    /**
      * Removes every element; the capacity is kept for reuse.
      */
     pub fn clear(mut self) {

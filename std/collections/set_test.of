@@ -1,0 +1,38 @@
+// The tests of `std.collections.set`: `ofir test std/collections/set.of` runs them.
+
+import std.testing.assert
+
+@test
+fn insertKeepsOneOfEach() {
+    let s: Set<int> = Set.new()
+    assert(s.insert(3) && s.insert(1) && !s.insert(3))
+    assert(s.len() == 2 && s.contains(1) && !s.contains(2))
+    assert(s.remove(3) && !s.remove(3) && s.len() == 1)
+    s.clear()
+    assert(s.isEmpty())
+}
+
+@test
+fn iteratesInInsertionOrder() {
+    let s: Set<str> = Set.new()
+    s.insert("c")
+    s.insert("a")
+    s.insert("c")
+    s.insert("b")
+    let joined = ""
+    for w in s.iter() {
+        joined.push(w)
+    }
+    assert(joined == "cab")
+}
+
+@test
+fn subsets() {
+    let small: Set<int> = Set.new()
+    let big: Set<int> = Set.seeded()
+    small.insert(2)
+    for i in 0..5 {
+        big.insert(i)
+    }
+    assert(small.isSubset(&big) && !big.isSubset(&small))
+}

@@ -1,0 +1,57 @@
+// Every element of a collection is dropped exactly once: when it is popped
+// and goes out of scope, on `clear`, and with the collection (ADR 0055).
+
+import std.collections.deque.Deque
+import std.collections.heap.Heap
+import std.collections.sorted.SortedMap
+
+struct Noisy {
+    id: int
+
+    fn drop(mut self) {
+        print("{self.id} ")
+    }
+}
+
+fn deque() {
+    let d: Deque<Noisy> = Deque.withCapacity(4)
+    d.pushBack(Noisy{id: 1})
+    d.pushBack(Noisy{id: 2})
+    d.pushBack(Noisy{id: 3})
+    if const Option.Some(n) = d.popFront() {
+        print("popped {n.id}: ")
+    }
+    d.pushBack(Noisy{id: 4})
+    d.pushBack(Noisy{id: 5})   // wraps around
+    d.pushFront(Noisy{id: 0})  // grows
+    print("| ")
+}
+
+fn cleared() {
+    let d: Deque<Noisy> = Deque.new()
+    d.pushFront(Noisy{id: 7})
+    d.pushFront(Noisy{id: 6})
+    d.clear()
+    print("| ")
+}
+
+fn sorted() {
+    let m: SortedMap<int, Noisy> = SortedMap.new()
+    m.insert(2, Noisy{id: 20})
+    m.insert(1, Noisy{id: 10})
+    m.insert(2, Noisy{id: 21})   // returns 20, dropped at once
+    m.remove(1)
+    print("| ")
+}
+
+fn main() {
+    deque()
+    println("")
+    cleared()
+    println("")
+    sorted()
+    println("")
+    let h: Heap<int> = Heap.new()
+    h.push(1)
+    println("{h.len()}")
+}

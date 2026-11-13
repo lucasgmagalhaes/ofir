@@ -27,3 +27,11 @@ fn iterBorrowsEachElement() {
     let it = empty.iter()
     assert(it.next().isNone())
 }
+
+@test
+fn swapExchangesTwoElements() {
+    let words = ["a".toOwned(), "b".toOwned(), "c".toOwned()]
+    words.swap(0, 2)
+    words.swap(1, 1)
+    assert(words[0] == "c" && words[1] == "b" && words[2] == "a")
+}

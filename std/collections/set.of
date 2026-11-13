@@ -1,0 +1,156 @@
+/**
+ * @module
+ * `Set<T>`: a hash set that iterates in insertion order (ADR 0055,
+ * docs/std/collections.md).
+ */
+
+extern "intrinsic" {
+    // Appends the debug representation of `value` (`{x:?}`, spec 9.9).
+    fn debugOf<T>(value: T, out: mut str)
+}
+
+/**
+ * A set of distinct values, which iterates in the order they were first
+ * inserted.
+ *
+ * It is a `Map<T, ()>`: `insert` and `contains` take constant time on
+ * average, `remove` linear time (it keeps the order of the others), and
+ * the hashing is deterministic.
+ *
+ * @typeParam T the type of the elements
+ * @example
+ * ```ofir
+ * import std.collections.set.Set
+ *
+ * let seen: Set<str> = Set.new()
+ * for word in ["a", "b", "a"] {
+ *     if !seen.insert(word.clone()) {
+ *         println("again: {word}")   // again: a
+ *     }
+ * }
+ * ```
+ */
+pub struct Set<T: Eq + Hash> {
+    map: Map<T, ()>
+
+    /**
+     * An empty set.
+     *
+     * @returns a set with no elements
+     */
+    pub fn new() Set<T> {
+        return Set{map: Map<T, ()>.new()}
+    }
+
+    /**
+     * An empty set whose hashes are keyed by a random seed, against inputs
+     * chosen to collide (as `Map.seeded`).
+     *
+     * @returns a set with no elements
+     */
+    pub fn seeded() Set<T> {
+        return Set{map: Map<T, ()>.seeded()}
+    }
+
+    /**
+     * The number of elements.
+     *
+     * @returns the size of the set
+     */
+    pub fn len(self) int {
+        return self.map.len()
+    }
+
+    /**
+     * Whether the set has no elements.
+     *
+     * @returns true when the set is empty
+     */
+    pub fn isEmpty(self) bool {
+        return self.map.isEmpty()
+    }
+
+    /**
+     * Whether a value is in the set.
+     *
+     * @param x the value to look for
+     * @returns true when an equal element is in the set
+     */
+    pub fn contains(self, x: T) bool {
+        return self.map.contains(x)
+    }
+
+    /**
+     * Adds a value, unless an equal one is already there.
+     *
+     * @param x the value; the set takes ownership of it
+     * @returns true when the value was added, false when it was there
+     */
+    pub fn insert(mut self, x: move T) bool {
+        if self.map.contains(x) {
+            return false
+        }
+        self.map.insert(x, ())
+        return true
+    }
+
+    /**
+     * Removes a value.
+     *
+     * @param x the value to remove
+     * @returns true when it was in the set
+     */
+    pub fn remove(mut self, x: T) bool {
+        return self.map.remove(x).isSome()
+    }
+
+    /**
+     * Removes every element.
+     */
+    pub fn clear(mut self) {
+        self.map.clear()
+    }
+
+    /**
+     * Whether every element of this set is in another.
+     *
+     * @param other the set to compare with
+     * @returns true when this set is a subset of `other`
+     */
+    pub fn isSubset(self, other: &Set<T>) bool {
+        for x in self.map.keys() {
+            if !other.map.contains(*x) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * An iterator over borrows of the elements, in insertion order.
+     *
+     * @returns a `MapKeys` that borrows the set
+     */
+    pub fn iter(self) MapKeys<T, ()> {
+        return self.map.keys()
+    }
+
+    /**
+     * Appends the debug representation of the set, `{1, 2}` in insertion
+     * order: what `{set:?}` shows (spec 9.9).
+     *
+     * @param out the string written to
+     */
+    pub fn debug(self, out: mut str) {
+        out.push("\{")
+        let first = true
+        for x in self.map.keys() {
+            if !first {
+                out.push(", ")
+            }
+            first = false
+            debugOf(*x, out)
+        }
+        out.push("\}")
+    }
+}

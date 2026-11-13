@@ -1,0 +1,42 @@
+// The tests of `std.collections.sorted`: `ofir test std/collections/sorted.of` runs them.
+
+import std.testing.assert
+
+@test
+fn keepsTheKeysInOrder() {
+    let m: SortedMap<int, str> = SortedMap.new()
+    for k in [5, 1, 9, 3] {
+        m.insert(k, "v{k}")
+    }
+    const keys = m.keys()
+    assert(m.len() == 4 && keys[0] == 1 && keys[1] == 3 && keys[2] == 5 && keys[3] == 9)
+    assert(m.values()[3] == "v9")
+}
+
+@test
+fn insertReplacesAndRemoveShifts() {
+    let m: SortedMap<str, int> = SortedMap.new()
+    assert(m.insert("b", 1).isNone() && m.insert("a", 2).isNone())
+    assert((m.insert("b", 3) ?? 0) == 1 && m.len() == 2)
+    assert(*(m.get("b") ?? &0) == 3 && m.get("c").isNone())
+    if const Option.Some(v) = m.getMut("a") {
+        *v += 10
+    }
+    assert((m.remove("a") ?? 0) == 12 && m.remove("a").isNone())
+    assert(m.len() == 1 && m.contains("b") && !m.contains("a"))
+    m.clear()
+    assert(m.isEmpty())
+}
+
+@test
+fn lowerBoundGivesARange() {
+    let m: SortedMap<int, int> = SortedMap.new()
+    for k in [10, 20, 30, 40, 50] {
+        m.insert(k, k * 2)
+    }
+    const lo = m.lowerBound(15)
+    const hi = m.lowerBound(40)
+    assert(lo == 1 && hi == 3 && m.lowerBound(60) == 5 && m.lowerBound(0) == 0)
+    const middle = m.keys()[lo..hi]
+    assert(middle.len() == 2 && middle[0] == 20 && middle[1] == 30)
+}
