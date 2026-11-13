@@ -197,12 +197,13 @@ pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
     const at = c.types.get(actual).clone()
     const slice = c.r.langItems[4]
     const list = c.r.langItems[1]
-    if pt.kind == TyKind.Adt && at.kind == TyKind.Adt && slice != 0 && pt.data == slice &&
-       at.data == list && at.args.len() == 1 {
-        inferFrom(c, inf, pt.args[0], at.args[0])   // a list given for `[T]` is its slice
+    const array = if at.kind == TyKind.Ref { at.inner } else { actual }
+    const seq = c.types.get(array).clone()
+    if pt.kind == TyKind.Adt && seq.kind == TyKind.Adt && slice != 0 && pt.data == slice &&
+       seq.data == list && seq.args.len() == 1 {
+        inferFrom(c, inf, pt.args[0], seq.args[0])   // a list, or `&List<T>`, given for `[T]`
         return
     }
-    const array = if at.kind == TyKind.Ref { at.inner } else { actual }
     if pt.kind == TyKind.Adt && slice != 0 && pt.data == slice &&
        c.types.kind(array) == TyKind.Array {
         inferFrom(c, inf, pt.args[0], c.types.get(array).inner)   // an array, or `&[T; N]`
