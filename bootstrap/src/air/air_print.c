@@ -87,8 +87,38 @@ static void operands(AirPrinter *p, const char *name, Operand a, const Operand *
     }
 }
 
+static const char *const ATOMIC_OPS[] = {
+    [ATOMIC_LOAD] = "atomic_load", [ATOMIC_STORE] = "atomic_store",
+    [ATOMIC_SWAP] = "atomic_swap", [ATOMIC_ADD] = "atomic_add", [ATOMIC_SUB] = "atomic_sub",
+    [ATOMIC_CAS] = "atomic_cas", [ATOMIC_FENCE] = "fence",
+};
+
+static const char *const ORDERS[] = {
+    [ORDER_RELAXED] = "relaxed", [ORDER_ACQUIRE] = "acquire", [ORDER_RELEASE] = "release",
+    [ORDER_ACQ_REL] = "acq_rel", [ORDER_SEQ_CST] = "seq_cst",
+};
+
+// `atomic_cas seq_cst _1, _2, _3`, `fence acquire`.
+static void atomic(AirPrinter *p, const Rvalue *rv) {
+    fprintf(p->out, "%s %s", ATOMIC_OPS[rv->atomic], ORDERS[rv->order]);
+    if (rv->atomic == ATOMIC_FENCE) {
+        return;
+    }
+    fputs(" ", p->out);
+    operand(p, rv->a);
+    if (rv->atomic != ATOMIC_LOAD) {
+        fputs(", ", p->out);
+        operand(p, rv->b);
+    }
+    if (rv->atomic == ATOMIC_CAS) {
+        fputs(", ", p->out);
+        operand(p, rv->items[0]);
+    }
+}
+
 static void rvalue(AirPrinter *p, const Rvalue *rv) {
     switch (rv->kind) {
+    case RV_ATOMIC: atomic(p, rv); return;
     case RV_STR_LEN: operands(p, "str_len", rv->a, NULL); return;
     case RV_PTR_ADD: operands(p, "ptr_add", rv->a, &rv->b); return;
     case RV_SIZE_OF: fprintf(p->out, "size_of %s", type_str(p, rv->to)); return;

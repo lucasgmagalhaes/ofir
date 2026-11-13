@@ -281,6 +281,7 @@ void gen_rvalue(Gen *g, const Rvalue *rv, TypeId dest_type, Value *result) {
         g->globals_used.data[rv->def] = true;
         global_name(g, rv->def, result->text, sizeof result->text);
         break;
+    case RV_ATOMIC: break;   // not lowered yet
     }
 }
 
