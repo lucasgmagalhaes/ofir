@@ -497,7 +497,7 @@ pub struct Checker {
     /** The functions whose parameter defaults were checked, by `DefId`. */
     pub defaultsChecked: Map<int, bool>
     /** The values converted from `List<T>` to `&[T]` (`list.asSlice()`), by module:
-     * `NodeId` to the element type. */
+     * `NodeId` to the element type, or `-1 - elem` for a `&List<T>`. */
     pub sliceCoercions: List<Map<int, int>>
     /** The arrays converted to `&[T]` (spec 2.12), by module: `NodeId` to the type before
      * the conversion, `[T; N]` or a reference to it. */
