@@ -298,6 +298,7 @@ std/
 ├── os/                       std.os: args, env, exit, run
 ├── math/                     std.math
 ├── testing/                  std.testing: assertEq, Bencher, test harness
+├── time/                     std.time: monotonic clock, sleep, Deadline
 ├── task/                     std.task: tasks on OS threads
 └── sync/                     std.sync: channels; Mutex, RwLock, atomics, Arc [planned]
 ```
