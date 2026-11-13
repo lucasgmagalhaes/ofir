@@ -245,6 +245,16 @@ fn reindented(text: str, indent: int) str {
     return out
 }
 
+// Whether the `@` before `units[i]` follows a name on its line: a binding
+// `n @ pattern`, not an attribute.
+fn bindsAt(units: List<Unit>, i: int) bool {
+    if i < 2 || units[i - 1].breaks != 0 {
+        return false
+    }
+    const before = units[i - 2]
+    return before.kind == UnitKind.Code && before.tok == TokenKind.Ident
+}
+
 // The spaces between `units[i]` and the unit before it on the same line.
 fn spacing(units: List<Unit>, forced: List<bool>, i: int) int {
     const p = units[i - 1]
@@ -260,6 +270,12 @@ fn spacing(units: List<Unit>, forced: List<bool>, i: int) int {
     const b = u.tok
     if b == TokenKind.Comma || b == TokenKind.RParen || b == TokenKind.RBracket {
         return 0
+    }
+    if a == TokenKind.At && bindsAt(units, i) {
+        return 1   // `n @ 1..=9`
+    }
+    if b == TokenKind.At && a == TokenKind.Ident {
+        return 1
     }
     if a == TokenKind.LParen || a == TokenKind.LBracket || a == TokenKind.Dot ||
             a == TokenKind.At {
