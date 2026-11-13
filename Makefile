@@ -92,14 +92,22 @@ seed: verify
 	@cat $(BUILD)/seed/ofir-$(VERSION).ll.sha256
 
 # The fast path of the bootstrap: clang builds a compiler from a seed
-# (SEED=path), which must build the current compiler and pass the tests.
+# (SEED=path) whose SHA-256 is recorded (its .sha256, else seed/SEEDS.md), which
+# must build the current compiler; that compiler rebuilds itself to a fixed
+# point and passes the tests.
 SEED_CLANG = "$(if $(OFIR_CLANG),$(OFIR_CLANG),clang)" $(CLANG_TARGET)
 check-seed: runtime
+	$(PYTHON) tools/check_seed_sum.py $(SEED)
 	mkdir -p $(BUILD)/from-seed
 	$(SEED_CLANG) -O2 -Wno-override-module $(SEED) $(BUILD)/libofir_rt.a $(LINK_LIBS) \
 	    -o $(BUILD)/from-seed/seed$(EXE)
-	$(STAGE_ENV) $(BUILD)/from-seed/seed$(EXE) build compiler/main.of -o $(BUILD)/from-seed/ofir$(EXE)
+	$(STAGE_ENV) $(BUILD)/from-seed/seed$(EXE) build compiler/main.of --release \
+	    -o $(BUILD)/from-seed/ofir$(EXE)
 	$(BUILD)/from-seed/ofir$(EXE) version
+	$(STAGE_ENV) $(BUILD)/from-seed/ofir$(EXE) build compiler/main.of -o $(BUILD)/from-seed/self$(EXE)
+	$(STAGE_ENV) $(BUILD)/from-seed/ofir$(EXE) build compiler/main.of --emit=llvm -o $(BUILD)/from-seed/a
+	$(STAGE_ENV) $(BUILD)/from-seed/self$(EXE) build compiler/main.of --emit=llvm -o $(BUILD)/from-seed/b
+	cmp $(BUILD)/from-seed/a.ll $(BUILD)/from-seed/b.ll
 	$(STAGE_ENV) $(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/from-seed/ofir$(EXE) --stage 1
 
 # Every test with stage 1 as the compiler (roadmap 4.8, 4.9).
