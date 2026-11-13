@@ -8,6 +8,11 @@ file is replaced; a cached object that breaks the link is recovered
 from; `--no-cache` leaves the cache alone; `OFIR_CACHE_LIMIT` bounds it;
 and a release build, one unit, is cached as one object.
 
+Then it edits a copy of the program and checks that the cache key, the
+unit's text, follows the dependencies: an edit that changes no code
+compiles no unit, a function body compiles its own unit, and a layout
+change compiles its module and the module that uses the type.
+
     python3 tools/check_object_cache.py --compiler build/stage1/ofir
 """
 
@@ -38,6 +43,44 @@ def build(compiler: str, env: dict[str, str], exe: Path, *flags: str) -> str:
     if output.replace("\r\n", "\n") != EXPECTED:
         sys.exit(f"error: {exe} printed:\n{output}")
     return result.stderr
+
+
+def edit(path: Path, old: str, new: str) -> None:
+    text = path.read_text()
+    if old not in text:
+        sys.exit(f"error: `{old}` is not in {path}")
+    path.write_text(text.replace(old, new))
+
+
+def new_objects(compiler: str, env: dict[str, str], tmp: Path, last: str) -> int:
+    """Builds the copy of the program in `tmp`; the objects it added to the
+    cache, after checking the last value the program printed."""
+    home = Path(env["OFIR_HOME"])
+    before = set(objects(home))
+    exe = tmp / ("edited-app.exe" if os.name == "nt" else "edited-app")
+    cmd = [compiler, "build", "app/main.of", "-o", str(exe)]
+    result = subprocess.run(cmd, cwd=tmp / "edited", env=env, capture_output=True, text=True)
+    if result.returncode != 0:
+        sys.exit(f"error: {' '.join(cmd)} failed:\n{result.stdout}{result.stderr}")
+    lines = subprocess.run([str(exe)], capture_output=True, text=True).stdout.split()
+    if not lines or lines[-1] != last:
+        sys.exit(f"error: {exe} printed {lines}, expected `{last}` last")
+    return len(set(objects(home)) - before)
+
+
+def check_invalidation(compiler: str, env: dict[str, str], tmp: Path) -> None:
+    app = tmp / "edited" / "app"
+    shutil.copytree(PROGRAM.parent, app)
+    new_objects(compiler, env, tmp, "1.0")
+    edit(app / "geometry" / "index.of", "The module `geometry` itself", "The `geometry` module")
+    check(new_objects(compiler, env, tmp, "1.0") == 0,
+          "an edit that changes no code compiles no unit")
+    edit(app / "geometry" / "index.of", "return 1.0", "return 1.5")
+    check(new_objects(compiler, env, tmp, "1.5") == 1, "a new function body compiles its unit")
+    edit(app / "geometry" / "shapes.of", "    side: float\n", "    side: float\n    tag: int\n")
+    edit(app / "geometry" / "shapes.of", "Square{side}", "Square{side, tag: 0}")
+    check(new_objects(compiler, env, tmp, "1.5") == 2,
+          "a new layout compiles its module and the module that uses it")
 
 
 def check(ok: bool, what: str) -> None:
@@ -93,6 +136,8 @@ def main() -> None:
         check(len(added) == 1, "a release build is one unit, cached as one object")
         build(compiler, env, exe, "--release")
         check(set(objects(home)) - before == added, "a second release build reuses it")
+
+        check_invalidation(compiler, env, tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
