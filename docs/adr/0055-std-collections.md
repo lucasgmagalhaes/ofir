@@ -26,7 +26,7 @@ each push. Iteration in key order means sorting the keys of a map.
    `head`, `len`). The capacity is 0 or a power of two, and it doubles when
    full.
    - `pushBack`, `pushFront`, `popBack` and `popFront` take amortized O(1).
-   - `get` and `d[i]` take O(1).
+   - `get` takes O(1).
    - Growing moves the elements and invalidates every borrow, as for `List`.
 3. **`Set<T>`** wraps `Map<T, unit>`. It iterates in insertion order and
    inherits the map's deterministic hashing. `insert`, `contains` and
