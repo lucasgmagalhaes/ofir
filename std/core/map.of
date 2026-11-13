@@ -132,6 +132,23 @@ pub struct Map<K: Eq + Hash, V> {
     }
 
     /**
+     * An iterator over borrows of the keys, in insertion order.
+     *
+     * @returns a `MapKeys` that borrows the map
+     * @example
+     * ```ofir
+     * let ages = Map<str, int>.new()
+     * ages.insert("ana", 31)
+     * for name in ages.keys() {
+     *     println(name)
+     * }
+     * ```
+     */
+    pub fn keys(self) MapKeys<K, V> {
+        return MapKeys{map: &self, index: 0}
+    }
+
+    /**
      * Whether the map has no keys.
      *
      * @returns true when the map is empty
@@ -341,5 +358,29 @@ pub struct Map<K: Eq + Hash, V> {
         for i in 0..self.entries.len() {
             self.place(self.entries[i].hash, i)
         }
+    }
+}
+
+/**
+ * An iterator over borrows of the keys of a `Map`, in insertion order.
+ *
+ * @typeParam K the type of the keys
+ * @typeParam V the type of the values
+ */
+pub ref struct MapKeys<K: Eq + Hash, V> {
+    map: &Map<K, V>
+    index: int
+
+    /**
+     * The next key.
+     *
+     * @returns `Some` with a reference to it, or `None` after the last one
+     */
+    pub fn next(mut self) Option<&K> {
+        if self.index >= self.map.entries.len() {
+            return Option.None
+        }
+        self.index += 1
+        return Option.Some(&self.map.entries[self.index - 1].key)
     }
 }
