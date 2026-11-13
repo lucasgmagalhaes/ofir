@@ -1,0 +1,19 @@
+// os.abort ends the process by SIGABRT: printed output not yet flushed is
+// lost, and no value is dropped.
+// status: abort
+
+import std.os
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("dropped {self.name}")
+    }
+}
+
+fn main() {
+    const kept = Noisy { name: "kept" }
+    println("buffered: {kept.name}")
+    os.abort()
+}

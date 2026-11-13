@@ -133,3 +133,35 @@ that overflows the stack without optimizations may finish with them.
 
 Panics cannot be caught. Recovering from panics is intentionally not
 supported.
+
+## 6.6 Ending the process
+
+A program ends in one of four ways. None of them unwinds the stack: only
+returning from `main` runs the destructors of the values still alive.
+
+| How                    | Status          | Output flushed | Values dropped |
+|------------------------|-----------------|----------------|----------------|
+| `main` returns         | 0               | yes            | yes            |
+| `os.exit(code)`        | `code`          | yes            | no             |
+| a panic                | 101             | yes            | no             |
+| `os.abort()`           | `SIGABRT`       | no             | no             |
+
+`os.abort()` raises `SIGABRT` (status 134 in a POSIX shell, 3 on Windows):
+output still in the program's buffer is lost and no exit handler runs.
+
+Any thread may end the process. The first one to call `os.exit` or to panic
+owns the end: a later panic or `os.exit` in another thread waits for the
+process to go and prints nothing, so one panic message is printed however
+many threads panic at once. A panic raised while the process is already
+ending on the same thread ends it at once with status 101.
+
+When the environment variable `OFIR_BACKTRACE` is set to anything but `0`,
+a panic also prints `backtrace:` and the return addresses of the panicking
+thread (on Linux and macOS; elsewhere nothing more is printed). The format
+is not specified.
+
+Across FFI (section 11) a panic does not unwind into C either: a panic in an
+`@export` function called from C ends the process as above, the C frames
+are not returned to and C cleanup does not run. A fault in C code (a
+segmentation fault that is not a stack overflow) is not a panic: it ends the
+process by its signal.

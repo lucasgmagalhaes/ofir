@@ -15,6 +15,7 @@ extern "C" {
     fn ofir_arch_name(len: *mut int) *u8
     fn ofir_env(name: *u8, len: int, value_len: *mut int) *u8
     fn ofir_exit(code: int) !
+    fn ofir_abort() !
     fn ofir_spawn(args: *u8, len: int, count: int, child: *mut *mut u8) i32
     fn ofir_wait(child: *mut u8, out: *mut Captured)
     fn ofir_child_free(child: *mut u8)
@@ -80,6 +81,19 @@ pub fn env(name: str) Option<str> {
 pub fn exit(code: int) ! {
     unsafe {
         ofir_exit(code)
+    }
+}
+
+/**
+ * Ends the process at once, abnormally: by `SIGABRT` (exit status 134 in a
+ * shell; 3 on Windows). Standard output is not flushed, no value is dropped
+ * and no exit handler runs.
+ *
+ * @returns never: the process ends
+ */
+pub fn abort() ! {
+    unsafe {
+        ofir_abort()
     }
 }
 

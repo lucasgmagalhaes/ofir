@@ -95,6 +95,7 @@ specification; the other classes are known and accepted.
 | 6.3 Unused results | full | full | `tests/compile_fail/types/errors.of` | - |
 | 6.4 Helper methods | partial | full | `tests/run/errors/option.of` `std/core/result_test.of` `std/core/option_test.of` | subset: the helpers that take closures |
 | 6.5 Panics | full | full | `tests/panic` | - |
+| 6.6 Ending the process | partial | full | `tests/run/system/exit_status.of` `tests/run/system/abort.of` `tests/panic/tasks_at_once.of` | subset: tasks |
 | 7.1 Files and modules | full | full | `tests/run/modules/app` | - |
 | 7.2 Imports | full | full | `tests/run/modules/app` `tests/compile_fail/warn_imports` `tests/compile_fail/names/assert_import.of` | - |
 | 7.3 Visibility | full | full | `tests/compile_fail/modules/visibility` `tests/compile_fail/modules/checks` | - |

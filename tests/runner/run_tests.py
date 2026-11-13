@@ -24,6 +24,7 @@ import concurrent.futures
 import os
 import json
 import re
+import signal
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,9 @@ NOTE_RE = re.compile(r"^\s*//\s*note:\s*(.*?)\s*$")
 REQUIRES_RE = re.compile(r"^//\s*requires:\s*(\S+)", re.MULTILINE)
 # Extra compiler flags of a run or codegen test, e.g. `// flags: --release`.
 FLAGS_RE = re.compile(r"^//\s*flags:\s*(.+)$", re.MULTILINE)
+# The exit status a run test expects instead of 0: a number, or `abort` for a
+# process ended by SIGABRT (status 3 on Windows), e.g. `// status: 3`.
+STATUS_RE = re.compile(r"^//\s*status:\s*(\S+)\s*$", re.MULTILINE)
 PANIC_RE = re.compile(r"^//\s*panic:\s*(.*?)\s*$", re.MULTILINE)
 CHECK_RE = re.compile(r"^//\s*(CHECK|CHECK-NOT):\s*(.*?)\s*$")
 TOP_LEVEL_FN_RE = re.compile(r"^(pub\s+)?(unsafe\s+)?fn\b")
@@ -403,7 +407,39 @@ def check_panic(cfg: Config, path: Path, source: str) -> Result:
         return Result(path, "fail", f"expected exit status {PANIC_EXIT_STATUS}\n" + describe(proc))
     if f"panic: {m.group(1)}" not in proc.stderr:
         return Result(path, "fail", f"expected 'panic: {m.group(1)}' on stderr\n" + describe(proc))
+    # However many threads panic, one message is printed.
+    if proc.stderr.count("panic: ") != 1:
+        return Result(path, "fail", "expected exactly one panic message\n" + describe(proc))
     return Result(path, "pass")
+
+
+def expected_status(source: str) -> set[int] | None:
+    m = STATUS_RE.search(source)
+    if not m:
+        return None
+    if m.group(1) == "abort":
+        return {-signal.SIGABRT, 128 + signal.SIGABRT, 3}
+    return {int(m.group(1))}
+
+
+def run_built(cfg: Config, path: Path, source: str,
+              statuses: set[int]) -> Result:
+    """Builds a run test and runs the program itself, so that its own exit
+    status, a signal included, is seen rather than the driver's."""
+    rel = path.relative_to(cfg.tests_dir).with_suffix("").as_posix().replace("/", "_")
+    exe = cfg.tmp / "status" / rel
+    exe.parent.mkdir(parents=True, exist_ok=True)
+    proc = run_process(compiler_cmd(cfg, "build", str(path), "--deny-warnings", "-o", str(exe),
+                                    *test_flags(source)), env=test_env(cfg, path))
+    if proc.returncode != 0:
+        return Result(path, "fail", describe(proc))
+    if not exe.exists() and exe.with_suffix(".exe").exists():
+        exe = exe.with_suffix(".exe")
+    proc = run_process([str(exe)], env=test_env(cfg, path))
+    if proc.returncode not in statuses:
+        wanted = " or ".join(str(s) for s in sorted(statuses))
+        return Result(path, "fail", f"expected exit status {wanted}\n" + describe(proc))
+    return compare_output(cfg, path, proc.stdout, ".out")
 
 
 def test_flags(source: str) -> list[str]:
@@ -414,6 +450,9 @@ def check_run(cfg: Config, path: Path, source: str) -> Result:
     template = path.parent / "ofir.lock.in"
     if path.name == "main.of" and template.exists():
         write_lock(cfg, template)
+    statuses = expected_status(source)
+    if statuses is not None:
+        return run_built(cfg, path, source, statuses)
     # Programs that run are warning-free: a warning fails the test.
     proc = run_process(compiler_cmd(cfg, "run", str(path), "--deny-warnings",
                                     *test_flags(source)), env=test_env(cfg, path))
