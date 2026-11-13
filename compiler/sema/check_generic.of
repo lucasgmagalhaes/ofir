@@ -15,6 +15,7 @@ import sema.check.BOUND_CLONE
 import sema.check.BOUND_CONST
 import sema.check.BOUND_COUNT
 import sema.check.BOUND_DEBUG
+import sema.check.BOUND_DISPLAY
 import sema.check.BOUND_EQ
 import sema.check.BOUND_HASH
 import sema.check.BOUND_ORD
@@ -46,6 +47,7 @@ import sema.check_union.coerceToUnion
 import sema.check_union.unionMembers
 import sema.derive.adtSatisfies
 import sema.derive.debuggable
+import sema.derive.displayable
 import sema.expr_check.checkExpr
 import sema.expr_check.requireType
 import sema.interfaces.implementedSigs
@@ -627,6 +629,8 @@ pub fn satisfies(c: mut Checker, p: Program, ty: int, bit: int) bool {
         isSend(c, p, ty)
     } else if bit == BOUND_SYNC {
         isSync(c, p, ty)
+    } else if bit == BOUND_DISPLAY {
+        displayable(c, p, ty)
     } else {
         isCopy(c, p, ty)
     }
@@ -647,6 +651,8 @@ fn boundName(bit: int) str {
         "Send"
     } else if bit == BOUND_SYNC {
         "Sync"
+    } else if bit == BOUND_DISPLAY {
+        "Display"
     } else {
         "Copy"
     }
