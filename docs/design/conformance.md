@@ -157,6 +157,7 @@ Stage 0 implements none of these chapters (bootstrap subset).
 | 14.2 Tasks | none | full | `tests/run/tasks/run.of` `runtime/src/task.c` | subset: tasks |
 | 14.3 Marker interfaces | none | full | `tests/run/tasks/send.of` `tests/compile_fail/types/sync.of` | subset: `Send` and `Sync` |
 | 14.4 Communication | none | full | `tests/run/sync` `tests/compile_fail/types/channel.of` `tests/panic/waitgroup_below_zero.of` | subset: channels and `std.sync` |
+| 14.5 Cancellation, deadlines and shutdown | partial | full | `tests/run/sync/deadlines.of` `tests/run/tasks/shutdown.of` `std/time/index.of` | subset: `std.time` only in stage 0 |
 | 15.1 `comptime` blocks and constants | none | full | `tests/run/comptime/eval.of` `tests/run/comptime/consts` `tests/compile_fail/comptime/const.of` `tests/compile_fail/comptime/comptime_fn.of` | subset: compile-time code |
 | 15.2 Type information | none | full | `tests/run/comptime/predicates.of` `tests/run/comptime/fields.of` `tests/run/comptime/variants.of` `tests/compile_fail/comptime/fields_of.of` | subset: compile-time code |
 | 15.3 `comptime for` and `comptime if` | none | full | `tests/run/comptime/branches.of` `tests/run/comptime/to_json.of` `tests/compile_fail/comptime/conditions.of` | subset: compile-time code |
