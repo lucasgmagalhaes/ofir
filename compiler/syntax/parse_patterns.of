@@ -160,6 +160,18 @@ pub fn parseTestPattern(p: mut Parser) Pattern {
     return pattern
 }
 
+// `name @ pattern` after the name; the pattern may have alternatives.
+fn atBinding(p: mut Parser, first: move Pattern, start: Span) Pattern {
+    return match first.kind {
+        PatternKind.Binding(name, mutable) => {
+            p.advance()
+            const inner = Box.new(parsePattern(p))
+            newPattern(p, PatternKind.At(name, mutable, inner), start)
+        }
+        _ => first   // the caller reports the `@`
+    }
+}
+
 /**
  * A pattern, with `|` alternatives.
  *
@@ -169,6 +181,9 @@ pub fn parseTestPattern(p: mut Parser) Pattern {
 pub fn parsePattern(p: mut Parser) Pattern {
     const start = p.here()
     const first = atom(p)
+    if p.at(TokenKind.At) {
+        return atBinding(p, first, start)
+    }
     if !p.at(TokenKind.Pipe) {
         return first
     }

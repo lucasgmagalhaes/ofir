@@ -1,0 +1,16 @@
+// requires: stage1
+// `name @ pattern` keeps a space on each side of `@`; an attribute does not.
+@inline
+fn digit(n: int) int {
+    return match n {
+        small @ 0..=9 => small
+        big @ 10 | 20 => big
+        _ => 0
+    }
+}
+
+fn main() {
+    if const Option.Some(n @ 1..=3) = Option.Some(digit(2)) {
+        println("{n}")
+    }
+}

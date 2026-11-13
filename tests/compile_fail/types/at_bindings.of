@@ -1,0 +1,10 @@
+// requires: stage1
+// The pattern after `name @` binds no names (spec 4.5).
+
+fn main() {
+    const o: Option<int> = Option.Some(3)
+    match o {
+        whole @ Option.Some(n) => println("{whole.isSome()} {n}")   // error[E0502]: the pattern after `whole @` cannot bind names
+        Option.None => println("none")
+    }
+}

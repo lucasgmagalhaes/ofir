@@ -2839,7 +2839,7 @@ pub fn assignOperand(l: mut Lowerer, dest: int, value: move Operand) {
  */
 pub fn ownBindings(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern) {
     match pattern.kind {
-        PatternKind.Binding(_, _) | PatternKind.TypeTest(_, _) => {
+        PatternKind.Binding(_, _) | PatternKind.TypeTest(_, _) | PatternKind.At(_, _, _) => {
             const local = c.localAt(pattern.id.0)
             if local >= 0 {
                 ownLocal(l, c, p, local + 1, true)

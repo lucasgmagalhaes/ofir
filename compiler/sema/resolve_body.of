@@ -214,6 +214,10 @@ fn declarePattern(r: mut Resolver, p: &Pattern, reuse: bool) {
                 declareBinding(r, p.id.0, n, p.span, false, reuse)
             }
         }
+        PatternKind.At(name, mutable, inner) => {
+            declareBinding(r, p.id.0, name, p.span, mutable, reuse)
+            declarePattern(r, &*inner, reuse)
+        }
         PatternKind.Wildcard => {}
     }
 }

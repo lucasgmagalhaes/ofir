@@ -1,0 +1,96 @@
+// requires: stage1
+// `name @ pattern` binds the whole value the pattern matches (spec 4.5):
+// ranges, alternatives, variants, nested patterns and owned values.
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+enum Slot {
+    Full(item: Noisy)
+    Empty
+}
+
+fn keep(s: move Slot) Option<Slot> {
+    return match s {
+        full @ Slot.Full(_) => Option.Some(full)
+        Slot.Empty => Option.None
+    }
+}
+
+fn peek(s: Slot) str {
+    return match s {
+        full @ Slot.Full(_) => match full {
+            Slot.Full(item) => item.name.clone()
+            Slot.Empty => "?".toOwned()
+        }
+        Slot.Empty => "empty".toOwned()
+    }
+}
+
+enum Shape {
+    Circle(r: int)
+    Square(s: int)
+    Empty
+}
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn describe(n: int) str {
+    return match n {
+        small @ 0..=9 => "digit {small}"
+        x @ 10 | 20 => "round {x}"
+        other => "big {other}"
+    }
+}
+
+fn name(s: Shape) str {
+    return match s {
+        c @ Shape.Circle(_) => {
+            const inner = match c {
+                Shape.Circle(r) => r
+                _ => 0
+            }
+            "circle {inner}"
+        }
+        rest @ Shape.Square(_) | Shape.Empty => match rest {
+            Shape.Square(s) => "square {s}"
+            _ => "empty"
+        }
+    }
+}
+
+fn main() {
+    println(describe(3))
+    println(describe(20))
+    println(describe(99))
+    println(name(Shape.Circle(2)))
+    println(name(Shape.Square(4)))
+    println(name(Shape.Empty))
+    const o: Option<int> = Option.Some(7)
+    if const Option.Some(n @ 5..=9) = o {
+        println("some {n}")
+    }
+    const p = Point{x: 1, y: 2}
+    const Point{x: px @ _, y} = p
+    println("{px} {y}")
+    const whole @ (_, _) = (3, 4)
+    println("{whole.0}")
+    const a = Slot.Full(Noisy{name: "a".toOwned()})
+    println(peek(a))
+    const kept = keep(a)
+    println("kept {kept.isSome()}")
+    const b = Slot.Full(Noisy{name: "b".toOwned()})
+    match b {
+        _x @ Slot.Empty => println("no")
+        _ => println("other")
+    }
+    println("end")
+}

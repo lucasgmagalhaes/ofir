@@ -143,6 +143,8 @@ pub enum PatternKind {
     Or(alternatives: List<Pattern>)
     /** `c: Circle`, `_: int`: a type test (spec 9.8); `name` is `None` for `_` */
     TypeTest(name: Option<Symbol>, ty: TypeExpr)
+    /** `n @ 1..=9`: binds the whole value the inner pattern matches */
+    At(name: Symbol, mutable: bool, pattern: Box<Pattern>)
 }
 
 /**

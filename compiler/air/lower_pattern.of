@@ -306,6 +306,10 @@ pub fn lowerPattern(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Patter
         PatternKind.Variant(_, _, args, _) => variantTest(l, c, p, pattern, place, ty, &args, fail)
         PatternKind.Or(alternatives) => orPattern(l, c, p, &alternatives, place, fail)
         PatternKind.TypeTest(_, _) => typeTest(l, c, p, pattern, place, ty, fail)
+        PatternKind.At(_, _, inner) => {
+            lowerPattern(l, c, p, &*inner, place, fail)   // binds nothing (E0502)
+            bind(l, c, c.localAt(pattern.id.0), place, ty)
+        }
     }
 }
 
@@ -482,7 +486,7 @@ fn lowerPatterns(l: mut Lowerer, c: mut Checker, p: Program, list: &List<Pattern
 // Whether a binding of `pattern` takes a part that needs dropping.
 fn bindsOwned(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern) bool {
     return match pattern.kind {
-        PatternKind.Binding(_, _) => {
+        PatternKind.Binding(_, _) | PatternKind.At(_, _, _) => {
             c.localAt(pattern.id.0) >= 0 &&
                 needsDrop(l, c, p, concreteType(l, c, c.typeOf(pattern.id.0)))
         }
