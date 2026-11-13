@@ -58,6 +58,7 @@ static const AttributeRule RULES[] = {
     {"tag", ON_STRUCT | ON_ENUM | ON_FIELD, ARGS_TWO_STR, false, "`@tag(\"key\", \"value\")`"},
     // Stage 0 has no tasks, so no `Send` to check: it accepts the marker.
     {"threadsafe", ON_STRUCT | ON_ENUM, ARGS_NONE, true, "`@threadsafe`"},
+    {"threadLocal", ON_GLOBAL, ARGS_NONE, true, "`@threadLocal`"},
 };
 
 static const char *target_name(int target) {
