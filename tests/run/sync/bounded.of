@@ -1,0 +1,74 @@
+// requires: stage1
+// A bounded channel under load (spec 14.4): many senders block on a small
+// queue, the receiver sees every value once, and a sender waiting on a
+// full channel is released, its value dropped, when the receiver goes.
+
+import std.sync.Arc
+import std.sync.AtomicInt
+import std.sync.boundedChannel
+import std.task
+
+struct Token {
+    id: int
+    dropped: Arc<AtomicInt>
+
+    fn drop(mut self) {
+        self.dropped.get().fetchAdd(1)
+    }
+}
+
+fn give<T>(_: move T) {
+}
+
+fn main() {
+    const (tx, rx) = boundedChannel<int>(4)
+    let tasks: List<task.Task<()>> = []
+    for p in 0..8 {
+        const mine = tx.clone()
+        tasks.push(task.run(move () => {
+            for i in 0..2000 {
+                mine.send(p * 2000 + i)
+            }
+        }))
+    }
+    give(tx)
+    let count = 0
+    let sum = 0
+    let seen: List<bool> = []
+    for _ in 0..16000 {
+        seen.push(false)
+    }
+    let repeats = 0
+    for {
+        const v = rx.recv()
+        if v.isNone() {
+            break
+        }
+        const n = v.unwrap()
+        if seen[n] {
+            repeats += 1
+        }
+        seen[n] = true
+        count += 1
+        sum += n
+    }
+    for _ in 0..8 {
+        tasks.pop().unwrap().join()
+    }
+    println("{count} values, sum {sum}, {repeats} repeats")
+
+    const dropped = Arc.new(AtomicInt.new(0))
+    const (full, slow) = boundedChannel<Token>(1)
+    const mine = dropped.clone()
+    const sender = task.run(move () => {
+        for i in 0..3 {
+            full.send(Token{id: i, dropped: mine.clone()})
+        }
+    })
+    const first = slow.recv().unwrap()
+    println("got token {first.id}")
+    give(first)
+    give(slow)
+    sender.join()
+    println("{dropped.get().load()} tokens dropped")
+}

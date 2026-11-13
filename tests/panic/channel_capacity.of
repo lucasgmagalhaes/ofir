@@ -1,0 +1,9 @@
+// panic: channel capacity must be at least 1
+// requires: stage1
+import std.sync
+
+fn main() {
+    const (tx, rx) = sync.boundedChannel<int>(0)
+    tx.send(1)
+    println("{rx.recv().isSome()}")
+}

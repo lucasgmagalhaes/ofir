@@ -4,6 +4,8 @@
 // `std.sync` boxed, guarded by a lock. It counts its senders and knows
 // whether its receiver is alive; the last of them to go frees it. The
 // values are opaque here: `std.sync` drops those the receiver never took.
+// A bounded channel holds at most `capacity` values: a send waits for
+// room, or fails once the receiver closes.
 
 #include "ofir_rt.h"
 
@@ -18,24 +20,35 @@ typedef struct node {
 typedef struct {
     pthread_mutex_t lock;
     pthread_cond_t ready;   // a value arrived, or the last sender went
+    pthread_cond_t space;   // a value left, or the receiver closed
     node *head;
     node *tail;
+    int64_t count;
+    int64_t capacity;       // 0: unbounded
     int64_t senders;
     bool receiver;
 } channel;
 
-void *ofir_channel_new(void) {
+void *ofir_channel_new_bounded(int64_t capacity) {
     channel *ch = ofir_alloc(sizeof *ch);
     pthread_mutex_init(&ch->lock, NULL);
     pthread_cond_init(&ch->ready, NULL);
+    pthread_cond_init(&ch->space, NULL);
     ch->head = NULL;
     ch->tail = NULL;
+    ch->count = 0;
+    ch->capacity = capacity;
     ch->senders = 1;
     ch->receiver = true;
     return ch;
 }
 
+void *ofir_channel_new(void) {
+    return ofir_channel_new_bounded(0);
+}
+
 static void destroy(channel *ch) {
+    pthread_cond_destroy(&ch->space);
     pthread_cond_destroy(&ch->ready);
     pthread_mutex_destroy(&ch->lock);
     ofir_free(ch);
@@ -44,6 +57,9 @@ static void destroy(channel *ch) {
 bool ofir_channel_send(void *c, void *value) {
     channel *ch = c;
     pthread_mutex_lock(&ch->lock);
+    while (ch->receiver && ch->capacity > 0 && ch->count >= ch->capacity) {
+        pthread_cond_wait(&ch->space, &ch->lock);
+    }
     if (!ch->receiver) {
         pthread_mutex_unlock(&ch->lock);
         return false;
@@ -57,6 +73,7 @@ bool ofir_channel_send(void *c, void *value) {
         ch->head = n;
     }
     ch->tail = n;
+    ch->count++;
     pthread_cond_signal(&ch->ready);
     pthread_mutex_unlock(&ch->lock);
     return true;
@@ -74,6 +91,8 @@ static void *pop(channel *ch) {
     }
     void *value = n->value;
     ofir_free(n);
+    ch->count--;
+    pthread_cond_signal(&ch->space);
     return value;
 }
 
@@ -118,6 +137,7 @@ void ofir_channel_close(void *c) {
     channel *ch = c;
     pthread_mutex_lock(&ch->lock);
     ch->receiver = false;
+    pthread_cond_broadcast(&ch->space);
     pthread_mutex_unlock(&ch->lock);
 }
 

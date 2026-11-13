@@ -1,0 +1,92 @@
+// requires: stage1
+// Memory ordering under contention (spec 14.4): a `Release` store of a
+// flag publishes the `Relaxed` writes before it to a task that sees the
+// flag with an `Acquire` load; a spin lock built on `compareExchangeWith`
+// keeps a plain counter consistent; `Relaxed` increments lose no update.
+
+import std.mem.atomic
+import std.sync.Arc
+import std.sync.AtomicInt
+import std.task
+
+struct Slot {
+    data: AtomicInt
+    ready: AtomicInt
+}
+
+struct SpinLocked {
+    held: AtomicInt
+    count: AtomicInt
+}
+
+fn handoff(rounds: int) int {
+    let wrong = 0
+    for round in 0..rounds {
+        const slot = Arc.new(Slot{data: AtomicInt.new(0), ready: AtomicInt.new(0)})
+        const mine = slot.clone()
+        const writer = task.run(move () => {
+            mine.get().data.storeWith(round + 1, atomic.Ordering.Relaxed)
+            mine.get().ready.storeWith(1, atomic.Ordering.Release)
+        })
+        for {
+            if slot.get().ready.loadWith(atomic.Ordering.Acquire) == 1 {
+                break
+            }
+        }
+        if slot.get().data.loadWith(atomic.Ordering.Relaxed) != round + 1 {
+            wrong += 1
+        }
+        writer.join()
+    }
+    return wrong
+}
+
+fn spin(tasks: int, each: int) int {
+    const shared = Arc.new(SpinLocked{held: AtomicInt.new(0), count: AtomicInt.new(0)})
+    let running: List<task.Task<()>> = []
+    for _ in 0..tasks {
+        const mine = shared.clone()
+        running.push(task.run(move () => {
+            const s = mine.get()
+            for _ in 0..each {
+                for {
+                    if s.held.compareExchangeWith(0, 1, atomic.Ordering.Acquire) {
+                        break
+                    }
+                }
+                // A load and a store, not an atomic add: only the lock
+                // keeps them from interleaving.
+                const n = s.count.loadWith(atomic.Ordering.Relaxed)
+                s.count.storeWith(n + 1, atomic.Ordering.Relaxed)
+                s.held.storeWith(0, atomic.Ordering.Release)
+            }
+        }))
+    }
+    for _ in 0..tasks {
+        running.pop().unwrap().join()
+    }
+    return shared.get().count.load()
+}
+
+fn relaxed(tasks: int, each: int) int {
+    const hits = Arc.new(AtomicInt.new(0))
+    let running: List<task.Task<()>> = []
+    for _ in 0..tasks {
+        const mine = hits.clone()
+        running.push(task.run(move () => {
+            for _ in 0..each {
+                mine.get().fetchAddWith(1, atomic.Ordering.Relaxed)
+            }
+        }))
+    }
+    for _ in 0..tasks {
+        running.pop().unwrap().join()
+    }
+    return hits.get().load()
+}
+
+fn main() {
+    println("handoff: {handoff(200)} wrong")
+    println("spin lock: {spin(4, 5000)}")
+    println("relaxed adds: {relaxed(8, 10000)}")
+}
