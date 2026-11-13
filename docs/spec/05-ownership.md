@@ -248,9 +248,32 @@ let r = &outer
 }
 println("{r.len()}")
 ```
- A
-function that returns a borrow receives its source by address, so that the
-borrow points into the caller's value.
+
+A function that returns a borrow receives its source by address, so that
+the borrow points into the caller's value.
+
+### Reborrows
+
+A borrow of a place reached through a reference (`&mut *r`, `&r.field`,
+`&s[i]` for a slice `s`) is a **reborrow**: it borrows the reference `r`
+itself, as well as what `r` borrows. While a mutable reborrow is used, `r`
+cannot be used; while a shared one is used, `r` can be read but nothing can
+be written or borrowed mutably through it. When the reborrow is no longer
+used, `r` is usable again:
+
+```ofir
+let list = [1, 2]
+const r = &mut list
+const inner = &mut *r
+inner.push(3)
+r.push(4)            // ok: `inner` is not used after this point
+const view = &*r
+r.push(5)            // error: `r` is borrowed as shared by `view`
+println("{view.len()}")
+```
+
+Passing a reference to a function reborrows it for the call, so
+`bump(r); bump(r)` is accepted.
 
 ### Returning a borrow
 
