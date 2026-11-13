@@ -478,7 +478,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         const salt = if opts.noCache || opts.emit == "llvm" {
             "".toOwned()
         } else {
-            object_cache.cacheSalt(clangPath(), &clangFlags(&opts))
+            object_cache.cacheSalt(clangPath(), &codegenFlags(&opts))
         }
         if salt.len() > 0 {
             cached.push(object_cache.objectPath(salt, text))
@@ -498,7 +498,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         const salt = if opts.noCache || opts.emit == "llvm" || units.len() < 2 {
             "".toOwned()
         } else {
-            object_cache.cacheSalt(clangPath(), &clangFlags(&opts))
+            object_cache.cacheSalt(clangPath(), &codegenFlags(&opts))
         }
         for k in 0..units.len() {
             const hashStart = timerStart(opts.timePasses)
@@ -708,7 +708,12 @@ fn removeObjects(objects: &List<str>, cached: &List<str>) {
 // caller tries again.
 fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
                libraries: &List<str>, exe: str, quiet: bool) bool {
-    let args = clangFlags(opts)
+    let compiles = false
+    for i in 0..inputs.len() {
+        compiles = compiles || inputs[i].endsWith(".ll")
+    }
+    // A link of objects only would warn that the code generation flags are unused.
+    let args = if compiles { codegenFlags(opts) } else { clangFlags(opts) }
     for i in 0..inputs.len() {
         args.push(inputs[i].clone())
     }
@@ -750,6 +755,18 @@ fn clangFlags(opts: &Options) List<str> {
     return args
 }
 
+// The clang flags of a call that generates code: `clangFlags` and, in a debug
+// build, the linear pre-register-allocation scheduler, which is about 40%
+// faster at -O0 on large functions (ADR 0054).
+fn codegenFlags(opts: &Options) List<str> {
+    let args = clangFlags(opts)
+    if !opts.release {
+        args.push("-mllvm".toOwned())
+        args.push("-pre-RA-sched=linearize".toOwned())
+    }
+    return args
+}
+
 // Compiles each unit to its object, with at most `-j N` clang processes
 // running, and pushes the objects to `objects`. A unit whose object is in
 // the cache is not compiled, and its index goes to `hits`; another is
@@ -779,7 +796,7 @@ fn compileUnits(opts: &Options, clang: str, files: &List<str>, cached: &List<str
                 const _ = fs.createDirAll(parentDir(cached[k]))
                 objects.push("{cached[k]}.{tag}.tmp")
             }
-            let args = clangFlags(opts)
+            let args = codegenFlags(opts)
             args.push("-c".toOwned())
             args.push(files[k].clone())
             args.push("-o".toOwned())
