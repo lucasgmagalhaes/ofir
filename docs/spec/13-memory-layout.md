@@ -38,9 +38,12 @@ properties stated as **guaranteed** can be relied on.
 
 ## 13.3 Enums
 
-- An enum with no payloads is represented as the smallest integer tag that
-  fits its variants.
-- An enum with payloads is a tag followed by a union of the payloads.
+- An enum without `@repr(C)` is a 32-bit tag; an enum with payloads adds a
+  union of the payloads in 8-byte units after it, so `Option<u8>` and
+  `Option<int>` are both 16 bytes. This layout is not guaranteed. A
+  compact layout (the smallest tag that fits the variants, payloads
+  aligned only as their fields need) is **[planned]**
+  ([ADR 0051](../adr/0051-layout-and-abi-contracts.md)).
 - `@repr(C)` applies only to enums without payloads (E0808): such an enum
   is a C `int`, its variants numbered from 0 in declaration order.
   **Guaranteed.**
@@ -60,13 +63,14 @@ properties stated as **guaranteed** can be relied on.
 | Type | Representation |
 |------|----------------|
 | `&T`, `&mut T`, `*T`, `Box<T>` (sized `T`) | one pointer |
-| `&[T]`, `&str` | pointer + length (16 bytes) |
+| `&[T]` | pointer + length (16 bytes) |
+| `&str` | the representation of `str` (24 bytes) |
 | `&dyn I`, `Box<dyn I>` | data pointer + vtable pointer (16 bytes) |
 | `str` | pointer + length + capacity (24 bytes) |
 | `List<T>` | pointer + length + capacity (24 bytes) |
 | `Map<K, V>` | dense entry list in insertion order + open-addressing index table |
 | `fn(A) R`, `move fn(A) R` | code pointer + environment pointer (16 bytes) |
-| `extern "C" fn(A) R` | code pointer (8 bytes) |
+| `extern "C" fn(A) R` **[planned]** | code pointer (8 bytes) |
 
 A `str` built from a literal points to read-only static memory and has
 capacity 0; it is copied to the heap on first modification.
@@ -109,4 +113,6 @@ defaults to the C library's `malloc`/`free`. Allocation failure panics.
 An allocation for a type whose alignment is above 16 (an `@align(N)`
 struct, or a value containing one) is aligned to it: in `Box<T>`,
 `List<T>` and closure environments alike.
-Custom allocators passed explicitly to collections are **[planned]**.
+Custom allocators passed explicitly to collections are rejected: arenas
+in `std.arena` serve that need
+([ADR 0049](../adr/0049-arenas-not-allocator-parameters.md)).

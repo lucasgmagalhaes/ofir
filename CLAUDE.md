@@ -13,8 +13,8 @@ with clang.
   `docs/bootstrap.md`).
 - `std/`, `runtime/`, `tests/`, `tools/`, `docs/` (spec, ADRs, roadmap).
 - Manifest: `ofir.json` (JSONC, camelCase keys; ADR 0026).
-- Work follows `docs/roadmap.md`; phase 5, 6.22 and 6.23 are done; next:
-  OFIR-30 of 6.24 (OFIR-29 is done: roadmap row 6.24i).
+- Work follows `docs/roadmap.md`; phase 5, 6.22, 6.23 and 6.24 are done; next:
+  OFIR-31 of 6.25 (OFIR-30 is done: roadmap row 6.24j).
 
 ## Working rules
 

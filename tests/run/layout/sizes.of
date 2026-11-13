@@ -1,0 +1,78 @@
+// requires: stage1
+// Sizes and alignments of spec 13.1-13.4 (ADR 0051): primitives,
+// zero-sized types, niches and built-in types are stated there; enums
+// with a tag show version 1's layout, an i32 tag and 8-byte payload units.
+
+struct Empty {
+}
+
+struct Holder {
+    a: u8
+    nothing: Empty
+    unit: ()
+    b: u8
+}
+
+struct Mixed {
+    a: u8
+    b: u64
+    c: u16
+}
+
+enum Small {
+    A
+    B
+    C
+}
+
+enum Payload {
+    Num(i32)
+    Pair(u8, u8)
+    Nothing
+}
+
+interface Shape {
+    fn area(self) int
+}
+
+fn row<T>(name: str) {
+    println("{name}: {sizeOf<T>()} {alignOf<T>()}")
+}
+
+fn main() {
+    row<bool>("bool")
+    row<i8>("i8")
+    row<u16>("u16")
+    row<i32>("i32")
+    row<f32>("f32")
+    row<i64>("i64")
+    row<f64>("f64")
+    row<int>("int")
+    row<uint>("uint")
+    row<()>("()")
+    row<Empty>("Empty")
+    row<Holder>("Holder")
+    row<Mixed>("Mixed")
+    row<(u8, u64)>("(u8, u64)")
+    row<[u16; 3]>("[u16; 3]")
+    row<[u8; 0]>("[u8; 0]")
+    row<Small>("Small")
+    row<Payload>("Payload")
+    row<&int>("&int")
+    row<*u8>("*u8")
+    row<Box<int>>("Box<int>")
+    row<Option<&int>>("Option<&int>")
+    row<Option<&mut int>>("Option<&mut int>")
+    row<Option<Box<int>>>("Option<Box<int>>")
+    row<Option<fn(int) int>>("Option<fn(int) int>")
+    row<Option<int>>("Option<int>")
+    row<Option<u8>>("Option<u8>")
+    row<&[int]>("&[int]")
+    row<&str>("&str")
+    row<str>("str")
+    row<List<int>>("List<int>")
+    row<List<Empty>>("List<Empty>")
+    row<fn(int) int>("fn(int) int")
+    row<&dyn Shape>("&dyn Shape")
+    row<Box<dyn Shape>>("Box<dyn Shape>")
+}

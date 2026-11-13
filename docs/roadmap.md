@@ -377,6 +377,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.24g | Ending the process (spec 6.6): no unwinding on panic, `os.exit` or the new `os.abort` (`SIGABRT`, no flush); the first thread to end the process owns the end, so tasks panicking at once print one message; `OFIR_BACKTRACE` prints the panicking thread's return addresses; an `@export` callback that panics never returns to C; run tests can expect an exit status | OFIR-27 | **done** |
 | 6.24h | Allocators and arenas (ADR 0049): measured on binary-trees (`Box` 1.76 s, `std.arena` 0.49 s, bare `List` 0.33 s); `std.arena` adds `Arena<T>` with `copy` `Id<T>` handles checked by era, `clear` keeps the storage; allocator parameters on collections and a global allocator hook rejected until a workload needs them | OFIR-28 | **done** |
 | 6.24i | Async, green tasks and interop (ADR 0050): OS-thread tasks measured (35.5 µs per spawn and join, about 9 KB per blocked task, 30,000 alive in 270 MB); no `async`/`await`, M:N scheduler deferred until a workload needs it; cooperative cancellation; no references across suspension (`move` + `Send` closures); foreign calls hold their thread | OFIR-29 | **done** |
+| 6.24j | Layout and ABI contracts (ADR 0051): C fixtures compiled by the test runner (`// c:`) check every scalar type both ways, 12 mixed arguments, exports called from C, and `@repr(C)`, nested, `@packed` and `@align` structs and `@repr(C)` enums behind pointers; `tests/run/layout/sizes.of` records sizes and alignments; spec 11.3 and 13 now state the implemented layouts; by-value `@repr(C)` types, `extern "C" fn` types and a compact enum layout are planned | OFIR-30 | **done** |
 | 6.25 | Compiler correctness, bootstrap, build performance and debug information | OFIR-31 to OFIR-38 | Invariants, parity, cache invalidation and debugger evidence recorded |
 | 6.26 | General-purpose standard library and public API quality | OFIR-39 to OFIR-47 | Documented exports, generic usage, portability and boundary tests |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
@@ -419,7 +420,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.24 with OFIR-30; OFIR-29 is done (6.24i).
+1. Start 6.25 with OFIR-31; 6.24 is done (OFIR-30 is 6.24j).
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

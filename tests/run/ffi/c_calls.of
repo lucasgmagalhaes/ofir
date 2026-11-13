@@ -1,0 +1,80 @@
+// requires: stage1
+// c: c_calls.c
+// Calls between Ofir and C (spec 11.3, 11.4, 13.5): every scalar type both
+// ways, more arguments than registers, and pointers C writes through.
+
+@link("c_calls")
+extern "C" {
+    fn c_i8(v: i8) i8
+    fn c_u8(v: u8) u8
+    fn c_i16(v: i16) i16
+    fn c_u16(v: u16) u16
+    fn c_i32(v: i32) i32
+    fn c_u32(v: u32) u32
+    fn c_i64(v: i64) i64
+    fn c_u64(v: u64) u64
+    fn c_f32(v: f32) f32
+    fn c_f64(v: f64) f64
+    fn c_not(v: bool) bool
+    fn c_many(a: i8, b: f64, c: u16, d: f32, e: i32, f: f64, g: u64, h: f32, i: i64, j: f64,
+              k: bool, l: u8) f64
+    fn c_fill(out: *mut i32, len: i64) i64
+    fn c_call_exports() i32
+}
+
+@export("of_i8")
+extern "C" fn ofI8(v: i8) i8 {
+    return -(v + 1)
+}
+
+@export("of_u16")
+extern "C" fn ofU16(v: u16) u16 {
+    return v.wrappingAdd(1)
+}
+
+@export("of_i32")
+extern "C" fn ofI32(v: i32) i32 {
+    return -(v + 1)
+}
+
+@export("of_u64")
+extern "C" fn ofU64(v: u64) u64 {
+    return v.wrappingAdd(1)
+}
+
+@export("of_f32")
+extern "C" fn ofF32(v: f32) f32 {
+    return v * 2.0
+}
+
+@export("of_f64")
+extern "C" fn ofF64(v: f64) f64 {
+    return -v
+}
+
+@export("of_odd")
+extern "C" fn ofOdd(v: i64) bool {
+    return v % 2 != 0
+}
+
+@export("of_many")
+extern "C" fn ofMany(a: i8, b: f64, c: u16, d: f32, e: i32, f: f64, g: u64, h: f32, i: i64,
+                     j: f64, k: bool, l: u8) f64 {
+    const flag: f64 = if k { 1000.0 } else { 0.0 }
+    return a as f64 + b + c as f64 + d as f64 + e as f64 + f + g as f64 + h as f64 + i as f64 +
+           j + flag + l as f64
+}
+
+fn main() {
+    unsafe {
+        println("{c_i8(-128 + 1)} {c_u8(254)} {c_i16(-32767)} {c_u16(65534)}")
+        println("{c_i32(-2147483647)} {c_u32(4294967294)}")
+        println("{c_i64(-9223372036854775807)} {c_u64(18446744073709551614)}")
+        println("{c_f32(1.25)} {c_f64(5.0)} {c_not(true)} {c_not(false)}")
+        println("{c_many(-1, 0.5, 2, 0.25, -3, 4.0, 5, 0.125, -6, 7.0, true, 8)}")
+        let buf: [i32; 5] = [0; 5]
+        const sum = c_fill(&mut buf as *mut i32, 5)
+        println("{buf[0]} {buf[1]} {buf[2]} {buf[3]} {buf[4]} sum {sum}")
+        println("wrong answers from the exports: {c_call_exports()}")
+    }
+}

@@ -130,7 +130,7 @@ specification; the other classes are known and accepted.
 | 10.4 Representation | none | full | `tests/run/closures/move.of` `tests/run/closures/fields.of` | subset: closures |
 | 11.1 `unsafe` blocks and functions | partial | partial | `tests/compile_fail/types/unsafe.of` `tests/run/ffi/libc.of` | planned: reading the fields of `union` types |
 | 11.2 Raw pointers | full | full | `tests/run/unsafe/ref_to_ptr.of` `tests/run/ffi/libc.of` `tests/compile_fail/types/unsafe.of` | - |
-| 11.3 Calling C | full | full | `tests/run/ffi/libc.of` `tests/run/ffi/cstring.of` `tests/panic/cstring_nul.of` | - |
+| 11.3 Calling C | full | full | `tests/run/ffi/libc.of` `tests/run/ffi/cstring.of` `tests/run/ffi/c_calls.of` `tests/run/ffi/c_layout.of` `tests/panic/cstring_nul.of` | planned: `@repr(C)` structs and enums by value, `extern "C" fn` types |
 | 11.4 Exporting functions to C | none | full | `tests/run/ffi/export_link.of` `tests/codegen/export.of` `tests/compile_fail/attributes/export_link.of` `tests/compile_fail/attributes/reserved_symbols.of` | subset: `@export` |
 | 11.5 Mutable globals | partial | partial | `tests/run/globals/app` `tests/compile_fail/types/globals.of` | subset: stage 0 has the declaration but no accesses; limit: globals of types other than numbers and `bool` |
 | 11.6 Undefined behavior | n/a | n/a | `tests/panic` `tests/run/unsafe/alignment.of` `tools/check_asan.py` `tools/check_leaks.py` | - |
@@ -140,13 +140,13 @@ specification; the other classes are known and accepted.
 | 12.4 Conditional compilation | none | full | `tests/run/attributes/cfg.of` `tests/run/attributes/cfg_windows.of` `tests/compile_fail/attributes/cfg.of` `tests/compile_fail/attributes/variant.of` | subset: `@cfg`; target: `cfg_windows` runs on Windows only |
 | 12.5 Documentation comments | partial | full | `tests/ofir_doctest` `tests/doc` `tools/check_docs.py` | subset: doc tests and `ofir doc` |
 | 12.6 Warnings | partial | partial | `tests/compile_fail/warn_unused.of` `tests/compile_fail/warn_unreachable.of` `tests/compile_fail/warn_imports` `tests/compile_fail/attributes/deprecated.of` | subset: stage 0 reports W0001, W0002 and W0004 only; planned: unused private items (W0003), needless `let` (W0005) and naming (W0007) |
-| 13.1 Primitive types | full | full | `tests/codegen/functions.of` | untested: no test checks sizes and alignments |
-| 13.2 Structs and tuples | partial | full | `tests/run/layout/field_order.of` `tests/run/layout/repr_order.of` `tests/run/attributes/layout.of` `tests/compile_fail/attributes/layout.of` | subset: `@repr(C)`, `@packed` and `@align` |
-| 13.3 Enums | full | full | `tests/run/niche` `tests/codegen/niche.of` | - |
-| 13.4 Built-in types | full | full | `tests/run/niche/niche.of` `tests/run/dyn` | - |
+| 13.1 Primitive types | full | full | `tests/codegen/functions.of` `tests/run/layout/sizes.of` | - |
+| 13.2 Structs and tuples | partial | full | `tests/run/layout/field_order.of` `tests/run/layout/repr_order.of` `tests/run/attributes/layout.of` `tests/compile_fail/attributes/layout.of` `tests/run/layout/sizes.of` `tests/run/ffi/c_layout.of` | subset: `@repr(C)`, `@packed` and `@align` |
+| 13.3 Enums | full | full | `tests/run/niche` `tests/codegen/niche.of` `tests/run/layout/sizes.of` | planned: compact enum layout |
+| 13.4 Built-in types | full | full | `tests/run/niche/niche.of` `tests/run/dyn` `tests/run/layout/sizes.of` | planned: `extern "C" fn` types |
 | 13.5 Calling convention | full | full | `tests/codegen/functions.of` `tests/codegen/noalias.of` | - |
 | 13.6 Program startup and shutdown | full | full | `runtime/src/entry.c` `tests/run/system/os.of` `tests/panic/stack_overflow.of` | - |
-| 13.7 Allocation | partial | partial | `runtime/src/mem.c` | planned: custom allocators passed to collections; untested: no test of its own |
+| 13.7 Allocation | full | full | `runtime/src/mem.c` `tests/run/attributes/align_large.of` `tests/run/arena/graph.of` | - |
 
 ## Chapters 14-17: concurrency, compile-time code, type operators, unions
 
