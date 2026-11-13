@@ -12,6 +12,7 @@
  */
 
 import air.air_print.AirPrinter
+import air.accumulate.accumulate
 import air.fold.foldChecks
 import air.interp.evalComptimes
 import air.lower.lowerProgram
@@ -423,6 +424,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     }
     for i in 0..l.out.len() {
         foldChecks(c, l.out[i])
+        accumulate(c, l.out[i])
     }
     timerReport(opts.timePasses, "lower", phaseStart)
     for i in 0..l.tests.len() {
