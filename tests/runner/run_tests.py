@@ -447,7 +447,7 @@ def check_panic(cfg: Config, path: Path, source: str) -> Result:
     m = PANIC_RE.search(source)
     if not m:
         return Result(path, "fail", "missing `// panic: message` header")
-    proc = run_process(compiler_cmd(cfg, "run", str(path)))
+    proc = run_process(compiler_cmd(cfg, "run", str(path), *test_flags(source)))
     if proc.returncode != PANIC_EXIT_STATUS:
         return Result(path, "fail", f"expected exit status {PANIC_EXIT_STATUS}\n" + describe(proc))
     if f"panic: {m.group(1)}" not in proc.stderr:
