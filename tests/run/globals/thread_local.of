@@ -1,0 +1,23 @@
+// A `@threadLocal` global (spec 11.5): accessed in `unsafe` like any
+// mutable global, with one copy per thread.
+
+@threadLocal
+let DEPTH: int = 3
+
+@threadLocal
+let SEEN: bool = false
+
+fn enter() int {
+    unsafe {
+        DEPTH += 1
+        SEEN = true
+        return DEPTH
+    }
+}
+
+fn main() {
+    println("{enter()} {enter()}")
+    unsafe {
+        println("{DEPTH} {SEEN}")
+    }
+}
