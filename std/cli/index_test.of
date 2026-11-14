@@ -1,0 +1,172 @@
+// The tests of `std.cli` (OFIR-45, ADR 0060): `ofir test std/cli/index.of` runs them.
+
+import std.testing.assert
+
+fn sample() Command {
+    let cmd = Command.new("tool", "Do things")
+    cmd.setVersion("1.2.0")
+    cmd.flag("verbose", "v", "Say more")
+    cmd.flag("quiet", "", "Say less")
+    cmd.option("output", "o", "FILE", "Where to write")
+    cmd.option("level", "l", "N", "How hard to try")
+    cmd.withDefault("3")
+    cmd.positional("input", "The file to read", true)
+    cmd.positional("extra", "Another file", false)
+    cmd.rest("ARGS", "Passed on")
+    return cmd
+}
+
+fn ok(args: &[str]) Matches {
+    match sample().parse(args) {
+        Result.Ok(m) => {
+            return m
+        }
+        Result.Err(e) => {
+            const message = e.message
+            panic("unexpected error: {message}")
+        }
+    }
+}
+
+fn err(args: &[str]) CliError {
+    match sample().parse(args) {
+        Result.Ok(_) => {
+            panic("expected an error")
+        }
+        Result.Err(e) => {
+            return e
+        }
+    }
+}
+
+@test
+fn longAndShort() {
+    const m = ok(["-vv", "--verbose", "--output=a.txt", "-o", "b.txt", "in.txt"])
+    assert(m.flag("verbose"))
+    assert(m.count("verbose") == 3)
+    assert(!m.flag("quiet"))
+    assert((m.value("output") ?? "?") == "b.txt")
+    const outputs = m.values("output")
+    assert(outputs.len() == 2 && outputs[0] == "a.txt" && outputs[1] == "b.txt")
+    assert((m.positional("input") ?? "?") == "in.txt")
+    assert((m.positional("extra") ?? "?") == "?")
+}
+
+@test
+fn valueForms() {
+    assert((ok(["x", "-ofile"]).value("output") ?? "?") == "file")
+    assert((ok(["x", "-vofile"]).value("output") ?? "?") == "file")
+    assert((ok(["x", "--output", "-"]).value("output") ?? "?") == "-")
+    assert((ok(["x", "--output="]).value("output") ?? "?") == "")
+}
+
+@test
+fn defaults() {
+    assert((ok(["x"]).value("level") ?? "?") == "3")
+    assert((ok(["x", "-l9"]).value("level") ?? "?") == "9")
+    assert((ok(["x"]).value("output") ?? "?") == "?")
+}
+
+@test
+fn positionalsAndRest() {
+    const m = ok(["a", "b", "c", "--", "-v", "-"])
+    assert((m.positional("input") ?? "?") == "a")
+    assert((m.positional("extra") ?? "?") == "b")
+    const rest = m.rest()
+    assert(rest.len() == 3 && rest[0] == "c" && rest[1] == "-v" && rest[2] == "-")
+    assert(!m.flag("verbose"))
+    assert((ok(["-"]).positional("input") ?? "?") == "-")
+}
+
+@test
+fn usageErrors() {
+    const missing = err([])
+    assert(missing.kind == ErrorKind.Usage && missing.message == "missing argument <input>")
+    assert(err(["x", "--verbos"]).message == "unknown option `--verbos`; did you mean `--verbose`?")
+    assert(err(["x", "--colour"]).message == "unknown option `--colour`")
+    assert(err(["x", "-z"]).message == "unknown option `-z`")
+    assert(err(["x", "--verbose=1"]).message == "`--verbose` takes no value")
+    assert(err(["x", "--output"]).message == "`--output` needs a value <FILE>")
+    assert(err(["x", "-o"]).message == "`-o` needs a value <FILE>")
+    let bare = Command.new("bare", "")
+    match bare.parse(["one"]) {
+        Result.Ok(_) => assert(false),
+        Result.Err(e) => assert(e.message == "unexpected argument `one`")
+    }
+}
+
+@test
+fn helpAndVersion() {
+    const h = err(["x", "--help"])
+    assert(h.kind == ErrorKind.Help)
+    assert(err(["-vh"]).kind == ErrorKind.Help)
+    const v = err(["-V"])
+    assert(v.kind == ErrorKind.Version && v.message == "tool 1.2.0\n")
+    assert(err(["--version"]).kind == ErrorKind.Version)
+    let plain = Command.new("plain", "")
+    match plain.parse(["--version"]) {
+        Result.Ok(_) => assert(false),
+        Result.Err(e) => assert(e.kind == ErrorKind.Usage)
+    }
+}
+
+@test
+fn helpText() {
+    let expected = "Do things\n\n"
+    expected.push("Usage: tool [OPTIONS] <input> [extra] [ARGS]...\n\n")
+    expected.push("Arguments:\n")
+    expected.push("  <input>              The file to read\n")
+    expected.push("  [extra]              Another file\n")
+    expected.push("  [ARGS]...            Passed on\n\n")
+    expected.push("Options:\n")
+    expected.push("  -v, --verbose        Say more\n")
+    expected.push("      --quiet          Say less\n")
+    expected.push("  -o, --output <FILE>  Where to write\n")
+    expected.push("  -l, --level <N>      How hard to try [default: 3]\n")
+    expected.push("  -h, --help           Print help\n")
+    expected.push("  -V, --version        Print version\n")
+    assert(sample().help() == expected)
+}
+
+@test
+fn completions() {
+    const bash = sample().completion(Shell.Bash)
+    assert(bash.startsWith("_tool() \{\n"))
+    assert(bash.contains("--output|-o|--level|-l) return ;;"))
+    assert(bash.contains("compgen -W \"--verbose -v --quiet --output -o"))
+    assert(bash.contains("complete -o default -F _tool tool\n"))
+    const zsh = sample().completion(Shell.Zsh)
+    assert(zsh.startsWith("#compdef tool\n"))
+    assert(zsh.contains("'--output=[Where to write]:FILE: ' \\\n"))
+    assert(zsh.contains("'-v[Say more]' \\\n"))
+    const fish = sample().completion(Shell.Fish)
+    assert(fish.contains("complete -c tool -s o -l output -r -d 'Where to write'\n"))
+    assert(fish.contains("complete -c tool -l quiet -d 'Say less'\n"))
+    let odd = Command.new("my-tool", "")
+    odd.flag("x", "", "It's [a]: b")
+    assert(odd.completion(Shell.Bash).contains("_my_tool()"))
+    assert(odd.completion(Shell.Zsh).contains("'--x[It'\\''s \\[a\\]\\: b]'"))
+    assert(odd.completion(Shell.Fish).contains("-d 'It\\'s [a]: b'"))
+}
+
+@test
+fn color() {
+    assert(paint("hi", Style.Red, true) == "\x1b[31mhi\x1b[0m")
+    assert(paint("hi", Style.Bold, false) == "hi")
+    const none: Option<str> = Option.None
+    assert(colorChoice(none, none, none, true))
+    assert(!colorChoice(none, none, none, false))
+    assert(!colorChoice(Option.Some("1"), Option.Some("1"), none, true))
+    assert(colorChoice(Option.Some(""), none, none, true))
+    assert(colorChoice(none, Option.Some("1"), Option.Some("dumb"), false))
+    assert(!colorChoice(none, Option.Some("0"), none, false))
+    assert(!colorChoice(none, none, Option.Some("dumb"), true))
+}
+
+@test
+fn editDistance() {
+    assert(distance("", "abc") == 3)
+    assert(distance("kitten", "sitting") == 3)
+    assert(distance("verbose", "verbose") == 0)
+    assert(distance("outptu", "output") == 2)
+}
