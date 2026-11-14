@@ -409,6 +409,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.28a | Formatter guarantees: `make check-fmt-corpus` (`tools/check_fmt_corpus.py`) checks that `ofir fmt` is idempotent and keeps every comment and the AST over std, compiler, tests and examples | OFIR-56 | **done** |
 | 6.28b | Language server: hover, references and rename across the open documents, with unsaved edits of a dependency package checked by the documents that use it (`tests/lsp/packages`) | OFIR-57 | **done** |
+| 6.28c | Diagnostics: machine-applicable fixes on help lines (`fix` in JSON), checked against `.fixed` files by the test runner; `make check-codes` also checks that the registry and the codes the compilers report agree | OFIR-58 | **done** |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
@@ -447,7 +448,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.28 with OFIR-58; OFIR-56 and OFIR-57 are done as 6.28a and 6.28b.
+1. Continue 6.28 with OFIR-59; OFIR-56 to OFIR-58 are done as 6.28a to 6.28c.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
