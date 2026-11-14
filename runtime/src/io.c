@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -55,6 +56,8 @@ static void flush_buffer(void) {
 static void write_buffered(const uint8_t *ptr, int64_t len) {
     if (line_buffered < 0) {
         line_buffered = isatty(1);
+        // A library has no `main` to flush at the end (ADR 0064).
+        atexit(ofir_stdout_flush);
     }
     if (used + len > BUFFER_SIZE) {
         flush_buffer();
