@@ -37,3 +37,26 @@ from pending work; proposed names there are not normative public signatures.
 - Parameters are borrowed unless marked `mut` or `move` (spec 5.3); methods
   that store or consume an argument take it with `move`.
 - Errors from the system are values of `IoError` (see [system.md](system.md)).
+
+## API contracts
+
+Every public item of the standard library documents its contract in its
+doc comment ([ADR 0062](../adr/0062-library-api-contracts.md)); `ofir doc`
+renders each tag as a section of its own.
+
+- **Ownership** is in the signature: a parameter is borrowed, `mut` or
+  `move`, and a returned reference borrows from `self` or the parameters.
+- **Panics** are for preconditions the caller breaks, such as an index out
+  of range; `@panics` names each one. A failure of the environment, such as
+  a missing file, is a `Result` or an `Option`, never a panic.
+- **Complexity**: every method of `List`, `Map` and `std.collections`
+  states its time with `@complexity`, amortized where it says so.
+- **Allocation**: `@allocates` says when a call allocates where a reader
+  would not expect it.
+- **Platform**: `@platform` names a behavior that differs between targets.
+- **Examples**: every module outside `std.core` opens with an `@example`,
+  run as a doc test by `ofir test`.
+
+`tools/check_docs.py` enforces the tags, the complexity of collections and
+the module examples. Changes to these contracts follow the versioning
+rules of [ADR 0037](../adr/0037-compatibility-policy.md).
