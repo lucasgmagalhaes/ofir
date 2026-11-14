@@ -59,8 +59,11 @@ fn cLen(s: str) uint {
   integers, floats, `bool` and raw pointers (E0804). A `@repr(C)` struct or
   enum crosses behind a raw pointer; its fields keep the C layout
   ([13.2](13-memory-layout.md)). Passing `@repr(C)` structs and enums by
-  value, and function pointers typed `extern "C" fn`, are **[planned]**
-  ([ADR 0051](../adr/0051-layout-and-abi-contracts.md)).
+  value is **[planned]** ([ADR 0051](../adr/0051-layout-and-abi-contracts.md)),
+  and so is calling a variadic C function such as `printf`: a C wrapper
+  with fixed parameters calls it instead. C unions have no Ofir type; a
+  `@repr(C)` struct of bytes with the union's size and alignment stands in
+  ([ADR 0063](../adr/0063-c-ffi-contract.md)).
 - The program links against the C library by default. Other libraries are
   linked with `@link("name")` on the `extern` block: the linker gets
   `-lname`, once per library, in the order the blocks are declared.
@@ -73,6 +76,48 @@ extern "C" {
     fn cbrt(x: f64) f64
 }
 ```
+
+### C function pointers
+
+```ofir
+extern "C" {
+    fn qsort(base: *mut u8, count: uint, size: uint, cmp: extern "C" fn(*u8, *u8) i32)
+}
+
+extern "C" fn byValue(a: *u8, b: *u8) i32 {
+    const x = unsafe { *(a as *i64) }
+    const y = unsafe { *(b as *i64) }
+    return if x < y { -1 } else if x > y { 1 } else { 0 }
+}
+```
+
+- `extern "C" fn(A, B) R` is the type of a pointer to a C function: one
+  code pointer, 8 bytes, called with the C calling convention. It crosses
+  the boundary by value, its parameter and result types follow the rule
+  above (E0804), and its parameters have no modes. It is Copy.
+- The name of an `extern "C"` function, with a body (11.4)
+  or declared in an `extern "C"` block, is a value of this type where one is
+  expected and the signatures are equal. A closure or an Ofir function is
+  not (E0823): C cannot pass it an environment.
+- Calling a C function pointer requires `unsafe` (E0803).
+- A function lives as long as the program, so C may keep a callback. A
+  callback's state goes through the C library's user-data pointer, a
+  `*mut u8` the callback casts back; the program keeps that state alive
+  while C may use it.
+
+### Ownership, errno and threads
+
+- Each side frees what it allocated. Ofir values live in the Ofir
+  allocator, which C must not `free`; memory a C library returns is held
+  as a raw pointer and given back to that library's free function. A
+  buffer C fills is a `List<T>` passed as its `asPtr()` cast to `*mut T`,
+  with its length.
+- `os.errno()` reads the calling thread's C `errno`, and `os.setErrno(n)`
+  sets it. Allocation may change `errno`, so a program reads it right
+  after the call that set it.
+- C may call an exported function from a thread Ofir did not start; its
+  thread-local state starts empty there. A panic ends the process and
+  never unwinds into C.
 
 ## 11.4 Exporting functions to C
 
