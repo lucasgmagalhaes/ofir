@@ -49,7 +49,7 @@ unions and callback lifetimes be decided explicitly.
    memory comes from the Ofir allocator (a pool over `malloc`), so C must
    not `free` it, and Ofir must not drop memory C allocated: it wraps it
    in a raw pointer and calls the C library's free function. A buffer C
-   fills is a `List<T>` passed as `asPtr()`, cast to `*mut T`, and its
+   fills is a `List<T>` passed as `asMutSlice().asMutPtr()` and its
    length; C keeps no pointer into it after the call returns unless the
    API says so.
 7. **errno.** `os.errno()` reads the calling thread's `errno` and
