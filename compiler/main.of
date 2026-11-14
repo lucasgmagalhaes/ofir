@@ -20,6 +20,7 @@ import air.lower.lowerProgram
 import air.validate.validateBody
 import base.intern.Interner
 import base.span.SourceMap
+import codegen.c_header.cHeader
 import codegen.llvm.generate
 import codegen.llvm.generateUnits
 import diag.Diagnostics
@@ -83,6 +84,7 @@ fn printUsage() {
              + "  --emit=llvm               write <output>.ll and stop\n"
              + "  --release                 optimize the program (as one LLVM module)\n"
              + "  --codegen-units=1         compile the program as one LLVM module\n"
+             + "  --lib=static, --lib=shared  build a C library and its header (ADR 0064)\n"
              + "  -j N, --jobs N            run at most N clang processes (default: the cores)\n"
              + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
              + "  --no-cache                compile every unit, without the object cache\n"
@@ -131,6 +133,8 @@ struct Options {
     timePasses: bool
     /** `--message-format=human`, `short` or `json`. */
     format: Format
+    /** `--lib=static` or `--lib=shared`: a C library instead of a program, or "". */
+    lib: str
 }
 
 fn parseOptions(args: &List<str>) Option<Options> {
@@ -138,7 +142,7 @@ fn parseOptions(args: &List<str>) Option<Options> {
                        stopAfter: "", release: false, debugInfo: false, deny: false,
                        locked: false, offline: false, oneUnit: false, jobs: 0, testJobs: 0,
                        noCache: false, timePasses: false,
-                       format: Format.Human}
+                       format: Format.Human, lib: ""}
     let hasInput = false
     let i = 2
     for i < args.len() {
@@ -187,6 +191,8 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.stopAfter = arg.sliceFrom(13).toOwned()
             } else if arg == "--time-passes" {
                 opts.timePasses = true
+            } else if arg == "--lib=static" || arg == "--lib=shared" {
+                opts.lib = arg.sliceFrom(6).toOwned()
             } else {
                 eprintln("error: unknown option `{arg}`")
                 return Option.None
@@ -207,6 +213,10 @@ fn parseOptions(args: &List<str>) Option<Options> {
     }
     if opts.command == "bench" {
         opts.release = true   // benchmarks are optimized (spec 12.3)
+    }
+    if opts.lib.len() > 0 && opts.command != "build" {
+        eprintln("error: `--lib` applies only to `build`")
+        return Option.None
     }
     return Option.Some(opts)
 }
@@ -391,6 +401,7 @@ fn build(given: move Options) int {
     let r = resolveProgram(program, front.names, front.diags, front.map, opts.emit == "names",
                            testing || benching, benching, false, "")
     timerReport(opts.timePasses, "resolve", phaseStart)
+    r.library = opts.lib.len() > 0
     if opts.emit == "names" {
         print(r.trace.out)
         return finish(r.diags, r.map, &pipeline)
@@ -470,7 +481,10 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     // Release builds are one unit: units lose inlining across modules (roadmap 6.6f).
     // So are Windows builds: MinGW's ld cannot link the thread-local globals that
     // units share as COMDATs (`linkonce_odr thread_local`, std/core/pool.of).
-    if opts.emit == "llvm" || opts.oneUnit || opts.release || onWindows() {
+    // A static library is one object, so that a linker that loads it for one
+    // symbol has the runtime's callbacks into `std` too (ADR 0064).
+    const single = opts.oneUnit || opts.lib == "static"
+    if opts.emit == "llvm" || single || opts.release || onWindows() {
         const ll = "{exe}.ll"
         files.push(ll.clone())
         phaseStart = timerStart(opts.timePasses)
@@ -535,12 +549,71 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     if opts.emit == "llvm" {
         return true
     }
-    const linked = link(&opts, &files, &cached, exe.clone(), linkLibraries(c.r, program))
+    const libraries = linkLibraries(c.r, program)
+    const linked = if opts.lib == "static" {
+        archive(&opts, &files, &cached, exe.clone())
+    } else {
+        link(&opts, &files, &cached, exe.clone(), libraries.clone())
+    }
     removeFiles(&files)
+    if linked && opts.lib.len() > 0 {   // the library's header, next to it (ADR 0064)
+        const name = inputBase(&opts)
+        const header = "{directoryOf(exe)}{name}.h"
+        if fs.writeString(header, cHeader(c, program, name, &libraries)).isErr() {
+            driverError(opts.format, "E0902", "cannot write `{header}`")
+            return false
+        }
+    }
     if linked {
         pipeline.exe = exe
     }
     return linked
+}
+
+// A static library: the objects of the units in an archive (ADR 0064).
+fn archive(opts: &Options, files: &List<str>, cached: &List<str>, lib: str) bool {
+    const clang = clangPath()
+    let objects: List<str> = []
+    let hits: List<int> = []
+    let ok = compileUnits(opts, clang, files, cached, object_cache.tempTag(lib), objects, hits)
+    if ok {
+        const _ = fs.removeFile(lib)   // `ar r` adds to an archive that exists
+        let args = ["rcs".toOwned(), lib.clone()]
+        for i in 0..objects.len() {
+            args.push(objects[i].clone())
+        }
+        const ar = archiver()
+        ok = match os.spawn(ar, args) {
+            Result.Ok(child) => finishClang(opts, ar, child, false)
+            Result.Err(_) => false
+        }
+    }
+    removeObjects(&objects, cached)
+    if !ok {
+        driverError(opts.format, "E0902", "cannot archive the objects into `{lib}`")
+    }
+    return ok
+}
+
+// The directory part of `path` with its `/`, or "": `out/` for `out/libx.a`.
+fn directoryOf(path: str) str {
+    let end = 0
+    for i in 0..path.len() {
+        if path[i] == b'/' {
+            end = i + 1
+        }
+    }
+    return path.slice(0, end).toOwned()
+}
+
+// The archiver: `OFIR_AR`, or `ar`.
+fn archiver() str {
+    if const Option.Some(name) = os.env("OFIR_AR") {
+        if name.len() > 0 {
+            return name
+        }
+    }
+    return "ar".toOwned()
 }
 
 fn removeFiles(files: &List<str>) {
@@ -557,15 +630,13 @@ fn outputPath(opts: &Options) str {
         return output.clone()
     }
     const input = opts.input.clone()
-    let slash = -1
-    for i in 0..input.len() {
-        if input[i] == b'/' {
-            slash = i
-        }
+    const base = inputBase(opts)
+    if opts.lib == "static" {
+        return "lib{base}.a"
     }
-    let base = input.sliceFrom(slash + 1).toOwned()
-    if base.len() > 3 && base.endsWith(".of") {
-        base = base.slice(0, base.len() - 3).toOwned()
+    if opts.lib == "shared" {
+        const ext = if onWindows() { "dll" } else if os.name() == "macos" { "dylib" } else { "so" }
+        return "lib{base}.{ext}"
     }
     if opts.command == "build" {
         return base
@@ -582,6 +653,22 @@ fn outputPath(opts: &Options) str {
         name.push(if plain { full.slice(i, i + 1) } else { "_" })
     }
     return "{tempDir()}/ofir-{opts.command}-{name}"
+}
+
+// The input's file name without `.of`: `lib` for `src/lib.of`.
+fn inputBase(opts: &Options) str {
+    const input = opts.input.clone()
+    let slash = -1
+    for i in 0..input.len() {
+        if input[i] == b'/' {
+            slash = i
+        }
+    }
+    let base = input.sliceFrom(slash + 1).toOwned()
+    if base.len() > 3 && base.endsWith(".of") {
+        base = base.slice(0, base.len() - 3).toOwned()
+    }
+    return base
 }
 
 // Windows sets `OS` to `Windows_NT` in every process.
@@ -724,6 +811,9 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
         args.push("-l{libraries[i]}")
     }
     args.push("-lm".toOwned())
+    if opts.lib == "shared" {
+        args.push("-shared".toOwned())
+    }
     // MinGW keeps the pthread functions in winpthreads.
     if onWindows() {
         args.push("-lpthread".toOwned())
@@ -754,6 +844,8 @@ fn clangFlags(opts: &Options) List<str> {
     }
     if onWindows() {
         args.push("--target=x86_64-w64-windows-gnu".toOwned())
+    } else if opts.lib == "shared" {
+        args.push("-fPIC".toOwned())   // a shared library's code (ADR 0064)
     }
     return args
 }

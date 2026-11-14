@@ -1300,7 +1300,7 @@ pub fn dynSlotTarget(c: mut Checker, p: Program, ty: int, id: int) Instance {
 
 fn isMainFn(c: Checker, p: Program, id: int) bool {
     const def = c.def(id)
-    if c.r.testing || def.module != 0 || def.item < 0 || def.member >= 0 {
+    if c.r.testing || c.r.library || def.module != 0 || def.item < 0 || def.member >= 0 {
         return false
     }
     const isFn = match itemOf(p, c.loc(id)).kind {
@@ -1664,7 +1664,8 @@ fn findRoots(l: mut Lowerer, c: mut Checker, p: Program, m: int) {
         match items[i].kind {
             ItemKind.Fn(decl) => {
                 const id = c.r.tables[m].fnDefs[decl.id.0]
-                const isMain = !c.r.testing && m == 0 && c.text(decl.name) == "main"
+                const harness = c.r.testing || c.r.library
+                const isMain = !harness && m == 0 && c.text(decl.name) == "main"
                 if id != 0 && decl.body.isSome() && (isMain || decl.abi.len() > 0) {
                     reach(l, c, p, id, UNIT)
                 }
@@ -1699,7 +1700,7 @@ pub fn lowerProgram(c: mut Checker, p: Program) Lowerer {
                     strPushPadded: stdFn(c, p, "std.core.str", "strPushPadded"),
                     strPushDebug: stdFn(c, p, "std.core.str", "strPushDebug"), unsupported: false,
                     missing: "", out: [], tests: [], comptimes: []}
-    if !c.r.testing {
+    if !c.r.testing && !c.r.library {   // a library has no `main` (ADR 0064)
         checkMain(c, p)
     }
     for m in 0..p.modules.len() {

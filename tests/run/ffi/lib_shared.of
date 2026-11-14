@@ -1,0 +1,19 @@
+// requires: stage1
+// requires: unix
+// flags: --lib=shared
+// consumer: lib_shared.c
+// A shared library linked with the runtime, and a C program that loads it
+// (ADR 0064). Its output is flushed when the program exits.
+
+@export("counter_next")
+extern "C" fn next(state: *mut i64) i64 {
+    unsafe {
+        *state += 1
+        return *state
+    }
+}
+
+extern "C" fn counter_report(state: *i64) {
+    const value = unsafe { *state }
+    println("counter at {value}")
+}
