@@ -3,6 +3,15 @@
  * `std.fs`: reading and writing files and directories
  * (docs/std/system.md). Paths are strings; they cannot hold a NUL byte
  * (`InvalidInput`).
+ *
+ * @example
+ * ```ofir
+ * import std.fs
+ *
+ * fs.writeString("notes.txt", "hello").expect("the directory is writable")
+ * const text = fs.readToString("notes.txt").expect("the file was just written")
+ * fs.removeFile("notes.txt").expect("the file exists")
+ * ```
  */
 
 import std.io.Buffer

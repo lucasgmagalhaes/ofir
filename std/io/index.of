@@ -2,6 +2,18 @@
  * @module
  * `std.io`: input and output errors, standard input and the standard
  * streams (docs/std/system.md).
+ *
+ * @example
+ * ```ofir
+ * import std.io
+ *
+ * let line = str.new()
+ * let input = io.stdin()
+ * const n = input.readLine(line).expect("stdin is readable")
+ * if n == 0 {
+ *     println("end of input")
+ * }
+ * ```
  */
 
 extern "C" {
