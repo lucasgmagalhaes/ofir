@@ -96,6 +96,7 @@ fn printUsage() {
              + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
              + "  --no-cache                compile every unit, without the object cache\n"
              + "  -g                        write debug info (DWARF: functions, lines)\n"
+             + "  --coverage                count executed lines for gcov (implies -g)\n"
              + "  --deny-warnings           treat warnings as errors\n"
              + "  --locked                  fail instead of changing ofir.lock (also fetch)\n"
              + "  --offline                 use only the package cache (also fetch, update)\n"
@@ -122,6 +123,8 @@ struct Options {
     release: bool
     /** `-g`. */
     debugInfo: bool
+    /** `--coverage`: gcov line counters, with `-g` and without the cache. */
+    coverage: bool
     /** `--deny-warnings`. */
     deny: bool
     /** `--locked`. */
@@ -148,8 +151,9 @@ struct Options {
 
 fn parseOptions(args: &List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
-                       stopAfter: "", release: false, debugInfo: false, deny: false,
-                       locked: false, offline: false, oneUnit: false, jobs: 0, testJobs: 0,
+                       stopAfter: "", release: false, debugInfo: false, coverage: false,
+                       deny: false, locked: false, offline: false, oneUnit: false, jobs: 0,
+                       testJobs: 0,
                        noCache: false, timePasses: false,
                        format: Format.Human, lib: "", target: ""}
     let hasInput = false
@@ -190,6 +194,10 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.release = true
             } else if arg == "-g" {
                 opts.debugInfo = true
+            } else if arg == "--coverage" {
+                opts.coverage = true
+                opts.debugInfo = true
+                opts.noCache = true   // the counters' files are named after the objects
             } else if arg == "--message-format=short" {
                 opts.format = Format.Short
             } else if arg == "--message-format=json" {
@@ -883,6 +891,9 @@ fn clangFlags(opts: &Options) List<str> {
     let args = [level.toOwned(), "-Wno-override-module".toOwned()]
     if opts.debugInfo {
         args.push("-g".toOwned())
+    }
+    if opts.coverage {
+        args.push("--coverage".toOwned())   // gcov counters, mapped by the line table
     }
     if opts.target.len() > 0 {
         args.push("--target={opts.target}")
