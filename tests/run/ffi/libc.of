@@ -26,7 +26,7 @@ fn main() {
         (*pairs).b += 40
         const second = pairs.add(1)
         (*second).a = 7
-        println("{(*pairs).a} {(*pairs).b} {(*second).a} {pairs == pairs} {p as u64 != 0}")
+        println("{(*pairs).a} {(*pairs).b} {(*second).a} {pairs.add(0) == pairs} {p as u64 != 0}")
         free(p)
         free(pairs as *mut u8)
         println("{abs(-5)} {twice(21)}")
