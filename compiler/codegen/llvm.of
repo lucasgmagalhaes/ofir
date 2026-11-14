@@ -2274,6 +2274,9 @@ fn genBody(g: mut Gen, c: mut Checker, p: Program, body: &AirBody) {
         g.declare = "declare {conv}{g.out.sliceFrom(sigAt)} nounwind\n"
     }
     g.out.push(" nounwind")
+    if g.debug {   // unwind tables: gdb walks the stack on Windows through them
+        g.out.push(" uwtable")
+    }
     if !closure && !isGlue(body.def) {
         g.out.push(hints(c, p, body.def))
     }
