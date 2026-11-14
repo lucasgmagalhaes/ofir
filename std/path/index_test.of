@@ -1,0 +1,50 @@
+// The tests of `std.path` (OFIR-43, ADR 0058): `ofir test std/path/index.of` runs them.
+
+import std.os
+import std.testing.assert
+
+@test
+fn parts() {
+    assert(fileName("a/b/c.txt") == "c.txt" && fileName("c.txt") == "c.txt")
+    assert(fileName("a/b/") == "b" && fileName("/") == "" && fileName("") == "")
+    assert(parent("/home/ana/x") == "/home/ana" && parent("a//b") == "a")
+    assert(parent("/a") == "/" && parent("a") == "" && parent("/") == "")
+    assert(parent("a/b/") == "a")
+    assert(extension("x.tar.gz") == "gz" && stem("x.tar.gz") == "x.tar")
+    assert(extension(".bashrc") == "" && stem(".bashrc") == ".bashrc")
+    assert(extension("a.") == "" && stem("a.") == "a")
+    assert(extension("..") == "" && stem("dir.d/file") == "file")
+    assert(hasExtension("main.of", "of") && !hasExtension("main.of", "OF"))
+}
+
+@test
+fn absolute() {
+    assert(isAbsolute("/etc") && !isAbsolute("etc") && !isAbsolute(""))
+    if os.name() == "windows" {
+        assert(isAbsolute("C:\\x") && isAbsolute("c:/x") && !isAbsolute("C:x"))
+        assert(fileName("C:\\a\\b.txt") == "b.txt" && parent("C:\\a") == "C:\\")
+    } else {
+        assert(!isAbsolute("C:\\x") && fileName("a\\b") == "a\\b")
+    }
+}
+
+@test
+fn building() {
+    assert(join("a", "b") == "a/b" && join("a/", "b") == "a/b")
+    assert(join("", "b") == "b" && join("a", "") == "a" && join("a", "/b") == "/b")
+    assert(withExtension("src/main.of", "ll") == "src/main.ll")
+    assert(withExtension("x.tar.gz", "") == "x.tar" && withExtension("README", "md") == "README.md")
+    assert(withExtension("dir/", "x") == "dir.x" && withExtension("/", "x") == "/")
+    const parts = components("/usr//lib/./x/")
+    assert(parts.len() == 4 && parts[0] == "/" && parts[1] == "usr")
+    assert(parts[2] == "lib" && parts[3] == "x")
+    assert(components("").len() == 0 && components("a/../b").len() == 3)
+}
+
+@test
+fn normalizing() {
+    assert(normalize("a/./b/../c") == "a/c" && normalize("/a/b/../../../c/") == "/c")
+    assert(normalize("../a/..") == ".." && normalize("../../x") == "../../x")
+    assert(normalize("") == "." && normalize("./") == "." && normalize("/") == "/")
+    assert(normalize("a//b") == "a/b" && normalize("/..") == "/")
+}
