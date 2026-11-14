@@ -844,6 +844,8 @@ fn clangFlags(opts: &Options) List<str> {
     }
     if onWindows() {
         args.push("--target=x86_64-w64-windows-gnu".toOwned())
+    } else if opts.lib == "shared" {
+        args.push("-fPIC".toOwned())   // a shared library's code (ADR 0064)
     }
     return args
 }
@@ -856,9 +858,6 @@ fn codegenFlags(opts: &Options) List<str> {
     if !opts.release {
         args.push("-mllvm".toOwned())
         args.push("-pre-RA-sched=linearize".toOwned())
-    }
-    if opts.lib == "shared" && !onWindows() {   // a shared library's code (ADR 0064)
-        args.push("-fPIC".toOwned())
     }
     return args
 }
