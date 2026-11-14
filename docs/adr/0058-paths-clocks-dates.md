@@ -60,10 +60,10 @@ Three things are missing:
      Monday, as in ISO 8601).
    - Leap seconds are not represented, as in Unix time. `parse` rejects a
      second of 60.
-4. **`std.fs` gains `append`, `appendString`, `copy` and `removeDir`.**
+4. **`std.fs` gains `append`, `appendString`, `copyFile` and `removeDir`.**
    - `append` opens the file with `O_APPEND`, creating it if it is
      missing.
-   - `copy` reads the source and writes the destination, which is
+   - `copyFile` reads the source and writes the destination, which is
      replaced if it exists. It copies the contents only, not the
      permissions or times.
    - `removeDir` removes an empty directory and fails on any other.
