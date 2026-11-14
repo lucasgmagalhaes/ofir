@@ -84,6 +84,8 @@ class Config:
     bless: bool
     tests_dir: Path
     verbose: bool
+    # `--target`: run programs built for another target (ADR 0066).
+    target: str = ""
     tmp: Path = field(default_factory=lambda: Path(tempfile.mkdtemp(prefix="ofir-tests-")))
 
 
@@ -548,6 +550,10 @@ def check_run(cfg: Config, path: Path, source: str) -> Result:
     if path.name == "main.of" and template.exists():
         write_lock(cfg, template)
     statuses = expected_status(source)
+    if cfg.target:
+        if statuses is not None or C_FIXTURE_RE.search(source):
+            return Result(path, "skip", "host only")
+        return run_target(cfg, path, source)
     if statuses is not None:
         return run_built(cfg, path, source, statuses)
     env, error = build_c_fixtures(cfg, path, source)
@@ -556,6 +562,16 @@ def check_run(cfg: Config, path: Path, source: str) -> Result:
     # Programs that run are warning-free: a warning fails the test.
     proc = run_process(compiler_cmd(cfg, "run", str(path), "--deny-warnings",
                                     *test_flags(source)), env=env)
+    if proc.returncode != 0:
+        return Result(path, "fail", describe(proc))
+    return compare_output(cfg, path, proc.stdout, ".out")
+
+
+def run_target(cfg: Config, path: Path, source: str) -> Result:
+    """A run test built with `--target` and run under OFIR_RUNNER."""
+    proc = run_process(compiler_cmd(cfg, "run", str(path), "--deny-warnings",
+                                    f"--target={cfg.target}", *test_flags(source)),
+                       env=test_env(cfg, path))
     if proc.returncode != 0:
         return Result(path, "fail", describe(proc))
     return compare_output(cfg, path, proc.stdout, ".out")
@@ -689,6 +705,8 @@ def run_test(cfg: Config, suite: str, path: Path) -> Result:
             return Result(path, "skip", "requires unix")
         if requirement == "windows" and os.name != "nt":
             return Result(path, "skip", "requires windows")
+        if requirement == "host" and cfg.target:
+            return Result(path, "skip", "requires host")
     if suite == "lex":
         return check_emit(cfg, path, "tokens", ".tokens")
     if suite == "parse":
@@ -746,10 +764,13 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--bless", action="store_true", help="overwrite expected output files")
     parser.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 1)
     parser.add_argument("-v", "--verbose", action="store_true", help="also list passing tests")
+    parser.add_argument("--target", default="",
+                        help="build run tests for this triple and run them under OFIR_RUNNER")
     args = parser.parse_args(argv)
 
     stage = args.stage if args.stage is not None else (0 if "stage0" in args.compiler else 1)
-    cfg = Config(args.compiler, stage, args.bless, args.tests_dir.resolve(), args.verbose)
+    cfg = Config(args.compiler, stage, args.bless, args.tests_dir.resolve(), args.verbose,
+                 args.target)
 
     tests = discover(cfg.tests_dir, args.filters)
     if not tests:
