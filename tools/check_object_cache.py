@@ -112,7 +112,9 @@ def main() -> None:
 
         report = build(compiler, env, exe, "--time-passes")
         check(objects(home) == first, "a second build reuses every object")
-        check(all(f"time: {phase} " in report for phase in ("hash", "objects", "link", "total")),
+        # A one-unit build hashes its module with the write, not as a phase of its own.
+        phases = ("objects", "link", "total") if ONE_UNIT else ("hash", "objects", "link", "total")
+        check(all(f"time: {phase} " in report for phase in phases),
               "--time-passes reports the compiler and cache phases")
 
         bad = next(iter(first))
