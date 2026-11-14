@@ -9,6 +9,7 @@
  * cycles, without borrowing it. There is no per-value free: `clear` drops
  * every value at once and keeps the storage for the next use.
  *
+ * @example
  * ```ofir
  * import std.arena.Arena
  * import std.testing.assert

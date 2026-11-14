@@ -2,6 +2,18 @@
  * @module
  * `SortedMap<K, V>`: a map that keeps its keys in order (ADR 0055,
  * docs/std/collections.md).
+ *
+ * @example
+ * ```ofir
+ * import std.collections.sorted.SortedMap
+ * import std.testing.assert
+ *
+ * let m: SortedMap<int, str> = SortedMap.new()
+ * m.insert(2, "b")
+ * m.insert(1, "a")
+ * assert(m.keys()[0] == 1)
+ * assert(m.contains(2))
+ * ```
  */
 
 import std.mem
