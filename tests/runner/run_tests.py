@@ -529,6 +529,8 @@ def run_consumer(cfg: Config, path: Path, source: str, consumer: str) -> Result:
     exe = out / "consumer"
     args = [clang, "-std=c11", "-Wall", "-Werror", "-I", str(out), str(path.parent / consumer),
             str(lib)]
+    if os.name == "nt":   # the MinGW libraries, as the compiler links them
+        args.append("--target=x86_64-w64-windows-gnu")
     if not shared:
         args += [runtime, "-lm", "-lpthread"]
     proc = run_process(args + ["-o", str(exe)])
