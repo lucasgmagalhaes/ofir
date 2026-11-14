@@ -393,6 +393,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.26c | Text by level (ADR 0056): `str` gains `rfind`, `splitOnce`, `stripPrefix`/`stripSuffix`, `asBytes`, `isCharBoundary`, `charCount`, `charIndices`, `isAscii` and `eqIgnoreAsciiCase`; `std.strings.utf8` (`isScalar`, `charLen`, `encode`, `decode`, `lossy`) and `std.strings.ascii` (classes, case, `digitValue`); `Builder.withCapacity`; graphemes, normalization, regex and locale stay separate decisions | OFIR-41 | **done** |
 | 6.26d | Math, floats and random (ADR 0057): libm-backed methods on `f32` and `f64` (trigonometry, exponents, logarithms, `powf`/`powi`, `cbrt`, `hypot`, `round`, `trunc`, `mulAdd`, sign and finiteness tests); `std.math` (constants, `approxEq`, compensated `sum`, `gcd`, `lcm`, `isqrt`); `std.random` (seeded xoshiro256**, unbiased `nextInt`, `nextF64`, `normal`, `exponential`, `shuffle`, `choose`), kept apart from API-09 entropy; boundary tests for NaN, infinities and -0.0 | OFIR-42 | **done** |
 | 6.26e | System, paths, clocks and dates (ADR 0058): `std.path` (parts, `join`, `withExtension`, `components`, lexical `normalize`, Windows drives and `\`); `time.unixNanos` on the wall clock; `std.time.date` (UTC `DateTime`, Unix time conversions, `weekday`, RFC 3339 `format` and `parse`); `fs.append`, `appendString`, `copyFile` and `removeDir`; local time, time zones and streaming readers stay open | OFIR-43 | **done** |
+| 6.26f | Data formats (ADR 0059): `std.encoding` (strict hex, base64 and URL base64, little- and big-endian integer reads and writes), `std.checksum` (CRC-32 and Adler-32 with `Update` forms), `std.json` (strict RFC 8259 `Value` parser with a depth limit, `stringify` and `pretty`) and `std.compress` (`inflate`, `zlibDecompress`, `gunzip` with an output limit); truncation and corruption tests; compression and streaming wait for API-10 | OFIR-44 | **done** |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
@@ -433,7 +434,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.26 with OFIR-44; OFIR-39 to OFIR-43 are 6.26a to 6.26e.
+1. Continue 6.26 with OFIR-45; OFIR-39 to OFIR-44 are 6.26a to 6.26f.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
