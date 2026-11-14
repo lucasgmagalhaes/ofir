@@ -1,0 +1,9 @@
+/**
+ * The area of a square.
+ *
+ * @param side the length of a side
+ * @returns its area
+ */
+pub fn area(side: int) int {
+    return side * side
+}

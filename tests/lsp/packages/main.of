@@ -1,0 +1,7 @@
+// A project whose dependency the editor changes before saving it (OFIR-57).
+import shapes.area
+
+fn main() {
+    const side = 3
+    println("{area(side)} {area(side + 1)}")
+}
