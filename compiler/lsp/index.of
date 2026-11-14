@@ -13,16 +13,20 @@
  * resolver and the type checker recorded. Completion checks the document
  * with a probe, a name no program declares, inserted at the position, and
  * offers the names visible where the probe is reported unknown, with the
- * keywords outside a member access (sema/complete.of).
+ * keywords outside a member access (sema/complete.of). Hover shows the
+ * declaration of the name and its documentation; references and rename
+ * check every open document and gather the uses of the same declaration.
  */
 
 import base.span.FileId
 import base.span.SourceFile
 import base.span.SourceMap
+import base.span.Span
 import diag.Diagnostic
 import diag.NoteKind
 import diag.Severity
 import diag.jsonString
+import lsp.check.Checked
 import lsp.check.checkFile
 import lsp.json.JsonDoc
 import lsp.json.parseJson
@@ -95,6 +99,28 @@ struct Server {
             const line = doc.int(doc.at(["params", "position", "line"]))
             const character = doc.int(doc.at(["params", "position", "character"]))
             send(response(id, self.completion(uri, line, character)))
+        } else if method == "textDocument/hover" {
+            const line = doc.int(doc.at(["params", "position", "line"]))
+            const character = doc.int(doc.at(["params", "position", "character"]))
+            send(response(id, self.hover(uri, line, character)))
+        } else if method == "textDocument/references" {
+            const line = doc.int(doc.at(["params", "position", "line"]))
+            const character = doc.int(doc.at(["params", "position", "character"]))
+            const withDecl = doc.bool(doc.at(["params", "context", "includeDeclaration"]))
+            const found = self.references(uri, line, character, withDecl)
+            let items = ""
+            for i in 0..found.len() {
+                if i > 0 {
+                    items.push(",")
+                }
+                items.push(found[i].json())
+            }
+            send(response(id, "[{items}]"))
+        } else if method == "textDocument/rename" {
+            const line = doc.int(doc.at(["params", "position", "line"]))
+            const character = doc.int(doc.at(["params", "position", "character"]))
+            const newName = doc.text(doc.at(["params", "newName"]))
+            send(self.rename(id, uri, line, character, newName))
         } else if idNode >= 0 && doc.field(0, "method") >= 0 {
             send(errorResponse(id, -32601, "`{method}` is not supported"))
         }
@@ -120,37 +146,142 @@ struct Server {
     fn definition(self, uri: str, line: int, character: int) str {
         const path = uriToPath(uri)
         const checked = checkFile(path, &self.docs, "")
-        let root = -1
-        for f in 0..checked.map.len() {
-            if root < 0 && checked.map.file(FileId(f)).path == path {
-                root = f
-            }
-        }
-        if root < 0 {
-            return "null"
-        }
-        const offset = offsetOf(checked.map.file(FileId(root)).text, line, character)
-        let best = -1
-        for i in 0..checked.links.len() {
-            const name = checked.links[i].name
-            const inside = name.file.0 == root && name.start <= offset && offset <= name.end
-            if inside && (best < 0 || name.len() < checked.links[best].name.len()) {
-                best = i
-            }
-        }
+        const best = linkAt(&checked, path, line, character)
         if best < 0 {
             return "null"
         }
         const decl = checked.links[best].decl
         const file = checked.map.file(decl.file)
-        const start = position(file, decl.start)
-        const end = position(file, decl.end)
-        const target = match self.uris.get(file.path) {
+        return location(self.uriOf(file.path), file, decl.start, decl.end)
+    }
+
+    // The URI of a file: the client's own for an open document.
+    fn uriOf(self, path: str) str {
+        return match self.uris.get(path) {
             Option.Some(known) => known.clone()
-            Option.None => pathToUri(file.path)
+            Option.None => pathToUri(path)
         }
-        const range = "\{\"start\":{start},\"end\":{end}\}"
-        return "\{\"uri\":{jsonString(target)},\"range\":{range}\}"
+    }
+
+    // The declaration of the name at a position and its documentation, as a
+    // Hover in Markdown, or `null`.
+    fn hover(self, uri: str, line: int, character: int) str {
+        const path = uriToPath(uri)
+        const checked = checkFile(path, &self.docs, "")
+        const best = linkAt(&checked, path, line, character)
+        if best < 0 {
+            return "null"
+        }
+        const link = &checked.links[best]
+        const decl = link.decl
+        const file = checked.map.file(decl.file)
+        const here = checked.map.file(link.name.file)
+        const offset = offsetOf(here.text, line, character)
+        const word = wordAt(here.text, offset)
+        let from = offset
+        for from > 0 && isNameByte(here.text[from - 1]) {
+            from -= 1
+        }
+        let value = ""
+        if decl.len() == 0 {
+            value = "```ofir\nimport {word}\n```"
+        } else {
+            value = "```ofir\n{signature(file, decl, word)}\n```"
+            const docs = docComment(file, file.lineCol(decl.start).line)
+            if docs.len() > 0 {
+                value.push("\n\n")
+                value.push(docs)
+            }
+        }
+        const contents = "\{\"kind\":\"markdown\",\"value\":{jsonString(value)}\}"
+        return "\{\"contents\":{contents},\"range\":{range(here, from, from + word.len())}\}"
+    }
+
+    // The uses, in the open documents, of the declaration of the name at a
+    // position, and the declaration when `withDecl`: sorted, without
+    // duplicates.
+    fn references(self, uri: str, line: int, character: int, withDecl: bool) List<Place> {
+        const path = uriToPath(uri)
+        const checked = checkFile(path, &self.docs, "")
+        const best = linkAt(&checked, path, line, character)
+        if best < 0 {
+            return []
+        }
+        const link = &checked.links[best]
+        const here = checked.map.file(link.name.file)
+        const word = wordAt(here.text, offsetOf(here.text, line, character))
+        const decl = link.decl
+        const declFile = checked.map.file(decl.file)
+        const declPath = declFile.path.clone()
+        let found: List<Place> = []
+        if withDecl {
+            const at = findWord(declFile.text, decl.start, decl.end, word, false)
+            if at >= 0 {
+                const place = Place{uri: self.uriOf(declPath), path: declPath.clone(), start: at,
+                                    end: at + word.len(),
+                                    range: range(declFile, at, at + word.len())}
+                addPlace(&mut found, place)
+            }
+        }
+        let roots: List<str> = [path.clone()]
+        for open in self.docs.keys() {
+            if open != path {
+                roots.push(open.clone())
+            }
+        }
+        for r in 0..roots.len() {
+            const other = checkFile(roots[r], &self.docs, "")
+            for i in 0..other.links.len() {
+                const l = &other.links[i]
+                const target = other.map.file(l.decl.file)
+                if target.path == declPath && l.decl.start == decl.start &&
+                        l.decl.end == decl.end {
+                    const file = other.map.file(l.name.file)
+                    const at = findWord(file.text, l.name.start, l.name.end, word, true)
+                    if at >= 0 {
+                        const place = Place{uri: self.uriOf(file.path), path: file.path.clone(),
+                                            start: at, end: at + word.len(),
+                                            range: range(file, at, at + word.len())}
+                        addPlace(&mut found, place)
+                    }
+                }
+            }
+        }
+        return found
+    }
+
+    // The response to a rename: a WorkspaceEdit that renames the
+    // declaration of the name at a position and its uses in the open
+    // documents, or an error.
+    fn rename(self, id: str, uri: str, line: int, character: int, newName: str) str {
+        if !isName(newName) {
+            return errorResponse(id, -32602, "`{newName}` is not a name")
+        }
+        const found = self.references(uri, line, character, true)
+        if found.len() == 0 {
+            return errorResponse(id, -32803, "there is no name to rename here")
+        }
+        const path = uriToPath(uri)
+        const checked = checkFile(path, &self.docs, "")
+        const best = linkAt(&checked, path, line, character)
+        const declPath = checked.map.file(checked.links[best].decl.file).path.clone()
+        if self.docs.get(declPath).isNone() || checked.links[best].decl.len() == 0 {
+            return errorResponse(id, -32803, "open the file that declares the name to rename it")
+        }
+        let changes = ""
+        for i in 0..found.len() {
+            if i == 0 || found[i].uri != found[i - 1].uri {
+                if i > 0 {
+                    changes.push("],")
+                }
+                changes.push("{jsonString(found[i].uri)}:[")
+            } else {
+                changes.push(",")
+            }
+            changes.push("\{\"range\":{found[i].range},\"newText\":{jsonString(newName)}\}")
+        }
+        changes.push("]")
+        return response(id, "\{\"changes\":\{{changes}\}\}")
     }
 
     // The completions at a position of an open document: a CompletionList.
@@ -209,6 +340,192 @@ struct Server {
     }
 }
 
+// A place of a name in a file, as references and rename give it.
+struct Place {
+    path: str
+    start: int
+    end: int
+    uri: str
+    range: str
+
+    fn json(self) str {
+        return "\{\"uri\":{jsonString(self.uri)},\"range\":{self.range}\}"
+    }
+}
+
+// Adds a place to a list sorted by path and offset, unless it is there.
+fn addPlace(places: &mut List<Place>, place: move Place) {
+    let i = 0
+    for i < places.len() && (places[i].path < place.path ||
+            (places[i].path == place.path && places[i].start < place.start)) {
+        i += 1
+    }
+    if i < places.len() && places[i].path == place.path && places[i].start == place.start {
+        return
+    }
+    places.insert(i, place)
+}
+
+// The link whose name holds a position of the document at `path`, the
+// innermost, or -1.
+fn linkAt(checked: &Checked, path: str, line: int, character: int) int {
+    let root = -1
+    for f in 0..checked.map.len() {
+        if root < 0 && checked.map.file(FileId(f)).path == path {
+            root = f
+        }
+    }
+    if root < 0 {
+        return -1
+    }
+    const offset = offsetOf(checked.map.file(FileId(root)).text, line, character)
+    let best = -1
+    for i in 0..checked.links.len() {
+        const name = checked.links[i].name
+        const inside = name.file.0 == root && name.start <= offset && offset <= name.end
+        if inside && (best < 0 || name.len() < checked.links[best].name.len()) {
+            best = i
+        }
+    }
+    if best >= 0 {
+        return best
+    }
+    // On the name of a declaration: a use of it stands for it.
+    const text = &checked.map.file(FileId(root)).text
+    let start = offset
+    for start > 0 && isNameByte(text[start - 1]) {
+        start -= 1
+    }
+    const word = wordAt(text, offset)
+    for i in 0..checked.links.len() {
+        const decl = checked.links[i].decl
+        const inside = decl.file.0 == root && decl.start <= offset && offset <= decl.end
+        if inside && findWord(text, decl.start, decl.end, word, false) == start &&
+                (best < 0 || decl.len() < checked.links[best].decl.len()) {
+            best = i
+        }
+    }
+    return best
+}
+
+// A range of a file as an LSP Range.
+fn range(file: &SourceFile, start: int, end: int) str {
+    return "\{\"start\":{position(file, start)},\"end\":{position(file, end)}\}"
+}
+
+// A range of a file as an LSP Location.
+fn location(uri: str, file: &SourceFile, start: int, end: int) str {
+    return "\{\"uri\":{jsonString(uri)},\"range\":{range(file, start, end)}\}"
+}
+
+// The name around an offset of a text, or `""`.
+fn wordAt(text: str, offset: int) str {
+    let start = offset
+    for start > 0 && isNameByte(text[start - 1]) {
+        start -= 1
+    }
+    let end = offset
+    for end < text.len() && isNameByte(text[end]) {
+        end += 1
+    }
+    return text.slice(start, end).toOwned()
+}
+
+// The offset of `word` as a whole name in `text[start..end]`, the first or
+// the last, or -1.
+fn findWord(text: str, start: int, end: int, word: str, last: bool) int {
+    let found = -1
+    if word.len() == 0 {
+        return -1
+    }
+    for i in start..end - word.len() + 1 {
+        const before = i > 0 && isNameByte(text[i - 1])
+        const after = i + word.len() < text.len() && isNameByte(text[i + word.len()])
+        if !before && !after && text.slice(i, i + word.len()) == word {
+            if !last {
+                return i
+            }
+            found = i
+        }
+    }
+    return found
+}
+
+// What hover shows of a declaration: its first line without the body, or
+// the line it is on when the declaration is only the name (a local).
+fn signature(file: &SourceFile, decl: Span, word: str) str {
+    const line = file.lineCol(decl.start).line
+    const first = file.lineText(line)
+    let text = first.trim()
+    if file.lineCol(decl.end).line == line && file.text.slice(decl.start, decl.end) != word {
+        text = file.text.slice(decl.start, decl.end)
+    }
+    if text.endsWith(" \{") {
+        text = text.slice(0, text.len() - 2)
+    }
+    return text.toOwned()
+}
+
+// The text of the `/** ... */` comment that ends on the line before `line`,
+// without its markers, or `""`.
+fn docComment(file: &SourceFile, line: int) str {
+    let first = line - 1
+    for first >= 1 && file.lineText(first).trim().startsWith("@") {
+        first -= 1   // attributes come between the comment and the declaration
+    }
+    if first < 1 || !file.lineText(first).trim().endsWith("*/") {
+        return ""
+    }
+    let top = first
+    for top > 1 && !file.lineText(top).trim().startsWith("/**") {
+        top -= 1
+    }
+    if !file.lineText(top).trim().startsWith("/**") {
+        return ""
+    }
+    let out = ""
+    for l in top..first + 1 {
+        let text = file.lineText(l).trim()
+        if text.startsWith("/**") {
+            text = text.slice(3, text.len()).trim()
+        }
+        if text.endsWith("*/") {
+            text = text.slice(0, text.len() - 2).trim()
+        }
+        if text.startsWith("* ") {
+            text = text.slice(2, text.len())
+        } else if text == "*" {
+            text = ""
+        }
+        if text.len() > 0 || out.len() > 0 {
+            if out.len() > 0 {
+                out.push("\n")
+            }
+            out.push(text)
+        }
+    }
+    return out.trim().toOwned()
+}
+
+// Whether a text is a name that is not a keyword.
+fn isName(text: str) bool {
+    if text.len() == 0 || (text[0] >= b'0' && text[0] <= b'9') {
+        return false
+    }
+    for i in 0..text.len() {
+        if !isNameByte(text[i]) {
+            return false
+        }
+    }
+    const words = keywords()
+    for i in 0..words.len() {
+        if words[i] == text {
+            return false
+        }
+    }
+    return true
+}
+
 // The name inserted where a completion is asked for: no program declares it.
 const PROBE: str = "ofirCompletionProbe__"
 
@@ -246,8 +563,9 @@ fn capabilities() str {
     const sync = "\"textDocumentSync\":\{\"openClose\":true,\"change\":1\}"
     const definition = "\"definitionProvider\":true"
     const completion = "\"completionProvider\":\{\"triggerCharacters\":[\".\"]\}"
+    const more = "\"hoverProvider\":true,\"referencesProvider\":true,\"renameProvider\":true"
     const info = "\"serverInfo\":\{\"name\":\"ofir\"\}"
-    return "\{\"capabilities\":\{{sync},{definition},{completion}\},{info}\}"
+    return "\{\"capabilities\":\{{sync},{definition},{completion},{more}\},{info}\}"
 }
 
 fn response(id: str, result: str) str {
