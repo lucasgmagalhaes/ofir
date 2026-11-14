@@ -80,6 +80,7 @@ starts with the same word as the record's status line.
 | [0067](0067-per-os-behavior.md) | What std and the tools do on each operating system | Accepted |
 | [0068](0068-webassembly.md) | No WebAssembly target in version 1 | Accepted |
 | [0069](0069-freestanding.md) | No freestanding or embedded target in version 1 | Accepted |
+| [0070](0070-language-adapters.md) | Other languages reach Ofir through the C boundary | Accepted |
 
 ## Template
 
