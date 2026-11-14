@@ -6,6 +6,7 @@
  */
 
 import base.span.FileId
+import base.span.SourceFile
 import base.span.SourceMap
 import base.span.Span
 
@@ -49,6 +50,10 @@ pub struct Note {
     pub kind: NoteKind
     /** Its text. */
     pub message: str
+    /** A machine-applicable fix: the name in the span to replace, or empty. */
+    pub from: str
+    /** What replaces `from`. */
+    pub to: str
 }
 
 /**
@@ -147,6 +152,25 @@ pub struct Diagnostics {
      */
     pub fn help(mut self, message: move str) {
         self.addNote(NoteKind.Help, message)
+    }
+
+    /**
+     * Adds a help line with a machine-applicable fix to the diagnostic
+     * recorded last: the first `from` in its span, as a whole name, becomes
+     * `to` (`fix` in JSON).
+     *
+     * @param message the fix it suggests
+     * @param from the name to replace
+     * @param to its replacement
+     */
+    pub fn suggest(mut self, message: move str, from: str, to: str) {
+        const last = self.items.len() - 1
+        const before = if last >= 0 { self.items[last].notes.len() } else { 0 }
+        self.addNote(NoteKind.Help, message)
+        if last >= 0 && self.items[last].notes.len() > before {
+            self.items[last].notes[before].from = from.toOwned()
+            self.items[last].notes[before].to = to.toOwned()
+        }
     }
 
     /**
@@ -257,7 +281,7 @@ pub struct Diagnostics {
         if last < 0 || self.silenced || self.items[last].notes.len() == MAX_NOTES {
             return
         }
-        self.items[last].notes.push(Note{kind, message})
+        self.items[last].notes.push(Note{kind, message, from: "", to: ""})
     }
 
     // The indices of the diagnostics by (file, start, code), stable: an
@@ -376,10 +400,58 @@ fn jsonLine(d: &Diagnostic, map: SourceMap) str {
     for i in 0..d.notes.len() {
         const kind = if d.notes[i].kind == NoteKind.Help { "help" } else { "note" }
         const separator = if i > 0 { "," } else { "" }
-        out.push("{separator}\{\"kind\":\"{kind}\",\"message\":{jsonString(d.notes[i].message)}\}")
+        out.push("{separator}\{\"kind\":\"{kind}\",\"message\":{jsonString(d.notes[i].message)}")
+        out.push(jsonFix(d, &d.notes[i], file))
+        out.push("\}")
     }
     out.push("]\}\n")
     return out
+}
+
+// The `fix` of a help line, with a leading comma: where the first `from`
+// in the span, as a whole name, is and what replaces it. Empty without one.
+fn jsonFix(d: &Diagnostic, note: &Note, file: &SourceFile) str {
+    if note.from.len() == 0 {
+        return ""
+    }
+    let at = nameIn(&file.text, d.span.start, d.span.end, &note.from, false)
+    if at < 0 {   // a field value's span: the name is before it, on its line
+        const lineStart = d.span.start - file.lineCol(d.span.start).column + 1
+        at = nameIn(&file.text, lineStart, d.span.start, &note.from, true)
+    }
+    if at < 0 {
+        return ""
+    }
+    const start = file.lineCol(at)
+    const end = file.lineCol(at + note.from.len())
+    let out = ",\"fix\":\{\"line\":{start.line},\"column\":{start.column},"
+    out.push("\"endLine\":{end.line},\"endColumn\":{end.column},")
+    out.push("\"text\":{jsonString(note.to)}\}")
+    return out
+}
+
+// The offset of the first (or the last) `name` in `text[start..end]` that is
+// not part of a longer name, or -1.
+fn nameIn(text: &str, start: int, end: int, name: &str, last: bool) int {
+    let found = -1
+    for at in start..end - name.len() + 1 {
+        if text.sliceFrom(at).startsWith(name) {
+            const before = at == 0 || !isNameByte(text[at - 1])
+            const after = at + name.len() >= text.len() || !isNameByte(text[at + name.len()])
+            if before && after {
+                found = at
+                if !last {
+                    return found
+                }
+            }
+        }
+    }
+    return found
+}
+
+fn isNameByte(b: u8) bool {
+    return b == b'_' || b >= b'0' && b <= b'9' || b >= b'a' && b <= b'z' ||
+        b >= b'A' && b <= b'Z'
 }
 
 // The message, the location, the line and a caret line under the span.
