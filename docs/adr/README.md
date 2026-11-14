@@ -83,6 +83,7 @@ starts with the same word as the record's status line.
 | [0070](0070-language-adapters.md) | Other languages reach Ofir through the C boundary | Accepted |
 | [0071](0071-lint-levels.md) | Lint categories with levels per item, package and command | Accepted |
 | [0072](0072-debug-adapters.md) | Editors debug Ofir through the existing DAP adapters | Accepted |
+| [0073](0073-coverage-and-profiling.md) | Coverage through gcov counters and profiling through DWARF | Accepted |
 
 ## Template
 

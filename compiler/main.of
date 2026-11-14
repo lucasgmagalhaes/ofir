@@ -96,6 +96,7 @@ fn printUsage() {
              + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
              + "  --no-cache                compile every unit, without the object cache\n"
              + "  -g                        write debug info (DWARF: functions, lines)\n"
+             + "  --coverage                count executed lines for gcov (implies -g)\n"
              + "  --deny-warnings           treat warnings as errors\n"
              + "  --locked                  fail instead of changing ofir.lock (also fetch)\n"
              + "  --offline                 use only the package cache (also fetch, update)\n"
@@ -122,6 +123,8 @@ struct Options {
     release: bool
     /** `-g`. */
     debugInfo: bool
+    /** `--coverage`: gcov line counters, with `-g` and without the cache. */
+    coverage: bool
     /** `--deny-warnings`. */
     deny: bool
     /** `--locked`. */
@@ -148,8 +151,9 @@ struct Options {
 
 fn parseOptions(args: &List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
-                       stopAfter: "", release: false, debugInfo: false, deny: false,
-                       locked: false, offline: false, oneUnit: false, jobs: 0, testJobs: 0,
+                       stopAfter: "", release: false, debugInfo: false, coverage: false,
+                       deny: false, locked: false, offline: false, oneUnit: false, jobs: 0,
+                       testJobs: 0,
                        noCache: false, timePasses: false,
                        format: Format.Human, lib: "", target: ""}
     let hasInput = false
@@ -190,6 +194,10 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.release = true
             } else if arg == "-g" {
                 opts.debugInfo = true
+            } else if arg == "--coverage" {
+                opts.coverage = true
+                opts.debugInfo = true
+                opts.noCache = true   // the counters' files are named after the objects
             } else if arg == "--message-format=short" {
                 opts.format = Format.Short
             } else if arg == "--message-format=json" {
@@ -522,7 +530,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         if salt.len() > 0 {
             cached.push(object_cache.objectPath(salt, text))
         }
-        if fs.writeString(ll, text).isErr() {
+        if fs.writeString(ll, coverageFiles(&opts, ll, text)).isErr() {
             driverError(opts.format, "E0902", "cannot write `{ll}`")
             return false
         }
@@ -550,7 +558,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
             const ll = "{exe}.{k}.ll"
             files.push(ll.clone())
             const writeStart = timerStart(opts.timePasses)
-            if fs.writeString(ll, units[k].text).isErr() {
+            if fs.writeString(ll, coverageFiles(&opts, ll, units[k].text)).isErr() {
                 driverError(opts.format, "E0902", "cannot write `{ll}`")
                 removeFiles(&files)
                 return false
@@ -884,6 +892,9 @@ fn clangFlags(opts: &Options) List<str> {
     if opts.debugInfo {
         args.push("-g".toOwned())
     }
+    if opts.coverage {
+        args.push("--coverage".toOwned())   // gcov counters, mapped by the line table
+    }
     if opts.target.len() > 0 {
         args.push("--target={opts.target}")
         if const Option.Some(root) = os.env("OFIR_SYSROOT") {
@@ -967,6 +978,27 @@ fn compileUnits(opts: &Options, clang: str, files: &List<str>, cached: &List<str
         }
     }
     return ok
+}
+
+// With `--coverage`, the module `text` of the unit `ll` with `!llvm.gcov`,
+// which names the counters' files of its compile unit (`!0`) after the
+// unit, `.gcno` and `.gcda` instead of `.ll`: without it they would go to
+// the current directory, named after the module. The paths are absolute,
+// so the program finds its `.gcda` from any directory.
+fn coverageFiles(opts: &Options, ll: str, text: str) str {
+    if !opts.coverage {
+        return text.toOwned()
+    }
+    let base = ll.slice(0, ll.len() - 3).toOwned()
+    if !base.startsWith("/") {
+        if const Result.Ok(dir) = os.currentDir() {
+            base = "{dir}/{base}"
+        }
+    }
+    let out = text.toOwned()
+    out.push("\n!llvm.gcov = !\{!2147483000\}\n")
+    out.push("!2147483000 = !\{!\"{base}.gcno\", !\"{base}.gcda\", !0\}\n")
+    return out
 }
 
 // The directory of a path: what comes before its last `/`.
