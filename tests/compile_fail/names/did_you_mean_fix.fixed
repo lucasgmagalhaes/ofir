@@ -1,0 +1,9 @@
+// The did-you-mean help lines carry fixes: did_you_mean_fix.fixed is this
+// program with every fix applied, and it compiles.
+
+fn main() {
+    const total = 3   // warning[W0001]: unused variable `total`: use it, or start its name with `_`
+    println("{total}")   // error[E0200]: cannot find `totl` in this scope
+    const sum = total + 1   // error[E0200]: cannot find `totl` in this scope
+    println("{sum}")
+}
