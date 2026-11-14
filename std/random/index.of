@@ -7,6 +7,19 @@
  * games. It is **not** for secrets: its output can be predicted from a few
  * values, so keys, tokens and nonces need the operating system's entropy
  * instead (API-09).
+ *
+ * @example
+ * ```ofir
+ * import std.random.Rng
+ * import std.testing.assert
+ *
+ * let rng = Rng.seeded(42)
+ * const roll = rng.nextInt(1, 7)
+ * assert(roll >= 1 && roll < 7)
+ * let deck = [1, 2, 3, 4]
+ * rng.shuffle(deck)
+ * assert(deck.len() == 4)
+ * ```
  */
 
 import std.math
