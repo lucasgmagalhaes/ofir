@@ -206,9 +206,9 @@ def check_callgrind(compiler, work):
                             timeout=300)
     if result.returncode != 0:
         fail(f"callgrind failed: {result.stderr[-2000:]}")
-    report = subprocess.run([annotate, "--inclusive=yes", str(out)], capture_output=True,
-                            text=True, timeout=120).stdout
-    for name in ["prof.of:ofir.main", "prof.of:ofir.twice<int>", "prof.of:ofir.classify"]:
+    report = subprocess.run([annotate, "--inclusive=yes", "--threshold=100", str(out)],
+                            capture_output=True, text=True, timeout=120).stdout
+    for name in ["prof.of:ofir_main", "prof.of:ofir.twice<int>", "prof.of:ofir.classify"]:
         if name not in report:
             fail(f"callgrind_annotate does not name {name}:\n{report[-3000:]}")
     busy = work / "busy.of"
