@@ -1,0 +1,37 @@
+// requires: stage1
+// c: c_errno_threads.c
+// `os.errno` and `os.setErrno` around C calls, and an export that C calls
+// from a thread Ofir did not start (ADR 0063).
+
+import std.os
+
+@link("c_errno_threads")
+extern "C" {
+    fn c_fail(code: i32) i32
+    fn c_errno() i32
+    fn c_in_thread(v: i32) i32
+}
+
+@export("of_describe")
+extern "C" fn describe(v: i32) i32 {
+    // Allocates on the foreign thread: its runtime state starts empty.
+    let text = str.new()
+    for i in 0..v {
+        if i > 0 {
+            text.push(",")
+        }
+        text.push("{i}")
+    }
+    return text.len() as i32
+}
+
+fn main() {
+    const r = unsafe { c_fail(42) }
+    const code = os.errno()
+    println("{r} {code}")
+    os.setErrno(7)
+    println("{unsafe { c_errno() }}")
+    os.setErrno(0)
+    println("{os.errno()}")
+    println("{unsafe { c_in_thread(12) }}")
+}
