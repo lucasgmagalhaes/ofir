@@ -2,6 +2,19 @@
  * @module
  * `Heap<T>`: a priority queue in a binary heap, and `Reverse<T>` for a
  * min-heap (ADR 0055, docs/std/collections.md).
+ *
+ * @example
+ * ```ofir
+ * import std.collections.heap.Heap
+ * import std.testing.assert
+ *
+ * let h: Heap<int> = Heap.new()
+ * h.push(3)
+ * h.push(7)
+ * h.push(5)
+ * const top = h.pop() ?? 0
+ * assert(top == 7)
+ * ```
  */
 
 /**

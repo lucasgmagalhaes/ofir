@@ -2,6 +2,17 @@
  * @module
  * `Set<T>`: a hash set that iterates in insertion order (ADR 0055,
  * docs/std/collections.md).
+ *
+ * @example
+ * ```ofir
+ * import std.collections.set.Set
+ * import std.testing.assert
+ *
+ * let s: Set<str> = Set.new()
+ * assert(s.insert("a"))
+ * assert(!s.insert("a"))
+ * assert(s.contains("a") && s.len() == 1)
+ * ```
  */
 
 extern "intrinsic" {

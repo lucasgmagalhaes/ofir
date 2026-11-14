@@ -2,6 +2,19 @@
  * @module
  * `Deque<T>`: a double-ended queue in a ring buffer (ADR 0055,
  * docs/std/collections.md).
+ *
+ * @example
+ * ```ofir
+ * import std.collections.deque.Deque
+ * import std.testing.assert
+ *
+ * let d: Deque<int> = Deque.new()
+ * d.pushBack(2)
+ * d.pushFront(1)
+ * assert(d.len() == 2)
+ * const first = d.popFront() ?? 0
+ * assert(first == 1)
+ * ```
  */
 
 extern "C" {
