@@ -425,6 +425,55 @@ def missing_notes(cfg: Config, path: Path, source: str) -> list[str]:
     return problems
 
 
+def offset_of(data: bytes, line: int, column: int) -> int:
+    """The byte offset of a 1-based line and byte column."""
+    start = 0
+    for _ in range(line - 1):
+        start = data.index(b"\n", start) + 1
+    return start + column - 1
+
+
+def wrong_fixes(cfg: Config, path: Path, source: str) -> list[str]:
+    """With a `.fixed` file next to the test, stage 1 applies the fixes of its
+    help lines (`fix` in JSON) to the test: the result is the `.fixed` text and
+    it compiles."""
+    expected_path = path.with_suffix(".fixed")
+    if cfg.stage == 0 or not expected_path.exists():
+        return []
+    proc = run_process(compiler_cmd(cfg, "build", str(path), "--message-format=json",
+                                    "-o", str(cfg.tmp / path.stem), *test_flags(source)),
+                       env=test_env(cfg, path))
+    data = path.read_bytes()
+    edits = set()
+    for text in (proc.stdout + proc.stderr).splitlines():
+        if not text.startswith("{"):
+            continue
+        d = json.loads(text)
+        if Path(d.get("file", "")).name != path.name:
+            continue
+        for note in d.get("notes", []):
+            fix = note.get("fix")
+            if fix:
+                start = offset_of(data, fix["line"], fix["column"])
+                end = offset_of(data, fix["endLine"], fix["endColumn"])
+                edits.add((start, end, fix["text"].encode()))
+    for start, end, text in sorted(edits, reverse=True):
+        data = data[:start] + text + data[end:]
+    fixed = data.decode(errors="replace")
+    if fixed != expected_path.read_text():
+        path.with_suffix(".actual").write_text(fixed)
+        return [f"the fixes do not give {expected_path.name}; see {path.stem}.actual"]
+    out = cfg.tmp / "fixed" / path.name
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(data)
+    exe = cfg.tmp / "fixed" / path.stem
+    built = run_process(compiler_cmd(cfg, "build", str(out), "-o", str(exe), *test_flags(source)),
+                        env=test_env(cfg, path))
+    if built.returncode != 0:
+        return ["the fixed program does not compile\n" + describe(built)]
+    return []
+
+
 def check_diagnostics(cfg: Config, path: Path, source: str) -> Result:
     annotations = parse_annotations(source)
     manifest = path.parent / "ofir.json"
@@ -447,6 +496,7 @@ def check_diagnostics(cfg: Config, path: Path, source: str) -> Result:
     missing = missing_stage0 if cfg.stage == 0 else missing_stage1
     problems = unexpected_diagnostics(reported, annotations) + missing(reported, annotations)
     problems += missing_notes(cfg, path, source)
+    problems += wrong_fixes(cfg, path, source)
     if problems:
         return Result(path, "fail", "\n".join(problems))
     return Result(path, "pass")
