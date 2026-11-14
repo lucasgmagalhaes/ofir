@@ -8,6 +8,7 @@
  */
 
 import base.span.Span
+import diag.lintCodes
 import sema.def.DefKind
 import sema.resolve.Resolver
 import sema.resolve.findAttribute
@@ -84,21 +85,6 @@ fn ruleUsage(rule: int) str {
                    "`@tag(\"key\", \"value\")`", "`@threadsafe`",
                    "`@comptimeBudget(n)`, n a positive integer", "`@threadLocal`"]
     return usage[rule].sliceFrom(0)
-}
-
-// The warning codes of an `@allow` category, empty for an unknown one.
-fn allowedCodes(category: str) List<str> {
-    return if category == "unused" {
-        ["W0001", "W0002", "W0003"]
-    } else if category == "unreachable" {
-        ["W0004"]
-    } else if category == "deprecated" {
-        ["W0006"]
-    } else if category == "naming" {
-        ["W0007"]
-    } else {
-        []
-    }
 }
 
 // The category of `@allow(category)`, empty if it is not an identifier.
@@ -235,7 +221,7 @@ fn argsMatch(r: Resolver, kind: int, a: &Attribute) bool {
     } else if kind == ARGS_ONE {
         return n == 1
     } else if kind == ARGS_ALLOW {
-        return allowedCodes(allowCategory(r, a)).len() > 0
+        return lintCodes(allowCategory(r, a)).len() > 0
     } else if kind == ARGS_LIB {
         return n == 1 && isLibrary(&a.args[0])
     } else if kind == ARGS_SYMBOL {
@@ -268,7 +254,7 @@ fn checkList(r: mut Resolver, attributes: &List<Attribute>, target: int, span: S
                 } else if name == "deprecated" {
                     r.diags.allow("W0006", span)   // a deprecated declaration may use others
                 } else if name == "allow" {
-                    const codes = allowedCodes(allowCategory(r, a))
+                    const codes = lintCodes(allowCategory(r, a))
                     for k in 0..codes.len() {
                         r.diags.allow(codes[k], span)
                     }
