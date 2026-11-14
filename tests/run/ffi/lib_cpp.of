@@ -1,0 +1,43 @@
+// requires: stage1
+// flags: --lib=static
+// consumer: lib_cpp.cpp
+// A C++ consumer of a static library (ADR 0070): the generated header
+// compiles as C++, a captureless lambda is the callback, and a versioned
+// export lets the consumer check the boundary before it calls in.
+
+@repr(C)
+struct Stats {
+    count: i64
+    total: i64
+}
+
+// The version of this library's C boundary.
+extern "C" fn stats_version() i32 {
+    return 1
+}
+
+// Clears `*s` before the first `stats_add`.
+extern "C" fn stats_init(s: *mut Stats) {
+    unsafe {
+        *s = Stats { count: 0, total: 0 }
+    }
+}
+
+extern "C" fn stats_add(s: *mut Stats, value: i64) {
+    unsafe {
+        (*s).count += 1
+        (*s).total += value
+    }
+}
+
+// Adds `f(i)` for each `i` below `count`.
+extern "C" fn stats_fill(s: *mut Stats, count: i32, f: extern "C" fn(i32) i64) {
+    for i in 0..count {
+        stats_add(s, unsafe { f(i) })
+    }
+}
+
+extern "C" fn stats_report(s: *Stats) {
+    const value = unsafe { *s }
+    println("count {value.count} total {value.total}")
+}

@@ -1,0 +1,45 @@
+// requires: stage1
+// requires: unix
+// flags: --lib=shared
+// consumer: lib_python.py
+// A Python consumer of a shared library through ctypes (ADR 0070): a
+// versioned export, a `@repr(C)` struct the caller owns, a Python callback
+// and text passed as a pointer and a length.
+
+@repr(C)
+struct Stats {
+    count: i64
+    total: i64
+}
+
+// The version of this library's C boundary.
+extern "C" fn stats_version() i32 {
+    return 1
+}
+
+// Clears `*s` before the first `stats_add`.
+extern "C" fn stats_init(s: *mut Stats) {
+    unsafe {
+        *s = Stats { count: 0, total: 0 }
+    }
+}
+
+extern "C" fn stats_add(s: *mut Stats, value: i64) {
+    unsafe {
+        (*s).count += 1
+        (*s).total += value
+    }
+}
+
+// Adds `f(i)` for each `i` below `count`.
+extern "C" fn stats_fill(s: *mut Stats, count: i32, f: extern "C" fn(i32) i64) {
+    for i in 0..count {
+        stats_add(s, unsafe { f(i) })
+    }
+}
+
+extern "C" fn stats_label(s: *Stats, name: *u8, len: i64) {
+    const value = unsafe { *s }
+    const text = unsafe { str.fromRaw(name, len as int) }
+    println("{text}: count {value.count} total {value.total}")
+}
