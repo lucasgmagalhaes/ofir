@@ -157,6 +157,8 @@ pub const FN_BORROWED: int = 1
 pub const FN_OWNED: int = 2
 /** Added to `data` by `+ Send`: the function value may move to another task (spec 14.3). */
 pub const FN_SEND: int = 4
+/** `data` of `extern "C" fn(A) R`: a pointer to a C function, 8 bytes (spec 11.3). */
+pub const FN_C: int = 8
 
 /**
  * The fields of a struct, for `keyof T` and `T[K]` after substitution.
@@ -361,6 +363,17 @@ pub struct TypeTable {
      */
     pub fn fnValueTypeWith(mut self, params: [int], ret: int, data: int) int {
         return self.intern(TyKind.Fn, data, ret, params)
+    }
+
+    /**
+     * Whether a type is a C function pointer, `extern "C" fn(A) R`.
+     *
+     * @param ty the type
+     * @returns true for a C function pointer
+     */
+    pub fn isCFn(self, ty: int) bool {
+        const t = self.get(ty)
+        return t.kind == TyKind.Fn && t.data & FN_C != 0
     }
 
     /**
