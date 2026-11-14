@@ -28,6 +28,7 @@ import sema.check_keys.keyofType
 import sema.check_mapped.checkAliasBounds
 import sema.check_mapped.mappedType
 import sema.check_ref.checkInstanceStorable
+import sema.check_unsafe.cCompatible
 import sema.const_eval.byComptimeMessage
 import sema.def.DefKind
 import sema.expr_check.checkConst
@@ -39,6 +40,7 @@ import sema.resolve_attributes.warnDeprecated
 import sema.trace.link
 import sema.types.ERROR
 import sema.types.FN_BORROWED
+import sema.types.FN_C
 import sema.types.FN_OWNED
 import sema.types.FN_SEND
 import sema.types.I64
@@ -576,6 +578,16 @@ fn isSliceType(t: &TypeExpr) bool {
     }
 }
 
+// A parameter or result type of `extern "C" fn`: one with a C layout (E0804).
+fn cType(c: mut Checker, p: Program, t: &TypeExpr) int {
+    const ty = resolveType(c, p, t)
+    if !cCompatible(c, ty) {
+        c.error("E0804", t.span, "type `{c.typeName(ty)}` has no C layout and cannot cross the "
+                + "C boundary")
+    }
+    return ty
+}
+
 /**
  * The type a type expression names, in the current module and generics.
  *
@@ -641,6 +653,17 @@ pub fn resolveType(c: mut Checker, p: Program, t: &TypeExpr) int {
             const kind = if owned { FN_OWNED } else { FN_BORROWED }
             const flag = if send { FN_SEND } else { 0 }
             c.types.fnValueTypeWith(types, result, kind | flag)
+        }
+        TypeKind.CFn(params, ret) => {
+            let types: List<int> = []
+            for i in 0..params.len() {
+                types.push(cType(c, p, &params[i]))
+            }
+            const result = match ret {
+                Option.Some(r) => cType(c, p, &*r)
+                Option.None => UNIT
+            }
+            c.types.fnValueTypeWith(types, result, FN_C)
         }
         TypeKind.Never => NEVER
         TypeKind.Dyn(inner) => dynType(c, p, &*inner, t.span)
