@@ -468,7 +468,9 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     let files: List<str> = []
     let cached: List<str> = []   // where the object of each unit is cached
     // Release builds are one unit: units lose inlining across modules (roadmap 6.6f).
-    if opts.emit == "llvm" || opts.oneUnit || opts.release {
+    // So are Windows builds: MinGW's ld cannot link the thread-local globals that
+    // units share as COMDATs (`linkonce_odr thread_local`, std/core/pool.of).
+    if opts.emit == "llvm" || opts.oneUnit || opts.release || onWindows() {
         const ll = "{exe}.ll"
         files.push(ll.clone())
         phaseStart = timerStart(opts.timePasses)
