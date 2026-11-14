@@ -33,7 +33,7 @@ and DWARF.
    source, so `--release --coverage` counts it where it was written.
 3. **Profiling: the existing tools.** A program built with `-g` (and
    `--release -g` to profile optimized code) has symbols named after
-   the source (`ofir.main`, `ofir.twice<int>`) and DWARF lines, which
+   the source (`ofir_main`, `ofir.twice<int>`) and DWARF lines, which
    `perf`, `valgrind --tool=callgrind` and other profilers read. Ofir
    ships no profiler.
 4. **Checked.** `tools/check_profile.py`, run by `make test-stage1`,
@@ -51,5 +51,6 @@ and DWARF.
   that ran one way counts as executed.
 - The closing brace of a function whose body ends in `return` is
   reported as a line that never ran, as in C.
-- Measured on the check's loop at `--release`: coverage costs about
-  2x, callgrind about 50x (the check prints its own numbers).
+- Measured on the check's loop (a call and a branch per iteration) at
+  `--release`: coverage costs under 5%, callgrind about 16x; the check
+  prints its own numbers on each run.
