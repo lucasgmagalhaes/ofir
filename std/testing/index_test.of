@@ -1,0 +1,37 @@
+// The tests of `std.testing` (ADR 0061): `ofir test std/testing/index.of` runs them.
+
+import std.fs
+
+@test
+fn stringsEqual() {
+    assertStrEq("a\nb", "a\nb")
+    assertContains("hello world", "lo w")
+    assertApprox(0.1 + 0.2, 0.3, 1e-9)
+}
+
+@test
+fn helpersQuote() {
+    assert(quote("a\"b\\c") == "\"a\\\"b\\\\c\"")
+    assert(lines("x\ny").len() == 2)
+    assert(lineAt(lines("x"), 3) == "(missing)")
+}
+
+@test
+fn tempDirs() {
+    const dir = TempDir.create("ofir-testing")
+    const root = dir.path()
+    assert(fs.exists(root))
+    fs.createDirAll(dir.join("sub/deeper")).expect("the directory is writable")
+    fs.writeString(dir.join("sub/a.txt"), "a").expect("the directory is writable")
+    fs.writeString(dir.join("b.txt"), "b").expect("the directory is writable")
+    assertGolden("b", dir.join("b.txt"))
+    dir.remove()
+    assert(!fs.exists(root))
+}
+
+@test
+fn benchers() {
+    const b = startBench()
+    assert(b.iterations() == 0)
+    assert(b.nanosPerIter() == 0)
+}
