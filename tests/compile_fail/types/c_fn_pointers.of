@@ -1,0 +1,32 @@
+// requires: stage1
+// C function pointer types (spec 11.3, ADR 0063).
+
+extern "C" {
+    fn qsort(base: *mut u8, count: u64, size: u64, cmp: extern "C" fn(*u8, *u8) i32)
+    fn bad(f: extern "C" fn(str) i32)   // error[E0804]: type `str` has no C layout and cannot cross the C boundary
+}
+
+fn ofirCompare(a: *u8, b: *u8) i32 {
+    return 0
+}
+
+extern "C" fn cCompare(a: *u8, b: *u8) i32 {
+    return 0
+}
+
+fn fromOfir(xs: *mut u8) {
+    unsafe {
+        qsort(xs, 1, 8, ofirCompare)   // error[E0823]: `ofirCompare` is not an `extern "C"` function, so it cannot be a value of type `extern "C" fn(*u8, *u8) i32`
+    }
+}
+
+fn fromClosure(xs: *mut u8) {
+    unsafe {
+        qsort(xs, 1, 8, (a, b) => 0)   // error[E0823]: a closure cannot be a value of type `extern "C" fn(*u8, *u8) i32`: only an `extern "C"` function can
+    }
+}
+
+fn callOutside(p: *u8) {
+    const f: extern "C" fn(*u8, *u8) i32 = cCompare
+    const _r = f(p, p)   // error[E0803]: calling a C function pointer requires an `unsafe` block or function
+}
