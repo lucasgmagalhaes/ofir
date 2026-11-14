@@ -132,6 +132,8 @@ test-stage1: stage1
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_dap.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
+	    $(PYTHON) tools/check_profile.py --compiler $(BUILD)/stage1/ofir$(EXE)
+	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_service.py --compiler $(BUILD)/stage1/ofir$(EXE)
 
 # The run tests compiled for TARGET and run by OFIR_RUNNER (ADR 0066).
