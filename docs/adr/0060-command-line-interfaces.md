@@ -31,7 +31,7 @@ cannot tell whether a stream is a terminal, so it cannot decide on color.
    - `parse(args)` takes the arguments without the program name and
      returns `Matches` or a `CliError`. An unknown option, a missing value,
      a missing positional and an extra positional are usage errors, with a
-     suggestion when an option is one edit from a known one.
+     suggestion when an option is at most two edits from a known one.
    - `--help` and `-h` and, with a version, `--version` and `-V` are added
      to every command. They return a `CliError` of kind `Help` or `Version`
      holding the text to print.
@@ -42,7 +42,7 @@ cannot tell whether a stream is a terminal, so it cannot decide on color.
    - `cli.fail(message)` prints `error: message` to stderr and exits with
      1 (`EXIT_FAILURE`).
 4. **Help and completions come from the declaration.**
-   - `help()` writes the usage line, the summary and aligned columns of
+   - `help()` writes the summary, the usage line and aligned columns of
      arguments and options, with defaults.
    - `completion(shell)` writes a completion script for `Shell.Bash`,
      `Shell.Zsh` or `Shell.Fish` that completes the option names.
