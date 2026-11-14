@@ -478,6 +478,29 @@ Until projects exist the flag is opt-in, and it is stage 1's: without
 it the `.ll` is the one stage 0 writes. The `debug` profile will turn
 it on.
 
+### Debugging in an editor
+
+An editor debugs an Ofir program through a Debug Adapter Protocol
+adapter that reads DWARF, `gdb -i=dap` (gdb 14 or later) or `lldb-dap`;
+Ofir has none of its own (ADR 0072). Build with `-g`, then point the
+editor's DAP client at the adapter and the executable. In VS Code, with
+an extension that runs `lldb-dap`:
+
+```json
+{
+  "type": "lldb-dap",
+  "request": "launch",
+  "name": "Debug main",
+  "program": "${workspaceFolder}/build/main",
+  "preLaunchTask": "ofir build -g"
+}
+```
+
+and `"request": "attach"` with `"pid"` to attach to a running program.
+Launch, attach, line and function breakpoints, stepping, the stack and
+the variables work; `tools/check_dap.py`, run by `make test-stage1`,
+checks them with each adapter it finds.
+
 ## 4. Build steps
 
 ```

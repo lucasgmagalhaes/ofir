@@ -82,6 +82,7 @@ starts with the same word as the record's status line.
 | [0069](0069-freestanding.md) | No freestanding or embedded target in version 1 | Accepted |
 | [0070](0070-language-adapters.md) | Other languages reach Ofir through the C boundary | Accepted |
 | [0071](0071-lint-levels.md) | Lint categories with levels per item, package and command | Accepted |
+| [0072](0072-debug-adapters.md) | Editors debug Ofir through the existing DAP adapters | Accepted |
 
 ## Template
 
