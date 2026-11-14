@@ -1,0 +1,6 @@
+// The `lints` of a manifest set a level per category (ADR 0071).
+{
+  "name": "lints",
+  "build": {"kind": "exe", "root": "main.of"},
+  "lints": {"suspicious": "deny", "unused": "allow", "unreachable": "warn"},
+}

@@ -1,0 +1,21 @@
+// requires: stage1
+// `suspicious` is denied, `unused` allowed and `unreachable` left a warning.
+fn same(a: int) bool {
+    return a == a   // error[W0008]: a value is compared with itself
+    // note: the result is always `true`
+}
+
+@allow(suspicious)
+fn allowed(a: int) bool {
+    return a <= a
+}
+
+fn early() int {
+    return 1
+    println("never")   // warning[W0004]: unreachable code: the statement before it never finishes
+}
+
+fn main() {
+    const unused = 1
+    println("{same(1)} {allowed(2)} {early()}")
+}
