@@ -4,6 +4,19 @@
  * for tasks (spec 14.4).
  *
  * Only stage 1 compiles this module: it needs `Send` (spec 14.3).
+ *
+ * @example
+ * ```ofir
+ * import std.sync.channel
+ * import std.task
+ * import std.testing.assert
+ *
+ * const (tx, rx) = channel<int>()
+ * const worker = task.run(move () => tx.send(42))
+ * worker.join()
+ * const got = rx.recv() ?? 0
+ * assert(got == 42)
+ * ```
  */
 // requires: stage1 (Send, roadmap 6.1b)
 

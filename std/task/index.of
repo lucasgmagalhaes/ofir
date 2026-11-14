@@ -3,6 +3,16 @@
  * `std.task`: tasks, each on an OS thread of its own (spec 14.2).
  *
  * Only stage 1 compiles this module: it needs `move fn` closures.
+ *
+ * @example
+ * ```ofir
+ * import std.task
+ * import std.testing.assert
+ *
+ * const a = task.run(move () int => 20 + 1)
+ * const b = task.run(move () int => 20 + 1)
+ * assert(a.join() + b.join() == 42)
+ * ```
  */
 // requires: stage1 (closures, roadmap 5.7)
 
