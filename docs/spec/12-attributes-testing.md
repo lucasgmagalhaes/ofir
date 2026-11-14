@@ -129,6 +129,11 @@ and the other attributes are part of the language and need no import:
 | `assertEq<T: Eq + Debug>(left: T, right: T)` | `left != right`, printing both values with `Debug` |
 | `assertNe<T: Eq + Debug>(left: T, right: T)` | `left == right`, printing both values with `Debug` |
 
+`std.testing` also has asserts written in Ofir, in both stages:
+`assertStrEq`, `assertApprox`, `assertContains` and `assertGolden`, and
+the `TempDir` fixture (docs/std/utilities.md, ADR 0061). They report a
+location inside `std.testing`, so their messages carry the values.
+
 `assertEq` and `assertNe` read their arguments and do not move them: a
 value compared stays usable after the call. The compiler lowers each assert
 where it is called, so a failed assert reports the location of the call:
