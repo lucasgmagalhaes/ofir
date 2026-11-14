@@ -127,6 +127,8 @@ pub struct Resolver {
     pub testing: bool
     /** `ofir bench`: the harness runs the `@bench` functions. */
     pub benching: bool
+    /** `--lib`: a library, whose roots are its C exports, not `main` (ADR 0064). */
+    pub library: bool
     /** The imports, in module order. */
     pub imports: List<ImportUse>
     /** The declarations re-exported with `pub import`. */
@@ -337,7 +339,7 @@ fn newResolver(program: Program, given: move Interner, diags: move Diagnostics,
                     lang: List.filled(0, PRIMITIVE_TYPES), names, diags, map,
                     trace: Trace.new(trace), moduleNames, current: 0, moduleName: "", locals: [],
                     owner: Option.None, constParams: [], deprecated: Map.new(), selfName,
-                    testing: false, benching: false,
+                    testing: false, benching: false, library: false,
                     imports: [], reexports: [], closureBases: [], closureCaptures: []}
 }
 
