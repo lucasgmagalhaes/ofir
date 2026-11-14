@@ -147,6 +147,7 @@ specification; the other classes are known and accepted.
 | 13.5 Calling convention | full | full | `tests/codegen/functions.of` `tests/codegen/noalias.of` | - |
 | 13.6 Program startup and shutdown | full | full | `runtime/src/entry.c` `tests/run/system/os.of` `tests/panic/stack_overflow.of` | - |
 | 13.7 Allocation | full | full | `runtime/src/mem.c` `tests/run/attributes/align_large.of` `tests/run/arena/graph.of` | - |
+| 13.8 Targets | partial | full | `.github/workflows/ci.yml` `tests/run/system/os.of` `tests/runner/run_tests.py` | subset: stage 0 builds for the host only, and `--target` is stage 1 (ADR 0066) |
 
 ## Chapters 14-17: concurrency, compile-time code, type operators, unions
 

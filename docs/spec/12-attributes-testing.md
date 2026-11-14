@@ -206,8 +206,8 @@ other attributes are not, so an attribute that a later compiler version
 adds may be written under a condition. Statements, local declarations and
 enum variants take no `@cfg`.
 
-The conditions describe the target (13.8): there is no cross
-compilation yet, so `os` and `arch` are those of the host. The
+The conditions describe the target (13.8): `os` and `arch` are those of
+the `--target` triple, or of the host without one. The
 language server checks a file as a debug build that is not a test
 (`debug` holds, `test` does not).
 

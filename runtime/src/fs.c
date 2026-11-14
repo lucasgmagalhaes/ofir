@@ -1,6 +1,10 @@
 // Files, directories and standard input (std.fs, std.io). Every function
 // returns 0 or an errno value, which std turns into an IoError.
 
+// realpath is an XSI function: glibc declares it only with _DEFAULT_SOURCE
+// under clang.
+#define _DEFAULT_SOURCE
+
 #include "ofir_rt.h"
 
 #include <dirent.h>

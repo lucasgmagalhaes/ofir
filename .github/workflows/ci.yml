@@ -59,6 +59,17 @@ jobs:
       - name: Build and test
         run: make test
 
+      # Cross compilation (ADR 0066): the run tests built for aarch64 Linux
+      # and run under qemu-user.
+      - name: Cross tests (aarch64 Linux)
+        if: runner.os == 'Linux'
+        env:
+          OFIR_RUNNER: qemu-aarch64 -L /usr/aarch64-linux-gnu
+        run: |
+          sudo apt-get install -y qemu-user libc6-dev-arm64-cross \
+            libgcc-13-dev-arm64-cross binutils-aarch64-linux-gnu
+          make test-cross TARGET=aarch64-linux-gnu
+
       # Memory checks of the generated programs (Linux: valgrind, and gcc's
       # sanitizer runtimes).
       - name: Leaks and sanitizers

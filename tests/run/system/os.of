@@ -1,3 +1,4 @@
+// requires: host (under qemu-user a missing program starts, then exits 127)
 // std.os (roadmap 3.9, 6.6b): arguments, environment and running programs,
 // here the C compiler the toolchain uses, and two at once.
 

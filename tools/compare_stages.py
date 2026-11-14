@@ -52,6 +52,11 @@ def executable(path: str) -> str:
     return str(full)
 
 
+# Mutants only stage 1 handles: a `name @ pattern` binding (ADR 0043), and a
+# copy of a std file exporting a runtime symbol, E0819 outside std (spec 11).
+ONE_STAGE_MUTANT = re.compile(r'\w@\w|@export\("ofir_')
+
+
 def comparable(path: Path) -> bool:
     return not ONE_STAGE.search(path.read_text(errors="replace"))
 
@@ -116,10 +121,16 @@ def main() -> int:
                 print("stages: stage 1 does not build")
                 return 1
         files = sorted(p for d in SOURCES for p in (ROOT / d).rglob("*.of") if comparable(p))
+        seeds = list(files)
         rng = random.Random(args.seed)
         for i in range(args.fuzz):
             case = Path(tmp) / f"fuzz{i}.of"
-            case.write_text(mutate(rng, rng.choice(files).read_text(errors="replace")))
+            text = mutate(rng, rng.choice(seeds).read_text(errors="replace"))
+            for _ in range(100):
+                if not ONE_STAGE_MUTANT.search(text):
+                    break
+                text = mutate(rng, rng.choice(seeds).read_text(errors="replace"))
+            case.write_text(text)
             files.append(case)
         with concurrent.futures.ThreadPoolExecutor() as pool:
             results = list(pool.map(lambda p: compare(args.compiler, stage1, p), files))

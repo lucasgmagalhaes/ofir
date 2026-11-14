@@ -122,8 +122,9 @@ in `std.arena` serve that need
 The *host* is the machine the compiler runs on; the *target* is the
 machine the program runs on. The layout rules of this chapter, `@cfg`'s
 `os` and `arch` (12.4), `os.name()` and `os.arch()` describe the target.
-There is no cross compilation yet, so the target is the host
-([ADR 0065](../adr/0065-target-tiers.md)).
+The target is the host unless `--target=TRIPLE` names one of the
+triples below ([ADR 0065](../adr/0065-target-tiers.md),
+[ADR 0066](../adr/0066-cross-compilation.md)).
 
 Every supported target is 64-bit and little-endian. Tier 1 targets are
 built and tested on every change; tier 2 targets have the code for them
