@@ -204,5 +204,6 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | W0005 | variable does not need to be `let` | planned |
 | W0006 | use of deprecated item | stage 1 |
 | W0007 | name does not follow the naming convention | planned |
+| W0008 | suspicious code: a place compared with or assigned to itself | stage 1 |
 
 New codes are added to these tables in the same commit as the diagnostic.
