@@ -141,6 +141,33 @@ extern "C" fn add(a: i32, b: i32) i32 {
   not checked: one that the C library or a linked library also defines is a
   link error, or replaces that definition, as in C.
 
+### Libraries
+
+`ofir build --lib=static calc.of` writes `libcalc.a` and `--lib=shared`
+writes `libcalc.so` (`.dylib` on macOS, `.dll` on Windows), with the
+header `calc.h` next to it ([ADR 0064](../adr/0064-native-libraries.md)).
+`-o` names the library file; the header keeps the input's name.
+
+- A library has no `main`: its roots are the `extern "C"` functions with
+  bodies, and a function named `main` is an ordinary function.
+- The header declares each of those functions outside `std` under its C
+  symbol, in module and declaration order. `i8` to `i64` and `int` become
+  `int8_t` to `int64_t`, the unsigned types `uint8_t` to `uint64_t`, `f32`
+  and `f64` `float` and `double`, `bool` `bool`, `*T` `const T *` and
+  `*mut T` `T *` (`void` for a pointee without a C name), a `@repr(C)`
+  struct `struct Name`, defined before its first use, and
+  `extern "C" fn(A) R` a function pointer.
+- A static library holds the program's code; a C program links it with
+  `libofir_rt.a`, the `@link` libraries, `-lm` and `-lpthread`, as the
+  header's first comment says. A shared library carries all of them.
+- Only these symbols and the runtime's `ofir_` functions are visible
+  outside a shared library. A C program calls none of the `ofir_`
+  functions except `ofir_stdout_flush`, which writes the library's
+  buffered standard output; it is also written when the process exits.
+- The runtime is not initialized for a library: `os.args()` is empty and
+  a stack overflow is not reported. Ownership and threads follow 11.3.
+- Stage 1 only.
+
 ## 11.5 Mutable globals
 
 ```ofir
