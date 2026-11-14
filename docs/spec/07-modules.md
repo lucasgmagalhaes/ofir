@@ -123,7 +123,8 @@ There are no variadic functions in Ofir.
 | `std.math` **[planned]** | constants and functions such as `math.PI`, `math.hypot`; float methods like `x.sqrt()` live on the type |
 | `std.mem` | `swap`, `replace`, `take` |
 | `std.mem.cell` | `UnsafeCell`, `Cell` |
-| `std.testing` | `assert`, `assertEq`, `assertNe`, `Bencher` (12.2, 12.3) |
+| `std.testing` | `assert`, `assertEq`, `assertNe` and more asserts, `TempDir`, `Bencher` (12.2, 12.3) |
+| `std.fmt` | padding, fixed point, digit groups, radixes, sizes, durations, tables |
 
 These are the modules the self-hosted compiler needs. The rest of the
 standard library is **[planned]**.

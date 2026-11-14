@@ -71,6 +71,7 @@ starts with the same word as the record's status line.
 | [0058](0058-paths-clocks-dates.md) | Paths as strings, a wall clock, UTC dates and more file operations | Accepted |
 | [0059](0059-encodings-checksums-json-inflate.md) | Encodings, checksums, JSON and inflate in std; other formats outside | Accepted |
 | [0060](0060-command-line-interfaces.md) | Command-line parsing, help, completions and color in std.cli | Accepted |
+| [0061](0061-formatting-and-testing-utilities.md) | Formatting and testing utilities in std.fmt and std.testing | Accepted |
 
 ## Template
 
