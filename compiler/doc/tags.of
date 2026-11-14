@@ -34,6 +34,12 @@ fn title(tag: str) str {
         return "Example".toOwned()
     } else if tag == "see" {
         return "See also".toOwned()
+    } else if tag == "complexity" {
+        return "Complexity".toOwned()
+    } else if tag == "allocates" {
+        return "Allocates".toOwned()
+    } else if tag == "platform" {
+        return "Platform".toOwned()
     }
     return "@{tag}"
 }
