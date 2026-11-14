@@ -16,6 +16,7 @@ required before version 1.0.
 | `std.io`, `std.fs`, `std.path`, `std.os`, `std.time`, `std.task`, `std.sync` | [system.md](system.md): input/output, files, paths, processes, clocks, dates, tasks, channels |
 | `std.mem`, `std.math`, `std.random`, `std.testing`, `std.fmt` | [utilities.md](utilities.md) |
 | `std.encoding`, `std.checksum`, `std.json`, `std.compress` | [codecs.md](codecs.md): hex, base64, byte orders, CRC-32, Adler-32, JSON, inflate |
+| `std.cli` | [cli.md](cli.md): arguments, help, completions, exit codes, color |
 
 ## Planned API ecosystem
 

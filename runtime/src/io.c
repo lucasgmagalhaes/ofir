@@ -39,6 +39,11 @@ void ofir_write(int fd, const uint8_t *ptr, int64_t len) {
     }
 }
 
+// Whether a file descriptor is a terminal (std.io.isTerminal, ADR 0060).
+bool ofir_is_terminal(int64_t fd) {
+    return isatty((int)fd) != 0;
+}
+
 static _Thread_local uint8_t line[1024];
 static _Thread_local int64_t line_used;
 

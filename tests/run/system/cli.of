@@ -1,0 +1,30 @@
+// std.cli: a valid command line parses, `--help` prints to stdout, and a
+// usage error goes to stderr and exits with status 2 (EXIT_USAGE). The
+// output is piped, so `colorEnabled` is false unless CLICOLOR_FORCE is set.
+// status: 2
+
+import std.cli
+import std.io
+
+fn main() {
+    let cmd = cli.Command.new("copy", "Copy files")
+    cmd.flag("force", "f", "Overwrite")
+    cmd.option("mode", "m", "MODE", "The permissions")
+    cmd.withDefault("644")
+    cmd.positional("from", "The source", true)
+    cmd.positional("to", "The destination", true)
+    const m = cmd.parseOrExit(["-f", "a", "b"])
+    const mode = m.value("mode") ?? ""
+    const from = m.positional("from") ?? ""
+    const to = m.positional("to") ?? ""
+    println("force={m.flag("force")} mode={mode} {from} -> {to}")
+    match cmd.parse(["--help"]) {
+        Result.Ok(_) => println("no help"),
+        Result.Err(e) => print(e.message)
+    }
+    const painted = cli.paint("done", cli.Style.Green, cli.colorChoice(Option.None,
+        Option.None, Option.None, io.isTerminal(io.Stream.Stdout)))
+    println(painted)
+    cmd.parseOrExit(["a", "b", "--forse"])
+    println("not reached")
+}

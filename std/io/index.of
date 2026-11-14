@@ -11,6 +11,7 @@ extern "C" {
     fn ofir_read_stdin(out: *mut Buffer) i32
     fn ofir_read_bytes(n: int, out: *mut Buffer) i32
     fn ofir_stdout_flush()
+    fn ofir_is_terminal(fd: int) bool
 }
 
 /**
@@ -221,4 +222,40 @@ pub fn flush() Result<(), IoError> {
         ofir_stdout_flush()
     }
     return Result.Ok(())
+}
+
+/**
+ * A standard stream of the process.
+ */
+pub copy enum Stream {
+    /** File descriptor 0. */
+    Stdin
+    /** File descriptor 1. */
+    Stdout
+    /** File descriptor 2. */
+    Stderr
+}
+
+/**
+ * Whether a standard stream is a terminal, not a file or a pipe.
+ *
+ * @param stream the stream
+ * @returns true for a terminal (`isatty`)
+ *
+ * @example
+ * ```ofir
+ * import std.io
+ *
+ * if io.isTerminal(io.Stream.Stdout) {
+ *     println("interactive")
+ * }
+ * ```
+ */
+pub fn isTerminal(stream: Stream) bool {
+    const fd = match stream {
+        Stream.Stdin => 0,
+        Stream.Stdout => 1,
+        Stream.Stderr => 2
+    }
+    return unsafe { ofir_is_terminal(fd) }
 }

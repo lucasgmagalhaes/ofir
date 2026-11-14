@@ -30,6 +30,8 @@ pub copy enum IoErrorKind {
 | `interface Reader`, `interface Writer` | spec 9.4 | |
 | `struct BufWriter<W>` | buffered writer over any `Writer` | |
 | `fn flush() Result<(), IoError>` | flush standard output | ✓ |
+| `enum Stream { Stdin, Stdout, Stderr }` | the standard streams | ✓ |
+| `fn isTerminal(stream: Stream) bool` | whether the stream is a terminal, not a file or a pipe | ✓ |
 
 ## `std.fs`
 
