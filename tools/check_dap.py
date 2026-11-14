@@ -14,8 +14,9 @@ speaks DAP to each one it finds, as an editor would:
 - attach: a running program is attached by pid, a breakpoint set after
   the attach stops in it, and the stack and locals read as above.
 
-Skipped when no adapter is installed; the attach part is skipped when
-the system does not allow attaching to a process that is not a child.
+Skipped on Windows and when no adapter is installed; the attach part
+runs on Linux when the system allows attaching to a process that is not
+a child.
 
     python3 tools/check_dap.py --compiler build/stage1/ofir
 """
@@ -330,7 +331,10 @@ def check_attach(adapter: dict, exe: Path, source: Path) -> None:
 
 
 def can_attach() -> bool:
-    """Whether a process may attach to one that is not its child."""
+    """Whether a process may attach to one that is not its child: only
+    checked on Linux, where `ptrace_scope` says it."""
+    if not sys.platform.startswith("linux"):
+        return False
     try:
         scope = Path("/proc/sys/kernel/yama/ptrace_scope").read_text().strip()
     except OSError:
@@ -366,6 +370,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compiler", required=True)
     args = parser.parse_args()
+    if sys.platform == "win32":
+        print("dap: skipped on Windows (ADR 0072)")
+        return 0
     found = adapters()
     if not found:
         print("dap: skipped, neither gdb 14+ nor lldb-dap is installed")
@@ -389,7 +396,7 @@ def main() -> int:
         if can_attach():
             checks.append(("attach", check_attach, wait_dir))
         else:
-            print("dap: attach skipped, ptrace_scope does not allow it")
+            print("dap: attach skipped, not Linux or ptrace_scope does not allow it")
         for adapter in found:
             for what, check, directory in checks:
                 try:
