@@ -453,3 +453,13 @@ uint64_t ofir_random_u64(void) {
     }
     return r != 0 ? r : 1;
 }
+
+// The calling thread's C `errno`, for `os.errno()` (ADR 0063).
+int32_t ofir_errno(void) {
+    return errno;
+}
+
+// Sets the calling thread's C `errno`, for `os.setErrno()`.
+void ofir_set_errno(int32_t n) {
+    errno = n;
+}
