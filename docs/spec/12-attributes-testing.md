@@ -70,8 +70,8 @@ const n = atoi("12")   // warning[W0006]: `atoi` is deprecated: use `parseInt`
 
 `@allow(category)` silences the warnings of one category inside the
 declaration it marks (12.6). The categories are `unused` (W0001, W0002,
-W0003), `unreachable` (W0004), `deprecated` (W0006) and `naming` (W0007);
-another identifier is an error (E0809).
+W0003), `unreachable` (W0004), `deprecated` (W0006), `naming` (W0007)
+and `suspicious` (W0008); another identifier is an error (E0809).
 
 Stage 0 and stage 1 implement `@inline`, `@cold`, `@test`, `@lang` and
 `@export`; stage 1 also implements `@deprecated`, `@allow`, `@cfg`,
@@ -289,6 +289,7 @@ meaningful:
 | unreachable code | statements after `return` |
 | unused `mut` / `let` **[planned]** | a `let` that is never reassigned or mutated |
 | deprecated item | uses of `@deprecated` items |
+| suspicious code | `x == x`, `x = x` (not for floats) |
 | naming convention **[planned]** | `fn read_file()`, `struct token` (chapter 1.4) |
 
 - `--deny-warnings` turns every warning into an error; CI uses it.
@@ -298,4 +299,10 @@ meaningful:
   unreachable `match` arms; the other warnings come with stage 1.
 - `@allow(unused)` on a declaration silences a warning category inside
   it (12.1).
+- The manifest sets a level per category for a package's modules (ADR
+  0071): `"lints": {"suspicious": "deny", "unused": "allow"}`. A level
+  is `allow`, `warn` (the default) or `deny`, which reports the warnings
+  as errors. An unknown category or level is E0910. `@allow` on a
+  declaration still silences a denied category; `--deny-warnings` denies
+  them all. Stage 1 implements the levels and W0008.
 - Ignoring a `Result` is an **error**, not a warning (chapter 6.3).
