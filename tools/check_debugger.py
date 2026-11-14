@@ -66,10 +66,11 @@ RELEASE = (
 
 
 def check(gdb: str, exe: Path, commands: list[str], expected: list[str], what: str) -> bool:
-    args = [gdb, "-batch", "-nx"]
-    for command in commands:
-        args += ["-ex", command]
-    result = subprocess.run([*args, str(exe)], capture_output=True, text=True, timeout=120)
+    # A script, not `-ex` arguments: a gdb shim on Windows splits arguments at spaces.
+    script = exe.parent / f"{exe.stem}.gdb"
+    script.write_text("".join(f"{command}\n" for command in commands))
+    args = [gdb, "-batch", "-nx", "-x", str(script), str(exe)]
+    result = subprocess.run(args, capture_output=True, text=True, timeout=120)
     missing = [text for text in expected if text not in result.stdout]
     if missing:
         print(f"FAIL: {what}: gdb printed no {missing[0]!r}")

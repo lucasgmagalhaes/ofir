@@ -1,8 +1,10 @@
 #include "base/common.h"
 
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void *xmalloc(size_t size) {
     void *ptr = malloc(size ? size : 1);
@@ -36,4 +38,28 @@ void fatal(const char *format, ...) {
     fputc('\n', stderr);
     va_end(args);
     abort();
+}
+
+void print_float_g(FILE *out, double v) {
+    if (isnan(v)) {
+        fputs(signbit(v) ? "-nan" : "nan", out);
+        return;
+    }
+    if (isinf(v)) {
+        fputs(v < 0 ? "-inf" : "inf", out);
+        return;
+    }
+    char text[64];
+    snprintf(text, sizeof text, "%g", v);
+    char *e = strchr(text, 'e');
+    if (e != NULL && (e[1] == '+' || e[1] == '-')) {
+        char *digits = e + 2;
+        size_t n = strlen(digits);
+        size_t skip = 0;
+        while (n - skip > 2 && digits[skip] == '0') {
+            skip++;
+        }
+        memmove(digits, digits + skip, n - skip + 1);
+    }
+    fputs(text, out);
 }

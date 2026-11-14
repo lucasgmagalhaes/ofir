@@ -36,7 +36,7 @@ static void value_text(Sema *sema, FILE *out, const ConstValue *v) {
         }
         break;
     }
-    case CV_FLOAT: fprintf(out, "%g", v->f); break;
+    case CV_FLOAT: print_float_g(out, v->f); break;
     case CV_BOOL: fputs(v->b ? "true" : "false", out); break;
     case CV_STR: fprintf(out, "\"" SV_FMT "\"", SV_ARG(v->s)); break;
     }

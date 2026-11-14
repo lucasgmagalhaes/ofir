@@ -26,6 +26,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROGRAM = ROOT / "tests" / "run" / "modules" / "app" / "main.of"
+# Windows builds are one unit: MinGW's ld cannot link the thread-local
+# COMDATs that units share (compiler/main.of).
+ONE_UNIT = os.name == "nt"
 EXPECTED = (ROOT / "tests" / "run" / "modules" / "app" / "main.out").read_text()
 
 
@@ -79,7 +82,7 @@ def check_invalidation(compiler: str, env: dict[str, str], tmp: Path) -> None:
     check(new_objects(compiler, env, tmp, "1.5") == 1, "a new function body compiles its unit")
     edit(app / "geometry" / "shapes.of", "    side: float\n", "    side: float\n    tag: int\n")
     edit(app / "geometry" / "shapes.of", "Square{side}", "Square{side, tag: 0}")
-    check(new_objects(compiler, env, tmp, "1.5") == 2,
+    check(new_objects(compiler, env, tmp, "1.5") == (1 if ONE_UNIT else 2),
           "a new layout compiles its module and the module that uses it")
 
 
@@ -103,12 +106,15 @@ def main() -> None:
 
         build(compiler, env, exe)
         first = objects(home)
-        check(len(first) > 1, "the first build caches an object per unit")
+        check(len(first) == 1 if ONE_UNIT else len(first) > 1,
+              "the first build caches an object per unit")
         check(not list(home.glob("cache/objects/*/*.tmp")), "no temporary object is left")
 
         report = build(compiler, env, exe, "--time-passes")
         check(objects(home) == first, "a second build reuses every object")
-        check(all(f"time: {phase} " in report for phase in ("hash", "objects", "link", "total")),
+        # A one-unit build hashes its module with the write, not as a phase of its own.
+        phases = ("objects", "link", "total") if ONE_UNIT else ("hash", "objects", "link", "total")
+        check(all(f"time: {phase} " in report for phase in phases),
               "--time-passes reports the compiler and cache phases")
 
         bad = next(iter(first))

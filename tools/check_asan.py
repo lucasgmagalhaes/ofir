@@ -15,6 +15,7 @@ sanitizer handles SIGSEGV itself.
 import argparse
 import concurrent.futures
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -26,6 +27,8 @@ sys.path.insert(0, str(ROOT / "tools"))
 from check_leaks import programs  # noqa: E402
 
 SANITIZE = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
+# A C file a run test links (`// c: file.c`, as in tests/runner/run_tests.py).
+C_FIXTURE_RE = re.compile(r"^//\s*c:\s*(\S+)\s*$", re.MULTILINE)
 
 
 def build_runtime(out: Path) -> Path:
@@ -50,8 +53,14 @@ def build(compiler: str, path: Path, runtime: Path, out: Path):
     clang = os.environ.get("OFIR_CLANG") or "clang"
     subprocess.run([clang, "-c", "-O1", "-fsanitize=address", "-Wno-override-module",
                     str(base) + ".ll", "-o", str(obj)], check=True)
-    subprocess.run(["gcc", *SANITIZE, str(obj), str(runtime), "-lm", "-o", str(base)],
-                   check=True)
+    fixtures = []
+    for name in C_FIXTURE_RE.findall(path.read_text()):
+        fixture = Path(str(base) + "_" + Path(name).stem + ".o")
+        subprocess.run(["gcc", "-std=c11", "-O1", "-g", *SANITIZE, "-c",
+                        str(path.parent / name), "-o", str(fixture)], check=True)
+        fixtures.append(str(fixture))
+    subprocess.run(["gcc", *SANITIZE, str(obj), *fixtures, str(runtime), "-lm", "-o",
+                    str(base)], check=True)
     return base
 
 

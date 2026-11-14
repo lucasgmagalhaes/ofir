@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -16,5 +17,9 @@ void *xrealloc(void *ptr, size_t size);
 
 // Reports an internal compiler error and aborts.
 _Noreturn void fatal(const char *format, ...);
+
+// Writes `v` as printf's %g does with glibc on every system: `inf`, `-inf`,
+// `nan` or `-nan`, and at least two exponent digits (MinGW writes three).
+void print_float_g(FILE *out, double v);
 
 #endif

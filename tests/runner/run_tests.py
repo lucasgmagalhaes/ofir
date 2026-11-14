@@ -46,7 +46,8 @@ REQUIRES_RE = re.compile(r"^//\s*requires:\s*(\S+)", re.MULTILINE)
 # Extra compiler flags of a run or codegen test, e.g. `// flags: --release`.
 FLAGS_RE = re.compile(r"^//\s*flags:\s*(.+)$", re.MULTILINE)
 # The exit status a run test expects instead of 0: a number, or `abort` for a
-# process ended by SIGABRT (status 3 on Windows), e.g. `// status: 3`.
+# process ended by SIGABRT (on Windows status 3, or 0xC0000409 from the UCRT's
+# fast fail), e.g. `// status: 3`.
 STATUS_RE = re.compile(r"^//\s*status:\s*(\S+)\s*$", re.MULTILINE)
 # A C file next to a run test, built into `lib<name>.a` for the test's
 # `@link("<name>")`, e.g. `// c: c_calls.c` (a cross-language fixture).
@@ -407,8 +408,10 @@ def missing_notes(cfg: Config, path: Path, source: str) -> list[str]:
             continue
         d = json.loads(text)
         for note in d.get("notes", []):
-            message = note["message"].replace(str(path.resolve()), path.name)
-            given.append((d["line"], d["code"], message.replace(str(path), path.name)))
+            # Any spelling of the test's path, with backslashes too, ends in its name.
+            message = re.sub(r"[^\s`]*[\\/]" + re.escape(path.name), path.name,
+                             note["message"])
+            given.append((d["line"], d["code"], message))
     problems = []
     for line, code, note in notes:
         if not any((g[0], g[1]) == (line, code) and note in g[2] for g in given):
@@ -463,7 +466,7 @@ def expected_status(source: str) -> set[int] | None:
     if not m:
         return None
     if m.group(1) == "abort":
-        return {-signal.SIGABRT, 128 + signal.SIGABRT, 3}
+        return {-signal.SIGABRT, 128 + signal.SIGABRT, 3, 0xC0000409}
     return {int(m.group(1))}
 
 
