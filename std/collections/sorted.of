@@ -37,6 +37,7 @@ pub struct SortedMap<K: Ord, V> {
      * An empty map.
      *
      * @returns a map with no entries
+     * @complexity O(1)
      */
     pub fn new() SortedMap<K, V> {
         return SortedMap{keys: [], values: []}
@@ -46,6 +47,7 @@ pub struct SortedMap<K: Ord, V> {
      * The number of entries.
      *
      * @returns the number of keys
+     * @complexity O(1)
      */
     pub fn len(self) int {
         return self.keys.len()
@@ -55,6 +57,7 @@ pub struct SortedMap<K: Ord, V> {
      * Whether the map has no entries.
      *
      * @returns true when the map is empty
+     * @complexity O(1)
      */
     pub fn isEmpty(self) bool {
         return self.keys.isEmpty()
@@ -66,6 +69,7 @@ pub struct SortedMap<K: Ord, V> {
      *
      * @param key the key to look for
      * @returns a position from 0 to `len()`
+     * @complexity O(log n)
      */
     pub fn lowerBound(self, key: K) int {
         let lo = 0
@@ -86,6 +90,7 @@ pub struct SortedMap<K: Ord, V> {
      *
      * @param key the key to look for
      * @returns true when an equal key is in the map
+     * @complexity O(log n)
      */
     pub fn contains(self, key: K) bool {
         return self.find(key) >= 0
@@ -96,6 +101,7 @@ pub struct SortedMap<K: Ord, V> {
      *
      * @param key the key to look for
      * @returns `Some` with a reference to the value, or `None`
+     * @complexity O(log n)
      */
     pub fn get(self, key: K) Option<&V> {
         const i = self.find(key)
@@ -110,6 +116,7 @@ pub struct SortedMap<K: Ord, V> {
      *
      * @param key the key to look for
      * @returns `Some` with a mutable reference to the value, or `None`
+     * @complexity O(log n)
      */
     pub fn getMut(mut self, key: K) Option<&mut V> {
         const i = self.find(key)
@@ -126,6 +133,7 @@ pub struct SortedMap<K: Ord, V> {
      * @param key the key; the map takes ownership of it
      * @param value the value; the map takes ownership of it
      * @returns `Some` with the previous value of the key, or `None`
+     * @complexity O(n): a binary search, then the later entries shift; O(log n) at the end
      */
     pub fn insert(mut self, key: move K, value: move V) Option<V> {
         const i = self.lowerBound(key)
@@ -142,6 +150,7 @@ pub struct SortedMap<K: Ord, V> {
      *
      * @param key the key to remove
      * @returns `Some` with the value, or `None` when the key was not there
+     * @complexity O(n): the later entries shift
      */
     pub fn remove(mut self, key: K) Option<V> {
         const i = self.find(key)
@@ -154,6 +163,7 @@ pub struct SortedMap<K: Ord, V> {
 
     /**
      * Removes every entry; the capacity is kept for reuse.
+     * @complexity O(n)
      */
     pub fn clear(mut self) {
         self.keys.clear()
@@ -165,6 +175,7 @@ pub struct SortedMap<K: Ord, V> {
      * range of keys.
      *
      * @returns a slice of the keys
+     * @complexity O(1)
      */
     pub fn keys(self) &[K] {
         return self.keys.asSlice()
@@ -175,6 +186,7 @@ pub struct SortedMap<K: Ord, V> {
      * `keys()[i]`.
      *
      * @returns a slice of the values
+     * @complexity O(1)
      */
     pub fn values(self) &[V] {
         return self.values.asSlice()
