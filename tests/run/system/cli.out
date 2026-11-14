@@ -1,0 +1,14 @@
+force=true mode=644 a -> b
+Copy files
+
+Usage: copy [OPTIONS] <from> <to>
+
+Arguments:
+  <from>             The source
+  <to>               The destination
+
+Options:
+  -f, --force        Overwrite
+  -m, --mode <MODE>  The permissions [default: 644]
+  -h, --help         Print help
+done
