@@ -501,6 +501,32 @@ Launch, attach, line and function breakpoints, stepping, the stack and
 the variables work; `tools/check_dap.py`, run by `make test-stage1`,
 checks them with each adapter it finds.
 
+### Coverage and profiling
+
+`--coverage` (stage 1) counts how many times each source line runs, with
+gcov counters that clang adds and maps to the lines of `-g` (ADR 0073).
+It implies `-g` and turns the object cache off. Each run adds to the
+`.gcda` files next to the build's `.gcno` files:
+
+```
+ofir build --coverage main.of -o build/main
+build/main
+llvm-cov gcov build/*.gcda        # main.of.gcov: count or ##### per line
+gcovr --gcov-executable "llvm-cov gcov" --html-details -o coverage.html
+```
+
+`gcovr` and `lcov` export HTML, Cobertura XML or LCOV. The lines of a
+generic function count every instance; code inlined by `--release`
+counts at the line it was written on. clang needs its profile runtime
+(`libclang-rt-18-dev` on Ubuntu).
+
+To profile, build with `-g` (or `--release -g`) and run the program
+under any profiler that reads DWARF, such as `perf record`, `valgrind
+--tool=callgrind` with `callgrind_annotate`, or Instruments. A function
+appears as `ofir.<name>`, a generic instance with its type arguments
+(`ofir.twice<int>`). `tools/check_profile.py`, run by `make
+test-stage1`, checks both and prints their measured overhead.
+
 ## 4. Build steps
 
 ```
