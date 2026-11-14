@@ -358,7 +358,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.23c | Closures and function values: `x.f()` calls a fn-typed field (spec 10.2); escape of borrowed `fn` values (E0702), conversion to `move fn`, drops of `move fn` in fields, lists and options tested; `move fn` printed in types | OFIR-10 | **done**: stage 0 keeps no field calls and no E0702 |
 | 6.23d | Generic std and iteration: `for mut` binds elements in place (both stages), borrow contracts of spec 4.4 tested (E0700, E0701, E0703, E0315), `List.drain()` for consuming loops, no lazy adapter chains (ADR 0040) | OFIR-11 | **done**: stage 0 checks no loop borrows; references stored in a container are not yet tracked by the borrow checker |
 | 6.23e | Named/default arguments and string forms: evaluation order of written arguments and defaults, multi-byte format widths and UTF-8 boundaries tested; `str.chars()` decodes scalar values (both stages) | OFIR-12 | **done**: named and default arguments, raw and multi-line strings and format specifiers stay stage 1 only |
-| 6.23f | Attributes and conditional compilation: `@cfg` checks only its condition and follows the host target, `main` and `ofir_` C symbols are reserved for the runtime (E0819), deprecation and unknown attributes tested | OFIR-13 | **done**: stage 1 only; no cross compilation |
+| 6.23f | Attributes and conditional compilation: `@cfg` checks only its condition and follows the host target, `main` and `ofir_` C symbols are reserved for the runtime (E0819), deprecation and unknown attributes tested | OFIR-13 | **done**: stage 1 only; `--target` came with 6.27d |
 | 6.23g | Compile-time execution: E0815 and E0816 note the function and line where a called function failed and the calls that led there; a random seed is rejected (E0815); the test runner checks diagnostic notes | OFIR-14 | **done**: stage 1 only |
 | 6.23h | Type operators: a type alias may name itself in a branch of a conditional type, decided per expansion, up to 64 nested expansions (E0346); visibility (`key_visibility`), inference (`mapped_generic`) and ownership (`key_params`, E0600) of keys stay tested | OFIR-15 | **done**: stage 1 only; recursion on a type parameter is E0901 |
 | 6.23i | Union types: normalization (`unions/normalization`), layout (`unions/layout`), exhaustiveness (`union_unreachable`, W0004) and invalid narrowing (`union_narrowing`: E0352 for sub-unions and `if const`, E0500, E0602 from a borrowed member) are tested | OFIR-16 | **done**: stage 1 only; the spec needed no change |
@@ -401,6 +401,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.27a | C FFI contract (ADR 0063): `extern "C" fn(A) R` pointer types (only `extern "C"` functions coerce, E0823; calls are unsafe), `os.errno` and `os.setErrno`, `SliceMut.asMutPtr` for buffers C fills, ownership and foreign-thread rules; fixtures for `qsort`, user-data callbacks, buffers, errno and an export called from a C thread; variadics and unions stay decided as unsupported | OFIR-48 | **done** |
 | 6.27b | Native libraries (ADR 0064): `ofir build --lib=static` and `--lib=shared` (a static library is one object; a shared one links the runtime, built `-fPIC`), the generated C header with the type mapping and `@repr(C)` structs, stdout flushed at exit; C consumers of a static and a shared library in tests/run/ffi | OFIR-49 | **done** |
 | 6.27c | Target tiers (ADR 0065): tier 1 is `x86_64-linux-gnu`, `aarch64-apple-darwin` and `x86_64-w64-windows-gnu`, each built and tested in CI; tier 2 is `aarch64-linux-gnu` and `x86_64-apple-darwin`; only 64-bit little-endian targets; `@cfg`, `os.name()` and layout describe the target (spec 13.8) | OFIR-50 | **done** |
+| 6.27d | Cross compilation (ADR 0066): `--target=TRIPLE` (stage 1) passes the triple and `OFIR_SYSROOT` to clang, `@cfg` follows the target, the target runtime is `<runtime dir>/<triple>/libofir_rt.a` (`make runtime TARGET=`), `run`/`test` use `OFIR_RUNNER`; CI runs the run tests for `aarch64-linux-gnu` under qemu-user (`make test-cross`) | OFIR-51 | **done** |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
@@ -440,7 +441,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.27 with OFIR-51; OFIR-48 to OFIR-50 are 6.27a to 6.27c.
+1. Continue 6.27 with OFIR-52; OFIR-48 to OFIR-51 are 6.27a to 6.27d.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
