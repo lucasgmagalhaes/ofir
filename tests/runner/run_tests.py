@@ -696,14 +696,15 @@ def check_lsp(cfg: Config, path: Path) -> Result:
 
 def run_test(cfg: Config, suite: str, path: Path) -> Result:
     source = path.read_text(errors="replace")   # invalid UTF-8 is a test input
+    windows = cfg.target.endswith("-windows-gnu") if cfg.target else os.name == "nt"
     for requirement in REQUIRES_RE.findall(source):
         if requirement == "stage1" and cfg.stage == 0:
             return Result(path, "skip", "requires stage1")
         if requirement == "stage0" and cfg.stage == 1:
             return Result(path, "skip", "requires stage0")
-        if requirement == "unix" and os.name == "nt":
+        if requirement == "unix" and windows:   # of the target system
             return Result(path, "skip", "requires unix")
-        if requirement == "windows" and os.name != "nt":
+        if requirement == "windows" and not windows:
             return Result(path, "skip", "requires windows")
         if requirement == "host" and cfg.target:
             return Result(path, "skip", "requires host")
