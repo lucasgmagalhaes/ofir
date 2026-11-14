@@ -51,10 +51,13 @@ jobs:
           "$OFIR_CLANG" --version
           python3 --version
 
-      # gdb for tools/check_debugger.py, which make test runs.
+      # gdb for tools/check_debugger.py and tools/check_dap.py, which make
+      # test runs; ptrace_scope 0 lets check_dap.py attach to a process.
       - name: Install gdb
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y gdb
+        run: |
+          sudo apt-get install -y gdb
+          sudo sysctl -w kernel.yama.ptrace_scope=0
 
       - name: Build and test
         run: make test
