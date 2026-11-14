@@ -117,6 +117,7 @@ _Noreturn void ofir_abort(void);
 void ofir_end_begin(void);
 int64_t ofir_test_index(void);   // the test `ofir test` asked for, or -1
 int64_t ofir_now_ns(void);       // a monotonic clock, in nanoseconds
+int64_t ofir_wall_ns(void);      // the wall clock, in nanoseconds since 1970
 void ofir_sleep_ns(int64_t ns);  // at least ns nanoseconds
 
 // Tasks (task.c, spec 14.2): std.task defines ofir_task_entry.
