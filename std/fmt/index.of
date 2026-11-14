@@ -1,0 +1,342 @@
+/**
+ * @module
+ * `std.fmt`: formatting at run time (ADR 0061). Interpolation and its
+ * specifiers (spec 1.7) take widths and precisions written in the literal;
+ * these functions take them as values. Widths count Unicode scalar values.
+ *
+ * @example
+ * ```ofir
+ * import std.fmt
+ * import std.testing.assert
+ *
+ * assert(fmt.padStart("42", 5, " ") == "   42")
+ * assert(fmt.fixed(3.14159, 2) == "3.14")
+ * assert(fmt.grouped(1234567, ",") == "1,234,567")
+ * assert(fmt.bytes(1536) == "1.5 KiB")
+ * ```
+ */
+
+const DIGITS: str = "0123456789abcdefghijklmnopqrstuvwxyz"
+// 2^53: below it every integer is an exact f64.
+const EXACT: f64 = 9007199254740992.0
+
+/**
+ * Pads `text` on the left to `width` scalar values.
+ *
+ * @param text what to pad
+ * @param width the width to reach; wider text is returned unchanged
+ * @param fill what to repeat, usually one character
+ * @returns the padded text
+ */
+pub fn padStart(text: str, width: int, fill: str) str {
+    let out = fill.repeat(missing(text, width))
+    out.push(text)
+    return out
+}
+
+/**
+ * Pads `text` on the right to `width` scalar values.
+ *
+ * @param text what to pad
+ * @param width the width to reach; wider text is returned unchanged
+ * @param fill what to repeat, usually one character
+ * @returns the padded text
+ */
+pub fn padEnd(text: str, width: int, fill: str) str {
+    let out = text.toOwned()
+    out.push(fill.repeat(missing(text, width)))
+    return out
+}
+
+/**
+ * Pads `text` on both sides to `width` scalar values; an odd fill puts
+ * the extra one on the right.
+ *
+ * @param text what to pad
+ * @param width the width to reach; wider text is returned unchanged
+ * @param fill what to repeat, usually one character
+ * @returns the centered text
+ */
+pub fn center(text: str, width: int, fill: str) str {
+    const total = missing(text, width)
+    let out = fill.repeat(total / 2)
+    out.push(text)
+    out.push(fill.repeat(total - total / 2))
+    return out
+}
+
+// How many scalar values `text` lacks to be `width` wide.
+fn missing(text: str, width: int) int {
+    const count = text.charCount()
+    if count >= width {
+        return 0
+    }
+    return width - count
+}
+
+/**
+ * Writes `x` with `digits` digits after the point, rounded half away from
+ * zero. NaN, infinities and values too large for the digits asked
+ * (`|x| >= 2^53 / 10^digits`) are written as interpolation writes them.
+ *
+ * @param x the number
+ * @param digits from 0 to 9
+ * @panics when `digits` is outside 0 to 9
+ * @returns the text, with a `-` only when the rounded value is not 0
+ */
+pub fn fixed(x: f64, digits: int) str {
+    if digits < 0 || digits > 9 {
+        panic("fmt.fixed: digits must be from 0 to 9, not {digits}")
+    }
+    let scale = 1
+    for _ in 0..digits {
+        scale *= 10
+    }
+    if !x.isFinite() || x.abs() >= EXACT / (scale as f64) {
+        return "{x}"
+    }
+    const n = (x.abs() * (scale as f64)).round() as int
+    let out = str.new()
+    if x < 0.0 && n != 0 {
+        out.push("-")
+    }
+    out.push("{n / scale}")
+    if digits > 0 {
+        out.push(".")
+        out.push(padStart("{n % scale}", digits, "0"))
+    }
+    return out
+}
+
+/**
+ * Groups the digits of `n` by three from the right.
+ *
+ * @param n the number
+ * @param separator what goes between groups, such as `","` or `"_"`
+ * @returns the text, with a leading `-` for a negative number
+ */
+pub fn grouped(n: int, separator: str) str {
+    const text = "{n}"
+    let out = str.new()
+    let start = 0
+    if n < 0 {
+        out.push("-")
+        start = 1
+    }
+    const count = text.len() - start
+    for i in 0..count {
+        if i > 0 && (count - i) % 3 == 0 {
+            out.push(separator)
+        }
+        out.push(text.slice(start + i, start + i + 1))
+    }
+    return out
+}
+
+/**
+ * Writes `n` in base `base`, with lowercase letters past 9 and a leading
+ * `-` for a negative number.
+ *
+ * @param n the number
+ * @param base from 2 to 36
+ * @panics when `base` is outside 2 to 36
+ * @returns the digits
+ */
+pub fn radix(n: int, base: int) str {
+    if base < 2 || base > 36 {
+        panic("fmt.radix: base must be from 2 to 36, not {base}")
+    }
+    if n == 0 {
+        return "0".toOwned()
+    }
+    // Negative remainders, so the most negative int needs no negation.
+    let digits: List<str> = []
+    let rest = n
+    for rest != 0 {
+        let d = rest % base
+        if d < 0 {
+            d = 0 - d
+        }
+        digits.push(DIGITS.slice(d, d + 1).toOwned())
+        rest = rest / base
+    }
+    let out = str.new()
+    if n < 0 {
+        out.push("-")
+    }
+    let i = digits.len()
+    for i > 0 {
+        i -= 1
+        out.push(digits[i])
+    }
+    return out
+}
+
+/**
+ * Writes a size in bytes in binary units: `B`, `KiB`, `MiB`, `GiB`,
+ * `TiB`, `PiB` and `EiB`, with the largest unit that keeps the number at
+ * least 1, at most two digits after the point and no trailing zeros.
+ *
+ * @param n the size, in bytes
+ * @returns the text, such as `512 B` or `1.5 KiB`
+ */
+pub fn bytes(n: int) str {
+    const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"]
+    const size = n as f64
+    let unit = 0
+    let divisor = 1.0
+    for unit + 1 < units.len() && next(size / (divisor * 1024.0), unit) {
+        unit += 1
+        divisor *= 1024.0
+    }
+    if unit == 0 {
+        return "{n} B"
+    }
+    const number = short(size / divisor)
+    const name = units[unit].clone()
+    return "{number} {name}"
+}
+
+/**
+ * Writes a duration with the largest of `ns`, `µs`, `ms`, `s`, `min` and
+ * `h` that keeps the number at least 1, at most two digits after the
+ * point and no trailing zeros.
+ *
+ * @param ns the duration, in nanoseconds
+ * @returns the text, such as `340 ms` or `1.25 s`
+ */
+pub fn duration(ns: int) str {
+    const units = ["ns", "µs", "ms", "s", "min", "h"]
+    const sizes = [1.0, 1000.0, 1000000.0, 1000000000.0, 60000000000.0, 3600000000000.0]
+    const value = ns as f64
+    let unit = 0
+    for unit + 1 < units.len() && next(value / sizes[unit + 1], unit) {
+        unit += 1
+    }
+    const number = short(value / sizes[unit])
+    const name = units[unit].clone()
+    return "{number} {name}"
+}
+
+// Whether `x`, a value in the unit after `unit`, is at least 1 as written:
+// the first unit is written whole, the others with two digits.
+fn next(x: f64, unit: int) bool {
+    if unit == 0 {
+        return x.abs() >= 1.0
+    }
+    return (x.abs() * 100.0).round() >= 100.0
+}
+
+// `x` with two digits after the point, without trailing zeros.
+fn short(x: f64) str {
+    let text = fixed(x, 2)
+    if text.contains(".") {
+        for text.endsWith("0") {
+            text = text.slice(0, text.len() - 1).toOwned()
+        }
+        if text.endsWith(".") {
+            text = text.slice(0, text.len() - 1).toOwned()
+        }
+    }
+    return text
+}
+
+/**
+ * Rows of cells aligned in columns, for terminal output. Columns are
+ * separated by two spaces, cells are left aligned unless their column is
+ * set to the right, and no line ends with spaces.
+ *
+ * @example
+ * ```ofir
+ * import std.fmt
+ * import std.testing.assert
+ *
+ * let t = fmt.Table.new()
+ * t.alignRight(1)
+ * t.row(["name", "size"])
+ * t.row(["a.txt", "12"])
+ * t.row(["notes.md", "1024"])
+ * assert(t.render() == "name      size\na.txt       12\nnotes.md  1024\n")
+ * ```
+ */
+pub struct Table {
+    rows: List<List<str>>
+    right: List<int>
+
+    /**
+     * A table with no rows.
+     *
+     * @returns the table
+     */
+    pub fn new() Table {
+        return Table{rows: [], right: []}
+    }
+
+    /**
+     * Aligns the cells of a column to the right, as for numbers.
+     *
+     * @param column the column, from 0
+     */
+    pub fn alignRight(mut self, column: int) {
+        self.right.push(column)
+    }
+
+    /**
+     * Adds a row; rows may have different numbers of cells.
+     *
+     * @param cells the cells, from the left
+     */
+    pub fn row(mut self, cells: &[str]) {
+        let row: List<str> = []
+        for i in 0..cells.len() {
+            row.push(cells[i].clone())
+        }
+        self.rows.push(row)
+    }
+
+    /**
+     * Writes the rows, each ending with a line break.
+     *
+     * @returns the text
+     */
+    pub fn render(self) str {
+        let widths: List<int> = []
+        for r in 0..self.rows.len() {
+            for c in 0..self.rows[r].len() {
+                const count = self.rows[r][c].charCount()
+                if c == widths.len() {
+                    widths.push(count)
+                } else if count > widths[c] {
+                    widths[c] = count
+                }
+            }
+        }
+        let out = str.new()
+        for r in 0..self.rows.len() {
+            let line = str.new()
+            for c in 0..self.rows[r].len() {
+                if c > 0 {
+                    line.push("  ")
+                }
+                if self.isRight(c) {
+                    line.push(padStart(self.rows[r][c], widths[c], " "))
+                } else {
+                    line.push(padEnd(self.rows[r][c], widths[c], " "))
+                }
+            }
+            out.push(line.trimEnd())
+            out.push("\n")
+        }
+        return out
+    }
+
+    // Whether `column` is aligned to the right.
+    fn isRight(self, column: int) bool {
+        for c in self.right {
+            if c == column {
+                return true
+            }
+        }
+        return false
+    }
+}
