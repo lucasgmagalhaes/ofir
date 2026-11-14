@@ -86,9 +86,11 @@ int32_t ofir_read_file(const uint8_t *path, int64_t len, OfirBuf *out) {
     return code;
 }
 
-int32_t ofir_write_file(const uint8_t *path, int64_t len, const uint8_t *data, int64_t n) {
+// Writes all of `data` to the file opened with `flags` (O_TRUNC or O_APPEND).
+static int32_t write_with(const uint8_t *path, int64_t len, const uint8_t *data, int64_t n,
+                          int flags) {
     char *name = ofir_c_string(path, len);
-    int fd = name ? open(name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666) : -1;
+    int fd = name ? open(name, O_WRONLY | O_CREAT | O_BINARY | flags, 0666) : -1;
     int32_t code = name ? errno : EINVAL;
     ofir_free(name);
     if (fd < 0) {
@@ -105,6 +107,15 @@ int32_t ofir_write_file(const uint8_t *path, int64_t len, const uint8_t *data, i
         n -= done > 0 ? done : 0;
     }
     return close(fd) == 0 ? 0 : errno;
+}
+
+int32_t ofir_write_file(const uint8_t *path, int64_t len, const uint8_t *data, int64_t n) {
+    return write_with(path, len, data, n, O_TRUNC);
+}
+
+// Adds `data` at the end of the file, creating it if it is missing (ADR 0058).
+int32_t ofir_append_file(const uint8_t *path, int64_t len, const uint8_t *data, int64_t n) {
+    return write_with(path, len, data, n, O_APPEND);
 }
 
 bool ofir_path_exists(const uint8_t *path, int64_t len) {
@@ -136,6 +147,14 @@ int32_t ofir_canonicalize(const uint8_t *path, int64_t len, OfirBuf *out) {
 int32_t ofir_remove_file(const uint8_t *path, int64_t len) {
     char *name = ofir_c_string(path, len);
     int32_t code = !name ? EINVAL : unlink(name) == 0 ? 0 : errno;
+    ofir_free(name);
+    return code;
+}
+
+// Removes an empty directory (ADR 0058).
+int32_t ofir_remove_dir(const uint8_t *path, int64_t len) {
+    char *name = ofir_c_string(path, len);
+    int32_t code = !name ? EINVAL : rmdir(name) == 0 ? 0 : errno;
     ofir_free(name);
     return code;
 }

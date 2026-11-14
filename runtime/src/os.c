@@ -405,6 +405,22 @@ int64_t ofir_now_ns(void) {
 #endif
 }
 
+// The wall clock: nanoseconds since 1970-01-01T00:00:00Z (ADR 0058). It
+// jumps when the system clock is set.
+int64_t ofir_wall_ns(void) {
+#ifdef _WIN32
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    uint64_t t = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+    // File times count 100 ns steps from 1601-01-01.
+    return (int64_t)(t - 116444736000000000ULL) * 100;
+#else
+    struct timespec t;
+    clock_gettime(CLOCK_REALTIME, &t);
+    return (int64_t)t.tv_sec * 1000000000 + t.tv_nsec;
+#endif
+}
+
 // Sleeps for at least `ns` nanoseconds; 0 or less returns at once.
 void ofir_sleep_ns(int64_t ns) {
     if (ns <= 0) {

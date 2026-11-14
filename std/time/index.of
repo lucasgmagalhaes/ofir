@@ -1,6 +1,7 @@
 /**
  * @module
- * `std.time`: a monotonic clock, sleeping and deadlines (spec 14.5).
+ * `std.time`: a monotonic clock, the wall clock, sleeping and deadlines
+ * (spec 14.5). Calendar dates are in `std.time.date`.
  *
  * Times are `int` nanoseconds on a clock that never goes back; its zero
  * is unspecified, so only differences between readings mean anything.
@@ -8,6 +9,7 @@
 
 extern "C" {
     fn ofir_now_ns() i64
+    fn ofir_wall_ns() i64
     fn ofir_sleep_ns(ns: i64)
 }
 
@@ -27,6 +29,22 @@ pub const SECOND: int = 1_000_000_000
  */
 pub fn now() int {
     return unsafe { ofir_now_ns() }
+}
+
+/**
+ * Reads the wall clock (ADR 0058). Unlike `now`, it can jump when the
+ * system clock is set, so durations should use `now`.
+ *
+ * @returns nanoseconds since 1970-01-01T00:00:00Z
+ * @example
+ * ```ofir
+ * import std.time
+ *
+ * const seconds = time.unixNanos() / time.SECOND   // since 1970
+ * ```
+ */
+pub fn unixNanos() int {
+    return unsafe { ofir_wall_ns() }
 }
 
 /**

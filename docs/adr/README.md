@@ -68,6 +68,7 @@ starts with the same word as the record's status line.
 | [0055](0055-std-collections.md) | Sets, deques, heaps and sorted maps in `std.collections` | Accepted |
 | [0056](0056-text-bytes-scalars.md) | Text as UTF-8 bytes, scalars as `u32`, graphemes outside std | Accepted |
 | [0057](0057-math-floats-random.md) | Float math from libm, `std.math` helpers, a seeded `std.random` | Accepted |
+| [0058](0058-paths-clocks-dates.md) | Paths as strings, a wall clock, UTC dates and more file operations | Accepted |
 
 ## Template
 
