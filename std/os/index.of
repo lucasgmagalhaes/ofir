@@ -2,6 +2,17 @@
  * @module
  * `std.os`: the process: its arguments, its environment, exiting, and
  * running other programs (docs/std/system.md).
+ *
+ * @example
+ * ```ofir
+ * import std.os
+ *
+ * const home = os.env("HOME") ?? "."
+ * const out = os.run("echo", ["hi"]).expect("echo runs")
+ * if out.status != 0 {
+ *     os.exit(1)
+ * }
+ * ```
  */
 
 import std.io.Buffer

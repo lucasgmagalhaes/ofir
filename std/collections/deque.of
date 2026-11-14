@@ -2,6 +2,19 @@
  * @module
  * `Deque<T>`: a double-ended queue in a ring buffer (ADR 0055,
  * docs/std/collections.md).
+ *
+ * @example
+ * ```ofir
+ * import std.collections.deque.Deque
+ * import std.testing.assert
+ *
+ * let d: Deque<int> = Deque.new()
+ * d.pushBack(2)
+ * d.pushFront(1)
+ * assert(d.len() == 2)
+ * const first = d.popFront() ?? 0
+ * assert(first == 1)
+ * ```
  */
 
 extern "C" {
@@ -42,6 +55,7 @@ pub struct Deque<T> {
      * An empty deque; nothing is allocated until the first push.
      *
      * @returns a deque of length 0
+     * @complexity O(1)
      */
     pub fn new() Deque<T> {
         return Deque{ptr: unsafe { 0 as *mut T }, cap: 0, head: 0, len: 0}
@@ -53,6 +67,7 @@ pub struct Deque<T> {
      * @param n the number of elements to make room for
      * @returns a deque of length 0 and capacity at least `n`
      * @panics when the system is out of memory
+     * @complexity O(1)
      */
     pub fn withCapacity(n: int) Deque<T> {
         let d: Deque<T> = Deque.new()
@@ -64,6 +79,7 @@ pub struct Deque<T> {
      * The number of elements.
      *
      * @returns the length
+     * @complexity O(1)
      */
     pub fn len(self) int {
         return self.len
@@ -73,6 +89,7 @@ pub struct Deque<T> {
      * Whether the deque has no elements.
      *
      * @returns true when the length is 0
+     * @complexity O(1)
      */
     pub fn isEmpty(self) bool {
         return self.len == 0
@@ -82,6 +99,7 @@ pub struct Deque<T> {
      * How many elements fit before the next reallocation.
      *
      * @returns the capacity, 0 or a power of two
+     * @complexity O(1)
      */
     pub fn capacity(self) int {
         return self.cap
@@ -92,6 +110,7 @@ pub struct Deque<T> {
      *
      * @param extra how many more elements must fit
      * @panics with "capacity overflow" when the size does not fit an `int`, or out of memory
+     * @complexity O(n) when it grows, else O(1)
      */
     pub fn reserve(mut self, extra: int) {
         const needed = match self.len.checkedAdd(extra) {
@@ -131,6 +150,7 @@ pub struct Deque<T> {
      *
      * @param x the element; the deque takes ownership of it
      * @panics when the system is out of memory
+     * @complexity O(1) amortized
      */
     pub fn pushBack(mut self, x: move T) {
         if self.len == self.cap {
@@ -147,6 +167,7 @@ pub struct Deque<T> {
      *
      * @param x the element; the deque takes ownership of it
      * @panics when the system is out of memory
+     * @complexity O(1) amortized
      */
     pub fn pushFront(mut self, x: move T) {
         if self.len == self.cap {
@@ -163,6 +184,7 @@ pub struct Deque<T> {
      * Removes the last element.
      *
      * @returns `Some` with the element, or `None` when the deque is empty
+     * @complexity O(1)
      */
     pub fn popBack(mut self) Option<T> {
         if self.len == 0 {
@@ -176,6 +198,7 @@ pub struct Deque<T> {
      * Removes the first element.
      *
      * @returns `Some` with the element, or `None` when the deque is empty
+     * @complexity O(1)
      */
     pub fn popFront(mut self) Option<T> {
         if self.len == 0 {
@@ -193,6 +216,7 @@ pub struct Deque<T> {
      * @param i the position
      * @returns `Some` with a reference to element `i`, or `None` outside
      * `0..len()`
+     * @complexity O(1)
      */
     pub fn get(self, i: int) Option<&T> {
         if i < 0 || i >= self.len {
@@ -207,6 +231,7 @@ pub struct Deque<T> {
      * @param i the position
      * @returns `Some` with a mutable reference to element `i`, or `None`
      * outside `0..len()`
+     * @complexity O(1)
      */
     pub fn getMut(mut self, i: int) Option<&mut T> {
         if i < 0 || i >= self.len {
@@ -219,6 +244,7 @@ pub struct Deque<T> {
      * A borrow of the first element.
      *
      * @returns `Some` with a reference to it, or `None` when empty
+     * @complexity O(1)
      */
     pub fn front(self) Option<&T> {
         return self.get(0)
@@ -228,6 +254,7 @@ pub struct Deque<T> {
      * A borrow of the last element.
      *
      * @returns `Some` with a reference to it, or `None` when empty
+     * @complexity O(1)
      */
     pub fn back(self) Option<&T> {
         return self.get(self.len - 1)
@@ -235,6 +262,7 @@ pub struct Deque<T> {
 
     /**
      * Removes every element, front first; the capacity is kept for reuse.
+     * @complexity O(n), to drop the elements
      */
     pub fn clear(mut self) {
         for self.len > 0 {
@@ -251,6 +279,7 @@ pub struct Deque<T> {
      * An iterator over borrows of the elements, front to back.
      *
      * @returns a `DequeIter` that borrows the deque
+     * @complexity O(1)
      */
     pub fn iter(self) DequeIter<T> {
         return DequeIter{deque: &self, index: 0}
@@ -284,6 +313,7 @@ pub ref struct DequeIter<T> {
      * The next element.
      *
      * @returns `Some` with a reference to it, or `None` after the last one
+     * @complexity O(1)
      */
     pub fn next(mut self) Option<&T> {
         const x = self.deque.get(self.index)

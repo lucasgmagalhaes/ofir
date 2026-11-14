@@ -2,6 +2,17 @@
  * @module
  * `Set<T>`: a hash set that iterates in insertion order (ADR 0055,
  * docs/std/collections.md).
+ *
+ * @example
+ * ```ofir
+ * import std.collections.set.Set
+ * import std.testing.assert
+ *
+ * let s: Set<str> = Set.new()
+ * assert(s.insert("a"))
+ * assert(!s.insert("a"))
+ * assert(s.contains("a") && s.len() == 1)
+ * ```
  */
 
 extern "intrinsic" {
@@ -37,6 +48,7 @@ pub struct Set<T: Eq + Hash> {
      * An empty set.
      *
      * @returns a set with no elements
+     * @complexity O(1)
      */
     pub fn new() Set<T> {
         return Set{map: Map<T, ()>.new()}
@@ -47,6 +59,7 @@ pub struct Set<T: Eq + Hash> {
      * chosen to collide (as `Map.seeded`).
      *
      * @returns a set with no elements
+     * @complexity O(1)
      */
     pub fn seeded() Set<T> {
         return Set{map: Map<T, ()>.seeded()}
@@ -56,6 +69,7 @@ pub struct Set<T: Eq + Hash> {
      * The number of elements.
      *
      * @returns the size of the set
+     * @complexity O(1)
      */
     pub fn len(self) int {
         return self.map.len()
@@ -65,6 +79,7 @@ pub struct Set<T: Eq + Hash> {
      * Whether the set has no elements.
      *
      * @returns true when the set is empty
+     * @complexity O(1)
      */
     pub fn isEmpty(self) bool {
         return self.map.isEmpty()
@@ -75,6 +90,7 @@ pub struct Set<T: Eq + Hash> {
      *
      * @param x the value to look for
      * @returns true when an equal element is in the set
+     * @complexity O(1) expected
      */
     pub fn contains(self, x: T) bool {
         return self.map.contains(x)
@@ -85,6 +101,7 @@ pub struct Set<T: Eq + Hash> {
      *
      * @param x the value; the set takes ownership of it
      * @returns true when the value was added, false when it was there
+     * @complexity O(1) expected, amortized
      */
     pub fn insert(mut self, x: move T) bool {
         if self.map.contains(x) {
@@ -99,6 +116,7 @@ pub struct Set<T: Eq + Hash> {
      *
      * @param x the value to remove
      * @returns true when it was in the set
+     * @complexity O(1) expected
      */
     pub fn remove(mut self, x: T) bool {
         return self.map.remove(x).isSome()
@@ -106,6 +124,7 @@ pub struct Set<T: Eq + Hash> {
 
     /**
      * Removes every element.
+     * @complexity O(capacity)
      */
     pub fn clear(mut self) {
         self.map.clear()
@@ -116,6 +135,7 @@ pub struct Set<T: Eq + Hash> {
      *
      * @param other the set to compare with
      * @returns true when this set is a subset of `other`
+     * @complexity O(n) expected
      */
     pub fn isSubset(self, other: &Set<T>) bool {
         for x in self.map.keys() {
@@ -130,6 +150,7 @@ pub struct Set<T: Eq + Hash> {
      * An iterator over borrows of the elements, in insertion order.
      *
      * @returns a `MapKeys` that borrows the set
+     * @complexity O(1)
      */
     pub fn iter(self) MapKeys<T, ()> {
         return self.map.keys()
@@ -140,6 +161,7 @@ pub struct Set<T: Eq + Hash> {
      * order: what `{set:?}` shows (spec 9.9).
      *
      * @param out the string written to
+     * @complexity O(n)
      */
     pub fn debug(self, out: mut str) {
         out.push("\{")

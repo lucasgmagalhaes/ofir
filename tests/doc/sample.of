@@ -67,6 +67,9 @@ pub type Points = List<Point>
  *               on two lines
  * @returns their sum
  * @panics never
+ * @complexity O(1)
+ * @allocates nothing
+ * @platform every target
  * @example
  * ```ofir
  * const n = sample.add(1, 2)

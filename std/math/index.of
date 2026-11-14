@@ -3,6 +3,16 @@
  * `std.math`: float constants and the numeric helpers that are not methods
  * (ADR 0057). The elementary functions are methods of `f32` and `f64`:
  * `x.sin()`, `x.ln()`, `x.powf(y)`.
+ *
+ * @example
+ * ```ofir
+ * import std.math
+ * import std.testing.assert
+ *
+ * assert(math.gcd(12, 18) == 6)
+ * assert(math.isqrt(17) == 4)
+ * assert(math.approxEq((math.PI / 2.0).sin(), 1.0, 1e-9, 0.0))
+ * ```
  */
 
 /** Pi, the ratio of a circle's circumference to its diameter. */

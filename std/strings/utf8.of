@@ -3,6 +3,17 @@
  * `std.strings.utf8`: UTF-8 encoding and decoding of byte buffers
  * (docs/std/strings.md, ADR 0056). A Unicode scalar value is a `u32` in
  * `0..=0x10FFFF` outside the surrogates `0xD800..=0xDFFF`.
+ *
+ * @example
+ * ```ofir
+ * import std.strings.utf8
+ * import std.testing.assert
+ *
+ * let bytes: List<u8> = []
+ * utf8.encode(0xE9, bytes)
+ * assert(bytes.len() == 2)
+ * assert(utf8.lossy(bytes) == "é")
+ * ```
  */
 
 /** The scalar value that stands for bytes that are not UTF-8 text. */

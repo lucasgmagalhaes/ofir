@@ -2,6 +2,18 @@
  * @module
  * `std.strings`: building strings from parts and from bytes
  * (docs/std/strings.md). The methods of `str` itself are in std/core/str.at.
+ *
+ * @example
+ * ```ofir
+ * import std.strings
+ * import std.testing.assert
+ *
+ * assert(strings.join(["a", "b", "c"], ", ") == "a, b, c")
+ * let b = strings.Builder.new()
+ * b.push("x = ")
+ * b.push("{1 + 1}")
+ * assert(b.finish() == "x = 2")
+ * ```
  */
 
 /**

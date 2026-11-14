@@ -2,6 +2,19 @@
  * @module
  * `Heap<T>`: a priority queue in a binary heap, and `Reverse<T>` for a
  * min-heap (ADR 0055, docs/std/collections.md).
+ *
+ * @example
+ * ```ofir
+ * import std.collections.heap.Heap
+ * import std.testing.assert
+ *
+ * let h: Heap<int> = Heap.new()
+ * h.push(3)
+ * h.push(7)
+ * h.push(5)
+ * const top = h.pop() ?? 0
+ * assert(top == 7)
+ * ```
  */
 
 /**
@@ -30,6 +43,7 @@ pub struct Heap<T: Ord> {
      * An empty heap.
      *
      * @returns a heap with no elements
+     * @complexity O(1)
      */
     pub fn new() Heap<T> {
         return Heap{items: []}
@@ -40,6 +54,7 @@ pub struct Heap<T: Ord> {
      *
      * @param items the elements; the heap takes ownership of the list
      * @returns the heap
+     * @complexity O(n)
      */
     pub fn fromList(items: move List<T>) Heap<T> {
         let heap = Heap{items}
@@ -55,6 +70,7 @@ pub struct Heap<T: Ord> {
      * The number of elements.
      *
      * @returns the size of the heap
+     * @complexity O(1)
      */
     pub fn len(self) int {
         return self.items.len()
@@ -64,6 +80,7 @@ pub struct Heap<T: Ord> {
      * Whether the heap has no elements.
      *
      * @returns true when the heap is empty
+     * @complexity O(1)
      */
     pub fn isEmpty(self) bool {
         return self.items.isEmpty()
@@ -74,6 +91,7 @@ pub struct Heap<T: Ord> {
      *
      * @param x the element; the heap takes ownership of it
      * @panics when the system is out of memory
+     * @complexity O(log n) amortized
      */
     pub fn push(mut self, x: move T) {
         self.items.push(x)
@@ -92,6 +110,7 @@ pub struct Heap<T: Ord> {
      * Removes the greatest element, in O(log n).
      *
      * @returns `Some` with it, or `None` when the heap is empty
+     * @complexity O(log n)
      */
     pub fn pop(mut self) Option<T> {
         const n = self.items.len()
@@ -108,6 +127,7 @@ pub struct Heap<T: Ord> {
      * A borrow of the greatest element.
      *
      * @returns `Some` with a reference to it, or `None` when empty
+     * @complexity O(1)
      */
     pub fn peek(self) Option<&T> {
         return self.items.first()
@@ -115,6 +135,7 @@ pub struct Heap<T: Ord> {
 
     /**
      * Removes every element; the capacity is kept for reuse.
+     * @complexity O(n)
      */
     pub fn clear(mut self) {
         self.items.clear()
@@ -124,6 +145,7 @@ pub struct Heap<T: Ord> {
      * The elements in ascending order, in O(n log n).
      *
      * @returns a sorted list; the heap is consumed
+     * @complexity O(n log n)
      */
     pub fn intoSorted(move self) List<T> {
         let heap = self
@@ -184,6 +206,7 @@ pub struct Reverse<T: Ord> {
      *
      * @param other the value to compare with
      * @returns `Less` when `other.value < self.value`, and so on
+     * @complexity O(1)
      */
     pub fn cmp(self, other: Reverse<T>) Ordering {
         if other.value < self.value {

@@ -6,6 +6,17 @@
  *
  * Stage 0 cannot clone a generic struct by method, so only stage 1
  * compiles this module.
+ *
+ * @example
+ * ```ofir
+ * import std.mem.rc.Rc
+ * import std.testing.assert
+ *
+ * const a = Rc.new(42)
+ * const b = a.clone()
+ * assert(a.owners() == 2)
+ * assert(*b.get() == 42)
+ * ```
  */
 // requires: stage1 (clone methods, roadmap 6.24)
 

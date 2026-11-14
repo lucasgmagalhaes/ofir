@@ -5,6 +5,18 @@
  *
  * Times are `int` nanoseconds on a clock that never goes back; its zero
  * is unspecified, so only differences between readings mean anything.
+ *
+ * @example
+ * ```ofir
+ * import std.time
+ * import std.testing.assert
+ *
+ * const start = time.now()
+ * time.sleep(time.MILLISECOND)
+ * assert(time.now() - start >= time.MILLISECOND)
+ * const deadline = time.Deadline.after(time.SECOND)
+ * assert(!deadline.expired())
+ * ```
  */
 
 extern "C" {

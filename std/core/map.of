@@ -70,6 +70,7 @@ pub struct Map<K: Eq + Hash, V> {
      * An empty map; nothing is allocated until the first insertion.
      *
      * @returns a map with no entries
+     * @complexity O(1)
      */
     pub fn new() Map<K, V> {
         return Map{entries: [], slots: [], gone: 0, seed: 0}
@@ -82,6 +83,7 @@ pub struct Map<K: Eq + Hash, V> {
      * iteration order is still the insertion order.
      *
      * @returns a map with no entries and a fresh seed
+     * @complexity O(1)
      * @example
      * ```ofir
      * let counts = Map<str, int>.seeded()
@@ -98,6 +100,7 @@ pub struct Map<K: Eq + Hash, V> {
      *
      * @param seed the key of the hash function
      * @returns a map with no entries
+     * @complexity O(1)
      */
     pub fn withSeed(seed: u64) Map<K, V> {
         return Map{entries: [], slots: [], gone: 0, seed}
@@ -107,6 +110,7 @@ pub struct Map<K: Eq + Hash, V> {
      * The number of keys.
      *
      * @returns the number of entries
+     * @complexity O(1)
      */
     pub fn len(self) int {
         return self.entries.len()
@@ -117,6 +121,7 @@ pub struct Map<K: Eq + Hash, V> {
      * insertion order: what `{map:?}` shows (spec 9.9).
      *
      * @param out the string written to
+     * @complexity O(n)
      */
     pub fn debug(self, out: mut str) {
         out.push("\{")
@@ -135,6 +140,7 @@ pub struct Map<K: Eq + Hash, V> {
      * An iterator over borrows of the keys, in insertion order.
      *
      * @returns a `MapKeys` that borrows the map
+     * @complexity O(1)
      * @example
      * ```ofir
      * let ages = Map<str, int>.new()
@@ -152,6 +158,7 @@ pub struct Map<K: Eq + Hash, V> {
      * Whether the map has no keys.
      *
      * @returns true when the map is empty
+     * @complexity O(1)
      */
     pub fn isEmpty(self) bool {
         return self.entries.isEmpty()
@@ -162,6 +169,7 @@ pub struct Map<K: Eq + Hash, V> {
      *
      * @param key the key to look for
      * @returns true if the map has an entry for `key`
+     * @complexity O(1) expected
      */
     pub fn contains(self, key: K) bool {
         return self.slotOf(key) >= 0
@@ -175,6 +183,7 @@ pub struct Map<K: Eq + Hash, V> {
      * @param value the value; the map takes ownership of it
      * @returns the previous value of `key`, or `None` for a new key
      * @panics when the system is out of memory
+     * @complexity O(1) expected, amortized; O(n) when it grows
      * @example
      * ```ofir
      * import std.testing.assert
@@ -200,6 +209,7 @@ pub struct Map<K: Eq + Hash, V> {
      * @param key the key to look for
      * @returns `Some` with a reference to the value, or `None` if the key
      * is not in the map
+     * @complexity O(1) expected
      */
     pub fn get(self, key: K) Option<&V> {
         const slot = self.slotOf(key)
@@ -215,6 +225,7 @@ pub struct Map<K: Eq + Hash, V> {
      * @param key the key to look for
      * @returns `Some` with a mutable reference to the value, or `None` if
      * the key is not in the map
+     * @complexity O(1) expected
      * @example
      * ```ofir
      * let counts = Map<str, int>.new()
@@ -240,6 +251,7 @@ pub struct Map<K: Eq + Hash, V> {
      * @param fallback the value of a new key
      * @returns a mutable reference to the value of `key`
      * @panics when the system is out of memory
+     * @complexity O(1) expected, amortized
      * @example
      * ```ofir
      * const words = ["a", "b", "a"]
@@ -264,6 +276,7 @@ pub struct Map<K: Eq + Hash, V> {
      *
      * @param key the key to remove
      * @returns the value the key had, or `None` if it was not in the map
+     * @complexity O(1) expected
      */
     pub fn remove(mut self, key: K) Option<V> {
         const slot = self.slotOf(key)
@@ -284,6 +297,7 @@ pub struct Map<K: Eq + Hash, V> {
 
     /**
      * Removes every key; the memory is kept for reuse.
+     * @complexity O(capacity)
      */
     pub fn clear(mut self) {
         self.entries.clear()
@@ -375,6 +389,7 @@ pub ref struct MapKeys<K: Eq + Hash, V> {
      * The next key.
      *
      * @returns `Some` with a reference to it, or `None` after the last one
+     * @complexity O(1) amortized over a whole walk
      */
     pub fn next(mut self) Option<&K> {
         if self.index >= self.map.entries.len() {

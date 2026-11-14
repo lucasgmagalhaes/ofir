@@ -53,6 +53,7 @@ pub struct List<T> {
      * An empty list; nothing is allocated until the first push.
      *
      * @returns a list of length 0
+     * @complexity O(1)
      */
     pub fn new() List<T> {
         return List{ptr: unsafe { 0 as *mut T }, len: 0, cap: 0}
@@ -68,6 +69,7 @@ pub struct List<T> {
      * @returns the list
      * @safety `ptr` must come from `ofir_alloc` with room for `cap`
      * elements (or be null with `cap == 0`), and nothing else may free it
+     * @complexity O(1)
      */
     pub unsafe fn fromParts(ptr: *mut T, len: int, cap: int) List<T> {
         return List{ptr, len, cap}
@@ -80,6 +82,7 @@ pub struct List<T> {
      * @param n the number of elements to make room for
      * @returns a list of length 0 and capacity at least `n`
      * @panics when the system is out of memory
+     * @complexity O(1); allocates `capacity` elements
      */
     pub fn withCapacity(n: int) List<T> {
         let list: List<T> = List.new()
@@ -95,6 +98,7 @@ pub struct List<T> {
      * @param count the length of the list
      * @returns a list of `count` elements equal to `value`
      * @panics when the system is out of memory
+     * @complexity O(n)
      */
     pub fn filled(value: T, count: int) List<T> {
         let list: List<T> = List.withCapacity(count)
@@ -111,6 +115,7 @@ pub struct List<T> {
      * The number of elements.
      *
      * @returns the length
+     * @complexity O(1)
      */
     pub fn len(self) int {
         return self.len
@@ -120,6 +125,7 @@ pub struct List<T> {
      * Whether the list has no elements.
      *
      * @returns true when the length is 0
+     * @complexity O(1)
      */
     pub fn isEmpty(self) bool {
         return self.len == 0
@@ -129,6 +135,7 @@ pub struct List<T> {
      * How many elements fit before the next reallocation.
      *
      * @returns the capacity, at least the length
+     * @complexity O(1)
      */
     pub fn capacity(self) int {
         return self.cap
@@ -140,6 +147,7 @@ pub struct List<T> {
      *
      * @param extra how many more elements must fit
      * @panics with "capacity overflow" when the size does not fit an `int`, or out of memory
+     * @complexity O(n) when it grows, else O(1)
      */
     pub fn reserve(mut self, extra: int) {
         const needed = match self.len.checkedAdd(extra) {
@@ -173,6 +181,7 @@ pub struct List<T> {
      *
      * @param x the element; the list takes ownership of it
      * @panics when the system is out of memory
+     * @complexity O(1) amortized; O(n) when it grows
      * @example
      * ```ofir
      * let xs: List<int> = []
@@ -195,6 +204,7 @@ pub struct List<T> {
      * @param i the position
      * @returns `Some` with a reference to element `i`, or `None` outside
      * `0..len()`
+     * @complexity O(1)
      * @example
      * ```ofir
      * const xs = [10, 20]
@@ -216,6 +226,7 @@ pub struct List<T> {
      * @param i the position
      * @returns `Some` with a mutable reference to element `i`, or `None`
      * outside `0..len()`
+     * @complexity O(1)
      * @example
      * ```ofir
      * let xs = [1, 2]
@@ -235,6 +246,7 @@ pub struct List<T> {
      * A borrow of the first element.
      *
      * @returns `Some` with a reference to it, or `None` for an empty list
+     * @complexity O(1)
      */
     pub fn first(self) Option<&T> {
         return self.get(0)
@@ -244,6 +256,7 @@ pub struct List<T> {
      * A borrow of the last element.
      *
      * @returns `Some` with a reference to it, or `None` for an empty list
+     * @complexity O(1)
      */
     pub fn last(self) Option<&T> {
         return self.get(self.len - 1)
@@ -254,6 +267,7 @@ pub struct List<T> {
      * one is expected, so this is rarely written.
      *
      * @returns a slice of the whole list
+     * @complexity O(1)
      */
     pub fn asSlice(self) &[T] {
         return unsafe { Slice.fromRaw(self.ptr, self.len) }
@@ -264,6 +278,7 @@ pub struct List<T> {
      * `&mut [T]` where one is expected, so this is rarely written.
      *
      * @returns a mutable slice of the whole list
+     * @complexity O(1)
      */
     pub fn asMutSlice(mut self) SliceMut<T> {
         return unsafe { SliceMut.fromRaw(self.ptr, self.len) }
@@ -274,6 +289,7 @@ pub struct List<T> {
      * `for x in l`, it works for elements that are not Copy.
      *
      * @returns a `ListIter` that borrows the list
+     * @complexity O(1)
      * @example
      * ```ofir
      * const names = ["ana", "bia"]
@@ -293,6 +309,7 @@ pub struct List<T> {
      * with the iterator.
      *
      * @returns a `Drain` that borrows the list mutably
+     * @complexity O(1); the walk is O(n)
      * @example
      * ```ofir
      * import std.testing.assert
@@ -316,6 +333,7 @@ pub struct List<T> {
      * @param hi the position after the last one
      * @returns the elements `lo` to `hi - 1`
      * @panics unless `0 <= lo <= hi <= len()`
+     * @complexity O(1)
      * @example
      * ```ofir
      * const xs = [10, 20, 30, 40]
@@ -333,6 +351,7 @@ pub struct List<T> {
      * @param lo the first position
      * @returns the elements from `lo` to the end
      * @panics unless `0 <= lo <= len()`
+     * @complexity O(1)
      */
     pub fn sliceFrom(self, lo: int) &[T] {
         return self.slice(lo, self.len)
@@ -346,6 +365,7 @@ pub struct List<T> {
      * @param hi the position after the last one
      * @returns the elements `lo` to `hi - 1`
      * @panics unless `0 <= lo <= hi <= len()`
+     * @complexity O(1)
      */
     pub fn sliceMut(mut self, lo: int, hi: int) SliceMut<T> {
         checkRange(lo, hi, self.len)
@@ -358,6 +378,7 @@ pub struct List<T> {
      * @param lo the first position
      * @returns the elements from `lo` to the end
      * @panics unless `0 <= lo <= len()`
+     * @complexity O(1)
      */
     pub fn sliceFromMut(mut self, lo: int) SliceMut<T> {
         return self.sliceMut(lo, self.len)
@@ -367,6 +388,7 @@ pub struct List<T> {
      * Removes the last element, in constant time.
      *
      * @returns `Some` with the last element, or `None` for an empty list
+     * @complexity O(1)
      * @example
      * ```ofir
      * import std.testing.assert
@@ -389,6 +411,7 @@ pub struct List<T> {
      * @param i the position of the new element, from 0 to `len()`
      * @param x the element; the list takes ownership of it
      * @panics when `i` is negative or greater than `len()`
+     * @complexity O(n - i): shifts the later elements
      * @example
      * ```ofir
      * let xs = ["b", "c"]
@@ -414,6 +437,7 @@ pub struct List<T> {
      * @param i the position, in `0..len()`
      * @returns the removed element
      * @panics when `i` is outside `0..len()`
+     * @complexity O(n - i): shifts the later elements
      */
     pub fn remove(mut self, i: int) T {
         self.checkIndex(i)
@@ -432,6 +456,7 @@ pub struct List<T> {
      * @param i the position, in `0..len()`
      * @returns the removed element
      * @panics when `i` is outside `0..len()`
+     * @complexity O(1)
      */
     pub fn swapRemove(mut self, i: int) T {
         self.checkIndex(i)
@@ -449,6 +474,7 @@ pub struct List<T> {
      * @param i the position of one element
      * @param j the position of the other; it may equal `i`
      * @panics when `i` or `j` is outside `0..len()`
+     * @complexity O(1)
      * @example
      * ```ofir
      * let xs = ["a", "b", "c"]
@@ -467,6 +493,7 @@ pub struct List<T> {
 
     /**
      * Removes every element; the capacity is kept for reuse.
+     * @complexity O(n), to drop the elements
      */
     pub fn clear(mut self) {
         self.truncate(0)
@@ -476,6 +503,7 @@ pub struct List<T> {
      * A new list with a clone of each element, in the same order.
      *
      * @returns a list of the same length, which owns its elements
+     * @complexity O(n)
      * @example
      * ```ofir
      * import std.testing.assert
@@ -501,6 +529,7 @@ pub struct List<T> {
      * `{list:?}` shows (spec 9.9).
      *
      * @param out the string written to
+     * @complexity O(n)
      */
     pub fn debug(self, out: mut str) {
         out.push("[")
@@ -520,6 +549,7 @@ pub struct List<T> {
      * nothing.
      *
      * @param n the number of elements to keep
+     * @complexity O(n - len), to drop the elements removed
      */
     pub fn truncate(mut self, n: int) {
         for self.len > n && self.len > 0 {   // the dropped elements, last first
@@ -535,6 +565,7 @@ pub struct List<T> {
      *
      * @param other the list to empty into this one; it is consumed
      * @panics when the system is out of memory
+     * @complexity O(m) amortized, for `m` new elements
      * @example
      * ```ofir
      * let xs = [1, 2]
@@ -555,6 +586,7 @@ pub struct List<T> {
 
     /**
      * Reverses the order of the elements, in place.
+     * @complexity O(n)
      */
     pub fn reverse(mut self) {
         let i = 0
@@ -579,6 +611,7 @@ pub struct List<T> {
      * int, float and str.
      *
      * @panics when the system is out of memory
+     * @complexity O(n log n), stable; allocates one buffer of n elements
      * @example
      * ```ofir
      * let names = ["mia", "ana", "bob"]
@@ -660,6 +693,7 @@ pub ref struct ListIter<T> {
      * The next element.
      *
      * @returns `Some` with a reference to it, or `None` after the last one
+     * @complexity O(1)
      */
     pub fn next(mut self) Option<&T> {
         const item = self.list.get(self.index)
@@ -681,6 +715,7 @@ pub ref struct Drain<T> {
      * The next element, moved out of the list.
      *
      * @returns `Some` with the element, or `None` after the last one
+     * @complexity O(1)
      */
     pub fn next(mut self) Option<T> {
         if self.index >= self.list.len {

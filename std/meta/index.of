@@ -4,6 +4,16 @@
  * Each function is replaced by a constant of the instance being compiled;
  * in the condition of a `comptime if`, the predicates narrow the type
  * parameters they name (spec 15.3).
+ *
+ * @example
+ * ```ofir
+ * import std.meta
+ * import std.testing.assert
+ *
+ * assert(meta.isInteger<int>() && meta.isSigned<int>())
+ * assert(meta.isFloat<f64>())
+ * assert(meta.nameOf<bool>() == "bool")
+ * ```
  */
 
 extern "intrinsic" {

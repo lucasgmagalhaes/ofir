@@ -2,6 +2,16 @@
  * @module
  * `std.mem`: moving values in and out of places that cannot be left empty
  * (spec 5.1).
+ *
+ * @example
+ * ```ofir
+ * import std.mem
+ *
+ * let a = "left"
+ * let b = "right"
+ * mem.swap(a, b)   // a is "right", b is "left"
+ * const old = mem.replace(a, "new")   // old is "right"
+ * ```
  */
 
 /**
