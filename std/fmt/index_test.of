@@ -1,0 +1,79 @@
+// The tests of `std.fmt` (OFIR-46, ADR 0061): `ofir test std/fmt/index.of` runs them.
+
+import std.testing.assert
+
+@test
+fn padding() {
+    assert(padStart("42", 5, " ") == "   42")
+    assert(padStart("42", 5, "0") == "00042")
+    assert(padStart("toolong", 3, " ") == "toolong")
+    assert(padEnd("ab", 4, ".") == "ab..")
+    assert(padEnd("ab", -1, ".") == "ab")
+    assert(center("ab", 5, "*") == "*ab**")
+    assert(padStart("ção", 4, " ") == " ção")
+}
+
+@test
+fn fixedPoint() {
+    assert(fixed(3.14159, 2) == "3.14")
+    assert(fixed(2.5, 0) == "3")
+    assert(fixed(-2.5, 0) == "-3")
+    assert(fixed(0.05, 3) == "0.050")
+    assert(fixed(-0.001, 2) == "0.00")
+    assert(fixed(1.0, 9) == "1.000000000")
+    assert(fixed(12.0, 0) == "12")
+    assert(fixed(1e300, 2) == "{1e300}")
+}
+
+@test
+fn groupedDigits() {
+    assert(grouped(0, ",") == "0")
+    assert(grouped(999, ",") == "999")
+    assert(grouped(1000, ",") == "1,000")
+    assert(grouped(-1234567, "_") == "-1_234_567")
+    assert(grouped(-9223372036854775807 - 1, ",") == "-9,223,372,036,854,775,808")
+}
+
+@test
+fn radixes() {
+    assert(radix(0, 2) == "0")
+    assert(radix(10, 2) == "1010")
+    assert(radix(255, 16) == "ff")
+    assert(radix(-255, 16) == "-ff")
+    assert(radix(35, 36) == "z")
+    assert(radix(-9223372036854775807 - 1, 16) == "-8000000000000000")
+}
+
+@test
+fn sizes() {
+    assert(bytes(0) == "0 B")
+    assert(bytes(1023) == "1023 B")
+    assert(bytes(1024) == "1 KiB")
+    assert(bytes(1536) == "1.5 KiB")
+    assert(bytes(1048575) == "1 MiB")
+    assert(bytes(5 * 1024 * 1024 * 1024) == "5 GiB")
+    assert(bytes(-2048) == "-2 KiB")
+}
+
+@test
+fn durations() {
+    assert(duration(0) == "0 ns")
+    assert(duration(999) == "999 ns")
+    assert(duration(1500) == "1.5 µs")
+    assert(duration(340000000) == "340 ms")
+    assert(duration(1250000000) == "1.25 s")
+    assert(duration(90000000000) == "1.5 min")
+    assert(duration(7200000000000) == "2 h")
+    assert(duration(-1000) == "-1 µs")
+}
+
+@test
+fn tables() {
+    let t = Table.new()
+    t.alignRight(1)
+    t.row(["name", "size", "note"])
+    t.row(["a.txt", "12"])
+    t.row(["notes.md", "1024", "x"])
+    assert(t.render() == "name      size  note\na.txt       12\nnotes.md  1024  x\n")
+    assert(Table.new().render() == "")
+}
