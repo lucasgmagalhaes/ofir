@@ -391,6 +391,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.26a | Built-in interfaces audit: generic user structs and enums work through `Eq`, `Ord`, `Hash` (derived), `Clone` and `Debug`, inside `Option`, `Result`, `List`, `Map` and tuples (`tests/run/interfaces/builtin_audit.of`); stage 1 gains `Display` (`fn format(self, out: mut str)` for `{x}` and the `T: Display` bound) and the `&List<T>` to `&[T]` conversion of spec 2.12, also for an inferred `T`; open: a user-declared `hash` waits for `Hasher`, and `T.default()` on a type parameter for static interface methods | OFIR-39 | **done** |
 | 6.26b | Collections by workload in `std.collections` (ADR 0055): `Deque` (ring buffer), `Set` (over `Map`), `Heap` and `Reverse` (binary heap), `SortedMap` (sorted parallel lists, `lowerBound` ranges); `Map.keys` and `List.swap`; ordering, capacity reuse and drop-exactly-once tests; a B-tree waits for a benchmark | OFIR-40 | **done** |
 | 6.26c | Text by level (ADR 0056): `str` gains `rfind`, `splitOnce`, `stripPrefix`/`stripSuffix`, `asBytes`, `isCharBoundary`, `charCount`, `charIndices`, `isAscii` and `eqIgnoreAsciiCase`; `std.strings.utf8` (`isScalar`, `charLen`, `encode`, `decode`, `lossy`) and `std.strings.ascii` (classes, case, `digitValue`); `Builder.withCapacity`; graphemes, normalization, regex and locale stay separate decisions | OFIR-41 | **done** |
+| 6.26d | Math, floats and random (ADR 0057): libm-backed methods on `f32` and `f64` (trigonometry, exponents, logarithms, `powf`/`powi`, `cbrt`, `hypot`, `round`, `trunc`, `mulAdd`, sign and finiteness tests); `std.math` (constants, `approxEq`, compensated `sum`, `gcd`, `lcm`, `isqrt`); `std.random` (seeded xoshiro256**, unbiased `nextInt`, `nextF64`, `normal`, `exponential`, `shuffle`, `choose`), kept apart from API-09 entropy; boundary tests for NaN, infinities and -0.0 | OFIR-42 | **done** |
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
@@ -431,7 +432,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.26 with OFIR-42; OFIR-39 to OFIR-41 are 6.26a to 6.26c.
+1. Continue 6.26 with OFIR-43; OFIR-39 to OFIR-42 are 6.26a to 6.26d.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

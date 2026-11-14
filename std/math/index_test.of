@@ -1,0 +1,39 @@
+// The tests of `std.math` (OFIR-42, ADR 0057): `ofir test std/math/index.of` runs them.
+
+import std.testing.assert
+
+@test
+fn constants() {
+    assert(INFINITY.isInfinite() && NEG_INFINITY < 0.0 && NAN.isNan())
+    assert((1.0 + EPSILON) > 1.0 && (1.0 + EPSILON / 2.0) == 1.0)
+    assert((MAX * 2.0).isInfinite() && MIN_POSITIVE > 0.0)
+    assert(approxEq(PI.cos(), -1.0, 1e-15, 0.0) && approxEq(E.ln(), 1.0, 1e-15, 0.0))
+    assert(approxEq(TAU, 2.0 * PI, 0.0, 0.0) && approxEq(SQRT_2 * SQRT_2, 2.0, 1e-15, 0.0))
+}
+
+@test
+fn approxEqEdges() {
+    assert(!approxEq(NAN, NAN, 1.0, 1.0))
+    assert(approxEq(INFINITY, INFINITY, 0.0, 0.0))
+    assert(!approxEq(INFINITY, MAX, 1.0, 0.0))
+    assert(approxEq(1e-20, 0.0, 1e-9, 1e-12) && !approxEq(1e-20, 0.0, 1e-9, 0.0))
+}
+
+@test
+fn compensatedSum() {
+    let tenths: List<f64> = []
+    for _ in 0..10 {
+        tenths.push(0.1)
+    }
+    assert(sum(tenths.asSlice()) == 1.0)
+    const empty: List<f64> = []
+    assert(sum(empty.asSlice()) == 0.0)
+}
+
+@test
+fn integers() {
+    assert(gcd(0, 0) == 0 && gcd(0, 5) == 5 && gcd(-4, -6) == 2)
+    assert(lcm(4, 6) == 12 && lcm(-3, 5) == 15 && lcm(0, 7) == 0)
+    assert(isqrt(0) == 0 && isqrt(1) == 1 && isqrt(15) == 3 && isqrt(16) == 4)
+    assert(isqrt(int.MAX) == 3037000499)
+}

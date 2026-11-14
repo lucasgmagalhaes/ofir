@@ -14,7 +14,7 @@ required before version 1.0.
 | `std.collections`, `std.arena` | [collections.md](collections.md): `List`, `Map`, `Box`, `Arena` |
 | `std.strings` | [strings.md](strings.md): `str` methods and helpers |
 | `std.io`, `std.fs`, `std.os`, `std.task`, `std.sync` | [system.md](system.md): input/output, files, processes, tasks, channels |
-| `std.mem`, `std.math`, `std.testing`, `std.fmt` | [utilities.md](utilities.md) |
+| `std.mem`, `std.math`, `std.random`, `std.testing`, `std.fmt` | [utilities.md](utilities.md) |
 
 ## Planned API ecosystem
 

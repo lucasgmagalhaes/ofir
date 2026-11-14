@@ -1,0 +1,236 @@
+/**
+ * @module
+ * `std.random`: an ordinary, seeded random number generator and the common
+ * distributions (ADR 0057).
+ *
+ * `Rng` is fast and reproducible, for simulations, tests, sampling and
+ * games. It is **not** for secrets: its output can be predicted from a few
+ * values, so keys, tokens and nonces need the operating system's entropy
+ * instead (API-09).
+ */
+
+import std.math
+import std.time
+
+const GOLDEN: u64 = 0x9E3779B97F4A7C15
+
+/** 2^-53: the gap between the `f64` values in [0.5, 1). */
+const UNIT: f64 = 1.1102230246251565e-16
+
+/**
+ * A xoshiro256** generator: 256 bits of state, a period of 2^256 - 1, and
+ * the same sequence for the same seed on every platform.
+ */
+pub struct Rng {
+    a: u64
+    b: u64
+    c: u64
+    d: u64
+
+    /**
+     * A generator whose sequence depends only on `seed`. The state is
+     * filled from the seed by SplitMix64, so close seeds give unrelated
+     * sequences.
+     *
+     * @param seed any value
+     * @returns the generator
+     * @example
+     * ```ofir
+     * import std.random.Rng
+     * import std.testing.assert
+     *
+     * let first = Rng.seeded(7)
+     * let second = Rng.seeded(7)
+     * assert(first.nextU64() == second.nextU64())
+     * ```
+     */
+    pub fn seeded(seed: u64) Rng {
+        let x = seed
+        x = x.wrappingAdd(GOLDEN)
+        const a = mix(x)
+        x = x.wrappingAdd(GOLDEN)
+        const b = mix(x)
+        x = x.wrappingAdd(GOLDEN)
+        const c = mix(x)
+        x = x.wrappingAdd(GOLDEN)
+        return Rng{ a: a, b: b, c: c, d: mix(x) }
+    }
+
+    /**
+     * A generator seeded from the clock: a different sequence on each run,
+     * but one that an observer could guess. Not for secrets.
+     *
+     * @returns the generator
+     */
+    pub fn fromTime() Rng {
+        return Rng.seeded(time.now().wrappingCast<u64>())
+    }
+
+    /**
+     * The next 64 random bits.
+     *
+     * @returns a value spread evenly over all of `u64`
+     */
+    pub fn nextU64(mut self) u64 {
+        const result = rotl(self.b.wrappingMul(5), 7).wrappingMul(9)
+        const t = self.b << 17
+        self.c = self.c ^ self.a
+        self.d = self.d ^ self.b
+        self.b = self.b ^ self.c
+        self.a = self.a ^ self.d
+        self.c = self.c ^ t
+        self.d = rotl(self.d, 45)
+        return result
+    }
+
+    /**
+     * A random integer in `lo..hi`, every value equally likely: the values
+     * that would favor the low end are rejected, not folded with `%`.
+     *
+     * @param lo the smallest value
+     * @param hi one past the largest value, greater than `lo`
+     * @returns a value with `lo <= value < hi`
+     * @panics when `hi <= lo`
+     * @example
+     * ```ofir
+     * import std.random.Rng
+     * import std.testing.assert
+     *
+     * let rng = Rng.seeded(1)
+     * const die = rng.nextInt(1, 7)
+     * assert(die >= 1 && die <= 6)
+     * ```
+     */
+    pub fn nextInt(mut self, lo: int, hi: int) int {
+        if hi <= lo {
+            panic("nextInt with an empty range")
+        }
+        const range = hi.wrappingSub(lo).wrappingCast<u64>()
+        const zero: u64 = 0
+        const threshold = zero.wrappingSub(range) % range
+        for {
+            const r = self.nextU64()
+            if r >= threshold {
+                return lo.wrappingAdd((r % range).wrappingCast<i64>())
+            }
+        }
+    }
+
+    /**
+     * A random float in [0, 1), from 53 random bits: every multiple of
+     * 2^-53 in the range is equally likely.
+     *
+     * @returns a value with `0.0 <= value < 1.0`
+     */
+    pub fn nextF64(mut self) f64 {
+        return (self.nextU64() >> 11) as f64 * UNIT
+    }
+
+    /**
+     * A fair coin.
+     *
+     * @returns true or false, equally likely
+     */
+    pub fn nextBool(mut self) bool {
+        return self.nextU64() >> 63 == 1
+    }
+
+    /**
+     * An event that happens with a given probability.
+     *
+     * @param p the probability; 0 or less never happens, 1 or more always does
+     * @returns true with probability `p`
+     */
+    pub fn chance(mut self, p: f64) bool {
+        return self.nextF64() < p
+    }
+
+    /**
+     * A value of the normal (Gaussian) distribution, by the Box-Muller
+     * transform.
+     *
+     * @param mean the center of the distribution
+     * @param stdDev the standard deviation, not negative
+     * @returns the value
+     */
+    pub fn normal(mut self, mean: f64, stdDev: f64) f64 {
+        const u = 1.0 - self.nextF64()
+        const v = self.nextF64()
+        return mean + stdDev * (-2.0 * u.ln()).sqrt() * (math.TAU * v).cos()
+    }
+
+    /**
+     * A value of the exponential distribution: the waiting time between
+     * events that happen `rate` times per unit on average.
+     *
+     * @param rate the rate, greater than 0
+     * @returns a value not less than 0, with mean `1 / rate`
+     */
+    pub fn exponential(mut self, rate: f64) f64 {
+        return -(1.0 - self.nextF64()).ln() / rate
+    }
+
+    /**
+     * Puts the items of a list in a random order, every order equally
+     * likely (Fisher-Yates).
+     *
+     * @typeParam T the item type
+     * @param items the list to shuffle in place
+     * @example
+     * ```ofir
+     * import std.random.Rng
+     * import std.testing.assert
+     *
+     * let cards: List<int> = [1, 2, 3, 4, 5]
+     * let rng = Rng.seeded(3)
+     * rng.shuffle(cards)
+     * assert(cards.len() == 5)
+     * ```
+     */
+    pub fn shuffle<T>(mut self, items: mut List<T>) {
+        let i = items.len() - 1
+        for i > 0 {
+            items.swap(i, self.nextInt(0, i + 1))
+            i = i - 1
+        }
+    }
+
+    /**
+     * A random item of a slice.
+     *
+     * @typeParam T the item type
+     * @param items the items to choose from
+     * @returns a reference to one of them, each equally likely, or `None`
+     * when there are none
+     */
+    pub fn choose<T>(mut self, items: &[T]) Option<&T> {
+        if items.len() == 0 {
+            return Option.None
+        }
+        return items.get(self.nextInt(0, items.len()))
+    }
+}
+
+/**
+ * SplitMix64's output function.
+ *
+ * @param x the counter
+ * @returns its mixed bits
+ */
+fn mix(x: u64) u64 {
+    let z = x
+    z = (z ^ (z >> 30)).wrappingMul(0xBF58476D1CE4E5B9)
+    z = (z ^ (z >> 27)).wrappingMul(0x94D049BB133111EB)
+    return z ^ (z >> 31)
+}
+
+/**
+ * Rotates bits left.
+ *
+ * @param x the bits
+ * @param k the distance, from 1 to 63
+ * @returns `x` rotated left by `k`
+ */
+fn rotl(x: u64, k: u64) u64 {
+    return (x << k) | (x >> (64 - k))
+}

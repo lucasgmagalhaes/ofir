@@ -1,0 +1,102 @@
+// The tests of `std.random` (OFIR-42, ADR 0057): `ofir test std/random/index.of` runs them.
+
+import std.testing.assert
+
+@test
+fn knownSequence() {
+    // xoshiro256** seeded by SplitMix64 from 42, as the reference C code gives it.
+    let rng = Rng.seeded(42)
+    assert(rng.nextU64() == 1546998764402558742)
+    assert(rng.nextU64() == 6990951692964543102)
+    assert(rng.nextU64() == 12544586762248559009)
+}
+
+@test
+fn intRanges() {
+    let rng = Rng.seeded(5)
+    let seen: List<int> = [0, 0, 0]
+    for _ in 0..3000 {
+        const v = rng.nextInt(-1, 2)
+        assert(v >= -1 && v <= 1)
+        seen[v + 1] = seen[v + 1] + 1
+    }
+    for i in 0..3 {
+        assert(seen[i] > 900 && seen[i] < 1100)
+    }
+    assert(rng.nextInt(7, 8) == 7)
+    const wide = rng.nextInt(int.MIN, int.MAX)
+    assert(wide < int.MAX)
+}
+
+@test
+fn floats() {
+    let rng = Rng.seeded(9)
+    let total: f64 = 0.0
+    let trues = 0
+    for _ in 0..10000 {
+        const f = rng.nextF64()
+        assert(f >= 0.0 && f < 1.0)
+        total = total + f
+        if rng.nextBool() {
+            trues = trues + 1
+        }
+    }
+    assert(total > 4800.0 && total < 5200.0)
+    assert(trues > 4800 && trues < 5200)
+    assert(!rng.chance(0.0) && rng.chance(1.0))
+}
+
+@test
+fn distributions() {
+    let rng = Rng.seeded(11)
+    let sum: f64 = 0.0
+    let squares: f64 = 0.0
+    let waits: f64 = 0.0
+    for _ in 0..20000 {
+        const x = rng.normal(10.0, 2.0)
+        sum = sum + x
+        squares = squares + (x - 10.0) * (x - 10.0)
+        const w = rng.exponential(4.0)
+        assert(w >= 0.0)
+        waits = waits + w
+    }
+    assert((sum / 20000.0 - 10.0).abs() < 0.1)
+    assert(((squares / 20000.0).sqrt() - 2.0).abs() < 0.1)
+    assert((waits / 20000.0 - 0.25).abs() < 0.02)
+}
+
+@test
+fn shuffleAndChoose() {
+    let rng = Rng.seeded(13)
+    let items: List<int> = []
+    for i in 0..50 {
+        items.push(i)
+    }
+    rng.shuffle(items)
+    let present: List<bool> = []
+    for _ in 0..50 {
+        present.push(false)
+    }
+    let moved = 0
+    for i in 0..50 {
+        present[items[i]] = true
+        if items[i] != i {
+            moved = moved + 1
+        }
+    }
+    for i in 0..50 {
+        assert(present[i])
+    }
+    assert(moved > 40)
+    let one: List<int> = [4]
+    rng.shuffle(one)
+    let none: List<int> = []
+    rng.shuffle(none)
+    assert(one[0] == 4)
+    if const Option.Some(x) = rng.choose(items.asSlice()) {
+        assert(*x >= 0 && *x < 50)
+    } else {
+        assert(false)
+    }
+    assert(rng.choose(none.asSlice()).isNone())
+}

@@ -112,9 +112,23 @@ For every integer type `I`:
 
 ## Float methods
 
-For `f32` and `f64`: `sqrt`, `abs`, `floor`, `ceil`, `round`, `trunc`,
-`powi(n: i32)`, `powf`, `exp`, `ln`, `log10`, `sin`, `cos`, `tan`, `atan2`,
-`min`, `max`, `isNan`, `isInfinite`, `totalCmp(other) Ordering`,
-`F.parse(s: str) Result<F, ParseError>`, and the constants `F.NAN`,
-`F.INFINITY`, `F.EPSILON`. In stage 0: `sqrt`, `abs`, `floor`, `ceil`,
-`isNan`, `parse`.
+For `f32` and `f64` (ADR 0057). `f32` calls the single-precision C
+function, so it never widens to `f64`. None of them panics: outside its
+domain a function gives NaN or an infinity, as IEEE 754 and C do.
+
+| Method | Notes | S0 |
+|--------|-------|----|
+| `sqrt()`, `abs()`, `floor()`, `ceil()`, `round()`, `trunc()`, `fract()` | exact; `round` takes halfway cases away from zero | ✓ |
+| `min(b)`, `max(b)` | when one is NaN, the other | ✓ |
+| `clamp(lo, hi)` | NaN stays NaN | ✓ |
+| `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `atan2(x)` | radians; `y.atan2(x)` | ✓ |
+| `sinh()`, `cosh()`, `tanh()` | | ✓ |
+| `exp()`, `exp2()`, `ln()`, `log2()`, `log10()` | `ln(0)` is -infinity | ✓ |
+| `powf(e)`, `powi(n: i32)`, `cbrt()`, `hypot(b)` | `hypot` does not overflow in the squares | ✓ |
+| `mulAdd(a, b)` | `self * a + b` with one rounding | ✓ |
+| `copySign(sign)`, `signum()`, `isSignNegative()` | see the sign of -0.0 | ✓ |
+| `isNan()`, `isFinite()`, `isInfinite()` | | ✓ |
+| `F.parse(s: str) Result<F, ParseError>` | as C's `strtod` reads it | ✓ |
+
+The float constants (`PI`, `INFINITY`, `NAN`, `EPSILON` and others) are in
+`std.math` (utilities.md).

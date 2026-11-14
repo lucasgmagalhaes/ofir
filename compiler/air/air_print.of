@@ -170,8 +170,8 @@ fn trimZeros(digits: str) str {
  */
 pub fn formatG(value: float) str {
     const text = "{value}"
-    if text == "NaN" {
-        return "nan"
+    if text == "NaN" {   // C writes the sign of a NaN too
+        return if value.isSignNegative() { "-nan" } else { "nan" }
     }
     if text == "inf" || text == "-inf" {
         return text.toOwned()

@@ -1,4 +1,4 @@
-# `std.mem`, `std.math`, `std.testing`, `std.fmt`
+# `std.mem`, `std.math`, `std.random`, `std.testing`, `std.fmt`
 
 ## `std.mem`
 
@@ -31,8 +31,58 @@ ordering is a constant `Ordering.X` (E0820) that the operation allows
 
 ## `std.math`
 
-Constants `PI`, `E`, `TAU`; functions `hypot(x, y)`, `min`, `max` over
-floats. Most operations are methods on the float types (core.md).
+The elementary functions are methods of `f32` and `f64` (core.md);
+`std.math` holds what is not a method (ADR 0057).
+
+| Item | Notes | S0 |
+|------|-------|----|
+| `PI`, `TAU`, `E`, `SQRT_2`, `LN_2`, `LN_10` | `f64` constants | ✓ |
+| `INFINITY`, `NEG_INFINITY`, `NAN` | `f64`; test NaN with `isNan()` | ✓ |
+| `EPSILON`, `MAX`, `MIN_POSITIVE` | the limits of `f64` | ✓ |
+| `fn approxEq(a: f64, b: f64, relTol: f64, absTol: f64) bool` | equal up to a relative or absolute tolerance; NaN never | ✓ |
+| `fn sum(values: &[f64]) f64` | Neumaier-compensated sum | ✓ |
+| `fn gcd(a: int, b: int) int`, `fn lcm(a: int, b: int) int` | non-negative results | ✓ |
+| `fn isqrt(n: int) int` | exact; **panics** when `n < 0` | ✓ |
+
+```ofir
+import std.math
+
+fn main() {
+    const angle = math.PI / 6.0
+    println("{angle.sin()}")                                 // 0.49999999999999994
+    println("{math.approxEq(angle.sin(), 0.5, 1e-12, 0.0)}") // true
+}
+```
+
+## `std.random`
+
+An ordinary, seeded generator for simulations, tests, sampling and games
+(ADR 0057). It is **not** for secrets: keys, tokens and nonces need the
+operating system's entropy (API-09).
+
+| Item | Notes | S0 |
+|------|-------|----|
+| `struct Rng` | xoshiro256\*\*, seeded through SplitMix64 | ✓ |
+| `Rng.seeded(seed: u64) Rng` | the same sequence for the same seed, everywhere | ✓ |
+| `Rng.fromTime() Rng` | seeded from the clock; guessable | ✓ |
+| `nextU64() u64` | 64 random bits | ✓ |
+| `nextInt(lo: int, hi: int) int` | in `lo..hi`, without modulo bias; **panics** when `hi <= lo` | ✓ |
+| `nextF64() f64` | in [0, 1), 53 random bits | ✓ |
+| `nextBool() bool`, `chance(p: f64) bool` | a fair coin; true with probability `p` | ✓ |
+| `normal(mean: f64, stdDev: f64) f64` | Box-Muller | ✓ |
+| `exponential(rate: f64) f64` | mean `1 / rate` | ✓ |
+| `shuffle<T>(items: mut List<T>)` | Fisher-Yates, in place | ✓ |
+| `choose<T>(items: &[T]) Option<&T>` | `None` for no items | ✓ |
+
+```ofir
+import std.random.Rng
+
+fn main() {
+    let rng = Rng.seeded(2026)
+    const roll = rng.nextInt(1, 7)
+    println("{roll >= 1 && roll <= 6}")   // true
+}
+```
 
 ## `std.testing`
 
