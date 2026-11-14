@@ -13,6 +13,10 @@ public enums. The tags of a function's comment must match its signature:
     @safety       for an `unsafe fn`
     @panics       when its body calls `panic`
 
+ADR 0062 adds `@complexity`, `@allocates` and `@platform`. A module comment
+outside std/core has an `@example`, and each public function of the
+collections (std/collections, List and Map) has `@complexity`.
+
 Unknown tags and tags that do not match are errors. Private declarations
 need no comment, but a comment they have is checked the same way.
 """
@@ -25,7 +29,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ["std"]
 TAGS = {"@module", "@param", "@typeParam", "@returns", "@panics", "@safety", "@example",
-        "@see", "@deprecated"}
+        "@see", "@deprecated", "@complexity", "@allocates", "@platform"}
+# The files whose public functions state their complexity (ADR 0062).
+COMPLEXITY = ("std/collections/", "std/core/list.of", "std/core/map.of")
 FN_RE = re.compile(r"^\s*(pub\s+)?(unsafe\s+)?fn\s+(\w+)\s*(<([^>]*)>)?\s*\((.*)\)\s*([^{]*)")
 TYPE_RE = re.compile(r"^\s*(pub\s+)?(copy\s+|ref\s+)?(struct|enum)\s+(\w+)\s*(<([^>]*)>)?")
 CONST_RE = re.compile(r"^\s*pub\s+(const|var|type)\s+(\w+)")
@@ -188,6 +194,11 @@ def check_file(path: Path, problems: list) -> None:
     first = next((line for line in lines if line.strip()), "")
     if not first.strip().startswith("/**") or "@module" not in "\n".join(lines[:3]):
         problems.append(f"{rel}:1: the file does not start with a /** @module */ comment")
+    elif not str(rel).startswith("std/core/"):
+        end = next((n for n, line in enumerate(lines) if "*/" in line), 0)
+        if not any(line.strip().startswith("* @example") for line in lines[:end + 1]):
+            problems.append(f"{rel}:1: the module comment has no @example")
+    complexity = str(rel).startswith(COMPLEXITY)
     enum_depth = None   # brace depth inside a public enum, for its variants
     depth = 0
     for i, line in enumerate(lines):
@@ -199,6 +210,10 @@ def check_file(path: Path, problems: list) -> None:
         ty = TYPE_RE.match(code)
         if fn:
             check_fn(problems, rel, lines, i, fn)
+            doc = doc_before(lines, i)
+            if complexity and fn.group(1) and doc and not any(
+                    t[0] == "@complexity" for t in doc.tags):
+                problems.append(f"{rel}:{i + 1}: `{fn.group(3)}` has no @complexity")
         elif ty:
             doc = doc_before(lines, i)
             if doc is None and ty.group(1):
