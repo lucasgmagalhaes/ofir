@@ -79,6 +79,7 @@ starts with the same word as the record's status line.
 | [0066](0066-cross-compilation.md) | Cross compilation | Accepted |
 | [0067](0067-per-os-behavior.md) | What std and the tools do on each operating system | Accepted |
 | [0068](0068-webassembly.md) | No WebAssembly target in version 1 | Accepted |
+| [0069](0069-freestanding.md) | No freestanding or embedded target in version 1 | Accepted |
 
 ## Template
 

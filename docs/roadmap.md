@@ -404,6 +404,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.27d | Cross compilation (ADR 0066): `--target=TRIPLE` (stage 1) passes the triple and `OFIR_SYSROOT` to clang, `@cfg` follows the target, the target runtime is `<runtime dir>/<triple>/libofir_rt.a` (`make runtime TARGET=`), `run`/`test` use `OFIR_RUNNER`; CI runs the run tests for `aarch64-linux-gnu` under qemu-user (`make test-cross`) | OFIR-51 | **done** |
 | 6.27e | Per-OS behavior (ADR 0067): UTF-8 names, arguments, environment and child command lines on Windows through the wide functions (`runtime/src/wide.c`), a UTF-8 console, the per-OS matrix (paths, encoding, processes, file system, networking, debugging, packages); `tests/run/system/unicode.of`, and `requires: unix`/`windows` follow `--target` so the run tests pass for Windows under Wine | OFIR-52 | **done** |
 | 6.27f | WebAssembly and WASI (ADR 0068): no Wasm target in version 1; the IR compiles to Wasm objects, but `wasm32` breaks the 64-bit layout, no `wasm64` WASI C library exists and WASI preview 1 lacks the threads, `mmap` and signals the runtime uses; WASI and browser hosts are separate later contracts | OFIR-53 | **done**: decided, deferred |
+| 6.27g | Freestanding and embedded (ADR 0069): no freestanding target or no-std mode in version 1; the IR compiles to an `aarch64-none-elf` object needing six runtime symbols, but the pool reserves 16 GiB, most microcontrollers are 32-bit, and there is no volatile access, interrupt or section support; a later target starts from a named board | OFIR-54 | **done**: decided, deferred |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
@@ -443,7 +444,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.27 with OFIR-54; OFIR-48 to OFIR-53 are 6.27a to 6.27f.
+1. Continue 6.27 with OFIR-55; OFIR-48 to OFIR-54 are 6.27a to 6.27g.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
