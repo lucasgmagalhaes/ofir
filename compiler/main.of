@@ -530,7 +530,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         if salt.len() > 0 {
             cached.push(object_cache.objectPath(salt, text))
         }
-        if fs.writeString(ll, text).isErr() {
+        if fs.writeString(ll, coverageFiles(&opts, ll, text)).isErr() {
             driverError(opts.format, "E0902", "cannot write `{ll}`")
             return false
         }
@@ -558,7 +558,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
             const ll = "{exe}.{k}.ll"
             files.push(ll.clone())
             const writeStart = timerStart(opts.timePasses)
-            if fs.writeString(ll, units[k].text).isErr() {
+            if fs.writeString(ll, coverageFiles(&opts, ll, units[k].text)).isErr() {
                 driverError(opts.format, "E0902", "cannot write `{ll}`")
                 removeFiles(&files)
                 return false
@@ -854,9 +854,6 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
     // A link of objects only would warn that the code generation flags are unused.
     let args = if compiles { codegenFlags(opts) } else { clangFlags(opts) }
     for i in 0..inputs.len() {
-        if inputs[i].endsWith(".ll") {
-            coverageFiles(opts, args, inputs[i])
-        }
         args.push(inputs[i].clone())
     }
     args.push(runtime.toOwned())
@@ -954,7 +951,6 @@ fn compileUnits(opts: &Options, clang: str, files: &List<str>, cached: &List<str
                 objects.push("{cached[k]}.{tag}.tmp")
             }
             let args = codegenFlags(opts)
-            coverageFiles(opts, args, files[k])
             args.push("-c".toOwned())
             args.push(files[k].clone())
             args.push("-o".toOwned())
@@ -984,13 +980,14 @@ fn compileUnits(opts: &Options, clang: str, files: &List<str>, cached: &List<str
     return ok
 }
 
-// With `--coverage`, names the counters' files of the unit `ll` after it,
-// `.gcno` and `.gcda` instead of `.ll`: by default clang would put them in
-// the current directory. The `.gcda` path is absolute, so the program
-// finds it from any directory.
-fn coverageFiles(opts: &Options, args: mut List<str>, ll: str) {
+// With `--coverage`, the module `text` of the unit `ll` with `!llvm.gcov`,
+// which names the counters' files of its compile unit (`!0`) after the
+// unit, `.gcno` and `.gcda` instead of `.ll`: without it they would go to
+// the current directory, named after the module. The paths are absolute,
+// so the program finds its `.gcda` from any directory.
+fn coverageFiles(opts: &Options, ll: str, text: str) str {
     if !opts.coverage {
-        return
+        return text.toOwned()
     }
     let base = ll.slice(0, ll.len() - 3).toOwned()
     if !base.startsWith("/") {
@@ -998,10 +995,10 @@ fn coverageFiles(opts: &Options, args: mut List<str>, ll: str) {
             base = "{dir}/{base}"
         }
     }
-    args.push("-Xclang".toOwned())
-    args.push("-coverage-notes-file={base}.gcno")
-    args.push("-Xclang".toOwned())
-    args.push("-coverage-data-file={base}.gcda")
+    let out = text.toOwned()
+    out.push("\n!llvm.gcov = !\{!2147483000\}\n")
+    out.push("!2147483000 = !\{!\"{base}.gcno\", !\"{base}.gcda\", !0\}\n")
+    return out
 }
 
 // The directory of a path: what comes before its last `/`.
