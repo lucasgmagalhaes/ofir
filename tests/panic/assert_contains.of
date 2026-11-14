@@ -1,0 +1,7 @@
+// panic: assertContains failed: "hello" does not contain "xyz"
+
+import std.testing.assertContains
+
+fn main() {
+    assertContains("hello", "xyz")
+}

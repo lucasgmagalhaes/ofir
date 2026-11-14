@@ -1,0 +1,7 @@
+// panic: assertStrEq failed at line 2:
+
+import std.testing.assertStrEq
+
+fn main() {
+    assertStrEq("a\nb", "a\nc")
+}

@@ -1,0 +1,7 @@
+// panic: assertApprox failed: 1.5 is not within 0.1 of 1
+
+import std.testing.assertApprox
+
+fn main() {
+    assertApprox(1.5, 1.0, 0.1)
+}
