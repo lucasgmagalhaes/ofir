@@ -29,6 +29,12 @@ import diag.Severity
 import diag.jsonNoSource
 import doc.docCommand
 import driver.cfg.CfgTarget
+import driver.target.hostTriple
+import driver.target.knownTarget
+import driver.target.runnerWords
+import driver.target.targetArch
+import driver.target.targetOs
+import driver.target.targetRuntime
 import driver.explain.explain
 import driver.metadata.metadataJson
 import driver.fetch.fetchCommand
@@ -85,6 +91,7 @@ fn printUsage() {
              + "  --release                 optimize the program (as one LLVM module)\n"
              + "  --codegen-units=1         compile the program as one LLVM module\n"
              + "  --lib=static, --lib=shared  build a C library and its header (ADR 0064)\n"
+             + "  --target=TRIPLE           compile for another target (spec 13.8)\n"
              + "  -j N, --jobs N            run at most N clang processes (default: the cores)\n"
              + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
              + "  --no-cache                compile every unit, without the object cache\n"
@@ -135,6 +142,8 @@ struct Options {
     format: Format
     /** `--lib=static` or `--lib=shared`: a C library instead of a program, or "". */
     lib: str
+    /** `--target=<triple>` other than the host's, or "" (ADR 0066). */
+    target: str
 }
 
 fn parseOptions(args: &List<str>) Option<Options> {
@@ -142,7 +151,7 @@ fn parseOptions(args: &List<str>) Option<Options> {
                        stopAfter: "", release: false, debugInfo: false, deny: false,
                        locked: false, offline: false, oneUnit: false, jobs: 0, testJobs: 0,
                        noCache: false, timePasses: false,
-                       format: Format.Human, lib: ""}
+                       format: Format.Human, lib: "", target: ""}
     let hasInput = false
     let i = 2
     for i < args.len() {
@@ -193,6 +202,12 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.timePasses = true
             } else if arg == "--lib=static" || arg == "--lib=shared" {
                 opts.lib = arg.sliceFrom(6).toOwned()
+            } else if arg.startsWith("--target=") {
+                opts.target = arg.sliceFrom(9).toOwned()
+                if !knownTarget(opts.target) {
+                    eprintln("error: unknown target `{opts.target}` (spec 13.8)")
+                    return Option.None
+                }
             } else {
                 eprintln("error: unknown option `{arg}`")
                 return Option.None
@@ -216,6 +231,14 @@ fn parseOptions(args: &List<str>) Option<Options> {
     }
     if opts.lib.len() > 0 && opts.command != "build" {
         eprintln("error: `--lib` applies only to `build`")
+        return Option.None
+    }
+    if opts.target == hostTriple() {
+        opts.target = "".toOwned()
+    }
+    const runs = opts.command == "run" || opts.command == "test" || opts.command == "bench"
+    if opts.target.len() > 0 && runs && opts.emit == "" && runnerWords().len() == 0 {
+        eprintln("error: `{opts.command}` for `{opts.target}` needs OFIR_RUNNER (ADR 0066)")
         return Option.None
     }
     return Option.Some(opts)
@@ -383,8 +406,8 @@ fn build(given: move Options) int {
     }
     const testing = opts.command == "test"
     const benching = opts.command == "bench"
-    const target = CfgTarget{os: os.name(), arch: os.arch(), debug: !opts.release, test: testing,
-                             bench: benching}
+    const target = CfgTarget{os: targetOs(opts.target), arch: targetArch(opts.target),
+                             debug: !opts.release, test: testing, bench: benching}
     // Doc tests change the program: not under `--emit`, so that it is stage 0's.
     const docTests = testing && opts.emit == ""
     phaseStart = timerStart(opts.timePasses)
@@ -484,7 +507,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     // A static library is one object, so that a linker that loads it for one
     // symbol has the runtime's callbacks into `std` too (ADR 0064).
     const single = opts.oneUnit || opts.lib == "static"
-    if opts.emit == "llvm" || single || opts.release || onWindows() {
+    if opts.emit == "llvm" || single || opts.release || windowsTarget(&opts) {
         const ll = "{exe}.ll"
         files.push(ll.clone())
         phaseStart = timerStart(opts.timePasses)
@@ -635,7 +658,14 @@ fn outputPath(opts: &Options) str {
         return "lib{base}.a"
     }
     if opts.lib == "shared" {
-        const ext = if onWindows() { "dll" } else if os.name() == "macos" { "dylib" } else { "so" }
+        const system = targetOs(opts.target)
+        const ext = if system == "windows" {
+            "dll"
+        } else if system == "macos" {
+            "dylib"
+        } else {
+            "so"
+        }
         return "lib{base}.{ext}"
     }
     if opts.command == "build" {
@@ -669,6 +699,11 @@ fn inputBase(opts: &Options) str {
         base = base.slice(0, base.len() - 3).toOwned()
     }
     return base
+}
+
+// The program is built for Windows: by `--target`, or on Windows.
+fn windowsTarget(opts: &Options) bool {
+    return targetOs(opts.target) == "windows"
 }
 
 // Windows sets `OS` to `Windows_NT` in every process.
@@ -723,8 +758,14 @@ fn runtimeLibrary() Option<str> {
 fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
         libraries: List<str>) bool {
     let phaseStart = timerStart(opts.timePasses)
-    const Option.Some(runtime) = runtimeLibrary() else {
+    const Option.Some(host) = runtimeLibrary() else {
         const message = "cannot find the runtime library libofir_rt.a (set OFIR_RUNTIME)"
+        driverError(opts.format, "E0902", message)
+        return false
+    }
+    const runtime = if opts.target.len() > 0 { targetRuntime(host, opts.target) } else { host }
+    if !fs.exists(runtime) {
+        const message = "cannot find `{runtime}`: build it with `make runtime TARGET={opts.target}`"
         driverError(opts.format, "E0902", message)
         return false
     }
@@ -815,14 +856,14 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
         args.push("-shared".toOwned())
     }
     // MinGW keeps the pthread functions in winpthreads.
-    if onWindows() {
+    if windowsTarget(opts) {
         args.push("-lpthread".toOwned())
     }
     args.push("-o".toOwned())
     args.push(exe.toOwned())
     // The main thread gets 32 MiB: the Windows ABI's 32-byte shadow space
     // makes a frame about twice its size on Linux, whose stack is 8 MiB.
-    if onWindows() {
+    if windowsTarget(opts) {
         args.push("-Wl,--stack,33554432".toOwned())
     }
     return match os.spawn(clang, args) {
@@ -842,9 +883,15 @@ fn clangFlags(opts: &Options) List<str> {
     if opts.debugInfo {
         args.push("-g".toOwned())
     }
-    if onWindows() {
+    if opts.target.len() > 0 {
+        args.push("--target={opts.target}")
+        if const Option.Some(root) = os.env("OFIR_SYSROOT") {
+            args.push("--sysroot={root}")
+        }
+    } else if onWindows() {
         args.push("--target=x86_64-w64-windows-gnu".toOwned())
-    } else if opts.lib == "shared" {
+    }
+    if opts.lib == "shared" && !windowsTarget(opts) {
         args.push("-fPIC".toOwned())   // a shared library's code (ADR 0064)
     }
     return args
@@ -964,6 +1011,13 @@ fn parseCount(text: str) int {
     return n
 }
 
+// The arguments `lead`, then `arg`.
+fn withArg(lead: &List<str>, arg: move str) List<str> {
+    let args = lead.clone()
+    args.push(arg)
+    return args
+}
+
 // Runs a program, its output passed on; returns its exit status.
 fn runProgram(exe: str, args: [str]) int {
     return match os.run(exe, args) {
@@ -1012,7 +1066,7 @@ fn waitTest(exe: str, child: move os.Child) int {
 // Each test runs in its own process. Up to `jobs` run together, while their
 // captured output is reported in declaration order. A `no_run` doc test was
 // only compiled.
-fn runTests(exe: str, tests: &List<str>, testJobs: int) int {
+fn runTests(exe: str, lead: &List<str>, tests: &List<str>, testJobs: int) int {
     const cores = os.cpuCount()
     const jobs = if testJobs > 0 { testJobs } else if cores < 4 { cores } else { 4 }
     let pending: List<Option<os.Child>> = []
@@ -1023,7 +1077,7 @@ fn runTests(exe: str, tests: &List<str>, testJobs: int) int {
             if tests[next].endsWith("(doc test, not run)") {
                 pending.push(Option.None)
             } else {
-                pending.push(match os.spawn(exe, ["{next}"]) {
+                pending.push(match os.spawn(exe, withArg(lead, "{next}")) {
                     Result.Ok(child) => Option.Some(child)
                     Result.Err(_) => Option.None
                 })
@@ -1056,11 +1110,11 @@ fn runTests(exe: str, tests: &List<str>, testJobs: int) int {
 
 // `ofir bench` (spec 12.3): each benchmark in its own process, which prints
 // its time.
-fn runBenches(exe: str, benches: &List<str>) int {
+fn runBenches(exe: str, lead: &List<str>, benches: &List<str>) int {
     let failed = 0
     for i in 0..benches.len() {
         print("bench {benches[i]} ... ")
-        const status = runProgram(exe, ["{i}"])
+        const status = runProgram(exe, withArg(lead, "{i}"))
         if status != 0 {
             println("FAILED (exit status {status})")
             failed += 1
@@ -1081,13 +1135,23 @@ fn finish(diags: Diagnostics, map: SourceMap, pipeline: &Pipeline) int {
         return 0
     }
     let status = 0
+    // Another target's executable runs under `OFIR_RUNNER` (ADR 0066).
+    let program = pipeline.exe.clone()
+    let lead: List<str> = []
+    const words = runnerWords()
+    if pipeline.opts.target.len() > 0 && words.len() > 0 {
+        program = words[0].clone()
+        for i in 1..words.len() {
+            lead.push(words[i].clone())
+        }
+        lead.push(pipeline.exe.clone())
+    }
     if pipeline.opts.command == "run" {
-        const empty: List<str> = []
-        status = runProgram(pipeline.exe, empty)
+        status = runProgram(program, lead)
     } else if pipeline.opts.command == "test" {
-        status = runTests(pipeline.exe, &pipeline.tests, pipeline.opts.testJobs)
+        status = runTests(program, &lead, &pipeline.tests, pipeline.opts.testJobs)
     } else if pipeline.opts.command == "bench" {
-        status = runBenches(pipeline.exe, &pipeline.tests)
+        status = runBenches(program, &lead, &pipeline.tests)
     }
     if pipeline.opts.output.isNone() && pipeline.opts.command != "build" {
         const _ = fs.removeFile(pipeline.exe)
