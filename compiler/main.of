@@ -730,9 +730,10 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
     }
     args.push("-o".toOwned())
     args.push(exe.toOwned())
-    // The main thread gets the 8 MiB stack Linux gives it.
+    // The main thread gets 32 MiB: the Windows ABI's 32-byte shadow space
+    // makes a frame about twice its size on Linux, whose stack is 8 MiB.
     if onWindows() {
-        args.push("-Wl,--stack,8388608".toOwned())
+        args.push("-Wl,--stack,33554432".toOwned())
     }
     return match os.spawn(clang, args) {
         Result.Ok(child) => finishClang(opts, clang, child, quiet)
