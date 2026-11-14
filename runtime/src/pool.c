@@ -7,6 +7,10 @@
 // valgrind sees every block): the pool is then off, and every block comes
 // from malloc.
 
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE   // MAP_ANONYMOUS
+#endif
+
 #include "ofir_rt.h"
 
 #include <stdlib.h>
