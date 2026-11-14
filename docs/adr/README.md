@@ -77,6 +77,7 @@ starts with the same word as the record's status line.
 | [0064](0064-native-libraries.md) | Static and shared libraries and C headers | Accepted |
 | [0065](0065-target-tiers.md) | Target support tiers and the host/target distinction | Accepted |
 | [0066](0066-cross-compilation.md) | Cross compilation | Accepted |
+| [0067](0067-per-os-behavior.md) | What std and the tools do on each operating system | Accepted |
 
 ## Template
 
