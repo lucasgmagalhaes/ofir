@@ -5,7 +5,15 @@
  * `import std.testing.assert`. Each assert is lowered where it is called,
  * so a failure reports the location of the call. `Bencher` is what a
  * `@bench` function receives (spec 12.3).
+ *
+ * The asserts written in Ofir (`assertStrEq`, `assertApprox`,
+ * `assertContains`, `assertGolden`) report a location inside this module;
+ * their messages carry the values instead (ADR 0061).
  */
+
+import std.fs
+import std.os
+import std.random.Rng
 
 extern "intrinsic" {
     /**
@@ -38,6 +46,214 @@ extern "intrinsic" {
 }
 extern "C" {
     fn ofir_now_ns() i64
+}
+
+/**
+ * Panics when `actual != expected`, naming the first line that differs and
+ * quoting both versions of it.
+ *
+ * @param actual the text computed
+ * @param expected the text expected
+ * @panics when the texts differ
+ */
+pub fn assertStrEq(actual: str, expected: str) {
+    if actual == expected {
+        return
+    }
+    const a = lines(actual)
+    const e = lines(expected)
+    let i = 0
+    for i < a.len() && i < e.len() && a[i] == e[i] {
+        i += 1
+    }
+    const left = lineAt(a, i)
+    const right = lineAt(e, i)
+    panic("assertStrEq failed at line {i + 1}:\n  actual:   {left}\n  expected: {right}")
+}
+
+// The lines of `text`, split at `\n`.
+fn lines(text: str) List<str> {
+    let out: List<str> = []
+    for line in text.split("\n") {
+        out.push(line.toOwned())
+    }
+    return out
+}
+
+// Line `i` of `list`, quoted, or `(missing)` past the end.
+fn lineAt(list: &[str], i: int) str {
+    if i >= list.len() {
+        return "(missing)".toOwned()
+    }
+    return quote(list[i])
+}
+
+// `text` in double quotes, with `\` and `"` escaped.
+fn quote(text: str) str {
+    let out = "\"".toOwned()
+    out.push(text.replace("\\", "\\\\").replace("\"", "\\\""))
+    out.push("\"")
+    return out
+}
+
+/**
+ * Panics unless `actual` is within `tolerance` of `expected`; NaN never
+ * matches.
+ *
+ * @param actual the value computed
+ * @param expected the value expected
+ * @param tolerance the largest difference allowed
+ * @panics when the values are further apart, or either is NaN
+ */
+pub fn assertApprox(actual: f64, expected: f64, tolerance: f64) {
+    const diff = (actual - expected).abs()
+    if !(diff <= tolerance) {
+        panic("assertApprox failed: {actual} is not within {tolerance} of {expected}")
+    }
+}
+
+/**
+ * Panics unless `part` occurs in `text`.
+ *
+ * @param text the text searched
+ * @param part what it must contain
+ * @panics when `part` does not occur in `text`
+ */
+pub fn assertContains(text: str, part: str) {
+    if !text.contains(part) {
+        const t = quote(text)
+        const p = quote(part)
+        panic("assertContains failed: {t} does not contain {p}")
+    }
+}
+
+/**
+ * Compares `actual` with the contents of the file at `path`, as
+ * `assertStrEq` does. With `OFIR_UPDATE_GOLDEN` set and not empty, it
+ * writes `actual` to the file instead.
+ *
+ * @param actual the text computed
+ * @param path the golden file
+ * @panics when the texts differ, or the file cannot be read or written
+ */
+pub fn assertGolden(actual: str, path: str) {
+    const update = os.env("OFIR_UPDATE_GOLDEN") ?? ""
+    if update.len() > 0 {
+        match fs.writeString(path, actual) {
+            Result.Ok(_) => {
+                return
+            }
+            Result.Err(e) => panic("assertGolden: cannot write {path}: {e.message}")
+        }
+    }
+    match fs.readToString(path) {
+        Result.Ok(expected) => assertStrEq(actual, expected)
+        Result.Err(e) => panic("assertGolden: cannot read {path}: {e.message}")
+    }
+}
+
+/**
+ * A fresh directory for the files of a test. Stage 0 has no drop hooks, so
+ * a test calls `remove` when it is done.
+ *
+ * @example
+ * ```ofir
+ * import std.fs
+ * import std.testing.TempDir
+ *
+ * const dir = TempDir.create("example")
+ * fs.writeString(dir.join("a.txt"), "hi").expect("the directory is writable")
+ * dir.remove()
+ * ```
+ */
+pub struct TempDir {
+    root: str
+
+    /**
+     * Makes a directory with a random name that starts with `prefix`,
+     * under `TMPDIR` (`TEMP` or `TMP` on Windows), else `/tmp`.
+     *
+     * @param prefix the start of its name
+     * @returns the directory
+     * @panics when the directory cannot be made
+     */
+    pub fn create(prefix: str) TempDir {
+        const base = tempBase()
+        let rng = Rng.fromTime()
+        for _ in 0..100 {
+            const n = (rng.nextU64() % 1000000000000).wrappingCast<i64>()
+            const root = "{base}/{prefix}-{n}"
+            if !fs.exists(root) {
+                match fs.createDirAll(root) {
+                    Result.Ok(_) => {
+                        return TempDir{root: root}
+                    }
+                    Result.Err(e) => panic("TempDir.create: cannot make {root}: {e.message}")
+                }
+            }
+        }
+        panic("TempDir.create: no free name under {base}")
+    }
+
+    /**
+     * The path of the directory.
+     *
+     * @returns the path
+     */
+    pub fn path(self) str {
+        return self.root.clone()
+    }
+
+    /**
+     * The path of `name` inside the directory.
+     *
+     * @param name a file or directory name, or a relative path
+     * @returns the joined path
+     */
+    pub fn join(self, name: str) str {
+        return "{self.root}/{name}"
+    }
+
+    /**
+     * Deletes the directory and everything in it.
+     *
+     * @panics when something in it cannot be deleted
+     */
+    pub fn remove(move self) {
+        removeTree(self.root)
+    }
+}
+
+// The directory temporary directories go in.
+fn tempBase() str {
+    for name in ["TMPDIR", "TEMP", "TMP"] {
+        const value = os.env(name) ?? ""
+        if value.len() > 0 {
+            return value
+        }
+    }
+    return "/tmp".toOwned()
+}
+
+// Deletes `path`: a file, or a directory and everything in it.
+fn removeTree(path: str) {
+    match fs.readDir(path) {
+        Result.Ok(entries) => {
+            for entry in entries {
+                removeTree(entry.path)
+            }
+            match fs.removeDir(path) {
+                Result.Ok(_) => {}
+                Result.Err(e) => panic("TempDir.remove: cannot delete {path}: {e.message}")
+            }
+        }
+        Result.Err(_) => {
+            match fs.removeFile(path) {
+                Result.Ok(_) => {}
+                Result.Err(e) => panic("TempDir.remove: cannot delete {path}: {e.message}")
+            }
+        }
+    }
 }
 
 // How long a benchmark runs before its time is reported, in nanoseconds.
@@ -87,6 +303,27 @@ pub copy struct Bencher {
             n *= 2
         }
         println("{self.nanos / self.iters} ns/iter ({self.iters} iterations)")
+    }
+
+    /**
+     * The number of calls the last `run` timed.
+     *
+     * @returns the count, 0 before any `run`
+     */
+    pub fn iterations(self) int {
+        return self.iters
+    }
+
+    /**
+     * The time per call the last `run` measured.
+     *
+     * @returns nanoseconds per call, 0 before any `run`
+     */
+    pub fn nanosPerIter(self) int {
+        if self.iters == 0 {
+            return 0
+        }
+        return self.nanos / self.iters
     }
 }
 
