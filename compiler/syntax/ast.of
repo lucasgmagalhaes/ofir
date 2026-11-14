@@ -75,6 +75,8 @@ pub enum TypeKind {
     /** `fn(A) R`, `move fn(A) R`; `send` for `+ Send` (spec 14.3) */
     Fn(params: List<TypeExpr>, modes: List<Mode>, ret: Option<Box<TypeExpr>>, owned: bool,
        send: bool)
+    /** `extern "C" fn(A) R`: a pointer to a C function (spec 11.3) */
+    CFn(params: List<TypeExpr>, ret: Option<Box<TypeExpr>>)
     /** `dyn I` */
     Dyn(inner: Box<TypeExpr>)
     /** `T?` */

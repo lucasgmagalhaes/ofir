@@ -31,6 +31,8 @@ extern "C" {
     fn ofir_wait(child: *mut u8, out: *mut Captured)
     fn ofir_child_free(child: *mut u8)
     fn ofir_cpu_count() int
+    fn ofir_errno() i32
+    fn ofir_set_errno(n: i32)
     fn ofir_current_dir(out: *mut Buffer) i32
     fn ofir_executable_path(out: *mut Buffer) i32
 }
@@ -215,6 +217,38 @@ pub fn run(program: str, args: [str]) Result<Output, IoError> {
  */
 pub fn cpuCount() int {
     return unsafe { ofir_cpu_count() }
+}
+
+/**
+ * The calling thread's C `errno`: the error code the last failing C call
+ * left. Read it in the statement after the call, since Ofir code in
+ * between may change it (ADR 0063).
+ *
+ * @returns the code, such as 2 (`ENOENT`) on most systems
+ * @example
+ * ```ofir
+ * import std.os
+ * import std.testing.assert
+ *
+ * os.setErrno(0)
+ * assert(os.errno() == 0)
+ * ```
+ */
+pub fn errno() int {
+    return unsafe { ofir_errno() } as int
+}
+
+/**
+ * Sets the calling thread's C `errno`, as before a C call that reports
+ * failure only through it.
+ *
+ * @param code the new value
+ * @panics when `code` does not fit in an `i32`
+ */
+pub fn setErrno(code: int) {
+    unsafe {
+        ofir_set_errno(code as i32)
+    }
 }
 
 /**

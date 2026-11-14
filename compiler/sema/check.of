@@ -56,6 +56,7 @@ import sema.structs.checkStructLayouts
 import sema.structs.hasInteriorMutability
 import sema.structs.structFields
 import sema.types.ERROR
+import sema.types.FN_C
 import sema.types.FN_OWNED
 import sema.types.FN_SEND
 import sema.types.I64
@@ -851,6 +852,9 @@ pub struct Checker {
                 out.push(if t.args.len() == 1 { ",)" } else { ")" })
             }
             TyKind.Fn => {
+                if t.data & FN_C != 0 {
+                    out.push("extern \"C\" ")
+                }
                 out.push(if t.data & FN_OWNED != 0 { "move fn(" } else { "fn(" })
                 self.appendList(out, &t.args, qualified)
                 out.push(")")

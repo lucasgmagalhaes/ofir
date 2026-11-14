@@ -68,6 +68,7 @@ import sema.structs.hasInteriorMutability
 import sema.structs.structFieldType
 import sema.structs.structFields
 import sema.structs.variantFieldType
+import sema.types.FN_C
 import sema.types.BOOL
 import sema.types.ERROR
 import sema.types.I32
@@ -280,7 +281,11 @@ pub fn llvmType(g: mut Gen, c: mut Checker, p: Program, ty: int) str {
         TyKind.Int => "i{intBits(data)}"
         TyKind.Float => if data == 32 { "float".toOwned() } else { "double".toOwned() }
         TyKind.Str => "%ofir.str".toOwned()
-        TyKind.Fn => FN_LLVM.toOwned()   // the code and the environment
+        TyKind.Fn => if c.types.isCFn(ty) {   // a C function pointer
+            "ptr".toOwned()
+        } else {
+            FN_LLVM.toOwned()   // the code and the environment
+        }
         _ => "void".toOwned()   // (), ! and the types the checker rejects
     }
 }
@@ -294,7 +299,7 @@ fn fieldType(g: mut Gen, c: mut Checker, p: Program, ty: int) str {
 fn neverNull(c: Checker, ty: int) bool {
     const t = c.types.get(ty)
     const box = c.r.langItems[0]
-    return t.kind == TyKind.Ref || t.kind == TyKind.Fn ||
+    return t.kind == TyKind.Ref || (t.kind == TyKind.Fn && t.data & FN_C == 0) ||
            (t.kind == TyKind.Adt && box != 0 && t.data == box)
 }
 
@@ -490,7 +495,7 @@ fn layout(g: mut Gen, c: mut Checker, p: Program, ty: int) Layout {
         TyKind.Float => Layout{size: data / 8, align: data / 8}
         TyKind.Str => Layout{size: 24, align: 8}
         TyKind.Ref | TyKind.Ptr => Layout{size: if c.types.isFat(ty) { 16 } else { 8 }, align: 8}
-        TyKind.Fn => Layout{size: 16, align: 8}   // the code and the environment
+        TyKind.Fn => Layout{size: if c.types.isCFn(ty) { 8 } else { 16 }, align: 8}
         TyKind.Tuple => {
             const args = c.types.get(ty).args.clone()
             fieldsLayout(g, c, p, &args)
@@ -1364,6 +1369,15 @@ fn rvalue(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue,
             return Value{ty: ty, text: v.text}
         }
         RvalueKind.FnValue => {
+            if c.types.isCFn(destType) {   // the C symbol itself (spec 11.3)
+                if c.def(rv.flag).member >= 0 {
+                    for g.cUsed.len() <= rv.flag {
+                        g.cUsed.push(false)
+                    }
+                    g.cUsed[rv.flag] = true
+                }
+                return Value{ty: ty, text: functionName(c, p, rv.flag, UNIT, false)}
+            }
             for g.fnValues.len() <= rv.flag {
                 g.fnValues.push(false)
             }
@@ -1506,6 +1520,10 @@ fn valueCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt
     }
     const retType = c.types.get(s.args[0].ty).inner
     const ret = llvmType(g, c, p, retType)
+    if c.types.isCFn(s.args[0].ty) {
+        cPointerCall(g, c, p, body, s, &values, retType)
+        return
+    }
     const code = nextTemp(g)
     g.out.push("  {code} = extractvalue {FN_LLVM} {values[0].text}, 0\n")
     const env = nextTemp(g)
@@ -1522,6 +1540,38 @@ fn valueCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt
     for i in 1..values.len() {
         if values[i].ty != "void" {
             g.out.push(", {values[i].ty} {values[i].text}")
+        }
+    }
+    g.out.push(")\n")
+    if hasDest {
+        storeAt(g, c, p, body, s.dest, &noPath(), &Value{ty: ret, text: result})
+    }
+}
+
+// A call through a C function pointer: the C calling convention, no
+// environment, and a `bool` result widened as C returns it.
+fn cPointerCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt,
+                values: &List<Value>, retType: int) {
+    const ret = llvmType(g, c, p, retType)
+    const hasDest = s.hasDest && hasValue(c, retType)
+    let result = ""
+    if hasDest {
+        result = nextTemp(g)
+        g.out.push("  {result} = ")
+    } else {
+        g.out.push("  ")
+    }
+    const zext = if ret == "i1" { "zeroext " } else { "" }
+    g.out.push("call {zext}{ret} {values[0].text}(")
+    let first = true
+    for i in 1..values.len() {
+        if values[i].ty != "void" {
+            if !first {
+                g.out.push(", ")
+            }
+            first = false
+            const ext = if values[i].ty == "i1" { "zeroext " } else { "" }
+            g.out.push("{values[i].ty} {ext}{values[i].text}")
         }
     }
     g.out.push(")\n")

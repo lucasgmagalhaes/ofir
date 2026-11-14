@@ -90,12 +90,19 @@ pub fn pointerCast(c: mut Checker, from: int, to: int, span: Span, zero: bool) b
     return false
 }
 
-// Integers, floats, bool, raw pointers and () can cross the C boundary.
-fn cCompatible(c: Checker, ty: int) bool {
+/**
+ * Whether a type can cross the C boundary: an integer, float, `bool`, raw
+ * pointer, C function pointer or `()` (spec 11.3).
+ *
+ * @param c the checker
+ * @param ty the type
+ * @returns true when it has a C layout
+ */
+pub fn cCompatible(c: Checker, ty: int) bool {
     const kind = c.types.kind(ty)
     return kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Bool ||
            kind == TyKind.Ptr || kind == TyKind.Unit ||
-           kind == TyKind.Never || kind == TyKind.Error
+           kind == TyKind.Never || kind == TyKind.Error || c.types.isCFn(ty)
 }
 
 /**
@@ -137,6 +144,22 @@ fn externAbi(c: Checker, p: Program, id: int) Option<str> {
         ItemKind.Extern(abi, _) => Option.Some(abi.clone())
         _ => Option.None
     }
+}
+
+/**
+ * Whether a function has the C calling convention: it is declared in an
+ * `extern "C"` block or is an `extern "C" fn` with a body.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id its `DefId`
+ * @returns true for a C function
+ */
+pub fn isCFunction(c: Checker, p: Program, id: int) bool {
+    if const Option.Some(abi) = externAbi(c, p, id) {
+        return abi == "C"
+    }
+    return c.def(id).kind == DefKind.Fn && c.def(id).item >= 0 && fnOf(p, c.loc(id)).abi == "C"
 }
 
 /**

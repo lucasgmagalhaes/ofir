@@ -1,0 +1,69 @@
+// requires: stage1
+// c: c_callbacks.c
+// C function pointers (spec 11.3, ADR 0063): `qsort` with an Ofir
+// comparator, a callback with a user-data pointer, a pointer called from
+// Ofir, and a buffer C fills.
+
+@link("c_callbacks")
+extern "C" {
+    fn qsort(base: *mut u8, count: u64, size: u64, cmp: extern "C" fn(*u8, *u8) i32)
+    fn c_each(n: i32, f: extern "C" fn(*mut u8, i32), data: *mut u8)
+    fn c_negate() extern "C" fn(i32) i32
+    fn c_apply(f: extern "C" fn(i32, bool) i32, v: i32) i32
+    fn c_fill(out: *mut i64, len: i64)
+}
+
+extern "C" fn byValue(a: *u8, b: *u8) i32 {
+    const x = unsafe { *(a as *i64) }
+    const y = unsafe { *(b as *i64) }
+    if x < y {
+        return -1
+    }
+    if x > y {
+        return 1
+    }
+    return 0
+}
+
+struct Sum {
+    total: int
+    calls: int
+}
+
+extern "C" fn add(data: *mut u8, v: i32) {
+    unsafe {
+        const s = data as *mut Sum
+        (*s).total += v as int
+        (*s).calls += 1
+    }
+}
+
+extern "C" fn pick(v: i32, flip: bool) i32 {
+    if flip {
+        return -v
+    }
+    return v
+}
+
+fn main() {
+    let xs: List<i64> = [5, -3, 9, 0, 2]
+    unsafe {
+        qsort(xs.asMutSlice().asMutPtr() as *mut u8, 5, 8, byValue)
+    }
+    println("{xs:?}")
+    let sum = Sum{total: 0, calls: 0}
+    unsafe {
+        c_each(4, add, &mut sum as *mut Sum as *mut u8)
+    }
+    println("{sum.total} {sum.calls}")
+    const neg = unsafe { c_negate() }
+    const r = unsafe { neg(21) }
+    println("{r}")
+    const f: extern "C" fn(i32, bool) i32 = pick
+    println("{unsafe { f(3, true) }} {unsafe { c_apply(f, 8) }}")
+    let buf: List<i64> = [0, 0, 0, 0]
+    unsafe {
+        c_fill(buf.asMutSlice().asMutPtr(), 4)
+    }
+    println("{buf:?}")
+}

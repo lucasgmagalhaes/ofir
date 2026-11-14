@@ -259,6 +259,16 @@ pub ref struct SliceMut<T> {
     }
 
     /**
+     * The address of the first element, for C functions that write the
+     * elements (spec 11).
+     *
+     * @returns the pointer; writing through it requires `unsafe`
+     */
+    pub fn asMutPtr(self) *mut T {
+        return self.ptr
+    }
+
+    /**
      * A read-only view of part of the slice: `s[lo..hi]`.
      *
      * @param lo the first position
