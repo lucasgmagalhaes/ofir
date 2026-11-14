@@ -9,6 +9,18 @@
  * The asserts written in Ofir (`assertStrEq`, `assertApprox`,
  * `assertContains`, `assertGolden`) report a location inside this module;
  * their messages carry the values instead (ADR 0061).
+ *
+ * @example
+ * ```ofir
+ * import std.testing.assert
+ * import std.testing.assertStrEq
+ *
+ * @test
+ * fn sums() {
+ *     assert(1 + 1 == 2)
+ *     assertStrEq("a\nb", "a\nb")
+ * }
+ * ```
  */
 
 import std.fs
