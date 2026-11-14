@@ -52,8 +52,9 @@ STATUS_RE = re.compile(r"^//\s*status:\s*(\S+)\s*$", re.MULTILINE)
 # A C file next to a run test, built into `lib<name>.a` for the test's
 # `@link("<name>")`, e.g. `// c: c_calls.c` (a cross-language fixture).
 C_FIXTURE_RE = re.compile(r"^//\s*c:\s*(\S+)\s*$", re.MULTILINE)
-# A C program that uses the library a run test builds with `// flags:
-# --lib=static` or `--lib=shared`, e.g. `// consumer: use_calc.c` (ADR 0064).
+# A C, C++ or Python program that uses the library a run test builds with
+# `// flags: --lib=static` or `--lib=shared`, e.g. `// consumer: use_calc.c`
+# (ADR 0064, ADR 0070).
 CONSUMER_RE = re.compile(r"^//\s*consumer:\s*(\S+)\s*$", re.MULTILINE)
 PANIC_RE = re.compile(r"^//\s*panic:\s*(.*?)\s*$", re.MULTILINE)
 CHECK_RE = re.compile(r"^//\s*(CHECK|CHECK-NOT):\s*(.*?)\s*$")
@@ -503,9 +504,10 @@ def test_flags(source: str) -> list[str]:
 
 
 def run_consumer(cfg: Config, path: Path, source: str, consumer: str) -> Result:
-    """Builds the test as a library, then a C program that includes its
-    generated header and links it, and runs that program. A `.h` file next
-    to the test is the header it expects."""
+    """Builds the test as a library, then a C or C++ program that includes
+    its generated header and links it, and runs that program; a Python
+    consumer loads the library instead. A `.h` file next to the test is the
+    header it expects."""
     rel = path.relative_to(cfg.tests_dir).with_suffix("").as_posix().replace("/", "_")
     out = cfg.tmp / "lib" / rel
     out.mkdir(parents=True, exist_ok=True)
@@ -523,11 +525,21 @@ def run_consumer(cfg: Config, path: Path, source: str, consumer: str) -> Result:
         result = compare_output(cfg, path, header.read_text(), ".h")
         if result.status != "pass":
             return result
+    if consumer.endswith(".py"):   # loads the shared library with ctypes (ADR 0070)
+        proc = run_process([sys.executable, "-I", str(path.parent / consumer), str(lib)],
+                           env=test_env(cfg, path))
+        if proc.returncode != 0:
+            return Result(path, "fail", f"{consumer} failed\n" + describe(proc))
+        return compare_output(cfg, path, proc.stdout, ".out")
     root = Path(__file__).resolve().parents[2]
     runtime = os.environ.get("OFIR_RUNTIME") or str(root / "build" / "libofir_rt.a")
     clang, _ = c_tools()
     exe = out / "consumer"
-    args = [clang, "-std=c11", "-Wall", "-Werror", "-I", str(out), str(path.parent / consumer),
+    std = "-std=c11"
+    if consumer.endswith(".cpp"):   # the same header and library from C++
+        clang = str(Path(clang).with_name(Path(clang).name.replace("clang", "clang++", 1)))
+        std = "-std=c++17"
+    args = [clang, std, "-Wall", "-Werror", "-I", str(out), str(path.parent / consumer),
             str(lib)]
     if os.name == "nt":   # the MinGW libraries, as the compiler links them
         args.append("--target=x86_64-w64-windows-gnu")
