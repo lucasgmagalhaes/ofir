@@ -1,0 +1,61 @@
+// Names outside ASCII on every system (OFIR-52): UTF-8 paths through
+// std.fs, and UTF-8 arguments and output through a child process.
+
+import std.fs
+import std.io
+import std.os
+
+fn show(what: str, result: Result<(), io.IoError>) {
+    match result {
+        Result.Ok(_) => println("{what}: ok")
+        Result.Err(e) => println("{what}: {e.message}")
+    }
+}
+
+fn child(args: &List<str>) {
+    for i in 2..args.len() {
+        println("arg [{args[i]}] {args[i].len()}")
+    }
+}
+
+fn main() {
+    const args = os.args()
+    if args.len() > 1 && args[1] == "child" {
+        child(&args)
+        return
+    }
+    const base = "{os.env("TMPDIR") ?? os.env("TEMP") ?? "/tmp"}/ofir-unicode-ação"
+    const dir = "{base}/日本"
+    show("createDirAll", fs.createDirAll(dir))
+    show("write", fs.writeString("{dir}/olá.txt", "café ☕\n"))
+    match fs.readToString("{dir}/olá.txt") {
+        Result.Ok(text) => print("read {text}")
+        Result.Err(e) => println("read: {e.message}")
+    }
+    show("rename", fs.rename("{dir}/olá.txt", "{dir}/ñandú.txt"))
+    println("exists {fs.exists("{dir}/ñandú.txt")} {fs.exists("{dir}/olá.txt")}")
+    match fs.readDir(dir) {
+        Result.Ok(entries) => {
+            for i in 0..entries.len() {
+                println("entry {entries[i].name}")
+            }
+        }
+        Result.Err(e) => println("readDir: {e.message}")
+    }
+    match fs.canonicalize(dir) {
+        Result.Ok(path) => println("canonical {path.endsWith("/ofir-unicode-ação/日本")}")
+        Result.Err(e) => println("canonicalize: {e.message}")
+    }
+    match fs.metadata("{dir}/ñandú.txt") {
+        Result.Ok(info) => println("size {info.size}")
+        Result.Err(e) => println("metadata: {e.message}")
+    }
+    show("removeFile", fs.removeFile("{dir}/ñandú.txt"))
+    show("removeDir", fs.removeDir(dir))
+    show("removeDir base", fs.removeDir(base))
+    const exe = os.executablePath().expect("the program has a path")
+    match os.run(exe, ["child", "ünï cødé", "Ω", "a b"]) {
+        Result.Ok(out) => print("child {out.status}\n{out.stdout}")
+        Result.Err(e) => println("run: {e.message}")
+    }
+}

@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
+#include <windows.h>
 #endif
 
 int main(int argc, char **argv) {
@@ -15,6 +16,7 @@ int main(int argc, char **argv) {
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
     _setmode(_fileno(stderr), _O_BINARY);
+    SetConsoleOutputCP(CP_UTF8);   // the console shows the UTF-8 the program writes
 #endif
     ofir_stack_guard_init(&top);
     ofir_set_args(argc, argv);

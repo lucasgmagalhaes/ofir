@@ -15,6 +15,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+
+#include <shellapi.h>      // CommandLineToArgvW, after windows.h
+
+#include "wide.h"
 #else
 #include <fcntl.h>
 #include <spawn.h>
@@ -35,6 +39,20 @@ static char **arg_values;
 void ofir_set_args(int argc, char **argv) {
     arg_count = argc;
     arg_values = argv;
+#ifdef _WIN32
+    // The C runtime's argv is in the ANSI code page: take the UTF-16 line.
+    int count = 0;
+    wchar_t **wide = CommandLineToArgvW(GetCommandLineW(), &count);
+    if (wide) {
+        arg_values = ofir_alloc((int64_t)(count + 1) * (int64_t)sizeof(char *));
+        for (int i = 0; i < count; i++) {
+            arg_values[i] = ofir_narrow(wide[i]);
+        }
+        arg_values[count] = NULL;
+        arg_count = count;
+        LocalFree(wide);
+    }
+#endif
 }
 
 int64_t ofir_arg_count(void) {
@@ -86,7 +104,11 @@ char *ofir_c_string(const uint8_t *ptr, int64_t len) {
 
 const uint8_t *ofir_env(const uint8_t *name, int64_t len, int64_t *value_len) {
     char *key = ofir_c_string(name, len);
+#ifdef _WIN32
+    const char *value = key ? ofir_w_getenv(key) : NULL;
+#else
     const char *value = key ? getenv(key) : NULL;
+#endif
     ofir_free(key);
     *value_len = value ? (int64_t)strlen(value) : 0;
     return (const uint8_t *)value;
@@ -162,12 +184,12 @@ typedef struct {
 // A temporary file the child inherits, deleted when the last handle to it
 // is closed.
 static HANDLE temp_file(void) {
-    char dir[MAX_PATH + 1], path[MAX_PATH + 1];
-    if (!GetTempPathA(sizeof dir, dir) || !GetTempFileNameA(dir, "ofr", 0, path)) {
+    wchar_t dir[MAX_PATH + 1], path[MAX_PATH + 1];
+    if (!GetTempPathW(MAX_PATH + 1, dir) || !GetTempFileNameW(dir, L"ofr", 0, path)) {
         return INVALID_HANDLE_VALUE;
     }
     SECURITY_ATTRIBUTES inherit = {.nLength = sizeof inherit, .bInheritHandle = TRUE};
-    return CreateFileA(path, GENERIC_READ | GENERIC_WRITE,
+    return CreateFileW(path, GENERIC_READ | GENERIC_WRITE,
                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, &inherit,
                        CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
 }
@@ -203,16 +225,18 @@ static int32_t start(char **argv, Child *child) {
         ofir_free(line);
         return EIO;
     }
-    STARTUPINFOA startup = {.cb = sizeof startup, .dwFlags = STARTF_USESTDHANDLES};
+    wchar_t *wide_line = ofir_wide(line);
+    ofir_free(line);
+    STARTUPINFOW startup = {.cb = sizeof startup, .dwFlags = STARTF_USESTDHANDLES};
     startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
     startup.hStdOutput = child->out;
     startup.hStdError = child->err;
     PROCESS_INFORMATION process;
     ofir_stdout_flush();
-    BOOL started = CreateProcessA(NULL, line, NULL, NULL, TRUE, 0, NULL, NULL, &startup,
+    BOOL started = CreateProcessW(NULL, wide_line, NULL, NULL, TRUE, 0, NULL, NULL, &startup,
                                   &process);
     DWORD error = GetLastError();
-    ofir_free(line);
+    ofir_free(wide_line);
     if (!started) {
         CloseHandle(child->out);
         CloseHandle(child->err);

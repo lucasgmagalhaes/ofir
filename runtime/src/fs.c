@@ -31,7 +31,15 @@
 #include <direct.h>
 #include <windows.h>
 
-#define mkdir(name, mode) _mkdir(name)
+#include "wide.h"
+
+// UTF-8 names through the wide functions (wide.h).
+#define open ofir_w_open
+#define stat(name, info) ofir_w_stat(name, info)
+#define unlink ofir_w_unlink
+#define rmdir ofir_w_rmdir
+#define mkdir(name, mode) ofir_w_mkdir(name)
+#define getcwd ofir_w_getcwd
 
 // Paths given to programs use `/`, as on the other systems.
 static void forward_slashes(char *path) {
@@ -41,10 +49,10 @@ static void forward_slashes(char *path) {
 }
 
 static char *realpath(const char *name, char *full) {
-    if (_access(name, 0) != 0) {
+    if (ofir_w_access(name, 0) != 0) {
         return NULL;
     }
-    if (!_fullpath(full, name, PATH_MAX)) {
+    if (!ofir_w_fullpath(full, name, PATH_MAX)) {
         return NULL;
     }
     forward_slashes(full);
@@ -78,7 +86,7 @@ static int32_t read_fd(int fd, OfirBuf *out) {
 
 int32_t ofir_read_file(const uint8_t *path, int64_t len, OfirBuf *out) {
     char *name = ofir_c_string(path, len);
-    int fd = name ? open(name, O_RDONLY | O_BINARY) : -1;
+    int fd = name ? open(name, O_RDONLY | O_BINARY, 0) : -1;
     int32_t code = name ? errno : EINVAL;
     ofir_free(name);
     if (fd < 0) {
@@ -172,8 +180,7 @@ int32_t ofir_rename(const uint8_t *from, int64_t from_len, const uint8_t *to, in
         code = EINVAL;
     } else {
 #ifdef _WIN32
-        code = MoveFileExA(old_name, new_name, MOVEFILE_REPLACE_EXISTING) ? 0 : EACCES;
-        code = code && GetLastError() == ERROR_FILE_NOT_FOUND ? ENOENT : code;
+        code = ofir_w_rename(old_name, new_name);
 #else
         code = rename(old_name, new_name) == 0 ? 0 : errno;
 #endif
@@ -203,7 +210,7 @@ int32_t ofir_file_info(const uint8_t *path, int64_t len, int64_t *size, int64_t 
 int32_t ofir_touch(const uint8_t *path, int64_t len) {
     char *name = ofir_c_string(path, len);
 #ifdef _WIN32
-    int32_t code = !name ? EINVAL : _utime(name, NULL) == 0 ? 0 : errno;
+    int32_t code = !name ? EINVAL : ofir_w_utime(name) == 0 ? 0 : errno;
 #else
     int32_t code = !name ? EINVAL : utime(name, NULL) == 0 ? 0 : errno;
 #endif
@@ -248,19 +255,8 @@ static int compare_names(const void *a, const void *b) {
     return strcmp(*(char *const *)a, *(char *const *)b);
 }
 
-static void list_names(DIR *dir, OfirBuf *out) {
-    char **names = NULL;
-    size_t count = 0, cap = 0;
-    for (struct dirent *entry; (entry = readdir(dir));) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        if (count == cap) {
-            cap = cap ? cap * 2 : 16;
-            names = ofir_realloc(names, (int64_t)(cap * sizeof(char *)));
-        }
-        names[count++] = strdup(entry->d_name);
-    }
+// Packs the names, each from ofir_alloc, and frees them.
+static void pack_names(char **names, size_t count, OfirBuf *out) {
     qsort(names, count, sizeof(char *), compare_names);   // sorted, for determinism
     int64_t size = 0;
     for (size_t i = 0; i < count; i++) {
@@ -271,23 +267,52 @@ static void list_names(DIR *dir, OfirBuf *out) {
         size_t n = strlen(names[i]) + 1;
         memcpy(out->ptr + out->len, names[i], n);
         out->len += (int64_t)n;
-        free(names[i]);
+        ofir_free(names[i]);
     }
     ofir_free(names);
 }
 
+#ifndef _WIN32
+// The names in the directory but `.` and `..`, each from ofir_alloc.
+static int dir_names(const char *name, char ***names, size_t *count) {
+    DIR *dir = opendir(name);
+    *names = NULL;
+    *count = 0;
+    if (!dir) {
+        return -1;
+    }
+    size_t cap = 0;
+    for (struct dirent *entry; (entry = readdir(dir));) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+        if (*count == cap) {
+            cap = cap ? cap * 2 : 16;
+            *names = ofir_realloc(*names, (int64_t)(cap * sizeof(char *)));
+        }
+        size_t n = strlen(entry->d_name) + 1;
+        (*names)[(*count)++] = memcpy(ofir_alloc((int64_t)n), entry->d_name, n);
+    }
+    closedir(dir);
+    return 0;
+}
+#else
+#define dir_names ofir_w_dir_names
+#endif
+
 // The names in the directory, sorted, each followed by a NUL.
 int32_t ofir_read_dir(const uint8_t *path, int64_t len, OfirBuf *out) {
     char *name = ofir_c_string(path, len);
-    DIR *dir = name ? opendir(name) : NULL;
+    char **names = NULL;
+    size_t count = 0;
+    int found = name ? dir_names(name, &names, &count) : -1;
     int32_t code = name ? errno : EINVAL;
     ofir_free(name);
     *out = (OfirBuf){0};
-    if (!dir) {
+    if (found != 0) {
         return code;
     }
-    list_names(dir, out);
-    closedir(dir);
+    pack_names(names, count, out);
     return 0;
 }
 
@@ -369,9 +394,7 @@ int32_t ofir_executable_path(OfirBuf *out) {
     uint32_t size = sizeof path;
     ssize_t n = _NSGetExecutablePath(path, &size) == 0 ? (ssize_t)strlen(path) : -1;
 #elif defined(_WIN32)
-    DWORD size = GetModuleFileNameA(NULL, path, sizeof path);
-    ssize_t n = size > 0 && size < sizeof path ? (ssize_t)size : -1;
-    errno = n < 0 ? ENAMETOOLONG : errno;
+    ssize_t n = (ssize_t)ofir_w_module_path(path, sizeof path);
     forward_slashes(path);
 #else
     ssize_t n = readlink("/proc/self/exe", path, sizeof path);
