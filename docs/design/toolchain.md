@@ -524,7 +524,7 @@ To profile, build with `-g` (or `--release -g`) and run the program
 under any profiler that reads DWARF, such as `perf record`, `valgrind
 --tool=callgrind` with `callgrind_annotate`, or Instruments. A function
 appears as `ofir.<name>`, a generic instance with its type arguments
-(`ofir.twice<int>`). `tools/check_profile.py`, run by `make
+(`ofir.twice<int>`), and `main` as `ofir_main`. `tools/check_profile.py`, run by `make
 test-stage1`, checks both and prints their measured overhead.
 
 ## 4. Build steps
