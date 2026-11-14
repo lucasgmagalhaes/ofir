@@ -1,0 +1,15 @@
+// A did-you-mean fix for a field: did_you_mean_field_fix.fixed is this
+// program with the fix applied, and it compiles.
+
+struct Point {
+    xpos: int
+    ypos: int
+}
+
+fn main() {
+    const p = Point{   // error[E0308]: missing field `ypos` in `Point`
+        xpos: 1,
+        ypoz: 2,   // error[E0316]: no field `ypoz` on this struct
+    }
+    println("{p.xpos} {p.ypos}")
+}

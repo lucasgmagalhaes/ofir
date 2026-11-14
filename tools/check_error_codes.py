@@ -5,7 +5,10 @@
 - every code annotated in tests/ (`// error[E0300]: ...`) is registered;
 - every explanation file (docs/errors/EXXXX.md) is for a registered code,
   starts with `# EXXXX: ` and has `## Example` and `## Fix` sections;
-- every registered code that is not `planned` has an explanation file.
+- every registered code that is not `planned` has an explanation file;
+- every code the compilers name (`"E0300"` in compiler/ and bootstrap/src)
+  is registered, and every registered code that is not `planned` is named
+  by one of them.
 
 With `--compiler <ofir>` the `ofir` blocks of the explanation files are
 compiled: those under `## Example` must report their code, those under
@@ -40,6 +43,25 @@ def unknown_codes(known: set) -> list[str]:
             problems += [f"{path.relative_to(ROOT)}:{number}: {code} is not in "
                          f"{REGISTRY.relative_to(ROOT)}"
                          for code in USE_RE.findall(line) if code not in known]
+    return problems
+
+
+LITERAL_RE = re.compile(r'"([EW]\d{4})"')
+SOURCES = [("compiler", "*.of"), ("bootstrap/src", "*.[ch]")]
+
+
+def unsynchronized(known: set, planned: set) -> list[str]:
+    """The codes the compilers name but the registry lacks, and the codes it
+    has that no compiler names."""
+    named: dict[str, Path] = {}
+    for directory, pattern in SOURCES:
+        for path in sorted((ROOT / directory).rglob(pattern)):
+            for code in LITERAL_RE.findall(path.read_text(errors="replace")):
+                named.setdefault(code, path)
+    problems = [f"{named[code].relative_to(ROOT)}: {code} is not in "
+                f"{REGISTRY.relative_to(ROOT)}" for code in sorted(set(named) - known)]
+    problems += [f"{code} is registered but no compiler reports it; mark it `planned`"
+                 for code in sorted(known - planned - set(named))]
     return problems
 
 
@@ -115,6 +137,7 @@ def main() -> int:
     planned = set(PLANNED_RE.findall(REGISTRY.read_text()))
     problems += [f"{code} has no explanation file docs/errors/{code}.md"
                  for code in sorted(known - planned - explained)]
+    problems += unsynchronized(known, planned)
     if args.compiler and not problems:
         with tempfile.TemporaryDirectory() as tmp:
             for path in files:
@@ -125,6 +148,7 @@ def main() -> int:
         return 1
     checked = ", examples compiled" if args.compiler else ""
     print(f"error codes: {len(known)} registered, all test annotations known, "
+          f"in sync with the compilers, "
           f"{len(files)} explained{checked}")
     return 0
 

@@ -96,6 +96,11 @@ as one JSON object per line, sorted as the human format sorts them:
   `endColumn` are the position just after the span.
 - `notes` holds the notes and help lines in order, each an object with
   `kind` (`"note"` or `"help"`) and `message`; it is `[]` without them.
+- A help line that a tool can apply has a `fix`: `{"line", "column",
+  "endLine", "endColumn", "text"}`, the bytes to replace (counted as the
+  span is) and their replacement. The did-you-mean help lines have one; a
+  test with a `.fixed` file next to it checks that applying every fix gives
+  that file and that it compiles.
 - Driver errors that point at no source, as E0900 (cannot read a file) or
   E0902 (clang failed), have no `file`, `line`, `column`, `endLine` or
   `endColumn`.

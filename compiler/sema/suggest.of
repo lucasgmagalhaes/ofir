@@ -64,6 +64,7 @@ fn editDistance(a: &List<u8>, b: &List<u8>) int {
 
 /** The closest candidate to an unknown name found so far. */
 pub struct Suggestion {
+    text: str
     name: List<u8>
     best: int   // a symbol id, -1 for none
     distance: int
@@ -75,7 +76,7 @@ pub struct Suggestion {
      * @returns no candidate yet
      */
     pub fn new(name: str) Suggestion {
-        return Suggestion{name: bytesOf(name), best: -1, distance: 0}
+        return Suggestion{text: name.toOwned(), name: bytesOf(name), best: -1, distance: 0}
     }
 
     /**
@@ -108,13 +109,15 @@ pub struct Suggestion {
     }
 
     /**
-     * Adds `= help: did you mean `x`?` to the diagnostic reported last.
+     * Adds `= help: did you mean `x`?` to the diagnostic reported last,
+     * with the fix that writes `x` for the unknown name.
      *
      * @param r the resolver
      */
     pub fn report(self, r: mut Resolver) {
         if self.best >= 0 {
-            r.diags.help("did you mean `{r.text(Symbol(self.best))}`?")
+            const best = r.text(Symbol(self.best))
+            r.diags.suggest("did you mean `{best}`?", self.text, best)
         }
     }
 }
