@@ -73,5 +73,23 @@ fn main() {
         Result.Err(e) => println("gone {e.kind == io.IoErrorKind.NotFound}")
     }
     check("remove missing", fs.removeFile("{dir}/a.txt"))
+    check("append new", fs.appendString("{dir}/log.txt", "one\n"))
+    check("append more", fs.append("{dir}/log.txt", [116, 119, 111, 10]))
+    check("copyFile", fs.copyFile("{dir}/log.txt", "{dir}/copy.txt"))
+    match fs.readToString("{dir}/copy.txt") {
+        Result.Ok(text) => print("copied {text}")
+        Result.Err(e) => println("read: {e.message}")
+    }
+    check("copyFile missing", fs.copyFile("{dir}/none", "{dir}/other.txt"))
+    match fs.removeDir(dir) {
+        Result.Ok(_) => println("removeDir full: removed")
+        Result.Err(_) => println("removeDir full: refused")
+    }
+    for name in ["log.txt", "copy.txt"] {
+        check("remove {name}", fs.removeFile("{dir}/{name}"))
+    }
+    check("removeDir", fs.removeDir(dir))
+    println("exists after removeDir {fs.exists(dir)}")
+    check("removeDir missing", fs.removeDir(dir))
     check("bad path", fs.writeString("a\0b", ""))
 }

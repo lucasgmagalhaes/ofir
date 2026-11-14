@@ -1,4 +1,4 @@
-# `std.io`, `std.fs`, `std.os`, `std.time`, `std.task`, `std.sync`
+# `std.io`, `std.fs`, `std.path`, `std.os`, `std.time`, `std.task`, `std.sync`
 
 ## Errors (`std.io`)
 
@@ -39,18 +39,39 @@ pub copy enum IoErrorKind {
 | `fn read(path: str) Result<List<u8>, IoError>` | | ✓ |
 | `fn write(path: str, data: [u8]) Result<(), IoError>` | creates or truncates | ✓ |
 | `fn writeString(path: str, text: str) Result<(), IoError>` | the same, for text | ✓ |
+| `fn append(path: str, data: [u8]) Result<(), IoError>` | adds at the end, creating the file if it is missing | ✓ |
+| `fn appendString(path: str, text: str) Result<(), IoError>` | the same, for text | ✓ |
+| `fn copyFile(from: str, to: str) Result<(), IoError>` | the contents only; `to` is created or replaced | ✓ |
 | `fn exists(path: str) bool` | | ✓ |
 | `fn canonicalize(path: str) Result<str, IoError>` | the absolute path, without `.`, `..` or symbolic links | ✓ |
 | `fn createDirAll(path: str) Result<(), IoError>` | | ✓ |
 | `fn removeFile(path: str) Result<(), IoError>` | | ✓ |
+| `fn removeDir(path: str) Result<(), IoError>` | an empty directory only | ✓ |
 | `fn rename(from: str, to: str) Result<(), IoError>` | replaces `to` if it exists | ✓ |
 | `fn metadata(path: str) Result<Metadata, IoError>` | `Metadata` has `size` (bytes) and `modified` (nanoseconds since 1970) | ✓ |
 | `fn touch(path: str) Result<(), IoError>` | sets the modification time to now | ✓ |
 | `fn readDir(path: str) Result<List<DirEntry>, IoError>` | sorted by name, for determinism; `DirEntry` has `name` and `path` | ✓ |
 | `struct File` with `open`, `create`, `read`, `write`, closed on drop | | |
 
-`std.fs.path`: `join(a: str, b: str) str`, `parent(p: str) Option<&str>`,
-`fileName(p: str) Option<&str>`, `extension(p: str) Option<&str>` — planned.
+## `std.path`
+
+Pure functions on `str` paths (ADR 0058); they never touch the file
+system. `/` separates components everywhere; on Windows `\` does too and a
+drive (`C:`) starts an absolute path. Parts are views of the argument; an
+empty result means the part is missing.
+
+| Function | Description | S0 |
+|----------|-------------|:--:|
+| `fn isAbsolute(p: str) bool` | starts at a root | ✓ |
+| `fn fileName(p: str) str` | the last component | ✓ |
+| `fn parent(p: str) str` | all but the last component; `""` for `"/"` and `"a"` | ✓ |
+| `fn extension(p: str) str` | after the last `.` of the file name, not a leading one | ✓ |
+| `fn stem(p: str) str` | the file name without its extension | ✓ |
+| `fn hasExtension(p: str, ext: str) bool` | | ✓ |
+| `fn join(base: str, child: str) str` | an absolute `child` replaces `base` | ✓ |
+| `fn withExtension(p: str, ext: str) str` | replaces or adds the extension | ✓ |
+| `fn components(p: str) List<str>` | the root first, then each name | ✓ |
+| `fn normalize(p: str) str` | removes `.`, empty components and `name/..`; `"."` when empty | ✓ |
 
 ## `std.os`
 
@@ -83,8 +104,26 @@ Both stages (spec 14.5). Times are `int` nanoseconds on a monotonic clock.
 
 - `now() int`, `sleep(ns: int)`; the constants `MICROSECOND`,
   `MILLISECOND` and `SECOND`.
+- `unixNanos() int`: the wall clock, in nanoseconds since 1970. It can
+  jump when the system clock is set; measure durations with `now()`.
 - `Deadline`: `after(ns)`, `never()`, `instant(self) int`,
   `expired(self) bool`, `remaining(self) int` (0 once passed).
+
+### `std.time.date`
+
+UTC calendar dates (ADR 0058), the proleptic Gregorian calendar, no leap
+seconds and no time zones.
+
+- `isLeapYear(year) bool`, `daysInMonth(year, month) int`.
+- `DateTime`, a copy struct with `year`, `month`, `day`, `hour`, `minute`,
+  `second` and `nanosecond`:
+  - `new(...) Option<DateTime>` checks every field.
+  - `fromUnixSeconds`, `fromUnixNanos`, `now()`; `unixSeconds`,
+    `unixNanos`.
+  - `weekday() int`: 0 is Monday.
+  - `format() str` writes RFC 3339 (`2026-11-14T08:05:09Z`, a fraction
+    only when not 0); `parse(text) Result<DateTime, ParseError>` reads it
+    with `Z` or a numeric offset, converted to UTC.
 
 ## `std.task`
 

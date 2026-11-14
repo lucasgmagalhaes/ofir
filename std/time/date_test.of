@@ -1,0 +1,70 @@
+// The tests of `std.time.date` (OFIR-43, ADR 0058): `ofir test std/time/date.of` runs them.
+
+import std.testing.assert
+
+@test
+fn calendar() {
+    assert(isLeapYear(2024) && isLeapYear(2000) && !isLeapYear(1900) && !isLeapYear(2023))
+    assert(daysInMonth(2024, 2) == 29 && daysInMonth(2023, 2) == 28 && daysInMonth(2023, 4) == 30)
+    assert(daysInMonth(2023, 12) == 31 && daysInMonth(2023, 13) == 0)
+    assert(DateTime.new(2024, 2, 29, 0, 0, 0, 0).isSome())
+    assert(DateTime.new(2023, 2, 29, 0, 0, 0, 0).isNone())
+    assert(DateTime.new(2023, 1, 1, 24, 0, 0, 0).isNone())
+    assert(DateTime.new(2023, 1, 1, 0, 0, 60, 0).isNone())
+}
+
+@test
+fn unixTime() {
+    const epoch = DateTime.fromUnixSeconds(0)
+    assert(epoch.year == 1970 && epoch.month == 1 && epoch.day == 1 && epoch.hour == 0)
+    assert(epoch.weekday() == 3)
+    const d = DateTime.fromUnixSeconds(1_000_000_000)
+    assert(d.year == 2001 && d.month == 9 && d.day == 9 && d.hour == 1)
+    assert(d.minute == 46 && d.second == 40 && d.weekday() == 6)
+    const before = DateTime.fromUnixSeconds(-1)
+    assert(before.year == 1969 && before.month == 12 && before.day == 31)
+    assert(before.hour == 23 && before.second == 59 && before.unixSeconds() == -1)
+    const leap = DateTime.fromUnixSeconds(951_782_400)
+    assert(leap.month == 2 && leap.day == 29 && leap.year == 2000)
+    const old = DateTime.fromUnixNanos(-1)
+    assert(old.second == 59 && old.nanosecond == 999_999_999 && old.unixNanos() == -1)
+    for s in [-86_400_000_000, -1_000_000, 0, 951_868_799, 4_102_444_800, 253_402_300_799] {
+        assert(DateTime.fromUnixSeconds(s).unixSeconds() == s)
+    }
+    const now = DateTime.now()
+    assert(now.year >= 2024 && now.year < 2100)
+}
+
+@test
+fn formatting() {
+    assert(DateTime.fromUnixSeconds(0).format() == "1970-01-01T00:00:00Z")
+    assert(DateTime.fromUnixNanos(1_500_000_000).format() == "1970-01-01T00:00:01.5Z")
+    assert(DateTime.fromUnixNanos(1_000_000_001).format() == "1970-01-01T00:00:01.000000001Z")
+    assert(DateTime.fromUnixSeconds(-62_167_219_200).format() == "0000-01-01T00:00:00Z")
+    assert(DateTime.fromUnixSeconds(-62_167_219_201).format() == "-1-12-31T23:59:59Z")
+}
+
+@test
+fn parsing() {
+    const Result.Ok(a) = DateTime.parse("2001-09-09T01:46:40Z") else {
+        assert(false)
+        return
+    }
+    assert(a.unixSeconds() == 1_000_000_000)
+    const Result.Ok(b) = DateTime.parse("2001-09-09t03:46:40.25+02:00") else {
+        assert(false)
+        return
+    }
+    assert(b.unixSeconds() == 1_000_000_000 && b.nanosecond == 250_000_000)
+    assert(b.format() == "2001-09-09T01:46:40.25Z")
+    const Result.Ok(c) = DateTime.parse("1999-12-31 20:30:00.1234567891-05:30") else {
+        assert(false)
+        return
+    }
+    assert(c.format() == "2000-01-01T02:00:00.123456789Z")
+    for bad in ["", "2001-09-09", "2001-09-09T01:46:40", "2001-02-30T00:00:00Z",
+            "2001-09-09T01:46:60Z", "2001-09-09T01:46:40.Z", "2001-09-09T01:46:40+0200",
+            "2001-09-09T01:46:40Zx", "2001/09/09T01:46:40Z", "2001-09-09T24:00:00Z"] {
+        assert(DateTime.parse(bad).isErr())
+    }
+}

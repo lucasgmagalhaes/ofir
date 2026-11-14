@@ -12,8 +12,10 @@ import std.io
 extern "C" {
     fn ofir_read_file(path: *u8, len: int, out: *mut Buffer) i32
     fn ofir_write_file(path: *u8, len: int, data: *u8, n: int) i32
+    fn ofir_append_file(path: *u8, len: int, data: *u8, n: int) i32
     fn ofir_path_exists(path: *u8, len: int) bool
     fn ofir_remove_file(path: *u8, len: int) i32
+    fn ofir_remove_dir(path: *u8, len: int) i32
     fn ofir_rename(from: *u8, fromLen: int, to: *u8, toLen: int) i32
     fn ofir_file_info(path: *u8, len: int, size: *mut int, modified: *mut int) i32
     fn ofir_touch(path: *u8, len: int) i32
@@ -103,6 +105,51 @@ pub fn writeString(path: str, text: str) Result<(), IoError> {
 }
 
 /**
+ * Adds bytes at the end of a file, which is created if it is missing.
+ *
+ * @param path the file to add to
+ * @param data the bytes to add
+ * @returns `Ok(())` once everything is written
+ */
+pub fn append(path: str, data: [u8]) Result<(), IoError> {
+    return io.check(unsafe {
+        ofir_append_file(path.asPtr(), path.len(), data.asPtr(), data.len())
+    })
+}
+
+/**
+ * Adds text at the end of a file, which is created if it is missing.
+ *
+ * @param path the file to add to
+ * @param text the text to add
+ * @returns `Ok(())` once everything is written
+ * @example
+ * ```ofir no_run
+ * import std.fs
+ *
+ * fs.appendString("app.log", "started\n").expect("app.log is writable")
+ * ```
+ */
+pub fn appendString(path: str, text: str) Result<(), IoError> {
+    return io.check(unsafe {
+        ofir_append_file(path.asPtr(), path.len(), text.asPtr(), text.len())
+    })
+}
+
+/**
+ * Copies the contents of a file; `to` is created or replaced. The
+ * permissions and times are not copied.
+ *
+ * @param from the file to read
+ * @param to the file to write
+ * @returns `Ok(())` once `to` holds the contents
+ */
+pub fn copyFile(from: str, to: str) Result<(), IoError> {
+    const data = read(from)?
+    return write(to, data.asSlice())
+}
+
+/**
  * Whether a file or directory exists at `path`.
  *
  * @param path the path to look at
@@ -151,6 +198,16 @@ pub fn createDirAll(path: str) Result<(), IoError> {
  */
 pub fn removeFile(path: str) Result<(), IoError> {
     return io.check(unsafe { ofir_remove_file(path.asPtr(), path.len()) })
+}
+
+/**
+ * Removes an empty directory.
+ *
+ * @param path the directory to remove
+ * @returns `Ok(())` once it is gone; an error when it is not empty
+ */
+pub fn removeDir(path: str) Result<(), IoError> {
+    return io.check(unsafe { ofir_remove_dir(path.asPtr(), path.len()) })
 }
 
 /**

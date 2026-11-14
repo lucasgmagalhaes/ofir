@@ -13,7 +13,7 @@ required before version 1.0.
 | prelude, `std.core` | [core.md](core.md): `Option`, `Result`, `Ordering`, interfaces, numbers |
 | `std.collections`, `std.arena` | [collections.md](collections.md): `List`, `Map`, `Box`, `Arena` |
 | `std.strings` | [strings.md](strings.md): `str` methods and helpers |
-| `std.io`, `std.fs`, `std.os`, `std.task`, `std.sync` | [system.md](system.md): input/output, files, processes, tasks, channels |
+| `std.io`, `std.fs`, `std.path`, `std.os`, `std.time`, `std.task`, `std.sync` | [system.md](system.md): input/output, files, paths, processes, clocks, dates, tasks, channels |
 | `std.mem`, `std.math`, `std.random`, `std.testing`, `std.fmt` | [utilities.md](utilities.md) |
 
 ## Planned API ecosystem
