@@ -91,6 +91,13 @@ pub fn typeText(t: &TypeExpr, names: Interner) str {
             }
             out
         }
+        TypeKind.CFn(params, ret) => {
+            let modes: List<Mode> = []
+            for _ in 0..params.len() {
+                modes.push(Mode.Borrow)
+            }
+            "extern \"C\" {fnTypeText(params, modes, ret, false, names)}"
+        }
         TypeKind.Dyn(inner) => "dyn {typeText(&*inner, names)}"
         TypeKind.Optional(inner) => "{typeText(&*inner, names)}?"
         TypeKind.Never => "!".toOwned()

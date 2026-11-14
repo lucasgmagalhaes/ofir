@@ -14,6 +14,7 @@ import syntax.ast.WherePred
 import syntax.parse_exprs.parseExpr
 import syntax.parser.Parser
 import syntax.parser.symbolOf
+import syntax.parser.textOf
 import syntax.token.TokenKind
 import syntax.token.TokenValue
 
@@ -30,7 +31,8 @@ fn newType(p: Parser, kind: move TypeKind, start: Span) TypeExpr {
 pub fn canStartType(p: Parser) bool {
     return match p.peek() {
         TokenKind.Ident | TokenKind.Amp | TokenKind.Star | TokenKind.LBracket | TokenKind.LParen |
-        TokenKind.Fn | TokenKind.Dyn | TokenKind.Bang | TokenKind.SelfType => true
+        TokenKind.Fn | TokenKind.Dyn | TokenKind.Bang | TokenKind.SelfType |
+        TokenKind.Extern => true
         _ => false
     }
 }
@@ -177,6 +179,30 @@ fn fnType(p: mut Parser, start: Span, owned: bool) TypeExpr {
         p.advance()
     }
     return newType(p, TypeKind.Fn(params, modes, ret, owned, send), start)
+}
+
+// `extern "C" fn(A, B) R` (spec 11.3); the `extern` keyword is next.
+fn cFnType(p: mut Parser, start: Span) TypeExpr {
+    p.advance()
+    if p.at(TokenKind.Str) && textOf(p.token(0)) != "C" {
+        p.unexpected("`\"C\"`, the only ABI of a function pointer type")
+    }
+    p.expect(TokenKind.Str, "the ABI string `\"C\"`")
+    p.expect(TokenKind.Fn, "`fn` after `extern \"C\"`")
+    p.expect(TokenKind.LParen, "`(` after `fn`")
+    let params: List<TypeExpr> = []
+    for !p.at(TokenKind.RParen) && !p.at(TokenKind.Eof) {
+        params.push(parseType(p))
+        if !p.accept(TokenKind.Comma) {
+            break
+        }
+    }
+    p.expect(TokenKind.RParen, "`)` to close the parameter types")
+    let ret: Option<Box<TypeExpr>> = Option.None
+    if canStartType(p) {
+        ret = Option.Some(Box.new(parseType(p)))
+    }
+    return newType(p, TypeKind.CFn(params, ret), start)
 }
 
 // `[T]` or `[T; N]`; the `[` is next.
@@ -359,6 +385,7 @@ fn baseType(p: mut Parser, ops: bool) TypeExpr {
         TokenKind.LBracket => bracketType(p, start)
         TokenKind.LParen => tupleType(p, start)
         TokenKind.Fn => fnType(p, start, false)
+        TokenKind.Extern => cFnType(p, start)
         TokenKind.Bang => {
             p.advance()
             newType(p, TypeKind.Never, start)
