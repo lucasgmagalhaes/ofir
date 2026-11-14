@@ -169,8 +169,10 @@ char *ofir_c_string(const uint8_t *ptr, int64_t len);   // NULL if it holds a NU
 
 int32_t ofir_read_file(const uint8_t *path, int64_t len, OfirBuf *out);
 int32_t ofir_write_file(const uint8_t *path, int64_t len, const uint8_t *data, int64_t n);
+int32_t ofir_append_file(const uint8_t *path, int64_t len, const uint8_t *data, int64_t n);
 bool ofir_path_exists(const uint8_t *path, int64_t len);
 int32_t ofir_remove_file(const uint8_t *path, int64_t len);
+int32_t ofir_remove_dir(const uint8_t *path, int64_t len);
 int32_t ofir_rename(const uint8_t *from, int64_t from_len, const uint8_t *to, int64_t to_len);
 int32_t ofir_file_info(const uint8_t *path, int64_t len, int64_t *size, int64_t *modified);
 int32_t ofir_touch(const uint8_t *path, int64_t len);
