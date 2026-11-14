@@ -45,10 +45,10 @@ symbols and the ownership of runtime allocations to be specified.
    and, except on Windows, `-lpthread`. A shared library already carries
    them.
 5. **Symbols.** The C symbols of the header are the library's interface.
-   The library also defines its internal functions, named `ofir...` or
-   quoted LLVM names, and the runtime's `ofir_` functions; a C program must
-   not define or call those, except `ofir_stdout_flush`, which the header
-   declares.
+   The other generated functions are internal or hidden, so a shared
+   library exports only these and the runtime's `ofir_` functions; a C
+   program must not define or call those, except `ofir_stdout_flush`,
+   which the header declares.
 6. **Runtime state.** Nothing initializes a library: its thread-local
    state starts empty on each thread (ADR 0063), `os.args()` is empty and
    no stack-overflow handler is installed, so an overflow is the consumer's
@@ -67,6 +67,6 @@ symbols and the ownership of runtime allocations to be specified.
 
 - C, and any language that links C, can call Ofir code; tests/run/ffi has
   a C consumer of a static and of a shared library.
-- The exports of a shared library include internal symbols; a version
-  script or symbol visibility can hide them later.
+- A shared library also exports the runtime's `ofir_` symbols; a version
+  script can hide them later.
 - Generating Ofir bindings from C headers remains [planned].
