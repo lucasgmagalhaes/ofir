@@ -13,8 +13,13 @@ all: stage0 runtime
 stage0:
 	$(MAKE) -C bootstrap BUILD=$(abspath $(BUILD))/stage0
 
+# TARGET=triple builds the runtime of another target (ADR 0066).
 runtime:
+ifeq ($(TARGET),)
 	$(MAKE) -C runtime BUILD=$(abspath $(BUILD))
+else
+	$(MAKE) -C runtime BUILD=$(abspath $(BUILD))/$(TARGET) CC="$(if $(OFIR_CLANG),$(OFIR_CLANG),clang) --target=$(TARGET)"
+endif
 
 unit:
 	$(MAKE) -C bootstrap test BUILD=$(abspath $(BUILD))/stage0
@@ -122,6 +127,12 @@ test-stage1: stage1
 	    $(PYTHON) tools/check_debugger.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_service.py --compiler $(BUILD)/stage1/ofir$(EXE)
+
+# The run tests compiled for TARGET and run by OFIR_RUNNER (ADR 0066).
+test-cross: stage1
+	$(MAKE) runtime TARGET=$(TARGET)
+	$(STAGE_ENV) $(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage1/ofir$(EXE) \
+	    --stage 1 --target $(TARGET) run
 
 test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format test-std compare-stages test-stage1 verify
 	$(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
