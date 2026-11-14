@@ -2340,7 +2340,8 @@ fn begin(g: mut Gen, c: mut Checker, p: Program, module: int) {
         const def = c.def(i)
         const known = (def.kind == DefKind.Struct && c.info[i].fields.isSome() && !def.lang) ||
                       (def.kind == DefKind.Enum && c.info[i].variants.isSome())
-        if known && itemTypeParams(itemOf(p, c.loc(i))).len() == 0 {
+        // A union's enum (`item < 0`) is generic: its instances come as used.
+        if known && def.item >= 0 && itemTypeParams(itemOf(p, c.loc(i))).len() == 0 {
             const ty = c.types.adt(i, [])
             const _ = adtType(g, c, p, ty)
         }
