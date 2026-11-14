@@ -17,6 +17,10 @@ import base.span.FileId
 import base.span.SourceMap
 import base.span.Span
 import diag.Diagnostics
+import diag.LINT_ALLOW
+import diag.LINT_DENY
+import diag.LINT_WARN
+import diag.lintCodes
 import driver.lock.Locked
 import driver.lock.lockMatches
 import driver.lock.readLock
@@ -61,6 +65,18 @@ pub struct Package {
     pub rootFile: str
     /** The packages it declares. */
     pub deps: List<Dependency>
+    /** The levels of its manifest's `lints` (ADR 0071). */
+    pub lints: List<Lint>
+}
+
+/**
+ * The level of a warning code in a package's modules.
+ */
+pub struct Lint {
+    /** The code, as `W0008`. */
+    pub code: str
+    /** `LINT_ALLOW`, `LINT_WARN` or `LINT_DENY`. */
+    pub level: int
 }
 
 /**
@@ -111,7 +127,7 @@ pub fn dependencyOf(packages: &List<Package>, p: int, key: str) int {
 pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut SourceMap,
                     diags: mut Diagnostics) List<Package> {
     let packages = [Package{name: "", dir: rootDir.toOwned(), srcDir: rootDir.toOwned(),
-                            rootFile: "", deps: []}]
+                            rootFile: "", deps: [], lints: []}]
     if !hasManifest {
         return packages
     }
@@ -220,7 +236,7 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
     }
     match parseJsonc(text) {
         Result.Ok(doc) => {
-            if register && doc.field(0, "dependencies") >= 0 {
+            if register && (doc.field(0, "dependencies") >= 0 || doc.field(0, "lints") >= 0) {
                 return Option.Some((doc, map.add(path, text.clone())))
             }
             return Option.Some((doc, FileId(-1)))
@@ -246,6 +262,8 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, reporte
         return out
     }
     const (doc, file) = manifest
+    const lints = readLints(&doc, file, diags)
+    packages[p].lints = lints
     const list = doc.field(0, "dependencies")
     if list < 0 {
         return out
@@ -261,6 +279,48 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, reporte
         const target = dependencyTarget(packages, p, &doc, file, member, r, reported, map, diags)
         if target >= 0 && validKey(&packages, p, key, at, diags) {
             out.push(Dependency{key, package: target})
+        }
+        member = doc.nodes[member].next
+    }
+    return out
+}
+
+// The levels of the manifest's `"lints": {"<category>": "allow|warn|deny"}`.
+fn readLints(doc: &JsonDoc, file: FileId, diags: mut Diagnostics) List<Lint> {
+    let out: List<Lint> = []
+    const table = doc.field(0, "lints")
+    if table < 0 {
+        return out
+    }
+    if doc.nodes[table].kind != JsonKind.Object {
+        diags.error("E0910", spanOf(doc, file, table), "`lints` must be an object")
+        return out
+    }
+    let member = doc.nodes[table].child
+    for member >= 0 {
+        const category = doc.nodes[member].key.clone()
+        const name = doc.text(member)
+        const level = if name == "allow" {
+            LINT_ALLOW
+        } else if name == "warn" {
+            LINT_WARN
+        } else if name == "deny" {
+            LINT_DENY
+        } else {
+            -1
+        }
+        const codes = lintCodes(category)
+        if codes.len() == 0 {
+            diags.error("E0910", spanOf(doc, file, member), "unknown lint category `{category}`")
+            diags.help("the categories are `unused`, `unreachable`, `deprecated`, `naming` and "
+                       + "`suspicious`")
+        } else if level < 0 {
+            diags.error("E0910", spanOf(doc, file, member),
+                        "the level of `{category}` must be \"allow\", \"warn\" or \"deny\"")
+        } else {
+            for i in 0..codes.len() {
+                out.push(Lint{code: codes[i].clone(), level})
+            }
         }
         member = doc.nodes[member].next
     }
@@ -457,7 +517,8 @@ fn packageAt(packages: mut List<Package>, dir: str, key: str, at: Span, map: mut
     const slash = lastSlash(root)
     const srcDir = if slash > 0 { root.slice(0, slash).toOwned() } else { dir.clone() }
     const name = uniqueName(&packages, key)
-    packages.push(Package{name, dir: dir.toOwned(), srcDir, rootFile: root, deps: []})
+    packages.push(Package{name, dir: dir.toOwned(), srcDir, rootFile: root, deps: [],
+                          lints: []})
     return packages.len() - 1
 }
 
