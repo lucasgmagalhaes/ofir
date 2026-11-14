@@ -91,12 +91,39 @@ fn main() {
 | `fn assert(condition: bool)` | panics when `condition` is false |
 | `fn assertEq<T: Eq + Debug>(left: T, right: T)` | panics when `left != right`, printing both |
 | `fn assertNe<T: Eq + Debug>(left: T, right: T)` | panics when `left == right`, printing both |
-| `struct Bencher` with `fn run(mut self, f: fn())` | used by `@bench` |
+| `fn assertStrEq(actual: str, expected: str)` | names the first line that differs and quotes both versions |
+| `fn assertApprox(actual: f64, expected: f64, tolerance: f64)` | an absolute tolerance; NaN never matches |
+| `fn assertContains(text: str, part: str)` | panics unless `part` occurs in `text` |
+| `fn assertGolden(actual: str, path: str)` | compares with a file; writes it when `OFIR_UPDATE_GOLDEN` is set and not empty |
+| `struct TempDir` | `create(prefix)`, `path()`, `join(name)`, `remove(move self)` deletes the tree |
+| `struct Bencher` with `fn run(mut self, f: fn())` | used by `@bench`; `iterations()` and `nanosPerIter()` return the last measurement |
 
-None of them is in the prelude: a module imports them (ADR 0036).
+None of them is in the prelude: a module imports them (ADR 0036). The
+asserts written in Ofir (`assertStrEq` to `assertGolden`) work in both
+stages and report a location inside `std.testing`; their messages carry the
+values (ADR 0061). `TempDir.create` uses `TMPDIR`, `TEMP` or `TMP`, else
+`/tmp`; stage 0 has no drop hooks, so a test calls `remove`.
 
 ## `std.fmt`
 
-Implements interpolation. Users normally only implement `Display.format`
-(spec 9.9) and call `out.push(...)` on the `out: mut str` parameter they receive. Format
-specifiers (spec 1.7) are applied by `std.fmt` after the value is formatted.
+Interpolation and its specifiers (spec 1.7) are lowered by the compiler;
+users normally only implement `Display.format` (spec 9.9) and call
+`out.push(...)` on the `out: mut str` parameter they receive. `std.fmt`
+(ADR 0061, both stages) formats with widths and precisions known only at
+run time. Widths count Unicode scalar values.
+
+| Item | Description |
+|------|-------------|
+| `fn padStart(text: str, width: int, fill: str) str` | pads on the left; wider text is unchanged |
+| `fn padEnd(text: str, width: int, fill: str) str` | pads on the right |
+| `fn center(text: str, width: int, fill: str) str` | pads both sides, the extra fill on the right |
+| `fn fixed(x: f64, digits: int) str` | `digits` (0 to 9) after the point, rounded half away from zero |
+| `fn grouped(n: int, separator: str) str` | digits grouped by three: `1,234,567` |
+| `fn radix(n: int, base: int) str` | base 2 to 36, lowercase letters |
+| `fn bytes(n: int) str` | binary units: `512 B`, `1.5 KiB`, `3 MiB` |
+| `fn duration(ns: int) str` | `ns`, `µs`, `ms`, `s`, `min` or `h`: `1.25 s` |
+| `struct Table` | `new()`, `alignRight(column)`, `row(cells)`, `render()`: columns aligned, two spaces apart |
+
+`fixed` writes NaN, infinities and values at or above `2^53 / 10^digits`
+as interpolation does. `bytes` and `duration` keep at most two digits
+after the point and drop trailing zeros.
