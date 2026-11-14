@@ -73,6 +73,7 @@ starts with the same word as the record's status line.
 | [0060](0060-command-line-interfaces.md) | Command-line parsing, help, completions and color in std.cli | Accepted |
 | [0061](0061-formatting-and-testing-utilities.md) | Formatting and testing utilities in std.fmt and std.testing | Accepted |
 | [0062](0062-library-api-contracts.md) | The documented contract of public library APIs | Accepted |
+| [0063](0063-c-ffi-contract.md) | The C FFI contract: function pointers, ownership, errno, threads | Accepted |
 
 ## Template
 
