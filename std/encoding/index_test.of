@@ -1,0 +1,115 @@
+// The tests of `std.encoding` (OFIR-44, ADR 0059): `ofir test std/encoding/index.of` runs them.
+
+import std.testing.assert
+
+fn bytesOf(s: str) List<u8> {
+    let out: List<u8> = []
+    const b = s.asBytes()
+    for i in 0..b.len() {
+        out.push(b[i])
+    }
+    return out
+}
+
+fn same(a: List<u8>, b: str) bool {
+    const want = b.asBytes()
+    if a.len() != want.len() {
+        return false
+    }
+    for i in 0..a.len() {
+        if a[i] != want[i] {
+            return false
+        }
+    }
+    return true
+}
+
+fn decodesTo(r: Result<List<u8>, DecodeError>, want: str) bool {
+    return match r {
+        Result.Ok(bytes) => same(bytes, want),
+        Result.Err(_) => false
+    }
+}
+
+fn failsAt(r: Result<List<u8>, DecodeError>, offset: int) bool {
+    return match r {
+        Result.Ok(_) => false,
+        Result.Err(e) => e.offset == offset
+    }
+}
+
+@test
+fn hex() {
+    assert(hexEncode("".asBytes()) == "")
+    const all: List<u8> = [0, 1, 0x7F, 0x80, 0xAB, 0xFF]
+    assert(hexEncode(all.asSlice()) == "00017f80abff")
+    assert(decodesTo(hexDecode("6869"), "hi"))
+    assert(decodesTo(hexDecode("4A4b"), "JK"))
+    assert(failsAt(hexDecode("abc"), 3))
+    assert(failsAt(hexDecode("0g"), 1))
+    assert(failsAt(hexDecode("x0"), 0))
+}
+
+@test
+fn base64Vectors() {
+    // RFC 4648, section 10.
+    const plain = ["", "f", "fo", "foo", "foob", "fooba", "foobar"]
+    const coded = ["", "Zg==", "Zm8=", "Zm9v", "Zm9vYg==", "Zm9vYmE=", "Zm9vYmFy"]
+    const url = ["", "Zg", "Zm8", "Zm9v", "Zm9vYg", "Zm9vYmE", "Zm9vYmFy"]
+    for i in 0..plain.len() {
+        assert(base64Encode(plain[i].asBytes()) == coded[i])
+        assert(decodesTo(base64Decode(coded[i]), plain[i]))
+        assert(base64UrlEncode(plain[i].asBytes()) == url[i])
+        assert(decodesTo(base64UrlDecode(url[i]), plain[i]))
+    }
+    const high: List<u8> = [0xFB, 0xFF, 0xBF]
+    assert(base64Encode(high.asSlice()) == "+/+/")
+    assert(base64UrlEncode(high.asSlice()) == "-_-_")
+}
+
+@test
+fn base64Rejects() {
+    assert(failsAt(base64Decode("Zm9"), 3))
+    assert(failsAt(base64Decode("Zm-v"), 2))
+    assert(failsAt(base64Decode("Zh=="), 1))
+    assert(failsAt(base64Decode("Z==="), 1))
+    assert(failsAt(base64UrlDecode("Zm+v"), 2))
+    assert(failsAt(base64UrlDecode("Zg=="), 2))
+    assert(failsAt(base64UrlDecode("Z"), 1))
+}
+
+@test
+fn base64RoundTrip() {
+    let data: List<u8> = []
+    for i in 0..256 {
+        data.push(i as u8)
+    }
+    match base64Decode(base64Encode(data.asSlice())) {
+        Result.Ok(back) => {
+            assert(back.len() == 256)
+            for i in 0..256 {
+                assert(back[i] == i as u8)
+            }
+        }
+        Result.Err(_) => assert(false)
+    }
+    assert(decodesTo(base64UrlDecode(base64UrlEncode(bytesOf("a?b>c").asSlice())), "a?b>c"))
+}
+
+@test
+fn byteOrder() {
+    let out: List<u8> = []
+    writeU16Le(out, 0x0102)
+    writeU16Be(out, 0x0102)
+    writeU32Le(out, 0x01020304)
+    writeU32Be(out, 0x01020304)
+    writeU64Le(out, 0x0102030405060708)
+    writeU64Be(out, 0xF102030405060708)
+    assert(hexEncode(out.asSlice()) ==
+           "020101020403020101020304" + "0807060504030201f102030405060708")
+    const b = out.asSlice()
+    assert(readU16Le(b, 0) == 0x0102 && readU16Be(b, 2) == 0x0102)
+    assert(readU32Le(b, 4) == 0x01020304 && readU32Be(b, 8) == 0x01020304)
+    assert(readU64Le(b, 12) == 0x0102030405060708)
+    assert(readU64Be(b, 20) == 0xF102030405060708)
+}
