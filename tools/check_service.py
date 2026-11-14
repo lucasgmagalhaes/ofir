@@ -100,7 +100,7 @@ def metadata(c: Checker) -> None:
     names = [m["name"] for m in data.get("modules", [])]
     c.expect(data.get("format") == 1 and isinstance(data.get("compiler"), str),
              "metadata: format and compiler version", result.stdout)
-    c.expect(data.get("root") == names[0] and data["modules"][0]["path"] == str(APP),
+    c.expect(data.get("root") == names[0] and Path(data["modules"][0]["path"]) == APP,
              "metadata: the root module first, with its path", result.stdout)
     c.expect("std.core" in names and len(names) > 2 and all(
         m["std"] == m["name"].startswith("std.") for m in data["modules"]),
@@ -111,6 +111,14 @@ def metadata(c: Checker) -> None:
              c.write("unparsed.of", "fn main( {\n}\n"))
 
 
+def interrupt(child: subprocess.Popen[bytes]) -> None:
+    """SIGINT to the build's process group; Windows has neither, so the build is killed."""
+    if hasattr(os, "killpg"):
+        os.killpg(child.pid, signal.SIGINT)
+    else:
+        child.kill()
+
+
 def interrupted_builds(c: Checker) -> None:
     exe = c.tmp / "app"
     for delay in (0.05, 0.15, 0.3, 0.6, 1.0):
@@ -119,7 +127,7 @@ def interrupted_builds(c: Checker) -> None:
                                  stderr=subprocess.DEVNULL, start_new_session=True)
         time.sleep(delay)
         if child.poll() is None:
-            os.killpg(child.pid, signal.SIGINT)
+            interrupt(child)
         child.wait(timeout=300)
         rebuilt = c.run("build", str(APP), "-o", str(exe))
         ran = subprocess.run([str(exe)], capture_output=True, text=True) \
@@ -128,7 +136,8 @@ def interrupted_builds(c: Checker) -> None:
                  f"a build interrupted after {delay}s, then rebuilt",
                  rebuilt.stdout + rebuilt.stderr)
     objects = list((Path(c.env["OFIR_HOME"]) / "cache" / "objects").glob("*/*.o"))
-    magic = (b"\x7fELF", b"\xcf\xfa\xed\xfe", b"MZ")
+    # ELF, Mach-O, PE, and COFF for x86-64 and AArch64.
+    magic = (b"\x7fELF", b"\xcf\xfa\xed\xfe", b"MZ", b"\x64\x86", b"\x64\xaa")
     c.expect(len(objects) > 0 and all(p.read_bytes()[:4].startswith(magic) for p in objects),
              "every cached object is a whole object file")
 
