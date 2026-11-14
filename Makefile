@@ -6,7 +6,7 @@ BUILD  ?= build
 include tools/platform.mk
 PYTHON ?= python3
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-format check-codes check-sizes check-docs check-leaks check-asan seed check-seed bench bench-programs bench-compare clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed bench bench-programs bench-compare clean
 
 all: stage0 runtime
 
@@ -41,6 +41,10 @@ check-docs:
 # No inline function or statement bodies (docs/style-guide.md, `fmt.inlineBlocks`).
 check-format:
 	$(PYTHON) tools/check_format.py
+
+# `ofir fmt` is idempotent and keeps every comment and the AST of each source.
+check-fmt-corpus: stage1 runtime
+	$(STAGE_ENV) $(PYTHON) tools/check_fmt_corpus.py --compiler $(BUILD)/stage1/ofir$(EXE)
 
 # Every run test and example under valgrind: no leaks, no invalid accesses.
 # Stage 1 compiles every program stage 0 does, and the stage 1 only ones.
@@ -134,7 +138,7 @@ test-cross: stage1
 	$(STAGE_ENV) $(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage1/ofir$(EXE) \
 	    --stage 1 --target $(TARGET) run
 
-test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format test-std compare-stages test-stage1 verify
+test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format check-fmt-corpus test-std compare-stages test-stage1 verify
 	$(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
 
 # Performance (docs/design/performance.md)

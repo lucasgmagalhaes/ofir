@@ -407,6 +407,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.27g | Freestanding and embedded (ADR 0069): no freestanding target or no-std mode in version 1; the IR compiles to an `aarch64-none-elf` object needing six runtime symbols, but the pool reserves 16 GiB, most microcontrollers are 32-bit, and there is no volatile access, interrupt or section support; a later target starts from a named board | OFIR-54 | **done**: decided, deferred |
 | 6.27h | Language adapters (ADR 0070): the C ABI is the boundary; a C++17 consumer of a static library on every tier 1 target and a Python `ctypes` consumer of a shared library (`tests/run/ffi/lib_cpp.of`, `lib_python.of`); a versioned export, caller-owned structs, callbacks and flushing as the lifecycle; JVM, .NET, JavaScript, generated bindings and plugins stay on the C ABI until a consumer is named | OFIR-55 | **done** |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
+| 6.28a | Formatter guarantees: `make check-fmt-corpus` (`tools/check_fmt_corpus.py`) checks that `ofir fmt` is idempotent and keeps every comment and the AST over std, compiler, tests and examples | OFIR-56 | **done** |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
@@ -445,7 +446,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Start 6.28 with OFIR-56; 6.27 (OFIR-48 to OFIR-55) is done as 6.27a to 6.27h.
+1. Continue 6.28 with OFIR-57; OFIR-56 is done as 6.28a.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

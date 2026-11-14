@@ -298,6 +298,12 @@ only:
 - a `,` added at the end of a multi-line list in `( )` or `[ ]`;
 - the order of each run of `import` lines, sorted.
 
+`make check-fmt-corpus` (part of `make test`) holds the formatter to three
+properties over every `.of` file in std, the compiler, the tests and the
+examples (`tools/check_fmt_corpus.py`): formatting is idempotent, every `//`
+comment survives in order, and the output parses to the same syntax tree as
+the input, up to the import order.
+
 A file that does not lex or parse is reported and left as it is, and before
 a file is written the formatter checks that its tokens are unchanged but
 for the added commas.
