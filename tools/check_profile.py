@@ -112,6 +112,15 @@ def run(exe, cwd):
 
 
 def llvm_cov():
+    """The llvm-cov of the clang that compiles (`OFIR_CLANG`), whose gcov
+    format matches, or else any."""
+    clang = os.environ.get("OFIR_CLANG", "")
+    if clang:
+        path = Path(clang)
+        sibling = path.with_name(path.name.replace("clang", "llvm-cov"))
+        found = shutil.which(str(sibling))
+        if found and sibling.name != path.name:
+            return found
     for name in ["llvm-cov"] + [f"llvm-cov-{v}" for v in range(30, 13, -1)]:
         path = shutil.which(name)
         if path:
