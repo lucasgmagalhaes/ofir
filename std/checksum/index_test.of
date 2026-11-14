@@ -1,0 +1,44 @@
+// The tests of `std.checksum` (OFIR-44, ADR 0059): `ofir test std/checksum/index.of` runs them.
+
+import std.testing.assert
+
+@test
+fn crcVectors() {
+    assert(crc32("".asBytes()) == 0)
+    assert(crc32("a".asBytes()) == 0xE8B7BE43)
+    assert(crc32("123456789".asBytes()) == 0xCBF43926)
+    assert(crc32("The quick brown fox jumps over the lazy dog".asBytes()) == 0x414FA339)
+}
+
+@test
+fn adlerVectors() {
+    assert(adler32("".asBytes()) == 1)
+    assert(adler32("a".asBytes()) == 0x00620062)
+    assert(adler32("Wikipedia".asBytes()) == 0x11E60398)
+}
+
+@test
+fn inPieces() {
+    const text = "The quick brown fox jumps over the lazy dog"
+    const head = text.slice(0, 10).asBytes()
+    const tail = text.sliceFrom(10).asBytes()
+    assert(crc32Update(crc32(head), tail) == crc32(text.asBytes()))
+    assert(adler32Update(adler32(head), tail) == adler32(text.asBytes()))
+}
+
+@test
+fn longInput() {
+    // A million 0xFF bytes keep Adler-32's sums at their largest.
+    let data: List<u8> = []
+    for _ in 0..1000000 {
+        data.push(0xFF)
+    }
+    assert(adler32(data.asSlice()) == 0x3843E1BE)
+    let pieces: u32 = 1
+    let at = 0
+    for at < data.len() {
+        pieces = adler32Update(pieces, data.slice(at, at + 1000))
+        at += 1000
+    }
+    assert(pieces == 0x3843E1BE)
+}

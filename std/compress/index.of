@@ -1,0 +1,494 @@
+/**
+ * @module
+ * `std.compress`: DEFLATE decompression (RFC 1951) and the zlib
+ * (RFC 1950) and gzip (RFC 1952) formats that wrap it (ADR 0059).
+ *
+ * Every function takes a limit on the size of the output and fails when
+ * the output would pass it, so a small input cannot exhaust memory.
+ * Truncated or malformed input is an error, never a panic. Compression
+ * waits for the `Reader` and `Writer` interfaces of API-10.
+ *
+ * @example
+ * ```ofir
+ * import std.compress
+ * import std.testing.assert
+ *
+ * // "hi" as a raw DEFLATE block of fixed Huffman codes.
+ * const data: List<u8> = [0xCB, 0xC8, 0x04, 0x00]
+ * match compress.inflate(data.asSlice(), 1024) {
+ *     Result.Ok(out) => assert(out.len() == 2 && out[0] == b'h'),
+ *     Result.Err(_) => assert(false)
+ * }
+ * ```
+ */
+
+import std.checksum
+
+/**
+ * Why compressed data cannot be decompressed.
+ */
+pub struct DecompressError {
+    /** What is wrong. */
+    pub message: str
+    /** The byte offset in the input where it was found. */
+    pub offset: int
+}
+
+// A canonical Huffman code: how many codes each length has, and the
+// symbols ordered by code (RFC 1951, section 3.2.2).
+struct Huffman {
+    count: List<int>
+    symbol: List<int>
+}
+
+// The order of the code length code lengths (RFC 1951, section 3.2.7).
+fn lengthOrder(i: int) int {
+    return match i {
+        0 => 16,
+        1 => 17,
+        2 => 18,
+        3 => 0,
+        4 => 8,
+        5 => 7,
+        6 => 9,
+        7 => 6,
+        8 => 10,
+        9 => 5,
+        10 => 11,
+        11 => 4,
+        12 => 12,
+        13 => 3,
+        14 => 13,
+        15 => 2,
+        16 => 14,
+        17 => 1,
+        _ => 15
+    }
+}
+
+// The extra bits of length code `257 + i` and of distance code `i`.
+fn lengthExtra(i: int) int {
+    return if i < 8 || i == 28 {
+        0
+    } else {
+        (i - 4) / 4
+    }
+}
+
+fn distanceExtra(i: int) int {
+    return if i < 4 {
+        0
+    } else {
+        (i - 2) / 2
+    }
+}
+
+struct Inflater {
+    pos: int
+    bitBuf: int
+    bitCount: int
+    limit: int
+    lengthBase: List<int>
+    distanceBase: List<int>
+
+    fn fail(self, message: move str) DecompressError {
+        return DecompressError{message: message, offset: self.pos}
+    }
+
+    // The next `n` bits, least significant first.
+    fn bits(mut self, data: &[u8], n: int) Result<int, DecompressError> {
+        for self.bitCount < n {
+            if self.pos >= data.len() {
+                return Result.Err(self.fail("unexpected end of data"))
+            }
+            self.bitBuf = self.bitBuf | ((data[self.pos] as int) << self.bitCount)
+            self.pos += 1
+            self.bitCount += 8
+        }
+        const v = self.bitBuf & ((1 << n) - 1)
+        self.bitBuf = self.bitBuf >> n
+        self.bitCount -= n
+        return Result.Ok(v)
+    }
+
+    // One symbol of `h`, read a bit at a time.
+    fn decode(mut self, data: &[u8], h: Huffman) Result<int, DecompressError> {
+        let code = 0
+        let first = 0
+        let index = 0
+        for len in 1..16 {
+            code = code | self.bits(data, 1)?
+            const count = h.count[len]
+            if code - count < first {
+                return Result.Ok(h.symbol[index + code - first])
+            }
+            index += count
+            first = (first + count) << 1
+            code = code << 1
+        }
+        return Result.Err(self.fail("invalid Huffman code"))
+    }
+
+    fn push(self, out: mut List<u8>, b: u8) Result<int, DecompressError> {
+        if out.len() >= self.limit {
+            return Result.Err(self.fail("output exceeds the limit"))
+        }
+        out.push(b)
+        return Result.Ok(0)
+    }
+
+    fn stored(mut self, data: &[u8], out: mut List<u8>) Result<int, DecompressError> {
+        self.bitBuf = 0
+        self.bitCount = 0
+        if self.pos + 4 > data.len() {
+            return Result.Err(self.fail("unexpected end of data"))
+        }
+        const len = (data[self.pos] as int) | ((data[self.pos + 1] as int) << 8)
+        const nlen = (data[self.pos + 2] as int) | ((data[self.pos + 3] as int) << 8)
+        if len != (nlen ^ 0xFFFF) {
+            return Result.Err(self.fail("stored block length does not match its complement"))
+        }
+        self.pos += 4
+        if self.pos + len > data.len() {
+            return Result.Err(self.fail("unexpected end of data"))
+        }
+        for i in 0..len {
+            self.push(out, data[self.pos + i])?
+        }
+        self.pos += len
+        return Result.Ok(0)
+    }
+
+    fn codes(mut self, data: &[u8], out: mut List<u8>, lit: Huffman,
+             dist: Huffman) Result<int, DecompressError> {
+        for true {
+            const sym = self.decode(data, lit)?
+            if sym < 256 {
+                self.push(out, sym as u8)?
+                continue
+            }
+            if sym == 256 {
+                return Result.Ok(0)
+            }
+            const li = sym - 257
+            if li >= 29 {
+                return Result.Err(self.fail("invalid length code"))
+            }
+            const len = self.lengthBase[li] + self.bits(data, lengthExtra(li))?
+            const di = self.decode(data, dist)?
+            if di >= 30 {
+                return Result.Err(self.fail("invalid distance code"))
+            }
+            const d = self.distanceBase[di] + self.bits(data, distanceExtra(di))?
+            if d > out.len() {
+                return Result.Err(self.fail("distance too far back"))
+            }
+            for _ in 0..len {
+                const b = out[out.len() - d]
+                self.push(out, b)?
+            }
+        }
+        return Result.Ok(0)
+    }
+
+    fn fixed(mut self, data: &[u8], out: mut List<u8>) Result<int, DecompressError> {
+        let lengths: List<int> = List.withCapacity(320)
+        for i in 0..288 {
+            lengths.push(if i < 144 {
+                8
+            } else if i < 256 {
+                9
+            } else if i < 280 {
+                7
+            } else {
+                8
+            })
+        }
+        for _ in 0..30 {
+            lengths.push(5)
+        }
+        const lit = huffman(lengths.slice(0, 288))
+        const dist = huffman(lengths.slice(288, 318))
+        return self.codes(data, out, lit.0, dist.0)
+    }
+
+    fn dynamic(mut self, data: &[u8], out: mut List<u8>) Result<int, DecompressError> {
+        const nlen = self.bits(data, 5)? + 257
+        const ndist = self.bits(data, 5)? + 1
+        const ncode = self.bits(data, 4)? + 4
+        if nlen > 286 || ndist > 30 {
+            return Result.Err(self.fail("too many length or distance codes"))
+        }
+        let lengths: List<int> = []
+        for _ in 0..19 {
+            lengths.push(0)
+        }
+        for i in 0..ncode {
+            const n = self.bits(data, 3)?
+            lengths[lengthOrder(i)] = n
+        }
+        const lencode = huffman(lengths.asSlice())
+        if lencode.1 != 0 {
+            return Result.Err(self.fail("incomplete code length code"))
+        }
+        lengths.clear()
+        for lengths.len() < nlen + ndist {
+            const sym = self.decode(data, lencode.0)?
+            if sym < 16 {
+                lengths.push(sym)
+                continue
+            }
+            let value = 0
+            let times = 0
+            if sym == 16 {
+                if lengths.len() == 0 {
+                    return Result.Err(self.fail("repeat with no length before it"))
+                }
+                value = lengths[lengths.len() - 1]
+                times = 3 + self.bits(data, 2)?
+            } else if sym == 17 {
+                times = 3 + self.bits(data, 3)?
+            } else {
+                times = 11 + self.bits(data, 7)?
+            }
+            if lengths.len() + times > nlen + ndist {
+                return Result.Err(self.fail("too many code lengths"))
+            }
+            for _ in 0..times {
+                lengths.push(value)
+            }
+        }
+        if lengths[256] == 0 {
+            return Result.Err(self.fail("no end-of-block code"))
+        }
+        const lit = huffman(lengths.slice(0, nlen))
+        if lit.1 < 0 || (lit.1 > 0 && nlen - lit.0.count[0] != 1) {
+            return Result.Err(self.fail("invalid literal/length code"))
+        }
+        const dist = huffman(lengths.slice(nlen, nlen + ndist))
+        if dist.1 < 0 || (dist.1 > 0 && ndist - dist.0.count[0] != 1) {
+            return Result.Err(self.fail("invalid distance code"))
+        }
+        return self.codes(data, out, lit.0, dist.0)
+    }
+
+    // Every block from `self.pos` on.
+    fn blocks(mut self, data: &[u8], out: mut List<u8>) Result<int, DecompressError> {
+        for true {
+            const last = self.bits(data, 1)?
+            const kind = self.bits(data, 2)?
+            if kind == 0 {
+                self.stored(data, out)?
+            } else if kind == 1 {
+                self.fixed(data, out)?
+            } else if kind == 2 {
+                self.dynamic(data, out)?
+            } else {
+                return Result.Err(self.fail("invalid block type"))
+            }
+            if last == 1 {
+                return Result.Ok(self.pos)
+            }
+        }
+        return Result.Ok(self.pos)
+    }
+}
+
+// The code of the lengths, and how many codes are left over: 0 for a
+// complete code, more for an incomplete one, less for one with too many.
+fn huffman(lengths: &[int]) (Huffman, int) {
+    let count: List<int> = []
+    for _ in 0..16 {
+        count.push(0)
+    }
+    for i in 0..lengths.len() {
+        count[lengths[i]] += 1
+    }
+    let left = 1
+    for len in 1..16 {
+        left = left * 2 - count[len]
+        if left < 0 {
+            return (Huffman{count: count, symbol: []}, left)
+        }
+    }
+    let offsets: List<int> = [0, 0]
+    for len in 1..15 {
+        offsets.push(offsets[len] + count[len])
+    }
+    let symbol: List<int> = []
+    for _ in 0..lengths.len() {
+        symbol.push(0)
+    }
+    for i in 0..lengths.len() {
+        if lengths[i] != 0 {
+            const at = offsets[lengths[i]]
+            symbol[at] = i
+            offsets[lengths[i]] += 1
+        }
+    }
+    return (Huffman{count: count, symbol: symbol}, left)
+}
+
+fn inflater(at: int, limit: int) Inflater {
+    let lengthBase: List<int> = []
+    let b = 3
+    for i in 0..29 {
+        lengthBase.push(if i == 28 {
+            258
+        } else {
+            b
+        })
+        b += 1 << lengthExtra(i)
+    }
+    let distanceBase: List<int> = []
+    b = 1
+    for i in 0..30 {
+        distanceBase.push(b)
+        b += 1 << distanceExtra(i)
+    }
+    return Inflater{pos: at, bitBuf: 0, bitCount: 0, limit: limit, lengthBase: lengthBase,
+                    distanceBase: distanceBase}
+}
+
+fn errorAt(message: move str, offset: int) DecompressError {
+    return DecompressError{message: message, offset: offset}
+}
+
+/**
+ * The bytes that raw DEFLATE data stands for.
+ *
+ * @param data the compressed bytes, one stream; bytes after it are ignored
+ * @param limit the largest output allowed
+ * @returns the bytes, or `DecompressError` for truncated or malformed data
+ * or an output over `limit`
+ */
+pub fn inflate(data: &[u8], limit: int) Result<List<u8>, DecompressError> {
+    let out: List<u8> = []
+    let z = inflater(0, limit)
+    z.blocks(data, out)?
+    return Result.Ok(out)
+}
+
+fn readU32Be(data: &[u8], at: int) u32 {
+    let v: u32 = 0
+    for k in 0..4 {
+        v = (v << 8) | (data[at + k] as u32)
+    }
+    return v
+}
+
+fn readU32Le(data: &[u8], at: int) u32 {
+    let v: u32 = 0
+    for k in 0..4 {
+        v = (v << 8) | (data[at + 3 - k] as u32)
+    }
+    return v
+}
+
+/**
+ * The bytes that zlib data stands for, its Adler-32 checked.
+ *
+ * @param data the zlib stream: a two-byte header, DEFLATE data and the
+ * Adler-32 of the output
+ * @param limit the largest output allowed
+ * @returns the bytes, or `DecompressError` for a bad header (or a preset
+ * dictionary), malformed data, a wrong checksum, bytes after the stream or
+ * an output over `limit`
+ */
+pub fn zlibDecompress(data: &[u8], limit: int) Result<List<u8>, DecompressError> {
+    if data.len() < 2 {
+        return Result.Err(errorAt("unexpected end of data", data.len()))
+    }
+    const cmf = data[0] as int
+    const flg = data[1] as int
+    if cmf & 15 != 8 || cmf >> 4 > 7 || (cmf * 256 + flg) % 31 != 0 {
+        return Result.Err(errorAt("invalid zlib header", 0))
+    }
+    if flg & 32 != 0 {
+        return Result.Err(errorAt("preset dictionaries are not supported", 1))
+    }
+    let out: List<u8> = []
+    let z = inflater(2, limit)
+    const end = z.blocks(data, out)?
+    if end + 4 > data.len() {
+        return Result.Err(errorAt("unexpected end of data", data.len()))
+    }
+    if readU32Be(data, end) != checksum.adler32(out.asSlice()) {
+        return Result.Err(errorAt("Adler-32 does not match", end))
+    }
+    if end + 4 != data.len() {
+        return Result.Err(errorAt("data after the stream", end + 4))
+    }
+    return Result.Ok(out)
+}
+
+// The offset after the zero-terminated field at `at`, or -1.
+fn skipZero(data: &[u8], at: int) int {
+    for i in at..data.len() {
+        if data[i] == 0 {
+            return i + 1
+        }
+    }
+    return -1
+}
+
+/**
+ * The bytes that gzip data stands for, the CRC-32 and size of each member
+ * checked. Members after the first are decompressed and appended, as
+ * `gzip -d` does.
+ *
+ * @param data the gzip file
+ * @param limit the largest output allowed, for all members together
+ * @returns the bytes, or `DecompressError` for a bad header, malformed
+ * data, a wrong checksum or size, or an output over `limit`
+ */
+pub fn gunzip(data: &[u8], limit: int) Result<List<u8>, DecompressError> {
+    let out: List<u8> = []
+    let at = 0
+    for at == 0 || at < data.len() {
+        if at + 10 > data.len() {
+            return Result.Err(errorAt("unexpected end of data", data.len()))
+        }
+        if data[at] != 0x1F || data[at + 1] != 0x8B || data[at + 2] != 8 {
+            return Result.Err(errorAt("invalid gzip header", at))
+        }
+        const flags = data[at + 3] as int
+        if flags & 0xE0 != 0 {
+            return Result.Err(errorAt("reserved gzip flags are set", at + 3))
+        }
+        let p = at + 10
+        if flags & 4 != 0 {
+            if p + 2 > data.len() {
+                return Result.Err(errorAt("unexpected end of data", data.len()))
+            }
+            p += 2 + ((data[p] as int) | ((data[p + 1] as int) << 8))
+        }
+        if flags & 8 != 0 && p <= data.len() {
+            p = skipZero(data, p)
+        }
+        if flags & 16 != 0 && p >= 0 && p <= data.len() {
+            p = skipZero(data, p)
+        }
+        if flags & 2 != 0 && p >= 0 {
+            p += 2
+        }
+        if p < 0 || p > data.len() {
+            return Result.Err(errorAt("unexpected end of data", data.len()))
+        }
+        const start = out.len()
+        let z = inflater(p, limit)
+        const end = z.blocks(data, out)?
+        if end + 8 > data.len() {
+            return Result.Err(errorAt("unexpected end of data", data.len()))
+        }
+        const member = out.slice(start, out.len())
+        if readU32Le(data, end) != checksum.crc32(member) {
+            return Result.Err(errorAt("CRC-32 does not match", end))
+        }
+        if readU32Le(data, end + 4) != (member.len() & 0xFFFFFFFF) as u32 {
+            return Result.Err(errorAt("size does not match", end + 4))
+        }
+        at = end + 8
+    }
+    return Result.Ok(out)
+}

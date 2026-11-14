@@ -1,0 +1,521 @@
+/**
+ * @module
+ * `std.json`: JSON values, a parser and a writer (RFC 8259, ADR 0059).
+ *
+ * `parse` reads text into a `Value`; `stringify` and `pretty` write one.
+ * An object keeps its members in the order of the input. A number
+ * without a fraction or exponent that fits `i64` is an `Int`; every other
+ * number is a `Float`.
+ *
+ * The parser is strict: no comments, trailing commas or duplicate keys,
+ * and nesting stops at a depth of 512, so hostile input fails instead of
+ * exhausting the stack.
+ *
+ * @example
+ * ```ofir
+ * import std.json
+ * import std.testing.assert
+ *
+ * match json.parse("\{\"a\": [1, 2.5, null]\}") {
+ *     Result.Ok(v) => assert(json.stringify(v) == "\{\"a\":[1,2.5,null]\}"),
+ *     Result.Err(_) => assert(false)
+ * }
+ * ```
+ */
+
+const MAX_DEPTH = 512
+
+/**
+ * A member of an object: a key and its value.
+ */
+pub struct Member {
+    /** The key. */
+    pub key: str
+    /** The value. */
+    pub value: Value
+}
+
+/**
+ * A JSON value.
+ */
+pub enum Value {
+    /** `null`. */
+    Null,
+    /** `true` or `false`. */
+    Bool(bool),
+    /** A number without a fraction or exponent that fits `i64`. */
+    Int(i64),
+    /** Any other number. */
+    Float(f64),
+    /** A string. */
+    String(str),
+    /** An array. */
+    Array(List<Value>),
+    /** An object, its members in input order. */
+    Object(List<Member>)
+}
+
+/**
+ * Why text is not valid JSON.
+ */
+pub struct ParseError {
+    /** What is wrong. */
+    pub message: str
+    /** The byte offset where it was found. */
+    pub offset: int
+}
+
+fn failAt(message: move str, offset: int) Result<Value, ParseError> {
+    return Result.Err(ParseError{message: message, offset: offset})
+}
+
+fn isSpace(c: u8) bool {
+    return c == b' ' || c == b'\t' || c == b'\n' || c == b'\r'
+}
+
+fn isDigit(c: u8) bool {
+    return c >= b'0' && c <= b'9'
+}
+
+// The value of a hex digit, or -1.
+fn hexValue(c: u8) int {
+    if isDigit(c) {
+        return (c - b'0') as int
+    }
+    if c >= b'a' && c <= b'f' {
+        return (c - b'a') as int + 10
+    }
+    if c >= b'A' && c <= b'F' {
+        return (c - b'A') as int + 10
+    }
+    return -1
+}
+
+struct Parser {
+    pos: int
+    depth: int
+
+    fn skipSpace(mut self, b: &[u8]) {
+        for self.pos < b.len() && isSpace(b[self.pos]) {
+            self.pos += 1
+        }
+    }
+
+    // Whether `word` is at the current position; it is skipped if so.
+    fn eat(mut self, b: &[u8], word: str) bool {
+        const w = word.asBytes()
+        if self.pos + w.len() > b.len() {
+            return false
+        }
+        for i in 0..w.len() {
+            if b[self.pos + i] != w[i] {
+                return false
+            }
+        }
+        self.pos += w.len()
+        return true
+    }
+
+    fn value(mut self, text: str, b: &[u8]) Result<Value, ParseError> {
+        self.skipSpace(b)
+        if self.pos >= b.len() {
+            return failAt("expected a value", self.pos)
+        }
+        const c = b[self.pos]
+        if c == b'{' {
+            return self.object(text, b)
+        }
+        if c == b'[' {
+            return self.array(text, b)
+        }
+        if c == b'"' {
+            const s = self.string(text, b)?
+            return Result.Ok(Value.String(s))
+        }
+        if c == b'-' || isDigit(c) {
+            return self.number(text, b)
+        }
+        if self.eat(b, "true") {
+            return Result.Ok(Value.Bool(true))
+        }
+        if self.eat(b, "false") {
+            return Result.Ok(Value.Bool(false))
+        }
+        if self.eat(b, "null") {
+            return Result.Ok(Value.Null)
+        }
+        return failAt("expected a value", self.pos)
+    }
+
+    fn enter(mut self) bool {
+        self.depth += 1
+        return self.depth <= MAX_DEPTH
+    }
+
+    fn array(mut self, text: str, b: &[u8]) Result<Value, ParseError> {
+        if !self.enter() {
+            return failAt("nesting is deeper than 512", self.pos)
+        }
+        self.pos += 1
+        let items: List<Value> = []
+        self.skipSpace(b)
+        if self.pos < b.len() && b[self.pos] == b']' {
+            self.pos += 1
+            self.depth -= 1
+            return Result.Ok(Value.Array(items))
+        }
+        for true {
+            const v = self.value(text, b)?
+            items.push(v)
+            self.skipSpace(b)
+            if self.pos >= b.len() {
+                return failAt("expected `,` or `]`", self.pos)
+            }
+            const c = b[self.pos]
+            self.pos += 1
+            if c == b']' {
+                break
+            }
+            if c != b',' {
+                return failAt("expected `,` or `]`", self.pos - 1)
+            }
+        }
+        self.depth -= 1
+        return Result.Ok(Value.Array(items))
+    }
+
+    fn object(mut self, text: str, b: &[u8]) Result<Value, ParseError> {
+        if !self.enter() {
+            return failAt("nesting is deeper than 512", self.pos)
+        }
+        self.pos += 1
+        let members: List<Member> = []
+        let seen = Map<str, bool>.new()
+        self.skipSpace(b)
+        if self.pos < b.len() && b[self.pos] == b'}' {
+            self.pos += 1
+            self.depth -= 1
+            return Result.Ok(Value.Object(members))
+        }
+        for true {
+            self.skipSpace(b)
+            if self.pos >= b.len() || b[self.pos] != b'"' {
+                return failAt("expected a string key", self.pos)
+            }
+            const keyAt = self.pos
+            const key = self.string(text, b)?
+            if seen.contains(key) {
+                return failAt("duplicate key", keyAt)
+            }
+            seen.insert(key.clone(), true)
+            self.skipSpace(b)
+            if !self.eat(b, ":") {
+                return failAt("expected `:`", self.pos)
+            }
+            const v = self.value(text, b)?
+            members.push(Member{key: key, value: v})
+            self.skipSpace(b)
+            if self.pos >= b.len() {
+                return failAt("expected `,` or `\}`", self.pos)
+            }
+            const c = b[self.pos]
+            self.pos += 1
+            if c == b'}' {
+                break
+            }
+            if c != b',' {
+                return failAt("expected `,` or `\}`", self.pos - 1)
+            }
+        }
+        self.depth -= 1
+        return Result.Ok(Value.Object(members))
+    }
+
+    // Four hex digits at the current position, or -1.
+    fn hex4(mut self, b: &[u8]) int {
+        if self.pos + 4 > b.len() {
+            return -1
+        }
+        let v = 0
+        for i in 0..4 {
+            const d = hexValue(b[self.pos + i])
+            if d < 0 {
+                return -1
+            }
+            v = v * 16 + d
+        }
+        self.pos += 4
+        return v
+    }
+
+    fn string(mut self, text: str, b: &[u8]) Result<str, ParseError> {
+        const start = self.pos
+        self.pos += 1
+        let out = str.new()
+        let run = self.pos
+        for true {
+            if self.pos >= b.len() {
+                return Result.Err(ParseError{message: "unterminated string", offset: start})
+            }
+            const c = b[self.pos]
+            if c == b'"' {
+                out.push(text.slice(run, self.pos))
+                self.pos += 1
+                return Result.Ok(out)
+            }
+            if c < 0x20 {
+                return Result.Err(ParseError{message: "control character in a string",
+                                             offset: self.pos})
+            }
+            if c != b'\\' {
+                self.pos += 1
+                continue
+            }
+            out.push(text.slice(run, self.pos))
+            const at = self.pos
+            self.pos += 1
+            if self.pos >= b.len() {
+                return Result.Err(ParseError{message: "unterminated string", offset: start})
+            }
+            const e = b[self.pos]
+            self.pos += 1
+            if e == b'"' || e == b'\\' || e == b'/' {
+                out.pushChar(e as u32)
+            } else if e == b'b' {
+                out.pushChar(8)
+            } else if e == b'f' {
+                out.pushChar(12)
+            } else if e == b'n' {
+                out.pushChar(10)
+            } else if e == b'r' {
+                out.pushChar(13)
+            } else if e == b't' {
+                out.pushChar(9)
+            } else if e == b'u' {
+                const hi = self.hex4(b)
+                if hi < 0 {
+                    return Result.Err(ParseError{message: "invalid `\\u` escape", offset: at})
+                }
+                let cp = hi
+                if hi >= 0xDC00 && hi <= 0xDFFF {
+                    return Result.Err(ParseError{message: "lone surrogate", offset: at})
+                }
+                if hi >= 0xD800 && hi <= 0xDBFF {
+                    if !self.eat(b, "\\u") {
+                        return Result.Err(ParseError{message: "lone surrogate", offset: at})
+                    }
+                    const lo = self.hex4(b)
+                    if lo < 0xDC00 || lo > 0xDFFF {
+                        return Result.Err(ParseError{message: "lone surrogate", offset: at})
+                    }
+                    cp = 0x10000 + (hi - 0xD800) * 1024 + (lo - 0xDC00)
+                }
+                out.pushChar(cp as u32)
+            } else {
+                return Result.Err(ParseError{message: "invalid escape", offset: at})
+            }
+            run = self.pos
+        }
+        return Result.Ok(out)
+    }
+
+    fn digits(mut self, b: &[u8]) int {
+        const from = self.pos
+        for self.pos < b.len() && isDigit(b[self.pos]) {
+            self.pos += 1
+        }
+        return self.pos - from
+    }
+
+    fn number(mut self, text: str, b: &[u8]) Result<Value, ParseError> {
+        const start = self.pos
+        if b[self.pos] == b'-' {
+            self.pos += 1
+        }
+        const intAt = self.pos
+        const whole = self.digits(b)
+        if whole == 0 {
+            return failAt("expected a digit", self.pos)
+        }
+        if whole > 1 && b[intAt] == b'0' {
+            return failAt("leading zero in a number", intAt)
+        }
+        let isFloat = false
+        if self.pos < b.len() && b[self.pos] == b'.' {
+            self.pos += 1
+            isFloat = true
+            if self.digits(b) == 0 {
+                return failAt("expected a digit", self.pos)
+            }
+        }
+        if self.pos < b.len() && (b[self.pos] == b'e' || b[self.pos] == b'E') {
+            self.pos += 1
+            isFloat = true
+            if self.pos < b.len() && (b[self.pos] == b'+' || b[self.pos] == b'-') {
+                self.pos += 1
+            }
+            if self.digits(b) == 0 {
+                return failAt("expected a digit", self.pos)
+            }
+        }
+        const digits = text.slice(start, self.pos)
+        if !isFloat {
+            if const Result.Ok(n) = i64.parse(digits) {
+                return Result.Ok(Value.Int(n))
+            }
+        }
+        return match f64.parse(digits) {
+            Result.Ok(f) => if f.isFinite() {
+                Result.Ok(Value.Float(f))
+            } else {
+                failAt("number out of range", start)
+            },
+            Result.Err(_) => failAt("number out of range", start)
+        }
+    }
+}
+
+/**
+ * The value that JSON text stands for.
+ *
+ * @param text one JSON value, with optional white space around it
+ * @returns the value, or `ParseError` with a message and the offset of
+ * the first byte that is wrong
+ */
+pub fn parse(text: str) Result<Value, ParseError> {
+    const b = text.asBytes()
+    let p = Parser{pos: 0, depth: 0}
+    const v = p.value(text, b)?
+    p.skipSpace(b)
+    if p.pos < b.len() {
+        return failAt("text after the value", p.pos)
+    }
+    return Result.Ok(v)
+}
+
+fn writeString(out: mut str, s: str) {
+    out.pushChar(b'"' as u32)
+    const b = s.asBytes()
+    let run = 0
+    for i in 0..b.len() {
+        const c = b[i]
+        if c != b'"' && c != b'\\' && c >= 0x20 {
+            continue
+        }
+        out.push(s.slice(run, i))
+        run = i + 1
+        if c == b'"' {
+            out.push("\\\"")
+        } else if c == b'\\' {
+            out.push("\\\\")
+        } else if c == 10 {
+            out.push("\\n")
+        } else if c == 13 {
+            out.push("\\r")
+        } else if c == 9 {
+            out.push("\\t")
+        } else if c == 8 {
+            out.push("\\b")
+        } else if c == 12 {
+            out.push("\\f")
+        } else {
+            const digits = "0123456789abcdef".asBytes()
+            out.push("\\u00")
+            out.pushChar(digits[(c >> 4) as int] as u32)
+            out.pushChar(digits[(c & 15) as int] as u32)
+        }
+    }
+    out.push(s.sliceFrom(run))
+    out.pushChar(b'"' as u32)
+}
+
+// Writes `v`, which is `level` deep; the pretty form breaks lines.
+fn write(out: mut str, v: Value, pretty: bool, level: int) {
+    match v {
+        Value.Null => out.push("null"),
+        Value.Bool(x) => out.push(if x {
+            "true"
+        } else {
+            "false"
+        }),
+        Value.Int(n) => out.push("{n}"),
+        Value.Float(f) => if f.isFinite() {
+            out.push("{f}")
+        } else {
+            out.push("null")
+        },
+        Value.String(s) => writeString(out, s),
+        Value.Array(items) => {
+            out.pushChar(b'[' as u32)
+            for i in 0..items.len() {
+                if i > 0 {
+                    out.pushChar(b',' as u32)
+                }
+                newline(out, pretty, level + 1)
+                write(out, items[i], pretty, level + 1)
+            }
+            if items.len() > 0 {
+                newline(out, pretty, level)
+            }
+            out.pushChar(b']' as u32)
+        }
+        Value.Object(members) => {
+            out.pushChar(b'{' as u32)
+            for i in 0..members.len() {
+                if i > 0 {
+                    out.pushChar(b',' as u32)
+                }
+                newline(out, pretty, level + 1)
+                writeString(out, members[i].key)
+                out.pushChar(b':' as u32)
+                if pretty {
+                    out.pushChar(b' ' as u32)
+                }
+                write(out, members[i].value, pretty, level + 1)
+            }
+            if members.len() > 0 {
+                newline(out, pretty, level)
+            }
+            out.pushChar(b'}' as u32)
+        }
+    }
+}
+
+// In the pretty form, a line break and two spaces for each level.
+fn newline(out: mut str, pretty: bool, level: int) {
+    if !pretty {
+        return
+    }
+    out.pushChar(10)
+    for _ in 0..level {
+        out.push("  ")
+    }
+}
+
+/**
+ * The value as JSON text without white space.
+ *
+ * A float that is not finite is written as `null`, since JSON has no form
+ * for it.
+ *
+ * @param v the value
+ * @returns the text
+ */
+pub fn stringify(v: Value) str {
+    let out = str.new()
+    write(out, v, false, 0)
+    return out
+}
+
+/**
+ * The value as JSON text, one member or item to a line, indented with two
+ * spaces for each level.
+ *
+ * @param v the value
+ * @returns the text
+ */
+pub fn pretty(v: Value) str {
+    let out = str.new()
+    write(out, v, true, 0)
+    return out
+}

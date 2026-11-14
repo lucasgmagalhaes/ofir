@@ -1,0 +1,132 @@
+// The tests of `std.json` (OFIR-44, ADR 0059): `ofir test std/json/index.of` runs them.
+
+import std.testing.assert
+
+// `text` parsed and written again without white space, or the error.
+fn again(text: str) str {
+    return match parse(text) {
+        Result.Ok(v) => stringify(v),
+        Result.Err(e) => "error at {e.offset}: {e.message}"
+    }
+}
+
+fn failsAt(text: str, offset: int) bool {
+    return match parse(text) {
+        Result.Ok(_) => false,
+        Result.Err(e) => e.offset == offset
+    }
+}
+
+@test
+fn scalars() {
+    assert(again("null") == "null")
+    assert(again(" true ") == "true")
+    assert(again("false") == "false")
+    assert(again("0") == "0")
+    assert(again("-12") == "-12")
+    assert(again("9223372036854775807") == "9223372036854775807")
+    assert(again("-9223372036854775808") == "-9223372036854775808")
+    assert(again("9223372036854775808") == "9.223372036854776e18")
+    assert(again("2.5") == "2.5")
+    assert(again("1E3") == "1000.0")
+    assert(again("-0.0") == "-0.0")
+    assert(again("1e-7") == "1e-7")
+}
+
+@test
+fn numberKinds() {
+    match parse("[1, 1.0, 1e0]") {
+        Result.Ok(Value.Array(items)) => {
+            assert(items.len() == 3)
+            match items[0] {
+                Value.Int(n) => assert(n == 1),
+                _ => assert(false)
+            }
+            match items[1] {
+                Value.Float(f) => assert(f == 1.0),
+                _ => assert(false)
+            }
+        }
+        _ => assert(false)
+    }
+}
+
+@test
+fn strings() {
+    assert(again("\"a\\\"b\\\\c\\/d\"") == "\"a\\\"b\\\\c/d\"")
+    assert(again("\"\\b\\f\\n\\r\\t\"") == "\"\\b\\f\\n\\r\\t\"")
+    assert(again("\"\\u0041\\u00e9\\u20AC\"") == "\"Aé€\"")
+    assert(again("\"\\ud83d\\ude00\"") == "\"😀\"")
+    assert(again("\"\\u0001\"") == "\"\\u0001\"")
+    assert(again("\"olá\"") == "\"olá\"")
+}
+
+@test
+fn containers() {
+    assert(again("[]") == "[]")
+    assert(again("\{\}") == "\{\}")
+    assert(again(" [ 1 , [ ] , \{ \"b\" : 2 , \"a\" : [ null ] \} ] ") ==
+           "[1,[],\{\"b\":2,\"a\":[null]\}]")
+    match parse("\{\"z\": 1, \"a\": 2\}") {
+        Result.Ok(Value.Object(members)) => {
+            assert(members.len() == 2)
+            assert(members[0].key == "z" && members[1].key == "a")
+        }
+        _ => assert(false)
+    }
+}
+
+@test
+fn prettyForm() {
+    match parse("\{\"a\":[1,\{\"b\":null\}],\"c\":\{\},\"d\":[]\}") {
+        Result.Ok(v) => assert(pretty(v) ==
+                               "\{\n  \"a\": [\n    1,\n    \{\n      \"b\": null\n    \}\n  ],\n" +
+                               "  \"c\": \{\},\n  \"d\": []\n\}"),
+        Result.Err(_) => assert(false)
+    }
+    assert(pretty(Value.Int(3)) == "3")
+}
+
+@test
+fn nonFinite() {
+    const inf = 1e308 * 10.0
+    let items: List<Value> = []
+    items.push(Value.Float(inf))
+    items.push(Value.Float(inf - inf))
+    assert(stringify(Value.Array(items)) == "[null,null]")
+}
+
+@test
+fn rejects() {
+    assert(failsAt("", 0))
+    assert(failsAt("  ", 2))
+    assert(failsAt("nul", 0))
+    assert(failsAt("[1,]", 3))
+    assert(failsAt("[1 2]", 3))
+    assert(failsAt("\{\"a\":1,\}", 7))
+    assert(failsAt("\{\"a\" 1\}", 5))
+    assert(failsAt("\{1:2\}", 1))
+    assert(failsAt("\{\"a\":1,\"a\":2\}", 7))
+    assert(failsAt("01", 0))
+    assert(failsAt("1.", 2))
+    assert(failsAt("-", 1))
+    assert(failsAt("1e", 2))
+    assert(failsAt("+1", 0))
+    assert(failsAt("1e999", 0))
+    assert(failsAt("1 2", 2))
+    assert(failsAt("\"abc", 0))
+    assert(failsAt("\"a\nb\"", 2))
+    assert(failsAt("\"\\x\"", 1))
+    assert(failsAt("\"\\u12\"", 1))
+    assert(failsAt("\"\\ud800\"", 1))
+    assert(failsAt("\"\\udc00\"", 1))
+    assert(failsAt("\"\\ud800\\u0041\"", 1))
+    assert(failsAt("// no\n1", 0))
+}
+
+@test
+fn depthLimit() {
+    assert(again("[".repeat(512) + "]".repeat(512)).startsWith("[[[["))
+    assert(failsAt("[".repeat(513) + "]".repeat(513), 512))
+    assert(failsAt("\{\"a\":".repeat(513) + "1" + "\}".repeat(513), 2560))
+}

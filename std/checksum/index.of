@@ -1,0 +1,109 @@
+/**
+ * @module
+ * `std.checksum`: CRC-32 and Adler-32, the checksums of zlib, gzip, PNG
+ * and ZIP (ADR 0059). They detect accidental changes; they are not
+ * cryptographic.
+ *
+ * Each has an `update` form that takes the value so far, so data can be
+ * checked in pieces: `crc32Update(crc32(a), b)` is `crc32` of `a` then `b`.
+ *
+ * @example
+ * ```ofir
+ * import std.checksum
+ * import std.testing.assert
+ *
+ * assert(checksum.crc32("123456789".asBytes()) == 0xCBF43926)
+ * assert(checksum.adler32("Wikipedia".asBytes()) == 0x11E60398)
+ * ```
+ */
+
+const ADLER_MOD: u32 = 65521
+
+// The CRC of a 4-bit value under the reflected IEEE polynomial 0xEDB88320:
+// two lookups take a byte.
+fn nibble(n: u32) u32 {
+    return match n {
+        0 => 0x00000000,
+        1 => 0x1DB71064,
+        2 => 0x3B6E20C8,
+        3 => 0x26D930AC,
+        4 => 0x76DC4190,
+        5 => 0x6B6B51F4,
+        6 => 0x4DB26158,
+        7 => 0x5005713C,
+        8 => 0xEDB88320,
+        9 => 0xF00F9344,
+        10 => 0xD6D6A3E8,
+        11 => 0xCB61B38C,
+        12 => 0x9B64C2B0,
+        13 => 0x86D3D2D4,
+        14 => 0xA00AE278,
+        _ => 0xBDBDF21C
+    }
+}
+
+/**
+ * The CRC-32 (IEEE) of the bytes.
+ *
+ * @param data the bytes
+ * @returns the checksum; 0 for no bytes
+ */
+pub fn crc32(data: &[u8]) u32 {
+    return crc32Update(0, data)
+}
+
+/**
+ * The CRC-32 of the bytes checked so far followed by `data`.
+ *
+ * @param crc the CRC-32 of the earlier bytes, or 0
+ * @param data the next bytes
+ * @returns the CRC-32 of all of them
+ */
+pub fn crc32Update(crc: u32, data: &[u8]) u32 {
+    let c = crc ^ 0xFFFFFFFF
+    for i in 0..data.len() {
+        c = c ^ data[i] as u32
+        c = nibble(c & 15) ^ (c >> 4)
+        c = nibble(c & 15) ^ (c >> 4)
+    }
+    return c ^ 0xFFFFFFFF
+}
+
+/**
+ * The Adler-32 of the bytes.
+ *
+ * @param data the bytes
+ * @returns the checksum; 1 for no bytes
+ */
+pub fn adler32(data: &[u8]) u32 {
+    return adler32Update(1, data)
+}
+
+/**
+ * The Adler-32 of the bytes checked so far followed by `data`.
+ *
+ * @param adler the Adler-32 of the earlier bytes, or 1
+ * @param data the next bytes
+ * @returns the Adler-32 of all of them
+ */
+pub fn adler32Update(adler: u32, data: &[u8]) u32 {
+    let a = adler & 0xFFFF
+    let b = adler >> 16
+    let i = 0
+    for i < data.len() {
+        // 5552 bytes keep the sums below 2^32 before the reduction.
+        const end = if data.len() - i > 5552 {
+            i + 5552
+        } else {
+            data.len()
+        }
+        for i < end {
+            a += data[i] as u32
+            b += a
+            i += 1
+        }
+        a = a % ADLER_MOD
+        b = b % ADLER_MOD
+    }
+    return (b << 16) | a
+}

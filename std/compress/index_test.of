@@ -1,0 +1,137 @@
+// The tests of `std.compress` (OFIR-44, ADR 0059): `ofir test std/compress/index.of` runs them.
+// The vectors come from Python's zlib and gzip modules.
+
+import std.checksum
+import std.encoding
+import std.strings
+import std.testing.assert
+
+fn bytes(hex: str) List<u8> {
+    return match encoding.hexDecode(hex) {
+        Result.Ok(b) => b,
+        Result.Err(_) => []
+    }
+}
+
+fn text(r: move Result<List<u8>, DecompressError>) str {
+    return match r {
+        Result.Ok(b) => match strings.fromUtf8(b) {
+            Result.Ok(s) => s,
+            Result.Err(_) => "<not UTF-8>"
+        },
+        Result.Err(e) => "error at {e.offset}: {e.message}"
+    }
+}
+
+fn fails(r: Result<List<u8>, DecompressError>, message: str) bool {
+    return match r {
+        Result.Ok(_) => false,
+        Result.Err(e) => e.message == message
+    }
+}
+
+// Square numbers to 199^2, between spaces: 1053 bytes in a dynamic block.
+fn squares() List<u8> {
+    return bytes("2593d901042108435bb1043904e9bfb179717e7658e50849dccb56ae5956cbcf8a5a39ab" +
+                 "725d5bb6f732e79bc92d19430a397ef8de59e1493ed5e465f2bdb98ecf3a5dabc82bbecd" +
+                 "ffe6fc723fe44da92f85b6e960462b534f739a5b684a6adcd1dc128012920691dd140610" +
+                 "fa160a1362dfb33c762ecf6d20a3c24b51ebecea76c80b5504fd051ae441bf483a876644" +
+                 "332d2e736340901b2c295419e0cb04691698b3b5add6389b7d8e69e1d0c6dcaca39d4f2b" +
+                 "1ace6a734b95c1261575a8ada64b5dfaf53e22878a66e6eac3dc6e10f480e58afaebe0bb" +
+                 "292d0accf7827eb4071944a0844db69cbb9f56226bfb8b738be022039a4936539d9987e2" +
+                 "148f56a2d4aed8f55fe910e77e44bfb794f079a23c7d22cf1348aac548c0b47ade502d28" +
+                 "15df2be9a8e33720c21e2776aee27ae715caa9975fa2d2faf5e954cf7efd7b34ebbeb988" +
+                 "aef8e1992d6cf370ce33c7083f3bb38b6fede5bb6510fb1d12b2888907573176113ffedb" +
+                 "c4c59b87e93cf2f9a8959faf36437d52cce318f53fd203efabf64825475dce4bda39c0c9" +
+                 "7f8a7a1fbd9096cece1632a2d4e7cda876e4099f030f100c2798b3655171157b149b5c05" +
+                 "7a72c2e5356c2ba3ba1c18617a79215f46d01a2b6b2e128d6279384ec8cee739bba42f96" +
+                 "7f7ebfb27ebf57d0a50771dfdbe0812ad68b41defd9ec2b60f")
+}
+
+@test
+fn blockKinds() {
+    assert(text(inflate(bytes("0300").asSlice(), 10)) == "")
+    assert(text(inflate(bytes("010500faff68656c6c6f").asSlice(), 10)) == "hello")
+    assert(text(inflate(bytes("4b4c4a4e842100").asSlice(), 100)) == "abcabcabcabc")
+    const data = squares()
+    match inflate(data.asSlice(), 2000) {
+        Result.Ok(out) => {
+            assert(out.len() == 1053)
+            assert(checksum.crc32(out.asSlice()) == 2757475802)
+        }
+        Result.Err(_) => assert(false)
+    }
+}
+
+@test
+fn wrappers() {
+    const z = bytes("789ccb48cdc9c957c84090003a2e067d")
+    assert(text(zlibDecompress(z.asSlice(), 100)) == "hello hello hello")
+    const gz = bytes("1f8b08000000000002ffcb48cdc9c9070086a6103605000000")
+    assert(text(gunzip(gz.asSlice(), 100)) == "hello")
+    const named = bytes("1f8b0808000000000003612e747874002bcf2fca4901004311773a05000000")
+    assert(text(gunzip(named.asSlice(), 100)) == "world")
+    let both = gz.clone()
+    for i in 0..named.len() {
+        both.push(named[i])
+    }
+    assert(text(gunzip(both.asSlice(), 100)) == "helloworld")
+    assert(fails(gunzip(both.asSlice(), 7), "output exceeds the limit"))
+}
+
+@test
+fn limits() {
+    assert(fails(inflate(bytes("010500faff68656c6c6f").asSlice(), 4), "output exceeds the limit"))
+    const data = squares()
+    assert(fails(inflate(data.asSlice(), 1052), "output exceeds the limit"))
+    assert(text(inflate(data.asSlice(), 1053)).len() == 1053)
+}
+
+@test
+fn rejects() {
+    assert(fails(inflate(bytes("07").asSlice(), 10), "invalid block type"))
+    assert(fails(inflate(bytes("010500fafe68656c6c6f").asSlice(), 10),
+                 "stored block length does not match its complement"))
+    // A fixed block whose first code is a match at distance 1 of nothing.
+    assert(fails(inflate(bytes("03020000").asSlice(), 10), "distance too far back"))
+    assert(fails(zlibDecompress(bytes("789d").asSlice(), 10), "invalid zlib header"))
+    assert(fails(zlibDecompress(bytes("789ccb48cdc9c957c84090003a2e067e").asSlice(), 100),
+                 "Adler-32 does not match"))
+    assert(fails(zlibDecompress(bytes("789ccb48cdc9c957c84090003a2e067d00").asSlice(), 100),
+                 "data after the stream"))
+    assert(fails(gunzip(bytes("1f8c08000000000002ffcb48cdc9c9070086a6103605000000").asSlice(),
+                        100), "invalid gzip header"))
+    assert(fails(gunzip(bytes("1f8b08000000000002ffcb48cdc9c9070086a6103606000000").asSlice(),
+                        100), "size does not match"))
+    assert(fails(gunzip(bytes("1f8b08000000000002ffcb48cdc9c9070086a6103705000000").asSlice(),
+                        100), "CRC-32 does not match"))
+}
+
+@test
+fn everyTruncationFails() {
+    const data = squares()
+    for n in 0..data.len() {
+        match inflate(data.slice(0, n), 2000) {
+            Result.Ok(_) => assert(false),
+            Result.Err(_) => {}
+        }
+    }
+    const gz = bytes("1f8b0808000000000003612e747874002bcf2fca4901004311773a05000000")
+    for n in 0..gz.len() {
+        match gunzip(gz.slice(0, n), 100) {
+            Result.Ok(_) => assert(false),
+            Result.Err(_) => {}
+        }
+    }
+}
+
+@test
+fn corruptionNeverPanics() {
+    // Each byte of the stream flipped in turn: an error or other bytes, never a panic.
+    let data = squares()
+    for i in 0..data.len() {
+        data[i] = data[i] ^ 0x5A
+        const _ = inflate(data.asSlice(), 4000)
+        data[i] = data[i] ^ 0x5A
+    }
+}
