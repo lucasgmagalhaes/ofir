@@ -1,0 +1,40 @@
+// requires: stage1
+// flags: --lib=static
+// consumer: lib_static.c
+// A static library and the C program that uses it (ADR 0064): the header
+// declares the exports and the `@repr(C)` struct they take.
+
+@repr(C)
+struct Point {
+    x: i32
+    y: i32
+}
+
+@export("calc_add")
+extern "C" fn add(a: i32, b: i32) i32 {
+    return a + b
+}
+
+// The Manhattan length of `*p`.
+extern "C" fn calc_norm1(p: *Point) i64 {
+    const q = unsafe { *p }
+    return (q.x as i64).abs() + (q.y as i64).abs()
+}
+
+// Sums `count` values through the callback, with an Ofir `List` inside.
+extern "C" fn calc_sum(count: i32, f: extern "C" fn(i32) i64) i64 {
+    let values: List<i64> = []
+    for i in 0..count {
+        values.push(unsafe { f(i) })
+    }
+    let total: i64 = 0
+    for v in values {
+        total += v
+    }
+    return total
+}
+
+extern "C" fn calc_greet(name: *u8, len: i64) {
+    const text = unsafe { str.fromRaw(name, len as int) }
+    println("hello, {text}")
+}
