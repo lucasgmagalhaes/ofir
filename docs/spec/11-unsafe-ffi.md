@@ -110,7 +110,7 @@ extern "C" fn byValue(a: *u8, b: *u8) i32 {
 - Each side frees what it allocated. Ofir values live in the Ofir
   allocator, which C must not `free`; memory a C library returns is held
   as a raw pointer and given back to that library's free function. A
-  buffer C fills is a `List<T>` passed as its `asPtr()` cast to `*mut T`,
+  buffer C fills is a `List<T>` passed as `asMutSlice().asMutPtr()`,
   with its length.
 - `os.errno()` reads the calling thread's C `errno`, and `os.setErrno(n)`
   sets it. Allocation may change `errno`, so a program reads it right
