@@ -1,0 +1,355 @@
+/**
+ * @module
+ * `std.time.date`: calendar dates and times of day in UTC (ADR 0058).
+ *
+ * The proleptic Gregorian calendar applies to every year. Leap seconds
+ * are not represented, as in Unix time. Time zones and local time are not
+ * here: they need the system's time zone database.
+ *
+ * @example
+ * ```ofir
+ * import std.time.date.DateTime
+ * import std.testing.assert
+ *
+ * const d = DateTime.fromUnixSeconds(1_000_000_000)
+ * assert(d.format() == "2001-09-09T01:46:40Z")
+ * if const Result.Ok(back) = DateTime.parse("2001-09-09T03:46:40+02:00") {
+ *     assert(back.unixSeconds() == 1_000_000_000)
+ * }
+ * ```
+ */
+
+import std.time
+
+const DAY_SECONDS: int = 86_400
+
+/**
+ * Whether `year` has a 29 February.
+ *
+ * @param year the year
+ * @returns the check
+ */
+pub fn isLeapYear(year: int) bool {
+    return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+}
+
+/**
+ * How many days `month` has in `year`.
+ *
+ * @param year the year
+ * @param month the month, 1 to 12
+ * @returns the days; 0 when `month` is not 1 to 12
+ */
+pub fn daysInMonth(year: int, month: int) int {
+    if month == 2 {
+        return if isLeapYear(year) { 29 } else { 28 }
+    }
+    if month == 4 || month == 6 || month == 9 || month == 11 {
+        return 30
+    }
+    if month >= 1 && month <= 12 {
+        return 31
+    }
+    return 0
+}
+
+// Division and remainder rounded down, so that times before 1970 work.
+fn floorDiv(a: int, b: int) int {
+    const q = a / b
+    if (a % b != 0) && ((a < 0) != (b < 0)) {
+        return q - 1
+    }
+    return q
+}
+
+// Days since 1970-01-01 (Howard Hinnant's days_from_civil).
+fn daysFromCivil(year: int, month: int, day: int) int {
+    const y = if month <= 2 { year - 1 } else { year }
+    const era = floorDiv(y, 400)
+    const yoe = y - era * 400
+    const mp = if month > 2 { month - 3 } else { month + 9 }
+    const doy = (153 * mp + 2) / 5 + day - 1
+    const doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+    return era * 146_097 + doe - 719_468
+}
+
+// The digits of `text` from `at` to `at + n`, or -1.
+fn digits(text: str, at: int, n: int) int {
+    const b = text.asBytes()
+    if at + n > b.len() {
+        return -1
+    }
+    let v = 0
+    for i in at..at + n {
+        if b[i] < b'0' || b[i] > b'9' {
+            return -1
+        }
+        v = v * 10 + (b[i] - b'0') as int
+    }
+    return v
+}
+
+// `v`, not negative, with zeros before it up to `width` digits.
+fn pushPadded(out: mut str, v: int, width: int) {
+    const text = "{v}"
+    for _ in text.len()..width {
+        out.push("0")
+    }
+    out.push(text)
+}
+
+fn byteAt(text: str, at: int) u8 {
+    const b = text.asBytes()
+    if at < b.len() {
+        return b[at]
+    }
+    return 0
+}
+
+/**
+ * A date and a time of day in UTC, to the nanosecond.
+ *
+ * `new` checks the fields; a `DateTime` written as a literal should hold
+ * a valid date too, since the other methods assume one.
+ */
+pub copy struct DateTime {
+    /** The year; 0 is 1 BC. */
+    pub year: int
+    /** The month, 1 to 12. */
+    pub month: int
+    /** The day of the month, 1 to 31. */
+    pub day: int
+    /** The hour, 0 to 23. */
+    pub hour: int
+    /** The minute, 0 to 59. */
+    pub minute: int
+    /** The second, 0 to 59. */
+    pub second: int
+    /** The nanosecond within the second, 0 to 999 999 999. */
+    pub nanosecond: int
+
+    /**
+     * A date and time, if every field is in its range.
+     *
+     * @returns the date; `None` for a field out of range, such as 30 February
+     * @example
+     * ```ofir
+     * import std.time.date.DateTime
+     *
+     * const leap = DateTime.new(2024, 2, 29, 12, 0, 0, 0)   // Some
+     * const none = DateTime.new(2023, 2, 29, 12, 0, 0, 0)   // None
+     * ```
+     */
+    pub fn new(year: int, month: int, day: int, hour: int, minute: int, second: int,
+            nanosecond: int) Option<DateTime> {
+        if month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month) {
+            return Option.None
+        }
+        if hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59 {
+            return Option.None
+        }
+        if nanosecond < 0 || nanosecond > 999_999_999 {
+            return Option.None
+        }
+        return Option.Some(DateTime{year: year, month: month, day: day, hour: hour,
+            minute: minute, second: second, nanosecond: nanosecond})
+    }
+
+    /**
+     * The date and time `seconds` after 1970-01-01T00:00:00Z; before it
+     * when negative.
+     *
+     * @param seconds the Unix time, in seconds
+     * @returns the date
+     */
+    pub fn fromUnixSeconds(seconds: int) DateTime {
+        const days = floorDiv(seconds, DAY_SECONDS)
+        const rest = seconds - days * DAY_SECONDS
+        // Howard Hinnant's civil_from_days.
+        const z = days + 719_468
+        const era = floorDiv(z, 146_097)
+        const doe = z - era * 146_097
+        const yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365
+        const doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+        const mp = (5 * doy + 2) / 153
+        const month = if mp < 10 { mp + 3 } else { mp - 9 }
+        const year = yoe + era * 400 + (if month <= 2 { 1 } else { 0 })
+        return DateTime{year: year, month: month, day: doy - (153 * mp + 2) / 5 + 1,
+            hour: rest / 3600, minute: rest / 60 % 60, second: rest % 60, nanosecond: 0}
+    }
+
+    /**
+     * The date and time `nanos` after 1970-01-01T00:00:00Z, as
+     * `time.unixNanos` gives it.
+     *
+     * @param nanos the Unix time, in nanoseconds
+     * @returns the date
+     */
+    pub fn fromUnixNanos(nanos: int) DateTime {
+        const seconds = floorDiv(nanos, time.SECOND)
+        let d = DateTime.fromUnixSeconds(seconds)
+        d.nanosecond = nanos - seconds * time.SECOND
+        return d
+    }
+
+    /**
+     * The current date and time, from the wall clock.
+     *
+     * @returns the date
+     */
+    pub fn now() DateTime {
+        return DateTime.fromUnixNanos(time.unixNanos())
+    }
+
+    /**
+     * The seconds since 1970-01-01T00:00:00Z, without the nanoseconds.
+     *
+     * @returns the Unix time, negative before 1970
+     */
+    pub fn unixSeconds(self) int {
+        const days = daysFromCivil(self.year, self.month, self.day)
+        return days * DAY_SECONDS + self.hour * 3600 + self.minute * 60 + self.second
+    }
+
+    /**
+     * The nanoseconds since 1970-01-01T00:00:00Z. The years 1678 to 2261
+     * fit; others overflow `int`, which panics.
+     *
+     * @returns the Unix time, in nanoseconds
+     */
+    pub fn unixNanos(self) int {
+        return self.unixSeconds() * time.SECOND + self.nanosecond
+    }
+
+    /**
+     * The day of the week.
+     *
+     * @returns 0 for Monday to 6 for Sunday, as in ISO 8601
+     */
+    pub fn weekday(self) int {
+        // 1970-01-01 was a Thursday.
+        const days = daysFromCivil(self.year, self.month, self.day)
+        return days + 3 - floorDiv(days + 3, 7) * 7
+    }
+
+    /**
+     * The date as RFC 3339, in UTC: `2026-11-14T08:05:09Z`. A fraction of
+     * a second follows the seconds when the nanoseconds are not 0, without
+     * trailing zeros. A year outside 0 to 9999 is written as it is, which
+     * RFC 3339 cannot hold.
+     *
+     * @returns the new string
+     */
+    pub fn format(self) str {
+        let out = str.withCapacity(32)
+        if self.year >= 0 && self.year <= 9999 {
+            pushPadded(out, self.year, 4)
+        } else {
+            out.push("{self.year}")
+        }
+        out.push("-")
+        pushPadded(out, self.month, 2)
+        out.push("-")
+        pushPadded(out, self.day, 2)
+        out.push("T")
+        pushPadded(out, self.hour, 2)
+        out.push(":")
+        pushPadded(out, self.minute, 2)
+        out.push(":")
+        pushPadded(out, self.second, 2)
+        if self.nanosecond != 0 {
+            let frac = self.nanosecond
+            let width = 9
+            for frac % 10 == 0 {
+                frac /= 10
+                width -= 1
+            }
+            out.push(".")
+            pushPadded(out, frac, width)
+        }
+        out.push("Z")
+        return out
+    }
+
+    /**
+     * Reads RFC 3339: `YYYY-MM-DDTHH:MM:SS`, an optional fraction, then `Z`
+     * or an offset such as `+02:00`, which is subtracted to give UTC. `t`,
+     * `z` and a space in place of `T` are accepted too. Digits after the
+     * ninth of the fraction are dropped.
+     *
+     * @param text the text
+     * @returns the date in UTC; an error when a field is missing or out of
+     *     range, including a leap second (60)
+     * @example
+     * ```ofir
+     * import std.time.date.DateTime
+     *
+     * const d = DateTime.parse("2026-11-14T08:05:09.5Z")
+     * ```
+     */
+    pub fn parse(text: str) Result<DateTime, ParseError> {
+        const year = digits(text, 0, 4)
+        const month = digits(text, 5, 2)
+        const day = digits(text, 8, 2)
+        const hour = digits(text, 11, 2)
+        const minute = digits(text, 14, 2)
+        const second = digits(text, 17, 2)
+        const t = byteAt(text, 10)
+        if byteAt(text, 4) != b'-' || byteAt(text, 7) != b'-' || byteAt(text, 13) != b':' {
+            return Result.Err(ParseError{})
+        }
+        if byteAt(text, 16) != b':' || (t != b'T' && t != b't' && t != b' ') {
+            return Result.Err(ParseError{})
+        }
+        let at = 19
+        let nanos = 0
+        if byteAt(text, at) == b'.' {
+            at += 1
+            let n = 0
+            for byteAt(text, at) >= b'0' && byteAt(text, at) <= b'9' {
+                if n < 9 {
+                    nanos = nanos * 10 + (byteAt(text, at) - b'0') as int
+                    n += 1
+                }
+                at += 1
+            }
+            if n == 0 {
+                return Result.Err(ParseError{})
+            }
+            for _ in n..9 {
+                nanos *= 10
+            }
+        }
+        let offset = 0
+        const z = byteAt(text, at)
+        if z == b'Z' || z == b'z' {
+            at += 1
+        } else if z == b'+' || z == b'-' {
+            const oh = digits(text, at + 1, 2)
+            const om = digits(text, at + 4, 2)
+            if oh < 0 || om < 0 || oh > 23 || om > 59 || byteAt(text, at + 3) != b':' {
+                return Result.Err(ParseError{})
+            }
+            offset = oh * 3600 + om * 60
+            if z == b'-' {
+                offset = -offset
+            }
+            at += 6
+        } else {
+            return Result.Err(ParseError{})
+        }
+        if at != text.len() || year < 0 || hour < 0 || minute < 0 || second < 0 {
+            return Result.Err(ParseError{})
+        }
+        const Option.Some(local) = DateTime.new(year, month, day, hour, minute, second,
+                nanos) else {
+            return Result.Err(ParseError{})
+        }
+        if offset == 0 {
+            return Result.Ok(local)
+        }
+        let d = DateTime.fromUnixSeconds(local.unixSeconds() - offset)
+        d.nanosecond = nanos
+        return Result.Ok(d)
+    }
+}
