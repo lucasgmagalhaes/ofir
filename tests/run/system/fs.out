@@ -23,4 +23,16 @@ remove a.txt: ok
 remove c.bin: ok
 gone true
 remove missing: No such file or directory
+append new: ok
+append more: ok
+copyFile: ok
+copied one
+two
+copyFile missing: No such file or directory
+removeDir full: refused
+remove log.txt: ok
+remove copy.txt: ok
+removeDir: ok
+exists after removeDir false
+removeDir missing: No such file or directory
 bad path: Invalid argument
