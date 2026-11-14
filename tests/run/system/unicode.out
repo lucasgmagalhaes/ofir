@@ -1,0 +1,15 @@
+createDirAll: ok
+write: ok
+read café ☕
+rename: ok
+exists true false
+entry ñandú.txt
+canonical true
+size 10
+removeFile: ok
+removeDir: ok
+removeDir base: ok
+child 0
+arg [ünï cødé] 12
+arg [Ω] 2
+arg [a b] 3
