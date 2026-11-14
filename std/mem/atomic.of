@@ -3,6 +3,20 @@
  * `std.mem.atomic`: memory orderings and the atomic operations the compiler
  * turns into single instructions (ADR 0042, spec 14.4). `std.sync` builds
  * `AtomicInt` and `AtomicBool` on them.
+ *
+ * @example
+ * ```ofir
+ * import std.mem.atomic
+ * import std.testing.assert
+ *
+ * let n = 0
+ * const p = &mut n as *mut int
+ * unsafe {
+ *     atomic.atomicStore(p, 5, atomic.Ordering.Release)
+ *     assert(atomic.atomicFetchAdd(p, 1, atomic.Ordering.AcqRel) == 5)
+ *     assert(atomic.atomicLoad(p, atomic.Ordering.Acquire) == 6)
+ * }
+ * ```
  */
 
 /**

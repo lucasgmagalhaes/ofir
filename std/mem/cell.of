@@ -4,6 +4,16 @@
  * borrow.
  *
  * Stage 0 cannot read bounds, so only stage 1 compiles this module.
+ *
+ * @example
+ * ```ofir
+ * import std.mem.cell.Cell
+ * import std.testing.assert
+ *
+ * const hits = Cell.new(0)
+ * hits.set(hits.get() + 1)
+ * assert(hits.get() == 1)
+ * ```
  */
 // requires: stage1 (bounds, roadmap 5.2)
 
