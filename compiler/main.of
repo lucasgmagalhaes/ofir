@@ -622,7 +622,7 @@ fn archive(opts: &Options, files: &List<str>, cached: &List<str>, lib: str) bool
 fn directoryOf(path: str) str {
     let end = 0
     for i in 0..path.len() {
-        if path[i] == b'/' {
+        if path[i] == b'/' || path[i] == b'\\' {   // Windows paths use either
             end = i + 1
         }
     }
@@ -682,7 +682,8 @@ fn outputPath(opts: &Options) str {
         const plain = letter || (b >= b'0' && b <= b'9')
         name.push(if plain { full.slice(i, i + 1) } else { "_" })
     }
-    return "{tempDir()}/ofir-{opts.command}-{name}"
+    const ext = if windowsTarget(opts) { ".exe" } else { "" }   // the name a runner opens
+    return "{tempDir()}/ofir-{opts.command}-{name}{ext}"
 }
 
 // The input's file name without `.of`: `lib` for `src/lib.of`.
