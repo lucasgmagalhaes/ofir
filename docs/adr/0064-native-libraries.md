@@ -19,7 +19,9 @@ symbols and the ownership of runtime allocations to be specified.
 ## Decision
 
 1. **`--lib=static` and `--lib=shared`.** `ofir build --lib=static file.of`
-   writes `lib<name>.a`, an archive of the program's objects; `--lib=shared`
+   writes `lib<name>.a`, an archive of one object that holds the whole
+   program, so that a linker that loads it for one symbol also has the
+   `std` functions the runtime calls back into; `--lib=shared`
    writes `lib<name>.so` (`.dylib` on macOS, `.dll` on Windows), linked with
    the runtime, the `@link` libraries and `-lm`. `<name>` is the input's
    name without `.of`; `-o` names the library file instead. A library has no
@@ -40,10 +42,9 @@ symbols and the ownership of runtime allocations to be specified.
    `extern "C" fn(A) R` to a function pointer declarator. A function
    returning nothing returns `void`.
 4. **Native dependencies.** A static library holds only the program's
-   objects. The header's first comment lists what a C program links after
-   it: the runtime (`libofir_rt.a`), each `@link` library in order, `-lm`
-   and, except on Windows, `-lpthread`. A shared library already carries
-   them.
+   code. The header's first comment lists what a C program links after it:
+   the runtime (`libofir_rt.a`), each `@link` library in order, `-lm` and
+   `-lpthread`. A shared library already carries them.
 5. **Symbols.** The C symbols of the header are the library's interface.
    The other generated functions are internal or hidden, so a shared
    library exports only these and the runtime's `ofir_` functions; a C
