@@ -121,6 +121,17 @@ pub struct JsonDoc {
     }
 
     /**
+     * The value of a boolean.
+     *
+     * @param node a node, or -1
+     * @returns whether it is `true`: false for other nodes
+     */
+    pub fn bool(self, node: int) bool {
+        return node >= 0 && self.nodes[node].kind == JsonKind.Bool &&
+            self.nodes[node].text == "true"
+    }
+
+    /**
      * The value of an integer.
      *
      * @param node a node, or -1

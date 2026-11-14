@@ -408,6 +408,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.27h | Language adapters (ADR 0070): the C ABI is the boundary; a C++17 consumer of a static library on every tier 1 target and a Python `ctypes` consumer of a shared library (`tests/run/ffi/lib_cpp.of`, `lib_python.of`); a versioned export, caller-owned structs, callbacks and flushing as the lifecycle; JVM, .NET, JavaScript, generated bindings and plugins stay on the C ABI until a consumer is named | OFIR-55 | **done** |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.28a | Formatter guarantees: `make check-fmt-corpus` (`tools/check_fmt_corpus.py`) checks that `ofir fmt` is idempotent and keeps every comment and the AST over std, compiler, tests and examples | OFIR-56 | **done** |
+| 6.28b | Language server: hover, references and rename across the open documents, with unsaved edits of a dependency package checked by the documents that use it (`tests/lsp/packages`) | OFIR-57 | **done** |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
@@ -446,7 +447,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.28 with OFIR-57; OFIR-56 is done as 6.28a.
+1. Continue 6.28 with OFIR-58; OFIR-56 and OFIR-57 are done as 6.28a and 6.28b.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

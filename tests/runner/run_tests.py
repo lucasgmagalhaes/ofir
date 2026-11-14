@@ -676,22 +676,24 @@ DEFAULT_LSP_SCRIPT = """\
 
 def check_lsp(cfg: Config, path: Path) -> Result:
     """`ofir lsp` is sent the messages of the test's `.lsp` file, one JSON
-    object per line, where `$URI` is the `.of` file's URI and `$TEXT` its
-    text as a JSON string; its messages, one per line with the URI written
-    `$URI` and the standard library's directory `$STD`, must match the `.out`
-    file, and it must exit with status 0."""
+    object per line, where `$URI` is the `.of` file's URI, `$DIR` its
+    directory's and `$TEXT` its text as a JSON string; its messages, one per
+    line with the URI written `$URI`, the directory `$DIR` and the standard
+    library's directory `$STD`, must match the `.out` file, and it must exit
+    with status 0."""
     if cfg.stage == 0:
         return Result(path, "skip", "`lsp` is a stage 1 command")
     script_path = path.with_suffix(".lsp")
     script = script_path.read_text() if script_path.exists() else DEFAULT_LSP_SCRIPT
     uri = path.resolve().as_uri()
+    dir_uri = path.parent.resolve().as_uri()
     std = Path(os.environ.get("OFIR_STD", Path(__file__).resolve().parents[2] / "std"))
     std_uri = std.resolve().as_uri()
     text = json.dumps(path.read_text())
     framed = ""
     for line in script.replace("\\\n", "").splitlines():
         if line.strip():
-            body = line.replace("$URI", uri).replace("$TEXT", text)
+            body = line.replace("$URI", uri).replace("$DIR", dir_uri).replace("$TEXT", text)
             framed += f"Content-Length: {len(body.encode())}\r\n\r\n{body}"
     proc = run_process(compiler_cmd(cfg, "lsp"), input_text=framed)
     if proc.returncode != 0:
@@ -703,7 +705,8 @@ def check_lsp(cfg: Config, path: Path) -> Result:
     while rest:
         header, _, rest = rest.partition(b"\n\n")
         length = int(header.split(b":")[1])
-        messages.append(rest[:length].decode().replace(uri, "$URI").replace(std_uri, "$STD"))
+        message = rest[:length].decode().replace(uri, "$URI").replace(dir_uri, "$DIR")
+        messages.append(message.replace(std_uri, "$STD"))
         rest = rest[length:]
     return compare_output(cfg, path, "".join(m + "\n" for m in messages), ".out")
 

@@ -1,7 +1,7 @@
-{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]}},"serverInfo":{"name":"ofir"}}}
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]},"hoverProvider":true,"referencesProvider":true,"renameProvider":true},"serverInfo":{"name":"ofir"}}}
 {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[{"range":{"start":{"line":3,"character":10},"end":{"line":3,"character":11}},"severity":2,"code":"W0001","source":"ofir","message":"unused variable `x`: use it, or start its name with `_`"},{"range":{"start":{"line":3,"character":19},"end":{"line":3,"character":25}},"severity":1,"code":"E0300","source":"ofir","message":"mismatched types: expected int, found str"}]}}
 {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[]}}
-{"jsonrpc":"2.0","id":"h","error":{"code":-32601,"message":"`textDocument/hover` is not supported"}}
+{"jsonrpc":"2.0","id":"h","result":null}
 {"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"the message is not valid JSON"}}
 {"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[]}}
 {"jsonrpc":"2.0","id":2,"result":null}
