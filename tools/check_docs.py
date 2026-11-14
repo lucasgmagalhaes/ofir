@@ -194,11 +194,11 @@ def check_file(path: Path, problems: list) -> None:
     first = next((line for line in lines if line.strip()), "")
     if not first.strip().startswith("/**") or "@module" not in "\n".join(lines[:3]):
         problems.append(f"{rel}:1: the file does not start with a /** @module */ comment")
-    elif not str(rel).startswith("std/core/"):
+    elif not rel.as_posix().startswith("std/core/"):
         end = next((n for n, line in enumerate(lines) if "*/" in line), 0)
         if not any(line.strip().startswith("* @example") for line in lines[:end + 1]):
             problems.append(f"{rel}:1: the module comment has no @example")
-    complexity = str(rel).startswith(COMPLEXITY)
+    complexity = rel.as_posix().startswith(COMPLEXITY)
     enum_depth = None   # brace depth inside a public enum, for its variants
     depth = 0
     for i, line in enumerate(lines):
