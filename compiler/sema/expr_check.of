@@ -70,6 +70,7 @@ import sema.struct_exprs.checkTupleField
 import sema.structs.isCopy
 import sema.types.BOOL
 import sema.types.ERROR
+import sema.types.F32
 import sema.types.F64
 import sema.types.FN_BORROWED
 import sema.types.FN_C
@@ -428,7 +429,42 @@ pub fn checkBinary(c: mut Checker, p: Program, span: Span, op: Op, lhs: &Expr, r
     if !operandOk(c, p, ty, op) && ty != ERROR {
         return operatorError(c, span, ty)
     }
+    if compares && ty != ERROR && ty != F32 && ty != F64 && samePlace(lhs, rhs) {
+        const always = op == Op.Eq || op == Op.Le || op == Op.Ge
+        c.r.diags.warning("W0008", span, "a value is compared with itself")
+        c.r.diags.note("the result is always `{always}`")
+    }
     return if compares { BOOL } else { ty }
+}
+
+/**
+ * Whether two expressions name the same place: the same local, `self`, or
+ * the same field of one (`x == x`, `a.b = a.b`; W0008, ADR 0071).
+ *
+ * @param a one
+ * @param b the other
+ * @returns true when they do
+ */
+pub fn samePlace(a: &Expr, b: &Expr) bool {
+    return match a.kind {
+        ExprKind.Ident(x) => match b.kind {
+            ExprKind.Ident(y) => x.0 == y.0
+            _ => false
+        }
+        ExprKind.SelfValue => match b.kind {
+            ExprKind.SelfValue => true
+            _ => false
+        }
+        ExprKind.Field(base, x, _) => match b.kind {
+            ExprKind.Field(other, y, _) => x.0 == y.0 && samePlace(&*base, &*other)
+            _ => false
+        }
+        ExprKind.TupleField(base, i) => match b.kind {
+            ExprKind.TupleField(other, j) => i == j && samePlace(&*base, &*other)
+            _ => false
+        }
+        _ => false
+    }
 }
 
 fn cast(c: mut Checker, p: Program, e: &Expr, value: &Expr, to: &TypeExpr) int {

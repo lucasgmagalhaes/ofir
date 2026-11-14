@@ -1,0 +1,11 @@
+// The errors of the `lints` of `ofir.json` (ADR 0071).
+{
+  "name": "lints_bad",
+  "build": {"kind": "exe", "root": "main.of"},
+  "lints": {
+    "unused": "allow",
+    "style": "deny",        // error[E0910]: unknown lint category `style`
+    "suspicious": "loud",   // error[E0910]: the level of `suspicious` must be "allow", "warn" or "deny"
+    "deprecated": 2,        // error[E0910]: the level of `deprecated` must be "allow", "warn" or "deny"
+  },
+}

@@ -1,0 +1,38 @@
+// requires: stage1
+// Suspicious code (W0008, ADR 0071): a place compared with or assigned
+// to itself. Floats are not reported: `x != x` tests for NaN.
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn same(a: int, b: int) bool {
+    return a == a   // warning[W0008]: a value is compared with itself
+    // note: the result is always `true`
+}
+
+fn less(p: Point) bool {
+    return p.x < p.x   // warning[W0008]: a value is compared with itself
+    // note: the result is always `false`
+}
+
+fn isNan(f: f64) bool {
+    return f != f
+}
+
+fn reset(n: int) int {
+    let m = n
+    m = m   // warning[W0008]: a value is assigned to itself
+    return m
+}
+
+@allow(suspicious)
+fn allowed(a: int) bool {
+    return a >= a
+}
+
+fn main() {
+    println("{same(1, 2)} {less(Point{x: 1, y: 2})} {isNan(1.0)} {reset(3)} {allowed(1)}")
+    println("{1 == 1}")
+}

@@ -1,4 +1,4 @@
-// A project whose dependency the editor changes before saving it (OFIR-57).
+// requires: stage1 (a dependency edited before it is saved, OFIR-57)
 import shapes.area
 
 fn main() {

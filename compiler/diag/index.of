@@ -20,6 +20,43 @@ pub copy enum Severity {
     Warning
 }
 
+/** A lint level: its warnings are silenced. */
+pub const LINT_ALLOW = 0
+/** A lint level: its warnings are reported as warnings. */
+pub const LINT_WARN = 1
+/** A lint level: its warnings are reported as errors. */
+pub const LINT_DENY = 2
+
+// The level of a warning code in one file.
+struct LintLevel {
+    file: int
+    code: str
+    level: int
+}
+
+/**
+ * The warning codes of a lint category, the name `@allow` and the
+ * manifest's `lints` give it; empty for an unknown one.
+ *
+ * @param category as `unused`
+ * @returns its codes
+ */
+pub fn lintCodes(category: str) List<str> {
+    return if category == "unused" {
+        ["W0001", "W0002", "W0003"]
+    } else if category == "unreachable" {
+        ["W0004"]
+    } else if category == "deprecated" {
+        ["W0006"]
+    } else if category == "naming" {
+        ["W0007"]
+    } else if category == "suspicious" {
+        ["W0008"]
+    } else {
+        []
+    }
+}
+
 /**
  * How diagnostics are written.
  */
@@ -94,6 +131,8 @@ pub struct Diagnostics {
     // The spans where a warning code is silenced (`@allow`, spec 12.1).
     allowedCodes: List<str>
     allowedSpans: List<Span>
+    // The lint levels of a package's manifest (ADR 0071), by file.
+    levels: List<LintLevel>
     /** `--deny-warnings`: warnings are reported as errors. */
     pub denyWarnings: bool
     // The last warning was silenced: its notes are dropped too.
@@ -106,7 +145,7 @@ pub struct Diagnostics {
      */
     pub fn new() Diagnostics {
         return Diagnostics{items: [], errors: 0, allowedCodes: [], allowedSpans: [],
-                           denyWarnings: false, silenced: false}
+                           levels: [], denyWarnings: false, silenced: false}
     }
 
     /**
@@ -128,12 +167,36 @@ pub struct Diagnostics {
      * @param message what is suspicious
      */
     pub fn warning(mut self, code: str, span: Span, message: move str) {
-        if self.isAllowed(code, span) {
+        const level = self.levelOf(code, span.file)
+        if level == LINT_ALLOW || self.isAllowed(code, span) {
             self.silenced = true
             return
         }
-        self.add(if self.denyWarnings { Severity.Error } else { Severity.Warning }, code, span,
-                 message)
+        const deny = self.denyWarnings || level == LINT_DENY
+        self.add(if deny { Severity.Error } else { Severity.Warning }, code, span, message)
+    }
+
+    /**
+     * Sets the level of a warning code in a file: the `lints` of the
+     * manifest of the package the file is in (ADR 0071).
+     *
+     * @param file the file
+     * @param code the warning's code, as `W0008`
+     * @param level `LINT_ALLOW`, `LINT_WARN` or `LINT_DENY`
+     */
+    pub fn setLevel(mut self, file: FileId, code: str, level: int) {
+        self.levels.push(LintLevel{file: file.0, code: code.toOwned(), level})
+    }
+
+    // The level of `code` in `file`: the last one set, `LINT_WARN` if none.
+    fn levelOf(self, code: str, file: FileId) int {
+        let level = LINT_WARN
+        for i in 0..self.levels.len() {
+            if self.levels[i].file == file.0 && self.levels[i].code == code {
+                level = self.levels[i].level
+            }
+        }
+        return level
     }
 
     /**

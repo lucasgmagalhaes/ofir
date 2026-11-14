@@ -81,6 +81,7 @@ starts with the same word as the record's status line.
 | [0068](0068-webassembly.md) | No WebAssembly target in version 1 | Accepted |
 | [0069](0069-freestanding.md) | No freestanding or embedded target in version 1 | Accepted |
 | [0070](0070-language-adapters.md) | Other languages reach Ofir through the C boundary | Accepted |
+| [0071](0071-lint-levels.md) | Lint categories with levels per item, package and command | Accepted |
 
 ## Template
 

@@ -151,6 +151,16 @@ fn ownerOf(ld: Loader, name: str) int {
     return if p > 0 { p } else { 0 }
 }
 
+// Gives `file` the lint levels of package `p`'s manifest (ADR 0071).
+fn applyLints(ld: Loader, front: mut Front, p: int, file: FileId) {
+    if p < 0 {
+        return
+    }
+    for i in 0..ld.packages[p].lints.len() {
+        front.diags.setLevel(file, ld.packages[p].lints[i].code, ld.packages[p].lints[i].level)
+    }
+}
+
 fn firstSegment(name: str) str {
     let i = 0
     for b in name.bytes() {
@@ -178,6 +188,7 @@ fn addTestFile(ld: Loader, front: mut Front, module: mut Module, name: str, path
     const Option.Some(file) = front.load(test) else {
         return
     }
+    applyLints(ld, front, ownerOf(ld, name), file)
     const Option.Some(tests) = front.parseFileFrom(file, module.nodeCount) else {
         return
     }
@@ -246,6 +257,9 @@ fn loadModule(ld: mut Loader, front: mut Front, name: str, path: str) {
     const Option.Some(file) = front.load(path) else {
         return
     }
+    if !name.startsWith("std") {
+        applyLints(ld, front, ownerOf(ld, name), file)
+    }
     if const Option.Some(parsed) = front.parseFile(file) {
         let module = parsed
         // std and dependencies only as the root
@@ -271,6 +285,7 @@ fn addDocTests(ld: mut Loader, front: mut Front, name: str, file: FileId) {
         const runner = if tests[i].run { "doctest" } else { "compiled" }
         const source = tests[i].text.replace("fn doctest()", "fn {runner}()")
         const id = front.map.add(path.clone(), source)
+        applyLints(ld, front, 0, id)
         if const Option.Some(parsed) = front.parseDocTest(id) {
             let module = parsed
             stripCfg(module, &ld.target, front.names, front.diags)
@@ -491,6 +506,7 @@ pub fn loadProgram(input: str, root: move Module, front: mut Front,
     const name = rootModuleName(ld, input, inProject)
     let module = root
     const rootFile = module.file
+    applyLints(ld, front, 0, rootFile)
     addTestFile(ld, front, module, name, input)
     stripCfg(module, &ld.target, front.names, front.diags)
     ld.modules.push(ProgramModule{name: name.clone(), module})
