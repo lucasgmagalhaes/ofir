@@ -400,6 +400,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.27 | FFI, native libraries, target tiers and cross compilation | OFIR-48 to OFIR-55 | Real foreign consumers and supported-target execution pass |
 | 6.27a | C FFI contract (ADR 0063): `extern "C" fn(A) R` pointer types (only `extern "C"` functions coerce, E0823; calls are unsafe), `os.errno` and `os.setErrno`, `SliceMut.asMutPtr` for buffers C fills, ownership and foreign-thread rules; fixtures for `qsort`, user-data callbacks, buffers, errno and an export called from a C thread; variadics and unions stay decided as unsupported | OFIR-48 | **done** |
 | 6.27b | Native libraries (ADR 0064): `ofir build --lib=static` and `--lib=shared` (a static library is one object; a shared one links the runtime, built `-fPIC`), the generated C header with the type mapping and `@repr(C)` structs, stdout flushed at exit; C consumers of a static and a shared library in tests/run/ffi | OFIR-49 | **done** |
+| 6.27c | Target tiers (ADR 0065): tier 1 is `x86_64-linux-gnu`, `aarch64-apple-darwin` and `x86_64-w64-windows-gnu`, each built and tested in CI; tier 2 is `aarch64-linux-gnu` and `x86_64-apple-darwin`; only 64-bit little-endian targets; `@cfg`, `os.name()` and layout describe the target (spec 13.8) | OFIR-50 | **done** |
 | 6.28 | Formatting, LSP, diagnostics, debugging, profiling and documentation | OFIR-56 to OFIR-63 | End-to-end developer workflows work on supported platforms |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
@@ -439,7 +440,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.27 with OFIR-50; OFIR-48 is 6.27a and OFIR-49 is 6.27b.
+1. Continue 6.27 with OFIR-51; OFIR-48 to OFIR-50 are 6.27a to 6.27c.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

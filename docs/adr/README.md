@@ -75,6 +75,7 @@ starts with the same word as the record's status line.
 | [0062](0062-library-api-contracts.md) | The documented contract of public library APIs | Accepted |
 | [0063](0063-c-ffi-contract.md) | The C FFI contract: function pointers, ownership, errno, threads | Accepted |
 | [0064](0064-native-libraries.md) | Static and shared libraries and C headers | Accepted |
+| [0065](0065-target-tiers.md) | Target support tiers and the host/target distinction | Accepted |
 
 ## Template
 

@@ -116,3 +116,26 @@ struct, or a value containing one) is aligned to it: in `Box<T>`,
 Custom allocators passed explicitly to collections are rejected: arenas
 in `std.arena` serve that need
 ([ADR 0049](../adr/0049-arenas-not-allocator-parameters.md)).
+
+## 13.8 Targets
+
+The *host* is the machine the compiler runs on; the *target* is the
+machine the program runs on. The layout rules of this chapter, `@cfg`'s
+`os` and `arch` (12.4), `os.name()` and `os.arch()` describe the target.
+There is no cross compilation yet, so the target is the host
+([ADR 0065](../adr/0065-target-tiers.md)).
+
+Every supported target is 64-bit and little-endian. Tier 1 targets are
+built and tested on every change; tier 2 targets have the code for them
+but no CI:
+
+| Tier | Target | C ABI | OS (oldest tested) | Toolchain |
+|------|--------|-------|--------------------|-----------|
+| 1 | `x86_64-linux-gnu` | SysV x86-64 | Ubuntu 24.04, glibc | clang 17 to 21 |
+| 1 | `aarch64-apple-darwin` | AAPCS64 (Apple) | macOS 15 | clang 17 to 21 |
+| 1 | `x86_64-w64-windows-gnu` | Microsoft x64 | Windows Server 2025 | MinGW-w64 clang |
+| 2 | `aarch64-linux-gnu` | AAPCS64 | | clang 17 to 21 |
+| 2 | `x86_64-apple-darwin` | SysV x86-64 | | clang 17 to 21 |
+
+Other targets, among them every 32-bit and big-endian one, are
+unsupported.
