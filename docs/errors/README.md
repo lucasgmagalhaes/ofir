@@ -182,6 +182,7 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0820 | the memory ordering of an atomic operation must be a constant (spec 14.4) | stage 0 |
 | E0821 | this atomic operation does not allow the ordering `x`: a load cannot release, a store cannot acquire (spec 14.4) | stage 0 |
 | E0822 | a `@threadLocal` global must have a type without drop (spec 11.5) | stage 0 |
+| E0823 | a value of type `extern "C" fn` must be an `extern "C"` function, not a closure or an Ofir function (spec 11.3) | stage 1 |
 | E0900 | cannot read source file | stage 0 |
 | E0901 | X is not supported yet (a feature this compiler version does not implement) | stage 0 |
 | E0902 | the toolchain failed: clang or the runtime library is missing, or clang reported an error | stage 0 |
