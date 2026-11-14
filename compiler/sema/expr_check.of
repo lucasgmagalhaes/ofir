@@ -53,6 +53,7 @@ import sema.check_types.typeParameter
 import sema.check_union.coerceToUnion
 import sema.check_union.unionMembers
 import sema.check_unsafe.checkDeref
+import sema.check_unsafe.isCFunction
 import sema.check_unsafe.isUnsafeFn
 import sema.check_unsafe.pointerCast
 import sema.check_unsafe.requireUnsafe
@@ -71,6 +72,7 @@ import sema.types.BOOL
 import sema.types.ERROR
 import sema.types.F64
 import sema.types.FN_BORROWED
+import sema.types.FN_C
 import sema.types.FN_OWNED
 import sema.types.FN_SEND
 import sema.types.I64
@@ -220,6 +222,9 @@ fn checkFormatSpec(c: mut Checker, part: &Expr, ty: int, text: str) {
 // A named function used as a value (spec 10.2): the expected function type
 // when the signature matches it, else `fn(A) R`.
 fn fnValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
+    if c.types.isCFn(expected) {
+        return cFnValue(c, p, id, span, expected)
+    }
     const decl = fnOf(p, c.loc(id))
     if decl.typeParams.len() > 0 {
         return c.unsupported(span, "generic functions as values are")
@@ -248,6 +253,20 @@ fn fnValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
     const lent = c.types.fnValueTypeWith(params, ret, FN_BORROWED | FN_SEND)
     const fits = expected == owned || expected == send || expected == lent   // it captures nothing
     return if fits { expected } else { value }
+}
+
+// A named function where a C function pointer is expected (spec 11.3):
+// only an `extern "C"` function (E0823); its signature as such a pointer.
+fn cFnValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
+    const name = c.text(c.def(id).name)
+    if !isCFunction(c, p, id) || fnOf(p, c.loc(id)).typeParams.len() > 0 {
+        c.error("E0823", span, "`{name}` is not an `extern \"C\"` function, so it cannot be a "
+                + "value of type `{c.typeName(expected)}`")
+        return ERROR
+    }
+    const sig = fnSignature(c, p, id)
+    const params = c.types.get(sig).args.clone()
+    return c.types.fnValueTypeWith(params, c.types.get(sig).inner, FN_C)
 }
 
 fn defValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
@@ -566,6 +585,9 @@ fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
     }
     const Res.Def(id) = nameRes(c, callee) else {
         const ty = checkExpr(c, p, callee, ERROR)
+        if c.types.isCFn(ty) {   // the pointer may be invalid (spec 11.3)
+            requireUnsafe(c, e.span, "calling a C function pointer")
+        }
         if c.types.kind(ty) == TyKind.Fn {
             return checkArgsOf(c, p, e.span, args, ty)
         }

@@ -43,6 +43,11 @@ import syntax.ast.TypeKind
  */
 pub fn checkClosure(c: mut Checker, p: Program, e: &Expr, params: &List<Param>,
                     ret: &Option<TypeExpr>, body: &Expr, isMove: bool, expected: int) int {
+    if c.types.isCFn(expected) {   // C cannot pass an environment (spec 11.3)
+        c.error("E0823", e.span, "a closure cannot be a value of type "
+                + "`{c.typeName(expected)}`: only an `extern \"C\"` function can")
+        return ERROR
+    }
     const hinted = c.types.kind(expected) == TyKind.Fn && c.types.get(expected).data != 0 &&
                    c.types.get(expected).args.len() == params.len()
     let types: List<int> = []
