@@ -34,6 +34,7 @@ import sema.expr_check.checkUnsafeBlock
 import sema.expr_check.coerce
 import sema.expr_check.nameRes
 import sema.expr_check.requireTypeAt
+import sema.expr_check.samePlace
 import sema.program.Program
 import sema.types.BOOL
 import sema.types.ERROR
@@ -146,6 +147,10 @@ fn assignStmt(c: mut Checker, p: Program, s: &Stmt, op: Op, target: &Expr, value
     checkPlace(c, p, target)
     if op == Op.Assign {
         coerce(c, p, value, ty)
+        if ty != ERROR && samePlace(target, value) {
+            c.r.diags.warning("W0008", s.span, "a value is assigned to itself")
+            c.r.diags.help("remove the assignment: it changes nothing")
+        }
         return UNIT
     }
     // `x op= y` checks like `x op y`.
