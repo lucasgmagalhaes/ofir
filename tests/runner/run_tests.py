@@ -52,6 +52,9 @@ STATUS_RE = re.compile(r"^//\s*status:\s*(\S+)\s*$", re.MULTILINE)
 # A C file next to a run test, built into `lib<name>.a` for the test's
 # `@link("<name>")`, e.g. `// c: c_calls.c` (a cross-language fixture).
 C_FIXTURE_RE = re.compile(r"^//\s*c:\s*(\S+)\s*$", re.MULTILINE)
+# A C program that uses the library a run test builds with `// flags:
+# --lib=static` or `--lib=shared`, e.g. `// consumer: use_calc.c` (ADR 0064).
+CONSUMER_RE = re.compile(r"^//\s*consumer:\s*(\S+)\s*$", re.MULTILINE)
 PANIC_RE = re.compile(r"^//\s*panic:\s*(.*?)\s*$", re.MULTILINE)
 CHECK_RE = re.compile(r"^//\s*(CHECK|CHECK-NOT):\s*(.*?)\s*$")
 TOP_LEVEL_FN_RE = re.compile(r"^(pub\s+)?(unsafe\s+)?fn\b")
@@ -497,7 +500,50 @@ def test_flags(source: str) -> list[str]:
     return [flag for line in FLAGS_RE.findall(source) for flag in line.split()]
 
 
+def run_consumer(cfg: Config, path: Path, source: str, consumer: str) -> Result:
+    """Builds the test as a library, then a C program that includes its
+    generated header and links it, and runs that program. A `.h` file next
+    to the test is the header it expects."""
+    rel = path.relative_to(cfg.tests_dir).with_suffix("").as_posix().replace("/", "_")
+    out = cfg.tmp / "lib" / rel
+    out.mkdir(parents=True, exist_ok=True)
+    flags = test_flags(source)
+    shared = "--lib=shared" in flags
+    ext = ("dll" if os.name == "nt" else "dylib" if sys.platform == "darwin" else "so")
+    lib = out / (f"lib{path.stem}." + (ext if shared else "a"))
+    proc = run_process(compiler_cmd(cfg, "build", str(path), "--deny-warnings", "-o", str(lib),
+                                    *flags), env=test_env(cfg, path))
+    if proc.returncode != 0:
+        return Result(path, "fail", describe(proc))
+    header = out / f"{path.stem}.h"
+    expected = path.with_suffix(".h")
+    if expected.exists():
+        result = compare_output(cfg, path, header.read_text(), ".h")
+        if result.status != "pass":
+            return result
+    root = Path(__file__).resolve().parents[2]
+    runtime = os.environ.get("OFIR_RUNTIME") or str(root / "build" / "libofir_rt.a")
+    clang, _ = c_tools()
+    exe = out / "consumer"
+    args = [clang, "-std=c11", "-Wall", "-Werror", "-I", str(out), str(path.parent / consumer),
+            str(lib)]
+    if not shared:
+        args += [runtime, "-lm", "-lpthread"]
+    proc = run_process(args + ["-o", str(exe)])
+    if proc.returncode != 0:
+        return Result(path, "fail", f"cannot build {consumer}\n" + describe(proc))
+    if not exe.exists() and exe.with_suffix(".exe").exists():
+        exe = exe.with_suffix(".exe")
+    proc = run_process([str(exe)], env=test_env(cfg, path))
+    if proc.returncode != 0:
+        return Result(path, "fail", f"{consumer} failed\n" + describe(proc))
+    return compare_output(cfg, path, proc.stdout, ".out")
+
+
 def check_run(cfg: Config, path: Path, source: str) -> Result:
+    consumer = CONSUMER_RE.search(source)
+    if consumer:
+        return run_consumer(cfg, path, source, consumer.group(1))
     template = path.parent / "ofir.lock.in"
     if path.name == "main.of" and template.exists():
         write_lock(cfg, template)
