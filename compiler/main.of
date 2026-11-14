@@ -622,7 +622,7 @@ fn archive(opts: &Options, files: &List<str>, cached: &List<str>, lib: str) bool
 fn directoryOf(path: str) str {
     let end = 0
     for i in 0..path.len() {
-        if path[i] == b'/' {
+        if path[i] == b'/' || path[i] == b'\\' {   // Windows paths use either
             end = i + 1
         }
     }
