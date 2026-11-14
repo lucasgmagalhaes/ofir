@@ -387,6 +387,28 @@ name before the position, sorted. The rest of the document must parse, and
 after `value.` it must also resolve: otherwise only the keywords are
 offered.
 
+Hover (`textDocument/hover`) answers with the declaration of the name at the
+position, as Markdown: its first line without the body (the whole line of a
+local), in an `ofir` code block, then the text of the `/** ... */` comment
+above it. The position may also be on the name of a declaration that is
+used in the document.
+
+References (`textDocument/references`) checks every open document, each as
+the root of its program, and gives the places where the name at the
+position is used for the same declaration, with the declaration's own name
+when `context.includeDeclaration` is true: sorted by file and offset,
+without duplicates. Rename (`textDocument/rename`) answers with a
+`WorkspaceEdit` that replaces each of those places with the new name. It
+refuses, with -32602, a new name that is not a name or is a keyword, and,
+with -32803, a name it does not link and a declaration outside the open
+documents, such as one in std. Uses in files that are not open are not
+found, so an editor opens the files to rename across.
+
+Unsaved edits reach every phase: a document of a dependency (a `path` or git
+package) that is open is read in place of its file, so the documents that
+use it are checked against the unsaved text once they change
+(`tests/lsp/packages`).
+
 Other requests are answered with the error -32601 (method not found), and a
 message that is not JSON with -32700.
 
@@ -399,7 +421,7 @@ the order of its edits.
 
 `tests/lsp` holds the tests: a `.of` file, an optional `.lsp` file with the
 client's messages, and the server's messages in `.out`, where `$URI` is the
-document and `$STD` the standard library's directory.
+document, `$DIR` its directory and `$STD` the standard library's directory.
 
 ## 3. Build profiles
 
