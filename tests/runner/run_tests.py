@@ -408,8 +408,10 @@ def missing_notes(cfg: Config, path: Path, source: str) -> list[str]:
             continue
         d = json.loads(text)
         for note in d.get("notes", []):
-            message = note["message"].replace(str(path.resolve()), path.name)
-            given.append((d["line"], d["code"], message.replace(str(path), path.name)))
+            # Any spelling of the test's path, with backslashes too, ends in its name.
+            message = re.sub(r"[^\s`]*[\\/]" + re.escape(path.name), path.name,
+                             note["message"])
+            given.append((d["line"], d["code"], message))
     problems = []
     for line, code, note in notes:
         if not any((g[0], g[1]) == (line, code) and note in g[2] for g in given):
