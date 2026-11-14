@@ -1,0 +1,837 @@
+/**
+ * @module
+ * `std.cli`: command-line arguments, help, completions, exit codes and
+ * color (ADR 0060).
+ *
+ * A `Command` declares the flags, options and positionals of a program;
+ * `parse` reads the arguments into `Matches`, and `parseOrExit` also
+ * prints help, the version or a usage error and exits. `--help` and `-h`
+ * are always known, and so are `--version` and `-V` once a version is set.
+ *
+ * @example
+ * ```ofir
+ * import std.cli
+ * import std.testing.assert
+ *
+ * let cmd = cli.Command.new("greet", "Print a greeting")
+ * cmd.flag("loud", "l", "Shout it")
+ * cmd.option("name", "n", "NAME", "Who to greet")
+ * match cmd.parse(["-l", "--name=Ada"]) {
+ *     Result.Ok(m) => assert(m.flag("loud") && (m.value("name") ?? "?") == "Ada"),
+ *     Result.Err(_) => assert(false)
+ * }
+ * ```
+ */
+
+import std.io
+import std.os
+
+/** The exit status of a program that failed (`cli.fail`). */
+pub const EXIT_FAILURE: int = 1
+/** The exit status of a command line that is not valid (`parseOrExit`). */
+pub const EXIT_USAGE: int = 2
+
+/**
+ * Why `parse` returned no `Matches`.
+ */
+pub copy enum ErrorKind {
+    /** `--help` or `-h`: the message is the help text. */
+    Help
+    /** `--version` or `-V`: the message is the name and version. */
+    Version
+    /** The arguments are not valid: the message says why. */
+    Usage
+}
+
+/**
+ * The result of `parse` when it has no `Matches`.
+ */
+pub struct CliError {
+    /** Help, version or a usage error. */
+    pub kind: ErrorKind
+    /** The text to print. */
+    pub message: str
+}
+
+/**
+ * A shell that `completion` writes a script for.
+ */
+pub copy enum Shell {
+    /** Source the script, or put it in `bash-completion/completions`. */
+    Bash
+    /** Put the script in a directory of `$fpath` as `_name`. */
+    Zsh
+    /** Put the script in `~/.config/fish/completions/name.fish`. */
+    Fish
+}
+
+// A flag (no value) or an option (a value): `long` without `--`, `short`
+// one character or empty.
+struct Spec {
+    long: str
+    short: str
+    help: str
+    value: str   // the placeholder of the value; empty for a flag
+    fallback: str
+    hasFallback: bool
+}
+
+struct Positional {
+    name: str
+    help: str
+    required: bool
+}
+
+/**
+ * A command: its name, its arguments and how to describe them.
+ */
+pub struct Command {
+    /** The name of the program, as the user types it. */
+    pub name: str
+    /** A one-line summary for the help text. */
+    pub about: str
+    /** The version `--version` prints; empty for none. */
+    pub version: str
+    specs: List<Spec>
+    positionals: List<Positional>
+    restName: str
+    restHelp: str
+
+    /**
+     * A command with no arguments yet.
+     *
+     * @param name the name of the program
+     * @param about a one-line summary
+     * @returns the command
+     */
+    pub fn new(name: str, about: str) Command {
+        return Command {
+            name: name.clone(), about: about.clone(), version: "".toOwned(),
+            specs: [], positionals: [], restName: "".toOwned(), restHelp: "".toOwned()
+        }
+    }
+
+    /**
+     * Sets the version, which adds `--version` and `-V`.
+     *
+     * @param version the version, such as `1.2.0`
+     */
+    pub fn setVersion(mut self, version: str) {
+        self.version = version.clone()
+    }
+
+    /**
+     * Adds a flag, which takes no value.
+     *
+     * @param long the name after `--`
+     * @param short one character after `-`, or `""` for none
+     * @param help what it does
+     */
+    pub fn flag(mut self, long: str, short: str, help: str) {
+        self.specs.push(Spec {
+            long: long.clone(), short: short.clone(), help: help.clone(),
+            value: "".toOwned(), fallback: "".toOwned(), hasFallback: false
+        })
+    }
+
+    /**
+     * Adds an option, which takes a value: `--long=v`, `--long v`, `-sv` or
+     * `-s v`.
+     *
+     * @param long the name after `--`
+     * @param short one character after `-`, or `""` for none
+     * @param value the placeholder of the value in the help, such as `FILE`
+     * @param help what it does
+     */
+    pub fn option(mut self, long: str, short: str, value: str, help: str) {
+        self.specs.push(Spec {
+            long: long.clone(), short: short.clone(), help: help.clone(),
+            value: value.clone(), fallback: "".toOwned(), hasFallback: false
+        })
+    }
+
+    /**
+     * Gives the option added last a default, used when it is not given.
+     *
+     * @param value the default
+     */
+    pub fn withDefault(mut self, value: str) {
+        const last = self.specs.len() - 1
+        self.specs[last].fallback = value.clone()
+        self.specs[last].hasFallback = true
+    }
+
+    /**
+     * Adds a positional argument, after the ones added before it.
+     *
+     * @param name its name in the help and in `Matches.positional`
+     * @param help what it is
+     * @param required whether a missing one is a usage error
+     */
+    pub fn positional(mut self, name: str, help: str, required: bool) {
+        self.positionals.push(Positional {
+            name: name.clone(), help: help.clone(), required: required
+        })
+    }
+
+    /**
+     * Accepts any number of positionals after the declared ones.
+     *
+     * @param name their name in the help
+     * @param help what they are
+     */
+    pub fn rest(mut self, name: str, help: str) {
+        self.restName = name.clone()
+        self.restHelp = help.clone()
+    }
+
+    fn findLong(self, long: str) int {
+        for i in 0..self.specs.len() {
+            if self.specs[i].long == long {
+                return i
+            }
+        }
+        return -1
+    }
+
+    fn findShort(self, short: str) int {
+        for i in 0..self.specs.len() {
+            if self.specs[i].short.len() > 0 && self.specs[i].short == short {
+                return i
+            }
+        }
+        return -1
+    }
+
+    // `--{long}` is unknown: the known option at most two edits away, if any.
+    fn unknownLong(self, long: str) CliError {
+        let best = ""
+        let bestDistance = 3
+        for i in 0..self.specs.len() {
+            const d = distance(long, self.specs[i].long)
+            if d < bestDistance {
+                best = self.specs[i].long.clone()
+                bestDistance = d
+            }
+        }
+        if bestDistance < 3 {
+            return usage("unknown option `--{long}`; did you mean `--{best}`?")
+        }
+        return usage("unknown option `--{long}`")
+    }
+
+    /**
+     * Reads the arguments.
+     *
+     * @param args the arguments, without the program name
+     * @returns the matches, or a `CliError` for help, the version or a usage
+     * error
+     */
+    pub fn parse(self, args: &[str]) Result<Matches, CliError> {
+        let m = Matches { names: [], values: [], posNames: [], posValues: [], restValues: [] }
+        let i = 0
+        let positionalOnly = false
+        let next = 0   // the next declared positional
+        for i < args.len() {
+            const arg = args[i].clone()
+            i += 1
+            if !positionalOnly && arg == "--" {
+                positionalOnly = true
+                continue
+            }
+            if !positionalOnly && arg.startsWith("--") {
+                const body = arg.sliceFrom(2)
+                let long = body.toOwned()
+                let inline = ""
+                let hasInline = false
+                if const Option.Some(at) = body.find("=") {
+                    long = body.slice(0, at).toOwned()
+                    inline = body.sliceFrom(at + 1)
+                    hasInline = true
+                }
+                if long == "help" {
+                    return Result.Err(CliError { kind: ErrorKind.Help, message: self.help() })
+                }
+                if long == "version" && self.version.len() > 0 {
+                    return Result.Err(self.versionError())
+                }
+                const k = self.findLong(long)
+                if k < 0 {
+                    return Result.Err(self.unknownLong(long))
+                }
+                if self.specs[k].value.len() == 0 {
+                    if hasInline {
+                        return Result.Err(usage("`--{long}` takes no value"))
+                    }
+                    m.add(long, "")
+                } else if hasInline {
+                    m.add(long, inline)
+                } else if i < args.len() {
+                    m.add(long, args[i])
+                    i += 1
+                } else {
+                    const value = self.specs[k].value.clone()
+                    return Result.Err(usage("`--{long}` needs a value <{value}>"))
+                }
+                continue
+            }
+            if !positionalOnly && arg.startsWith("-") && arg.len() > 1 {
+                let j = 1
+                for j < arg.len() {
+                    const short = arg.slice(j, j + 1)
+                    if short == "h" {
+                        return Result.Err(CliError { kind: ErrorKind.Help, message: self.help() })
+                    }
+                    if short == "V" && self.version.len() > 0 {
+                        return Result.Err(self.versionError())
+                    }
+                    const k = self.findShort(short)
+                    if k < 0 {
+                        return Result.Err(usage("unknown option `-{short}`"))
+                    }
+                    const long = self.specs[k].long.clone()
+                    if self.specs[k].value.len() == 0 {
+                        m.add(long, "")
+                        j += 1
+                        continue
+                    }
+                    if j + 1 < arg.len() {
+                        m.add(long, arg.sliceFrom(j + 1))
+                    } else if i < args.len() {
+                        m.add(long, args[i])
+                        i += 1
+                    } else {
+                        const value = self.specs[k].value.clone()
+                        return Result.Err(usage("`-{short}` needs a value <{value}>"))
+                    }
+                    break
+                }
+                continue
+            }
+            if next < self.positionals.len() {
+                m.posNames.push(self.positionals[next].name.clone())
+                m.posValues.push(arg)
+                next += 1
+            } else if self.restName.len() > 0 {
+                m.restValues.push(arg)
+            } else {
+                return Result.Err(usage("unexpected argument `{arg}`"))
+            }
+        }
+        for k in next..self.positionals.len() {
+            if self.positionals[k].required {
+                const name = self.positionals[k].name.clone()
+                return Result.Err(usage("missing argument <{name}>"))
+            }
+        }
+        for k in 0..self.specs.len() {
+            if self.specs[k].hasFallback && !m.flag(self.specs[k].long) {
+                m.add(self.specs[k].long, self.specs[k].fallback)
+            }
+        }
+        return Result.Ok(m)
+    }
+
+    /**
+     * Reads the process arguments, or prints and exits: help or the
+     * version to stdout with status 0, a usage error to stderr with
+     * `EXIT_USAGE`.
+     *
+     * @param args the arguments, without the program name
+     * @returns the matches
+     */
+    pub fn parseOrExit(self, args: &[str]) Matches {
+        match self.parse(args) {
+            Result.Ok(m) => {
+                return m
+            }
+            Result.Err(e) => {
+                match e.kind {
+                    ErrorKind.Usage => {
+                        const message = e.message.clone()
+                        const line = self.usageLine()
+                        eprintln("error: {message}\n\n{line}\n")
+                        eprintln("For more information, try `--help`.")
+                        os.exit(EXIT_USAGE)
+                    }
+                    _ => {
+                        print(e.message)
+                        os.exit(0)
+                    }
+                }
+            }
+        }
+    }
+
+    fn versionError(self) CliError {
+        const name = self.name.clone()
+        const version = self.version.clone()
+        return CliError { kind: ErrorKind.Version, message: "{name} {version}\n" }
+    }
+
+    /**
+     * The usage line: `Usage: name [OPTIONS] <FILE> [REST]...`.
+     *
+     * @returns the line, without a newline
+     */
+    pub fn usageLine(self) str {
+        const name = self.name.clone()
+        let out = "Usage: {name} [OPTIONS]"
+        for k in 0..self.positionals.len() {
+            out.push(" ")
+            out.push(positionalLabel(self.positionals[k]))
+        }
+        if self.restName.len() > 0 {
+            const rest = self.restName.clone()
+            out.push(" [{rest}]...")
+        }
+        return out
+    }
+
+    /**
+     * The help text: the summary, the usage line, the arguments and the
+     * options in aligned columns, with defaults.
+     *
+     * @returns the text, ending with a newline
+     */
+    pub fn help(self) str {
+        let left: List<str> = []
+        let right: List<str> = []
+        for k in 0..self.positionals.len() {
+            left.push(positionalLabel(self.positionals[k]))
+            right.push(self.positionals[k].help.clone())
+        }
+        if self.restName.len() > 0 {
+            const rest = self.restName.clone()
+            left.push("[{rest}]...")
+            right.push(self.restHelp.clone())
+        }
+        const arguments = left.len()
+        for k in 0..self.specs.len() {
+            const spec = self.specs[k].clone()
+            left.push(specLabel(spec))
+            if spec.hasFallback {
+                const help = spec.help.clone()
+                const fallback = spec.fallback.clone()
+                right.push("{help} [default: {fallback}]")
+            } else {
+                right.push(spec.help.clone())
+            }
+        }
+        left.push("-h, --help")
+        right.push("Print help")
+        if self.version.len() > 0 {
+            left.push("-V, --version")
+            right.push("Print version")
+        }
+        let width = 0
+        for k in 0..left.len() {
+            if left[k].len() > width {
+                width = left[k].len()
+            }
+        }
+        let out = str.new()
+        if self.about.len() > 0 {
+            out.push(self.about)
+            out.push("\n\n")
+        }
+        out.push(self.usageLine())
+        out.push("\n")
+        for k in 0..left.len() {
+            if k == 0 && arguments > 0 {
+                out.push("\nArguments:\n")
+            }
+            if k == arguments {
+                out.push("\nOptions:\n")
+            }
+            out.push("  ")
+            out.push(left[k])
+            if right[k].len() > 0 {
+                out.push(" ".repeat(width - left[k].len() + 2))
+                out.push(right[k])
+            }
+            out.push("\n")
+        }
+        return out
+    }
+
+    /**
+     * A script that completes the option names in a shell.
+     *
+     * @param shell the shell
+     * @returns the script
+     */
+    pub fn completion(self, shell: Shell) str {
+        return match shell {
+            Shell.Bash => self.bash(),
+            Shell.Zsh => self.zsh(),
+            Shell.Fish => self.fish()
+        }
+    }
+
+    fn allSpecs(self) List<Spec> {
+        let all = self.specs.clone()
+        all.push(Spec {
+            long: "help".toOwned(), short: "h".toOwned(), help: "Print help".toOwned(),
+            value: "".toOwned(), fallback: "".toOwned(), hasFallback: false
+        })
+        if self.version.len() > 0 {
+            all.push(Spec {
+                long: "version".toOwned(), short: "V".toOwned(), help: "Print version".toOwned(),
+                value: "".toOwned(), fallback: "".toOwned(), hasFallback: false
+            })
+        }
+        return all
+    }
+
+    fn bash(self) str {
+        const specs = self.allSpecs()
+        let words = str.new()
+        let valued = str.new()
+        for k in 0..specs.len() {
+            const long = specs[k].long.clone()
+            words.push(" --{long}")
+            if specs[k].short.len() > 0 {
+                const short = specs[k].short.clone()
+                words.push(" -{short}")
+            }
+            if specs[k].value.len() > 0 {
+                valued.push(" --{long}")
+                if specs[k].short.len() > 0 {
+                    const short = specs[k].short.clone()
+                    valued.push(" -{short}")
+                }
+            }
+        }
+        const fn_name = identifier(self.name)
+        const name = self.name.clone()
+        const all = words.sliceFrom(1)
+        let out = "_{fn_name}() \{\n"
+        out.push("    COMPREPLY=()\n")
+        out.push("    local cur=\"$\{COMP_WORDS[COMP_CWORD]\}\"\n")
+        if valued.len() > 0 {
+            const list = valued.sliceFrom(1)
+            out.push("    local prev=\"$\{COMP_WORDS[COMP_CWORD-1]\}\"\n")
+            out.push("    case \"$prev\" in\n")
+            out.push("        {list.replace(" ", "|")}) return ;;\n")
+            out.push("    esac\n")
+        }
+        out.push("    if [[ \"$cur\" == -* ]]; then\n")
+        out.push("        COMPREPLY=($(compgen -W \"{all}\" -- \"$cur\"))\n")
+        out.push("    fi\n")
+        out.push("\}\n")
+        out.push("complete -o default -F _{fn_name} {name}\n")
+        return out
+    }
+
+    fn zsh(self) str {
+        const specs = self.allSpecs()
+        const name = self.name.clone()
+        let out = "#compdef {name}\n\n_arguments \\\n"
+        for k in 0..specs.len() {
+            const long = specs[k].long.clone()
+            const help = zshEscape(specs[k].help)
+            const value = specs[k].value.clone()
+            const tail = if value.len() > 0 { ":{value}: " } else { "" }
+            const eq = if value.len() > 0 { "=" } else { "" }
+            out.push("    '--{long}{eq}[{help}]{tail}' \\\n")
+            if specs[k].short.len() > 0 {
+                const short = specs[k].short.clone()
+                out.push("    '-{short}[{help}]{tail}' \\\n")
+            }
+        }
+        out.push("    '*:file:_files'\n")
+        return out
+    }
+
+    fn fish(self) str {
+        const specs = self.allSpecs()
+        const name = self.name.clone()
+        let out = str.new()
+        for k in 0..specs.len() {
+            const long = specs[k].long.clone()
+            const help = specs[k].help.replace("\\", "\\\\").replace("'", "\\'")
+            out.push("complete -c {name}")
+            if specs[k].short.len() > 0 {
+                const short = specs[k].short.clone()
+                out.push(" -s {short}")
+            }
+            out.push(" -l {long}")
+            if specs[k].value.len() > 0 {
+                out.push(" -r")
+            }
+            out.push(" -d '{help}'\n")
+        }
+        return out
+    }
+}
+
+/**
+ * The arguments `parse` read.
+ */
+pub struct Matches {
+    names: List<str>    // the long name of each flag and option given, in order
+    values: List<str>   // its value; empty for a flag
+    posNames: List<str>
+    posValues: List<str>
+    restValues: List<str>
+
+    fn add(mut self, long: str, value: str) {
+        self.names.push(long.clone())
+        self.values.push(value.clone())
+    }
+
+    /**
+     * Whether a flag or option was given, or has a default.
+     *
+     * @param long its long name
+     * @returns true if it is present
+     */
+    pub fn flag(self, long: str) bool {
+        return self.count(long) > 0
+    }
+
+    /**
+     * How many times a flag or option was given, as in `-vvv`.
+     *
+     * @param long its long name
+     * @returns the count; 1 for a default
+     */
+    pub fn count(self, long: str) int {
+        let n = 0
+        for i in 0..self.names.len() {
+            if self.names[i] == long {
+                n += 1
+            }
+        }
+        return n
+    }
+
+    /**
+     * The last value of an option, or its default.
+     *
+     * @param long its long name
+     * @returns the value, or `None` when it was not given and has no default
+     */
+    pub fn value(self, long: str) Option<str> {
+        let i = self.names.len()
+        for i > 0 {
+            i -= 1
+            if self.names[i] == long {
+                return Option.Some(self.values[i].clone())
+            }
+        }
+        return Option.None
+    }
+
+    /**
+     * Every value of an option, in order.
+     *
+     * @param long its long name
+     * @returns the values; the default alone when it was not given
+     */
+    pub fn values(self, long: str) List<str> {
+        let out: List<str> = []
+        for i in 0..self.names.len() {
+            if self.names[i] == long {
+                out.push(self.values[i].clone())
+            }
+        }
+        return out
+    }
+
+    /**
+     * A declared positional argument.
+     *
+     * @param name its name
+     * @returns the value, or `None` when it was not given
+     */
+    pub fn positional(self, name: str) Option<str> {
+        for i in 0..self.posNames.len() {
+            if self.posNames[i] == name {
+                return Option.Some(self.posValues[i].clone())
+            }
+        }
+        return Option.None
+    }
+
+    /**
+     * The positionals after the declared ones (`Command.rest`).
+     *
+     * @returns them, in order
+     */
+    pub fn rest(self) List<str> {
+        return self.restValues.clone()
+    }
+}
+
+/**
+ * Prints `error: message` to stderr and exits with `EXIT_FAILURE`.
+ *
+ * @param message what went wrong
+ * @returns never: the process ends
+ */
+pub fn fail(message: str) ! {
+    eprintln("error: {message}")
+    os.exit(EXIT_FAILURE)
+}
+
+/**
+ * A text style: an ANSI SGR code.
+ */
+pub copy enum Style {
+    /** Bold or bright. */
+    Bold
+    /** Faint. */
+    Dim
+    /** Red text. */
+    Red
+    /** Green text. */
+    Green
+    /** Yellow text. */
+    Yellow
+    /** Blue text. */
+    Blue
+    /** Magenta text. */
+    Magenta
+    /** Cyan text. */
+    Cyan
+}
+
+/**
+ * The text in a style, when color is enabled.
+ *
+ * @param text the text
+ * @param style the style
+ * @param enabled whether to add the escape sequences (`colorEnabled`)
+ * @returns the text, wrapped in the sequences only when enabled
+ */
+pub fn paint(text: str, style: Style, enabled: bool) str {
+    if !enabled {
+        return text.clone()
+    }
+    const code = match style {
+        Style.Bold => 1,
+        Style.Dim => 2,
+        Style.Red => 31,
+        Style.Green => 32,
+        Style.Yellow => 33,
+        Style.Blue => 34,
+        Style.Magenta => 35,
+        Style.Cyan => 36
+    }
+    return "\x1b[{code}m{text}\x1b[0m"
+}
+
+/**
+ * Whether to color the output of a stream: the rule of `colorChoice`
+ * applied to `NO_COLOR`, `CLICOLOR_FORCE`, `TERM` and the stream.
+ *
+ * @param stream the stream the program writes to
+ * @returns true to color it
+ */
+pub fn colorEnabled(stream: io.Stream) bool {
+    return colorChoice(os.env("NO_COLOR"), os.env("CLICOLOR_FORCE"), os.env("TERM"),
+                       io.isTerminal(stream))
+}
+
+/**
+ * The rule of `colorEnabled` on given values: no color when `NO_COLOR` is
+ * not empty; color when `CLICOLOR_FORCE` is neither empty nor `0`; no
+ * color when `TERM` is `dumb`; otherwise color on a terminal.
+ *
+ * @param noColor the value of `NO_COLOR`
+ * @param force the value of `CLICOLOR_FORCE`
+ * @param term the value of `TERM`
+ * @param terminal whether the stream is a terminal
+ * @returns true to color
+ */
+pub fn colorChoice(noColor: Option<str>, force: Option<str>, term: Option<str>,
+                   terminal: bool) bool {
+    if const Option.Some(v) = noColor {
+        if v.len() > 0 {
+            return false
+        }
+    }
+    if const Option.Some(v) = force {
+        if v.len() > 0 && v != "0" {
+            return true
+        }
+    }
+    if const Option.Some(v) = term {
+        if v == "dumb" {
+            return false
+        }
+    }
+    return terminal
+}
+
+fn usage(message: str) CliError {
+    return CliError { kind: ErrorKind.Usage, message: message.clone() }
+}
+
+fn positionalLabel(p: Positional) str {
+    const name = p.name.clone()
+    return if p.required { "<{name}>" } else { "[{name}]" }
+}
+
+fn specLabel(spec: Spec) str {
+    const long = spec.long.clone()
+    let out = if spec.short.len() > 0 {
+        const short = spec.short.clone()
+        "-{short}, --{long}"
+    } else {
+        "    --{long}"
+    }
+    if spec.value.len() > 0 {
+        const value = spec.value.clone()
+        out.push(" <{value}>")
+    }
+    return out
+}
+
+// The name with every byte that cannot be in a shell function name as `_`.
+fn identifier(name: str) str {
+    const b = name.asBytes()
+    let out = str.new()
+    for i in 0..b.len() {
+        const c = b[i]
+        const keep = (c >= b'a' && c <= b'z') || (c >= b'A' && c <= b'Z') || (c >= b'0'
+            && c <= b'9') || c == b'_'
+        out.pushChar(if keep { c as u32 } else { 95 })
+    }
+    return out
+}
+
+fn zshEscape(text: str) str {
+    const quoted = text.replace("'", "'\\''").replace("[", "\\[")
+    return quoted.replace("]", "\\]").replace(":", "\\:")
+}
+
+// The edit distance between two ASCII names, for suggestions.
+fn distance(a: str, b: str) int {
+    const x = a.asBytes()
+    const y = b.asBytes()
+    let row: List<int> = []
+    for j in 0..y.len() + 1 {
+        row.push(j)
+    }
+    for i in 1..x.len() + 1 {
+        let diagonal = row[0]
+        row[0] = i
+        for j in 1..y.len() + 1 {
+            const above = row[j]
+            const cost = if x[i - 1] == y[j - 1] { 0 } else { 1 }
+            let best = diagonal + cost
+            if above + 1 < best {
+                best = above + 1
+            }
+            if row[j - 1] + 1 < best {
+                best = row[j - 1] + 1
+            }
+            row[j] = best
+            diagonal = above
+        }
+    }
+    return row[y.len()]
+}
