@@ -1,0 +1,371 @@
+/**
+ * @module
+ * `std.path`: taking paths apart and putting them together (ADR 0058). A
+ * path is a `str`, and these functions never touch the file system.
+ *
+ * `/` separates components on every system. On Windows `\` does too, and a
+ * drive such as `C:` starts the path. Results that are part of the
+ * argument are views of it; `join`, `withExtension`, `components` and
+ * `normalize` return new strings.
+ *
+ * @example
+ * ```ofir
+ * import std.path
+ * import std.testing.assert
+ *
+ * const p = path.join("logs", "today.txt")
+ * assert(p == "logs/today.txt")
+ * assert(path.extension(p) == "txt" && path.stem(p) == "today")
+ * assert(path.normalize("a/./b/../c") == "a/c")
+ * ```
+ */
+
+import std.os
+
+fn onWindows() bool {
+    return os.name() == "windows"
+}
+
+fn isSep(b: u8, win: bool) bool {
+    return b == b'/' || (win && b == b'\\')
+}
+
+fn isLetter(b: u8) bool {
+    return (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z')
+}
+
+// The length of the root: `/`, or on Windows a drive (`C:`) with the
+// separator that may follow it, or a leading separator.
+fn rootLen(p: str, win: bool) int {
+    const b = p.asBytes()
+    if win && b.len() >= 2 && isLetter(b[0]) && b[1] == b':' {
+        if b.len() >= 3 && isSep(b[2], true) {
+            return 3
+        }
+        return 2
+    }
+    if b.len() >= 1 && isSep(b[0], win) {
+        return 1
+    }
+    return 0
+}
+
+// The end of the path once the separators after its last component are
+// removed, never cutting into the root.
+fn trimmedEnd(p: str, win: bool) int {
+    const b = p.asBytes()
+    const root = rootLen(p, win)
+    let end = b.len()
+    for end > root && isSep(b[end - 1], win) {
+        end -= 1
+    }
+    return end
+}
+
+// Where the last component starts.
+fn nameStart(p: str, end: int, win: bool) int {
+    const b = p.asBytes()
+    const root = rootLen(p, win)
+    let i = end
+    for i > root && !isSep(b[i - 1], win) {
+        i -= 1
+    }
+    return i
+}
+
+// Where the extension's dot is in the last component, or -1. A leading dot
+// (`.bashrc`) is part of the name.
+fn dotIndex(p: str, start: int, end: int) int {
+    const b = p.asBytes()
+    let i = end - 1
+    for i > start {
+        if b[i] == b'.' {
+            if p.slice(start, end) == ".." {
+                return -1
+            }
+            return i
+        }
+        i -= 1
+    }
+    return -1
+}
+
+/**
+ * Whether the path starts at a root: `/`, or on Windows a drive with a
+ * separator (`C:\`) or a leading separator.
+ *
+ * @param p the path
+ * @returns the check
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const abs = path.isAbsolute("/etc/hosts")   // true
+ * ```
+ */
+pub fn isAbsolute(p: str) bool {
+    const win = onWindows()
+    const root = rootLen(p, win)
+    return root > 0 && isSep(p.asBytes()[root - 1], win)
+}
+
+/**
+ * The last component, without the separators that follow it.
+ *
+ * @param p the path
+ * @returns a view of `p`; `""` when the path is empty or only a root
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const name = path.fileName("docs/notes.md/")   // "notes.md"
+ * ```
+ */
+pub fn fileName(p: str) str {
+    const win = onWindows()
+    const end = trimmedEnd(p, win)
+    return p.slice(nameStart(p, end, win), end)
+}
+
+/**
+ * The path without its last component.
+ *
+ * @param p the path
+ * @returns a view of `p`: the root when the last component follows it, and
+ *     `""` when the path has a single relative component or is a root
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const dir = path.parent("/home/ana/notes.md")   // "/home/ana"
+ * ```
+ */
+pub fn parent(p: str) str {
+    const win = onWindows()
+    const b = p.asBytes()
+    const root = rootLen(p, win)
+    const end = trimmedEnd(p, win)
+    if end == root {
+        return ""
+    }
+    let i = nameStart(p, end, win)
+    for i > root && isSep(b[i - 1], win) {
+        i -= 1
+    }
+    return p.slice(0, i)
+}
+
+/**
+ * The extension of the last component: what follows its last `.`. A name
+ * that starts with its only dot (`.bashrc`) has none.
+ *
+ * @param p the path
+ * @returns a view of `p`, without the dot; `""` when there is none
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const ext = path.extension("archive.tar.gz")   // "gz"
+ * ```
+ */
+pub fn extension(p: str) str {
+    const win = onWindows()
+    const end = trimmedEnd(p, win)
+    const dot = dotIndex(p, nameStart(p, end, win), end)
+    if dot < 0 {
+        return ""
+    }
+    return p.slice(dot + 1, end)
+}
+
+/**
+ * The last component without its extension.
+ *
+ * @param p the path
+ * @returns a view of `p`
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const s = path.stem("archive.tar.gz")   // "archive.tar"
+ * ```
+ */
+pub fn stem(p: str) str {
+    const win = onWindows()
+    const end = trimmedEnd(p, win)
+    const start = nameStart(p, end, win)
+    const dot = dotIndex(p, start, end)
+    if dot < 0 {
+        return p.slice(start, end)
+    }
+    return p.slice(start, dot)
+}
+
+/**
+ * Whether the extension of the last component is `ext`.
+ *
+ * @param p the path
+ * @param ext the extension, without the dot
+ * @returns the check; case matters
+ */
+pub fn hasExtension(p: str, ext: str) bool {
+    return extension(p) == ext
+}
+
+/**
+ * `child` placed under `base`, with one `/` between them. An absolute
+ * `child` replaces `base`.
+ *
+ * @param base the directory
+ * @param child the path under it
+ * @returns the new path
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const p = path.join("/tmp", "out.log")   // "/tmp/out.log"
+ * ```
+ */
+pub fn join(base: str, child: str) str {
+    const win = onWindows()
+    if base.len() == 0 || isAbsolute(child) {
+        return child.toOwned()
+    }
+    if child.len() == 0 {
+        return base.toOwned()
+    }
+    let out = str.withCapacity(base.len() + child.len() + 1)
+    out.push(base)
+    if !isSep(base.asBytes()[base.len() - 1], win) {
+        out.push("/")
+    }
+    out.push(child)
+    return out
+}
+
+/**
+ * The path with the extension of its last component replaced, or removed
+ * when `ext` is `""`. The separators after the last component are dropped.
+ *
+ * @param p the path
+ * @param ext the new extension, without the dot
+ * @returns the new path; `p` itself when it has no last component
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const p = path.withExtension("src/main.of", "ll")   // "src/main.ll"
+ * ```
+ */
+pub fn withExtension(p: str, ext: str) str {
+    const win = onWindows()
+    const end = trimmedEnd(p, win)
+    const start = nameStart(p, end, win)
+    if start == end {
+        return p.toOwned()
+    }
+    const dot = dotIndex(p, start, end)
+    const cut = if dot < 0 { end } else { dot }
+    let out = str.withCapacity(cut + ext.len() + 1)
+    out.push(p.slice(0, cut))
+    if ext.len() > 0 {
+        out.push(".")
+        out.push(ext)
+    }
+    return out
+}
+
+/**
+ * The components: the root if there is one, then each name, without
+ * empty components or `.`.
+ *
+ * @param p the path
+ * @returns new strings, in order
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const parts = path.components("/usr//lib/./x")   // ["/", "usr", "lib", "x"]
+ * ```
+ */
+pub fn components(p: str) List<str> {
+    const win = onWindows()
+    const b = p.asBytes()
+    const root = rootLen(p, win)
+    let out: List<str> = []
+    if root > 0 {
+        out.push(p.slice(0, root).toOwned())
+    }
+    let i = root
+    for i < b.len() {
+        let j = i
+        for j < b.len() && !isSep(b[j], win) {
+            j += 1
+        }
+        if j > i && p.slice(i, j) != "." {
+            out.push(p.slice(i, j).toOwned())
+        }
+        i = j + 1
+    }
+    return out
+}
+
+/**
+ * The path cleaned up without the file system: empty components and `.`
+ * are removed, a `..` after a name removes both, and a `..` right after an
+ * absolute root is dropped. Symbolic links are not followed, so the
+ * result can name another file than `p` when `..` follows a link.
+ *
+ * @param p the path
+ * @returns the new path, with `/` between components; `"."` when nothing
+ *     is left of a relative path
+ * @example
+ * ```ofir
+ * import std.path
+ *
+ * const p = path.normalize("/a/b/../../../c/")   // "/c"
+ * ```
+ */
+pub fn normalize(p: str) str {
+    const win = onWindows()
+    const b = p.asBytes()
+    const root = rootLen(p, win)
+    const absolute = root > 0 && isSep(b[root - 1], win)
+    // The kept components, as start and end offsets into `p`.
+    let starts: List<int> = []
+    let ends: List<int> = []
+    let i = root
+    for i < b.len() {
+        let j = i
+        for j < b.len() && !isSep(b[j], win) {
+            j += 1
+        }
+        const part = p.slice(i, j)
+        if part == ".." {
+            const n = starts.len()
+            if n > 0 && p.slice(starts[n - 1], ends[n - 1]) != ".." {
+                starts.pop()
+                ends.pop()
+            } else if !absolute {
+                starts.push(i)
+                ends.push(j)
+            }
+        } else if j > i && part != "." {
+            starts.push(i)
+            ends.push(j)
+        }
+        i = j + 1
+    }
+    let out = str.withCapacity(b.len() + 1)
+    out.push(p.slice(0, root))
+    for k in 0..starts.len() {
+        if k > 0 {
+            out.push("/")
+        }
+        out.push(p.slice(starts[k], ends[k]))
+    }
+    if out.len() == 0 {
+        out.push(".")
+    }
+    return out
+}
