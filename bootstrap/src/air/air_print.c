@@ -71,7 +71,10 @@ static void operand(AirPrinter *p, Operand o) {
         }
         break;
     case OPERAND_INT: fprintf(p->out, "%" PRIu64 "_%s", o.as.int_value, type_str(p, o.type)); break;
-    case OPERAND_FLOAT: fprintf(p->out, "%g_%s", o.as.float_value, type_str(p, o.type)); break;
+    case OPERAND_FLOAT:
+        print_float_g(p->out, o.as.float_value);
+        fprintf(p->out, "_%s", type_str(p, o.type));
+        break;
     case OPERAND_BOOL: fprintf(p->out, "%s", o.as.bool_value ? "true" : "false"); break;
     case OPERAND_STR: string_literal(p, o.as.str); break;
     case OPERAND_UNIT: fputs("()", p->out); break;
