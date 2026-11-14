@@ -1,0 +1,127 @@
+/**
+ * @module
+ * Cross compilation (ADR 0066): the target triples `--target` accepts,
+ * the `os` and `arch` of each, and where a target's runtime library and
+ * the program that runs its executables are found.
+ */
+
+import std.os
+
+/**
+ * The triples of spec 13.8, tier 1 first.
+ *
+ * @returns the five triples `--target` accepts
+ */
+pub fn targets() List<str> {
+    return ["x86_64-linux-gnu".toOwned(), "aarch64-apple-darwin".toOwned(),
+            "x86_64-w64-windows-gnu".toOwned(), "aarch64-linux-gnu".toOwned(),
+            "x86_64-apple-darwin".toOwned()]
+}
+
+/**
+ * Whether `--target` accepts a triple.
+ *
+ * @param triple the text after `--target=`
+ * @returns true for one of `targets()`
+ */
+pub fn knownTarget(triple: str) bool {
+    const all = targets()
+    for i in 0..all.len() {
+        if all[i] == triple {
+            return true
+        }
+    }
+    return false
+}
+
+/**
+ * The triple of the machine the compiler runs on.
+ *
+ * @returns one of `targets()`, from `os.name()` and `os.arch()`
+ */
+pub fn hostTriple() str {
+    return triple(os.name(), os.arch())
+}
+
+// The triple of an `os` and `arch` pair.
+fn triple(name: str, arch: str) str {
+    if name == "windows" {
+        return "{arch}-w64-windows-gnu"
+    }
+    if name == "macos" {
+        return "{arch}-apple-darwin"
+    }
+    return "{arch}-linux-gnu"
+}
+
+/**
+ * The `os` of `@cfg` and `os.name()` for a target.
+ *
+ * @param target a triple, or "" for the host
+ * @returns `"linux"`, `"macos"` or `"windows"`
+ */
+pub fn targetOs(target: str) str {
+    if target.len() == 0 {
+        return os.name()
+    }
+    if target.endsWith("-windows-gnu") {
+        return "windows".toOwned()
+    }
+    if target.endsWith("-apple-darwin") {
+        return "macos".toOwned()
+    }
+    return "linux".toOwned()
+}
+
+/**
+ * The `arch` of `@cfg` and `os.arch()` for a target.
+ *
+ * @param target a triple, or "" for the host
+ * @returns `"x86_64"` or `"aarch64"`
+ */
+pub fn targetArch(target: str) str {
+    if target.len() == 0 {
+        return os.arch()
+    }
+    return if target.startsWith("aarch64-") { "aarch64" } else { "x86_64" }
+}
+
+/**
+ * The runtime library of a target: `<triple>/libofir_rt.a` in the
+ * directory of the host's runtime library.
+ *
+ * @param host the host's `libofir_rt.a`
+ * @param target a triple other than the host's
+ * @returns the path, which may not exist
+ */
+pub fn targetRuntime(host: str, target: str) str {
+    let slash = -1
+    for i in 0..host.len() {
+        if host[i] == b'/' {
+            slash = i
+        }
+    }
+    const dir = if slash >= 0 { host.slice(0, slash + 1).toOwned() } else { "" }
+    return "{dir}{target}/libofir_rt.a"
+}
+
+/**
+ * The program that runs a target's executables: the words of
+ * `OFIR_RUNNER`, such as `qemu-aarch64 -L /usr/aarch64-linux-gnu`.
+ *
+ * @returns the words, empty when `OFIR_RUNNER` is not set
+ */
+pub fn runnerWords() List<str> {
+    let words: List<str> = []
+    const text = os.env("OFIR_RUNNER") ?? ""
+    let start = 0
+    for i in 0..text.len() + 1 {
+        if i == text.len() || text[i] == b' ' {
+            if i > start {
+                words.push(text.slice(start, i).toOwned())
+            }
+            start = i + 1
+        }
+    }
+    return words
+}
