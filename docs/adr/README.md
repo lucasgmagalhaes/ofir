@@ -89,6 +89,7 @@ starts with the same word as the record's status line.
 | [0076](0076-dependency-graph-contracts.md) | Dependency graphs: no cycles, deterministic resolution | Accepted |
 | [0077](0077-dependency-sources-and-workspaces.md) | Dependency scopes, overrides, vendoring and workspaces | Accepted |
 | [0078](0078-build-profiles-and-native-inputs.md) | Build profiles and native inputs | Accepted |
+| [0079](0079-registry-publishing.md) | Registry publishing | Accepted |
 
 ## Template
 
