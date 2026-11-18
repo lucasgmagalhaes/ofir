@@ -9,10 +9,14 @@ pre { background: #f4f4f4; padding: 0.5em; overflow-x: auto; }
 .decl { border-top: 1px solid #ddd; margin-top: 1em; }
 .decl .decl { margin-left: 2em; }
 .deprecated { background: #fff3cd; padding: 0.5em; }
+#results { list-style: none; padding: 0; }
 </style>
+<script src="search.js" defer></script>
 </head>
 <body>
-<nav><a href="index.html">Index</a></nav>
+<nav><a href="index.html">Index</a>
+<input id="search" type="search" placeholder="Search" autocomplete="off">
+<ul id="results"></ul></nav>
 <h1>Module <code>sample</code></h1>
 <p>A module to document: shapes and <code>Ågé</code> (non-ASCII text).</p>
 <p>A second paragraph, with <code>a `tick` inside</code> and &lt;markup&gt; to escape.</p>
@@ -129,14 +133,14 @@ pre { background: #f4f4f4; padding: 0.5em; overflow-x: auto; }
 println(&quot;{n}&quot;)
 </code></pre>
 <h4>See also</h4>
-<p><code>Point.moved</code></p>
+<p><a href="sample.html#Point.moved"><code>Point.moved</code></a></p>
 </div>
 </section>
 <section class="decl" id="plus">
 <pre class="signature"><code>pub fn plus(a: int, b: int) int</code></pre>
 <div class="doc">
 <div class="deprecated"><strong>Deprecated.</strong>
-<p>use <code>add</code></p>
+<p>use <a href="sample.html#add"><code>add</code></a></p>
 </div>
 </div>
 </section>
