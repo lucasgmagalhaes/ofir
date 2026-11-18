@@ -104,6 +104,13 @@ panic: index out of bounds: the length is 3 but the index is 5
   at src/main.of:12:17
 ```
 
+The location's path does not depend on where the program was built
+(ADR 0083): a file of the project is named relative to the project root
+(the directory of `ofir.json`, or else the root file's directory), a
+file of the standard library as `std/<path>`, and a file of a dependency
+as `<name>-<version>/<path>`. A file outside all of them keeps the path
+the compiler was given.
+
 Panics are raised by:
 
 - out-of-bounds indexing;
