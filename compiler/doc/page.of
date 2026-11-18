@@ -8,6 +8,8 @@
  */
 
 import base.intern.Interner
+import doc.links.Targets
+import doc.links.jsString
 import doc.markdown.escape
 import doc.markdown.summary
 import doc.tags.renderDoc
@@ -163,6 +165,13 @@ struct Page {
     src: str
     docs: Comments
     out: str
+    module: str
+    /** Whether private declarations are documented too (`--private`). */
+    all: bool
+    /** The entries of `search.js`, one line each. */
+    search: str
+    /** The anchor of each declaration on the page. */
+    anchors: List<str>
 
     // The comment of the declaration that starts at `start`, as HTML.
     fn doc(self, start: int) str {
@@ -175,6 +184,12 @@ struct Page {
     // A declaration: its anchor, signature and comment.
     fn entry(mut self, anchor: str, signature: str, start: int) {
         const doc = self.doc(start)
+        let brief = ""
+        if const Option.Some(text) = self.docs.before.get(start) {
+            brief = summary(text)
+        }
+        self.anchors.push(anchor.clone())
+        self.search.push("[{jsString(anchor)}, {jsString(self.module)}, {jsString(brief)}],\n")
         self.out.push("<section class=\"decl\" id=\"{escape(anchor)}\">\n")
         self.out.push("<pre class=\"signature\"><code>{escape(signature)}</code></pre>\n")
         if doc.len() > 0 {
@@ -230,11 +245,11 @@ struct Page {
             ItemKind.Struct(_, _, _, _, fields, methods) => {
                 self.entry(name, header(self.src, start, item.span.end), item.span.start)
                 for i in 0..fields.len() {
-                    if fields[i].isPub {
+                    if self.all || fields[i].isPub {
                         self.field(names, &fields[i], owner)
                     }
                 }
-                self.methods(names, &methods, owner, false)
+                self.methods(names, &methods, owner, self.all)
                 self.out.push("</section>\n")
             }
             ItemKind.Enum(_, _, variants, methods) => {
@@ -242,7 +257,7 @@ struct Page {
                 for i in 0..variants.len() {
                     self.variant(names, &variants[i], owner)
                 }
-                self.methods(names, &methods, owner, false)
+                self.methods(names, &methods, owner, self.all)
                 self.out.push("</section>\n")
             }
             ItemKind.Interface(_, _, methods) => {
@@ -259,8 +274,19 @@ struct Page {
     }
 }
 
-// The start of a page, up to its `<body>`.
-fn head(title: str) str {
+/**
+ * What every page of a documentation site shares.
+ */
+pub struct Site {
+    /** The package's name and version, from its manifest; `""` if there is none. */
+    pub label: str
+    /** Whether private declarations are documented too (`--private`). */
+    pub all: bool
+}
+
+// The start of a page, up to its `<body>`, and its navigation: the index,
+// the package and the search box.
+fn head(title: str, site: &Site) str {
     let out = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
     out.push("<title>{escape(title)}</title>\n<style>\n")
     out.push("body \{ font-family: sans-serif; max-width: 50em; margin: 2em auto; ")
@@ -269,7 +295,15 @@ fn head(title: str) str {
     out.push(".decl \{ border-top: 1px solid #ddd; margin-top: 1em; \}\n")
     out.push(".decl .decl \{ margin-left: 2em; \}\n")
     out.push(".deprecated \{ background: #fff3cd; padding: 0.5em; \}\n")
-    out.push("</style>\n</head>\n<body>\n")
+    out.push("#results \{ list-style: none; padding: 0; \}\n")
+    out.push("</style>\n<script src=\"search.js\" defer></script>\n</head>\n<body>\n")
+    out.push("<nav><a href=\"index.html\">Index</a>")
+    if site.label.len() > 0 {
+        out.push(" <span class=\"package\">{escape(site.label)}</span>")
+    }
+    out.push("\n<input id=\"search\" type=\"search\" placeholder=\"Search\"")
+    out.push(" autocomplete=\"off\">")
+    out.push("\n<ul id=\"results\"></ul></nav>\n")
     return out
 }
 
@@ -281,23 +315,30 @@ fn head(title: str) str {
  * @param module its syntax tree
  * @param names the interner of the tree's names
  * @param docs its comments (`comments`)
+ * @param site what the pages share
+ * @param search the entries of `search.js`, to which its declarations are added
+ * @param targets the declarations links can reach, to which its declarations are added
  * @returns the HTML page
  */
 pub fn modulePage(name: str, src: str, module: &Module, names: &Interner,
-                  docs: move Comments) str {
-    let page = Page{src: src.toOwned(), docs, out: head(name)}
-    page.out.push("<nav><a href=\"index.html\">Index</a></nav>\n")
+                  docs: move Comments, site: &Site, search: mut str, targets: mut Targets) str {
+    let page = Page{src: src.toOwned(), docs, out: head(name, site), module: name.toOwned(),
+                    all: site.all, search: "", anchors: []}
     page.out.push("<h1>Module <code>{escape(name)}</code></h1>\n")
     if page.docs.module.len() > 0 {
         const text = renderDoc(page.docs.module)
         page.out.push(text)
     }
     for i in 0..module.items.len() {
-        if module.items[i].isPub {
+        if site.all || module.items[i].isPub {
             page.item(names, &module.items[i])
         }
     }
     page.out.push("</body>\n</html>\n")
+    search.push(page.search)
+    for i in 0..page.anchors.len() {
+        targets.add(name, page.anchors[i])
+    }
     return page.out
 }
 
@@ -306,12 +347,14 @@ pub fn modulePage(name: str, src: str, module: &Module, names: &Interner,
  *
  * @param modules the name of each module, in order
  * @param docs the text of each one's module comment
+ * @param site what the pages share
  * @returns the HTML page that links to each module's page, with the first
  *          paragraph of its comment
  */
-pub fn indexPage(modules: &List<str>, docs: &List<str>) str {
-    let out = head("Modules")
-    out.push("<h1>Modules</h1>\n<dl>\n")
+pub fn indexPage(modules: &List<str>, docs: &List<str>, site: &Site) str {
+    const title = if site.label.len() > 0 { site.label.clone() } else { "Modules".toOwned() }
+    let out = head(title, site)
+    out.push("<h1>{escape(title)}</h1>\n<h2>Modules</h2>\n<dl>\n")
     for i in 0..modules.len() {
         const name = escape(modules[i])
         out.push("<dt><a href=\"{name}.html\"><code>{name}</code></a></dt>\n")

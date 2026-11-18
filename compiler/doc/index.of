@@ -10,9 +10,13 @@ import base.intern.Interner
 import base.span.SourceMap
 import diag.Diagnostics
 import diag.Format
+import doc.links.Targets
+import doc.links.linkCode
+import doc.page.Site
 import doc.page.comments
 import doc.page.indexPage
 import doc.page.modulePage
+import lsp.json.parseJsonc
 import std.fs
 import syntax.lexer.tokenize
 import syntax.parser.parse
@@ -24,10 +28,11 @@ struct Source {
 }
 
 /**
- * Runs `ofir doc [-o dir] [--stdout] [paths]`: writes a page for the module
- * of each `.of` file of the paths, by default of `src` or else of the
- * current directory, and an index, to `build/doc` or `dir`. `--stdout`
- * prints the pages instead.
+ * Runs `ofir doc [-o dir] [--stdout] [--private] [paths]`: writes a page for
+ * the module of each `.of` file of the paths, by default of `src` or else
+ * of the current directory, an index and `search.js`, to `build/doc` or
+ * `dir`. `--stdout` prints the pages instead; `--private` documents
+ * private declarations too.
  *
  * @param args the arguments after `doc`
  * @returns the exit status: 1 if a file does not parse, 2 for a bad
@@ -36,11 +41,14 @@ struct Source {
 pub fn docCommand(args: List<str>) int {
     let out = "build/doc".toOwned()
     let stdout = false
+    let all = false
     let paths: List<str> = []
     let i = 0
     for i < args.len() {
         if args[i] == "--stdout" {
             stdout = true
+        } else if args[i] == "--private" {
+            all = true
         } else if args[i] == "-o" {
             if i + 1 == args.len() {
                 eprintln("error: `-o` needs a directory")
@@ -66,11 +74,29 @@ pub fn docCommand(args: List<str>) int {
             return 2
         }
     }
-    return document(&sources, out, stdout)
+    const site = Site{label: packageLabel(), all}
+    return document(&sources, out, stdout, &site)
 }
 
-// Writes or prints the page of each source, and the index.
-fn document(sources: &List<Source>, out: str, stdout: bool) int {
+// The `name` and `version` of the manifest in the current directory.
+fn packageLabel() str {
+    const Result.Ok(text) = fs.readToString("ofir.json") else {
+        return "".toOwned()
+    }
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return "".toOwned()
+    }
+    const name = doc.text(doc.field(0, "name"))
+    const version = doc.text(doc.field(0, "version"))
+    if version.isEmpty() {
+        return name
+    }
+    return "{name} {version}".trim().toOwned()
+}
+
+// Writes or prints the page of each source, and the index and the search
+// index; the pages are linked once every declaration is known.
+fn document(sources: &List<Source>, out: str, stdout: bool, site: &Site) int {
     if !stdout && fs.createDirAll(out).isErr() {
         eprintln("error: cannot create `{out}`")
         return 2
@@ -78,21 +104,68 @@ fn document(sources: &List<Source>, out: str, stdout: bool) int {
     let status = 0
     let modules: List<str> = []
     let summaries: List<str> = []
+    let pages: List<str> = []
+    let search = ""
+    let targets = Targets.new()
     for i in 0..sources.len() {
-        const Option.Some(page) = pageOf(&sources[i], modules, summaries) else {
+        const Option.Some(page) = pageOf(&sources[i], site, modules, summaries, search,
+                                         targets) else {
             status = 1
             continue
         }
+        pages.push(page)
+    }
+    for i in 0..pages.len() {
+        const page = linkCode(pages[i], modules[i], &targets)
         if stdout {
             print(page)
-        } else if !write("{out}/{sources[i].module}.html", page) {
+        } else if !write("{out}/{modules[i]}.html", page) {
             return 2
         }
     }
-    if !stdout && !write("{out}/index.html", indexPage(&modules, &summaries)) {
+    if stdout {
+        return status
+    }
+    if !write("{out}/index.html", indexPage(&modules, &summaries, site)) {
+        return 2
+    }
+    if !write("{out}/search.js", searchScript(search)) {
         return 2
     }
     return status
+}
+
+// `search.js`: the entries, then the script of the search box.
+fn searchScript(entries: str) str {
+    let out = "const OFIR_DOCS = [\n"
+    out.push(entries)
+    out.push("];\n")
+    const script = [
+        "addEventListener(\"DOMContentLoaded\", function () \{",
+        "  const input = document.getElementById(\"search\");",
+        "  const list = document.getElementById(\"results\");",
+        "  if (!input || !list) return;",
+        "  input.addEventListener(\"input\", function () \{",
+        "    const query = input.value.trim().toLowerCase();",
+        "    list.innerHTML = \"\";",
+        "    if (query.length === 0) return;",
+        "    let shown = 0;",
+        "    for (const [anchor, module, summary] of OFIR_DOCS) \{",
+        "      if (anchor.toLowerCase().indexOf(query) < 0) continue;",
+        "      const item = document.createElement(\"li\");",
+        "      item.innerHTML = \"<a href=\\\"\" + module + \".html#\" + anchor + \"\\\"><code>\" +",
+        "        module + \".\" + anchor + \"</code></a> \" + summary;",
+        "      list.appendChild(item);",
+        "      if (++shown === 50) break;",
+        "    \}",
+        "  \});",
+        "\});"
+    ]
+    for i in 0..script.len() {
+        out.push(script[i])
+        out.push("\n")
+    }
+    return out
 }
 
 // Writes a file; false, after an error, if it cannot.
@@ -107,7 +180,8 @@ fn write(path: str, text: str) bool {
 // The page of a source, its module and its module comment added to
 // `modules` and `summaries`; `None`, after its errors, if it does not lex
 // or parse.
-fn pageOf(source: &Source, modules: mut List<str>, summaries: mut List<str>) Option<str> {
+fn pageOf(source: &Source, site: &Site, modules: mut List<str>, summaries: mut List<str>,
+          search: mut str, targets: mut Targets) Option<str> {
     const Result.Ok(src) = fs.readToString(source.path) else {
         eprintln("error: cannot read `{source.path}`")
         return Option.None
@@ -129,7 +203,8 @@ fn pageOf(source: &Source, modules: mut List<str>, summaries: mut List<str>) Opt
     }
     modules.push(source.module.clone())
     summaries.push(docs.module.clone())
-    return Option.Some(modulePage(source.module, src, &tree.module, &tree.names, docs))
+    return Option.Some(modulePage(source.module, src, &tree.module, &tree.names, docs, site,
+                                  search, targets))
 }
 
 // The module of the file `path` found under `root`: its path from `root`
