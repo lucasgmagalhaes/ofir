@@ -1,0 +1,74 @@
+// requires: stage1 (interfaces, roadmap 5.3)
+interface Shape {
+    fn area(self) float
+    fn name(self) str
+
+    fn describe(self) str {
+        return "{self.name()} with area {self.area()}"
+    }
+}
+
+struct Circle: Shape {
+    radius: float
+
+    fn area(self) float {
+        return 3.14159 * self.radius * self.radius
+    }
+
+    fn name(self) str {
+        return "circle"
+    }
+}
+
+struct Square: Shape {
+    side: float
+
+    fn area(self) float {
+        return self.side * self.side
+    }
+
+    fn name(self) str {
+        return "square"
+    }
+}
+
+// A type switch (spec 9.8): the concrete type behind a `dyn` value.
+fn kind(shape: dyn Shape) str {
+    return match shape {
+        c: Circle => "a circle of radius {c.radius}"
+        _ => "another shape"
+    }
+}
+
+// `Any` holds a value of any type; a type test recovers it.
+fn show(value: dyn Any) str {
+    return match value {
+        n: int => "the int {n}"
+        s: str => "the str {s}"
+        _ => "a {value.typeName()}"
+    }
+}
+
+// Static dispatch: one specialized copy per shape type.
+fn printArea<S: Shape>(shape: S) {
+    println(shape.describe())
+}
+
+fn main() {
+    printArea(Circle{radius: 1.0})
+
+    // Dynamic dispatch: a list of different shapes.
+    let shapes: List<Box<dyn Shape>> = [
+        Box.new(Circle{radius: 2.0}),
+        Box.new(Square{side: 3.0}),
+    ]
+    for s in shapes {
+        println(s.describe())
+    }
+
+    println(kind(Circle{radius: 0.5}))
+    println(kind(Square{side: 1.0}))
+    println(show(42))
+    println(show("hello"))
+    println(show(Square{side: 1.0}))
+}

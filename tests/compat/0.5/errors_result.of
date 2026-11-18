@@ -1,0 +1,55 @@
+// Result: bare Ok/Err, patterns, the std methods, `?` and unused results.
+
+enum ParseError {
+    Empty
+    BadDigit(u8)
+    TooLarge
+}
+
+fn digit(b: u8) Result<int, ParseError> {
+    if b < 48 || b > 57 {
+        return Result.Err(ParseError.BadDigit(b))
+    }
+    return Result.Ok((b - 48) as int)
+}
+
+fn parse(s: str) Result<int, ParseError> {
+    if s.isEmpty() {
+        return Result.Err(ParseError.Empty)
+    }
+    var n = 0
+    for i in 0..s.len() {
+        n = n * 10 + digit(s[i])?
+        if n > 65535 {
+            return Result.Err(ParseError.TooLarge)
+        }
+    }
+    return Result.Ok(n)
+}
+
+fn port(s: str) Result<u16, ParseError> {
+    let n = parse(s)?
+    return Result.Ok(n as u16)
+}
+
+fn show(r: Result<u16, ParseError>) str {
+    return match r {
+        Result.Ok(p) => "port {p}"
+        Result.Err(e) => match e {
+            ParseError.Empty => "empty"
+            ParseError.BadDigit(b) => "bad digit {b}"
+            ParseError.TooLarge => "too large"
+        }
+    }
+}
+
+fn main() {
+    println("{show(port("8080"))} | {show(port(""))} | {show(port("80a"))} | {show(port("99999"))}")
+    println("{parse("12").isOk()} {parse("x").isErr()} {parse("7").unwrap()}")
+    println("{parse("x").unwrapOr(0)} {parse("42").ok().unwrapOr(0)} {parse("x").err().isSome()}")
+    let _ = parse("ignored")
+    let unit: Result<(), str> = Result.Ok(())
+    if let Result.Ok(()) = unit {
+        println("ok")
+    }
+}

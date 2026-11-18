@@ -1,0 +1,14 @@
+true true
+ana=31 bob=27 cy=40 
+27 -1 4
+ana=31 bob=28 cy=40 dee=19 
+31 -1 false
+bob=28 cy=40 dee=19 ana=32 
+41
+a=3 b=2 c=1 
+500 998001 false 0
+b a false
+2 2
+minus one
+0 true
+0:x 1:y 2:z 

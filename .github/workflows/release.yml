@@ -5,6 +5,12 @@ name: Release
 # checked by building the compiler from it on every CI platform; each
 # archive is built and installed on its own target's runner before the
 # release is created.
+#
+# A release starts as a candidate (ADR 0084): with `candidate` N it is
+# tagged `v<version>-rc.N` and published as a pre-release. Without it, the
+# workflow promotes the last candidate on the same commit, and fails
+# unless the seed and every archive hash the same as the candidate's.
+# docs/releasing.md is the checklist.
 
 on:
   workflow_dispatch:
@@ -12,6 +18,10 @@ on:
       version:
         description: "Version to release (must equal VERSION in compiler/driver/version.of)"
         required: true
+      candidate:
+        description: "Candidate number N: tag v<version>-rc.N as a pre-release (empty: promote)"
+        required: false
+        default: ""
       publish:
         description: "Create the release (off: only build and check the seed)"
         type: boolean
@@ -90,6 +100,12 @@ jobs:
           make dist
           python3 tools/check_install.py --compiler build/stage1/ofir --runtime build/libofir_rt.a
 
+      - name: The corpus of this minor passes unchanged
+        if: matrix.llvm == '21' && startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          OFIR_STD=$PWD/std OFIR_RUNTIME=$PWD/build/libofir_rt.a \
+            python3 tools/check_compat.py --compiler build/stage1/ofir --release-branch
+
       - uses: actions/upload-artifact@v4
         if: matrix.llvm == '21'
         with:
@@ -153,7 +169,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
+          CANDIDATE: ${{ inputs.candidate }}
         run: |
+          (cd dist && sha256sum ofir-*.tar.gz > SHA256SUMS)
+          if [ -n "$CANDIDATE" ]; then
+            tag="v$VERSION-rc.$CANDIDATE"
+            title="Ofir $VERSION-rc.$CANDIDATE"
+            extra=--prerelease
+          else
+            # Promote the last candidate on this commit: same bytes (ADR 0083).
+            git fetch --quiet --tags origin
+            rc=$(git tag --points-at "$GITHUB_SHA" "v$VERSION-rc.*" | sort -V | tail -n 1)
+            if [ -z "$rc" ]; then
+              echo "no candidate v$VERSION-rc.N on $GITHUB_SHA: publish one first"
+              exit 1
+            fi
+            gh release download "$rc" --dir rc -p SHA256SUMS -p "ofir-$VERSION.ll.sha256"
+            cmp rc/SHA256SUMS dist/SHA256SUMS
+            cmp "rc/ofir-$VERSION.ll.sha256" "seed-download/ofir-$VERSION.ll.sha256"
+            echo "the archives and the seed are those of $rc"
+            tag="v$VERSION"
+            title="Ofir $VERSION"
+            extra=
+          fi
           # The CHANGELOG section of this version, then the seed checksum.
           awk -v v="$VERSION" '
             index($0, "## [" v "]") == 1 { on = 1; next }
@@ -168,8 +206,7 @@ jobs:
             cat "seed-download/ofir-$VERSION.ll.sha256"
             echo '```'
           } >> notes.md
-          (cd dist && sha256sum ofir-*.tar.gz > SHA256SUMS)
-          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Ofir $VERSION" \
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$title" $extra \
             --notes-file notes.md \
             "seed-download/ofir-$VERSION.ll" "seed-download/ofir-$VERSION.ll.sha256" \
             dist/ofir-*.tar.gz dist/ofir-*.tar.gz.sha256 dist/SHA256SUMS

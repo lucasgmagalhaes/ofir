@@ -1,0 +1,31 @@
+// requires: stage1
+// `T?` is shorthand for `Option<T>` (spec 2.6): in parameters, results,
+// fields and generics.
+
+struct User {
+    name: str,
+    email: str?,
+}
+
+fn find(xs: [int], wanted: int) int? {
+    for i, x in xs {
+        if x == wanted {
+            return Option.Some(i)
+        }
+    }
+    return Option.None
+}
+
+fn orZero<T: Copy>(v: T?, zero: T) T {
+    return v ?? zero
+}
+
+fn main() {
+    let xs = [3, 5, 8]
+    println("{find(xs, 5) ?? -1} {find(xs, 4) ?? -1}")
+    let u = User{name: "ana", email: Option.None}
+    let v = User{name: "bia", email: Option.Some("b@x")}
+    println("{u.email ?? "none"} {v.email ?? "none"}")
+    let n: int? = Option.Some(7)
+    println("{orZero(n, 0)} {orZero<int>(Option.None, 1)}")
+}

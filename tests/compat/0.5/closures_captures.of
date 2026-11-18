@@ -1,0 +1,88 @@
+// requires: stage1
+// Arrow closures (spec 10.3) that borrow what they capture: their
+// environment is on the stack; one that modifies a variable borrows it
+// `&mut`.
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn each<T>(items: &List<T>, f: fn(&T)) {
+    for i in 0..items.len() {
+        f(&items[i])
+    }
+}
+
+fn count<T>(items: &List<T>, keep: fn(&T) bool) int {
+    var n = 0
+    each(items, item => {
+        if keep(item) {
+            n += 1
+        }
+    })
+    return n
+}
+
+fn bump(total: mut int, by: int) {
+    let add = () => {
+        total += by
+    }
+    add()
+    add()
+}
+
+fn apply(f: fn(int) int, x: int) int {
+    return f(x)
+}
+
+fn twice(f: fn()) {
+    f()
+    f()
+}
+
+fn main() {
+    var total = 0
+    let k = 3
+    let add = (a: int, b: int) int => a + b + k
+    println("{add(1, 2)}")
+    println("{apply(x => x * 2 + k, 4)}")
+    let name = "ofir"
+    let greet = () => {
+        println("hi {name}")
+    }
+    greet()
+    twice(() => {
+        total += 10
+    })
+    println("{total}")
+    let s = "a" + "b"
+    let len = () => s.len()
+    println("{len()}")
+    let list = [1, 5, 8, 2, 9]
+    let limit = 4
+    println("{count(&list, x => *x > limit)}")
+    var t = 1
+    bump(t, 5)
+    println("{t}")
+    let p = Point{x: 2, y: 3}
+    let norm = () int => p.x * p.x + p.y * p.y
+    println("{norm()}")
+    let prefix = "n="
+    let show = (n: int) str => "{prefix}{n}"
+    println(show(7))
+    var sum = 0
+    for i in 0..4 {
+        let addI = () => {
+            sum += i
+        }
+        addI()
+    }
+    println("{sum}")
+    let outer = 10
+    let mk = (a: int) int => {
+        let inner = (b: int) int => a + b + outer
+        inner(1)
+    }
+    println("{mk(5)}")
+}

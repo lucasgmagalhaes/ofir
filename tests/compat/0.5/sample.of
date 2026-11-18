@@ -1,0 +1,10 @@
+// `ofir test` (spec 12.2): each test runs in its own process, so the
+// failing one does not stop the others; `main` is not run.
+
+fn add(a: int, b: int) int {
+    return a + b
+}
+
+fn main() {
+    println("main is not a test")
+}

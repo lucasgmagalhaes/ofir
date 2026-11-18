@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Checks the release archive and its installer (ADR 0082, OFIR-69).
+"""Checks the release archive and its installer (ADR 0082, OFIR-69; ADR 0084, OFIR-71).
 
 - `tools/dist.py` gives the same bytes twice, and the `.sha256` next to
   the archive matches it;
 - `install.sh` installs it into an empty prefix, and the installed
   compiler builds and runs a program, and explains an error, with
-  `OFIR_STD` and `OFIR_RUNTIME` unset and the repository out of reach;
+  `OFIR_STD` and `OFIR_RUNTIME` unset and the repository out of reach,
+  and runs the compatibility corpus (`tools/check_compat.py`, ADR 0084);
 - a second version installs next to the first and becomes active, and
   `--use` rolls back to the first;
 - a manifest's `toolchain` that the compiler is not in is E0923, whose
@@ -111,6 +112,11 @@ def main():
         out = run([str(exe), "version"], work, clean)
         if f"ofir {version}" not in out.stdout or "prefix: " not in out.stdout:
             fail(f"`ofir version` printed {out.stdout!r}")
+        # The installed compiler runs the compatibility corpus (ADR 0084).
+        out = run([sys.executable, str(ROOT / "tools/check_compat.py"), "--installed",
+                   str(prefix)], work, clean, ok=False)
+        if out.returncode != 0:
+            fail(f"the installed compiler fails the compatibility corpus:\n{out.stderr}")
 
         run(sh + [second.as_posix()], work, clean)
         if (prefix / "share/ofir/version").read_text() != f"{other}\n":

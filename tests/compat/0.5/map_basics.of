@@ -1,0 +1,70 @@
+// Map: insertion order, replacing and removing keys, the borrowing
+// methods, getOrInsert, growth, and keys of several types.
+
+fn show(m: Map<str, int>) str {
+    var text = ""
+    for key, value in m {
+        text.push("{key}={value} ")
+    }
+    return text
+}
+
+fn main() {
+    var ages = Map<str, int>.new()
+    println("{ages.isEmpty()} {ages.get("x").isNone()}")
+    ages.insert("ana", 31)
+    ages.insert("bob", 27)
+    ages.insert("cy", 40)
+    println(show(ages))
+    println("{ages.insert("bob", 28) ?? -1} {ages.insert("dee", 19) ?? -1} {ages.len()}")
+    println(show(ages))
+    println("{ages.remove("ana") ?? -1} {ages.remove("zed") ?? -1} {ages.contains("ana")}")
+    ages.insert("ana", 32)
+    println(show(ages))
+    if let Option.Some(age) = ages.getMut("cy") {
+        *age += 1
+    }
+    println("{*ages.get("cy").unwrap()}")
+
+    var counts = Map<str, int>.new()
+    for word in ["a", "b", "a", "c", "b", "a"] {
+        *counts.getOrInsert(word.toOwned(), 0) += 1
+    }
+    println(show(counts))
+
+    var squares = Map<int, int>.new()
+    for i in 0..1000 {
+        squares.insert(i, i * i)
+    }
+    for i in 0..500 {
+        let _ = squares.remove(i * 2)
+    }
+    var sum = 0
+    for k, v in squares {
+        sum += v - k * k
+    }
+    println("{squares.len()} {squares.get(999) ?? &-1} {squares.contains(998)} {sum}")
+
+    var grid = Map<(int, int), str>.new()
+    grid.insert((0, 1), "a")
+    grid.insert((1, 0), "b")
+    println("{grid.get((1, 0)) ?? "?"} {grid.get((0, 1)) ?? "?"} {grid.contains((1, 1))}")
+
+    var flags = Map<bool, int>.new()
+    flags.insert(true, 1)
+    flags.insert(false, 0)
+    flags.insert(true, 2)
+    println("{flags.len()} {flags.get(true) ?? &0}")
+
+    var negative = Map<i8, str>.new()
+    negative.insert(-1, "minus one")
+    println(negative.get(-1) ?? "none")
+
+    counts.clear()
+    println("{counts.len()} {counts.get("a").isNone()}")
+
+    for i, name in ["x", "y", "z"] {
+        print("{i}:{name} ")
+    }
+    println("")
+}

@@ -1,0 +1,36 @@
+// `for x in it` over a user type with `fn next(mut self) Option<T>`: the
+// loop variable owns each item; break and continue drop it.
+
+struct Countdown {
+    n: int
+
+    fn next(mut self) Option<str> {
+        if self.n == 0 {
+            return Option.None
+        }
+        self.n -= 1
+        return Option.Some("item{self.n}")
+    }
+}
+
+fn main() {
+    var kept: List<str> = []
+    for s in (Countdown{n: 4}) {
+        if s == "item1" {
+            break
+        }
+        if s == "item3" {
+            continue
+        }
+        kept.push(s)
+    }
+    println("{kept.len()} {kept[0]}")
+    var c = Countdown{n: 3}
+    for s in c {
+        println(s)
+        if s == "item1" {
+            break
+        }
+    }
+    println("left {c.n}")
+}

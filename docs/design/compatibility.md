@@ -28,6 +28,22 @@ none.
   Nothing else in the repository (a `full` row of
   docs/design/conformance.md, a version number, a test) is a promise.
 
+## Release branches and the compatibility corpus
+
+These rules are enforced as ADR 0084 decides; docs/releasing.md is the
+checklist.
+
+- A minor release is made from `release/<major>.<minor>`, created at its
+  first candidate (`v<version>-rc.N`); its patch releases come from the
+  same branch, and take only fixes cherry-picked from `main`.
+- `tests/compat/<major>.<minor>/` holds programs that release built and
+  ran, with what they printed; it is not edited.
+  `tools/check_compat.py` runs every corpus. On `main`, a corpus program
+  that fails is listed in `tests/compat/breaks.json` with the changelog
+  entry that announces it; on a release branch, the corpus of that minor
+  takes no breaks.
+- Only the corpus of the previous minor is kept before 1.0.
+
 ## What a break is
 
 | Surface | Breaking | Not breaking |

@@ -1,0 +1,15 @@
+// A value used after it was moved (spec 5.1): E0600.
+
+struct Token {
+    ids: List<int>
+}
+
+fn consume(t: move Token) {
+    println("consumed {t.ids.len()}")
+}
+
+fn main() {
+    let t = Token{ids: [1, 2]}
+    consume(t)
+    consume(t)
+}

@@ -1,0 +1,74 @@
+// requires: stage1
+// Bounds on type parameters (spec 8.1): `Eq`, `Ord`, `Hash` and `Clone`
+// until interfaces (roadmap 5.3).
+
+enum Color {
+    Red
+    Green
+}
+
+fn largest<T: Ord + Clone>(xs: List<T>) T {
+    var best = xs[0].clone()
+    for i in 1..xs.len() {
+        if xs[i] > best {
+            best = xs[i].clone()
+        }
+    }
+    return best
+}
+
+fn count<T: Eq>(xs: List<T>, x: T) int {
+    var n = 0
+    for i in 0..xs.len() {
+        if xs[i] == x {
+            n += 1
+        }
+    }
+    return n
+}
+
+fn differs<T: Eq>(a: T, b: T) bool {
+    return a != b
+}
+
+fn ordered<T: Ord>(a: T, b: T) str {
+    return if a < b {
+        "<"
+    } else if a <= b {
+        "="
+    } else if a >= b && a > b {
+        ">"
+    } else {
+        "?"
+    }
+}
+
+fn sorted<T: Ord + Clone>(xs: List<T>) List<T> {
+    var out = xs.clone()
+    out.sort()
+    return out
+}
+
+fn tally<K: Hash + Eq + Clone>(keys: List<K>) Map<K, int> {
+    var m: Map<K, int> = Map.new()
+    for i in 0..keys.len() {
+        let n = *(m.get(keys[i]) ?? &0) + 1
+        m.insert(keys[i].clone(), n)
+    }
+    return m
+}
+
+fn main() {
+    println("{largest([3, 9, 2])} {largest(["b", "c", "a"])} {largest([1.5, 0.5])}")
+    println("{count([1, 2, 1], 1)} {count(["x", "y"], "y")}")
+    println("{count([Color.Red, Color.Green, Color.Red], Color.Red)}")
+    println("{count([(1, "a"), (2, "b"), (1, "a")], (1, "a"))}")
+    println("{differs((1, 2), (1, 3))} {differs("a", "a")}")
+    println("{ordered(1, 2)} {ordered("b", "b")} {ordered(2.5, 1.0)}")
+    let s = sorted(["pear", "apple", "fig"])
+    println("{s[0]} {s[1]} {s[2]}")
+    let m = tally(["a", "b", "a"])
+    println("{m.len()} {*(m.get("a") ?? &0)} {*(m.get("b") ?? &0)}")
+    let pairs = tally([(1, true), (1, true), (2, false)])
+    println("{pairs.len()}")
+}

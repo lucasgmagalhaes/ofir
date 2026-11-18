@@ -1,0 +1,32 @@
+struct Inventory {
+    items: List<str>
+
+    fn new() Inventory {
+        return Inventory{items: []}
+    }
+
+    // Reads the inventory (the default mode of `self`).
+    fn count(self) int {
+        return self.items.len()
+    }
+
+    // Modifies the inventory and takes ownership of the item.
+    fn add(mut self, item: move str) {
+        self.items.push(item)
+    }
+}
+
+// Takes ownership; the inventory is dropped when this function returns.
+fn discard(inv: move Inventory) {
+    println("discarding {inv.count()} items")
+}
+
+fn main() {
+    var inv = Inventory.new()
+    inv.add("sword")
+    inv.add("shield")
+    println("items: {inv.count()}")
+
+    discard(inv)            // nothing marks the call: the signature says `move`
+    // inv.add("potion")   // error: use of moved value `inv`
+}
