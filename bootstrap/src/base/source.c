@@ -45,6 +45,7 @@ static FileId add_owned(SourceMap *map, StrView path, StrView text) {
     }
     SourceFile *file = &map->files[map->count];
     file->path = (StrView){arena_strndup(map->arena, path.ptr, path.len), path.len};
+    file->logical = file->path;
     file->text = text;
     index_lines(map, file);
     return (FileId){map->count++};
@@ -76,6 +77,11 @@ bool source_map_load(SourceMap *map, const char *path, FileId *out) {
 
 const SourceFile *source_file(const SourceMap *map, FileId id) {
     return &map->files[id.id];
+}
+
+void source_set_logical(SourceMap *map, FileId id, StrView logical) {
+    map->files[id.id].logical =
+        (StrView){arena_strndup(map->arena, logical.ptr, logical.len), logical.len};
 }
 
 LineCol source_line_col(const SourceMap *map, FileId id, uint32_t offset) {
