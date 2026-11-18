@@ -1,0 +1,326 @@
+/**
+ * @module
+ * `ofir repl` (ADR 0074): reads entries from standard input and runs each
+ * one by building and running the whole session again, the new entry
+ * last. It shows the output that follows what the session printed before.
+ */
+
+import std.fs
+import std.io
+import std.os
+import std.time
+
+/** The kind of an entry, by its first word. */
+enum EntryKind {
+    Import
+    Item
+    Binding
+    Other
+}
+
+/** The result of building and running a session. */
+enum Outcome {
+    /** It ran to the end: its standard output. */
+    Ran(str)
+    /** It did not compile: the diagnostics. */
+    Rejected(str)
+    /** It compiled and then failed: its output and its error output. */
+    Failed(str, str)
+}
+
+/** What a REPL keeps: the session module, in three parts. */
+struct Session {
+    imports: List<str>
+    items: List<str>
+    body: List<str>
+    /** The standard output of the session as it stands. */
+    shown: str
+    /** How many expression entries were kept, to name their values. */
+    values: int
+}
+
+/** Where a session is built and how. */
+struct Workspace {
+    exe: str
+    dir: str
+}
+
+/**
+ * Runs the REPL until `:quit` or the end of the input.
+ *
+ * @returns the exit status: 0, or 1 when the compiler cannot be found
+ */
+pub fn replCommand() int {
+    const Result.Ok(exe) = os.executablePath() else {
+        eprintln("error[E0902]: cannot find the compiler executable")
+        return 1
+    }
+    const dir = "{tempRoot()}/ofir-repl-{time.unixNanos()}"
+    if fs.createDirAll(dir).isErr() {
+        eprintln("error[E0902]: cannot create `{dir}`")
+        return 1
+    }
+    const work = Workspace{exe: exe, dir: dir}
+    let session = Session{imports: [], items: [], body: [], shown: "", values: 0}
+    const prompt = io.isTerminal(io.Stream.Stdin)
+    let input = io.stdin()
+    for {
+        if prompt {
+            print("> ")
+            io.flush().expect("stdout is writable")
+        }
+        const Option.Some(entry) = readEntry(&mut input) else {
+            break
+        }
+        const text = entry.trim().toOwned()
+        if text.isEmpty() {
+            continue
+        }
+        if text == ":quit" {
+            break
+        }
+        if text == ":reset" {
+            session = Session{imports: [], items: [], body: [], shown: "", values: 0}
+            continue
+        }
+        if text == ":show" {
+            showSource(&session)
+            continue
+        }
+        session = enter(&work, session, text)
+        io.flush().expect("stdout is writable")
+    }
+    cleanUp(&work)
+    return 0
+}
+
+// Reads lines until the brackets of the entry are balanced.
+fn readEntry(input: &mut io.Stdin) Option<str> {
+    let entry = ""
+    for {
+        let line = ""
+        const Result.Ok(n) = input.readLine(line) else {
+            return Option.None
+        }
+        if n == 0 {
+            if entry.trim().isEmpty() {
+                return Option.None
+            }
+            return Option.Some(entry)
+        }
+        entry.push(line)
+        if depth(entry) <= 0 {
+            return Option.Some(entry)
+        }
+    }
+}
+
+/**
+ * The bracket depth at the end of a text: `(`, `[` and `{` open, their
+ * pairs close; strings, characters and `//` comments are skipped.
+ *
+ * @param text the entry so far
+ * @returns the depth, 0 when balanced
+ */
+pub fn depth(text: str) int {
+    const bytes = text.asBytes()
+    let level = 0
+    let i = 0
+    for i < bytes.len() {
+        const b = bytes[i]
+        if b == b'"' || b == b'\'' {
+            i = skipQuoted(bytes, i)
+            continue
+        }
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            for i < bytes.len() && bytes[i] != b'\n' {
+                i += 1
+            }
+            continue
+        }
+        if b == b'(' || b == b'[' || b == b'{' {
+            level += 1
+        } else if b == b')' || b == b']' || b == b'}' {
+            level -= 1
+        }
+        i += 1
+    }
+    return level
+}
+
+// The index after the quoted literal that starts at `start`.
+fn skipQuoted(bytes: [u8], start: int) int {
+    const quote = bytes[start]
+    let i = start + 1
+    for i < bytes.len() && bytes[i] != quote && bytes[i] != b'\n' {
+        if bytes[i] == b'\\' {
+            i += 1
+        }
+        i += 1
+    }
+    return i + 1
+}
+
+/**
+ * The kind of an entry, by its first word.
+ *
+ * @param text the entry, trimmed
+ * @returns where it goes in the session
+ */
+fn kindOf(text: str) EntryKind {
+    if text.startsWith("import ") {
+        return EntryKind.Import
+    }
+    if text.startsWith("@") {
+        return EntryKind.Item
+    }
+    const words = ["fn ", "struct ", "enum ", "interface ", "impl ", "impl<", "type ", "pub "]
+    for i in 0..words.len() {
+        if text.startsWith(words[i]) {
+            return EntryKind.Item
+        }
+    }
+    if text.startsWith("let ") || text.startsWith("const ") {
+        return EntryKind.Binding
+    }
+    return EntryKind.Other
+}
+
+// Runs one entry and keeps it when it succeeds.
+fn enter(work: &Workspace, session: move Session, text: str) Session {
+    let next = copySession(&session)
+    match kindOf(text) {
+        EntryKind.Import => next.imports.push(text.toOwned()),
+        EntryKind.Item => next.items.push(text.toOwned()),
+        EntryKind.Binding => next.body.push(text.toOwned()),
+        EntryKind.Other => {
+            const name = "_v{session.values}"
+            next.body.push("const {name} = &({text})\nprintln(\"\\x01\{{name}:?\}\")")
+            next.values += 1
+            if const Outcome.Rejected(_) = build(work, &next) {
+                next = copySession(&session)
+                next.body.push(text.toOwned())
+            }
+        }
+    }
+    match build(work, &next) {
+        Outcome.Ran(out) => {
+            show(newOutput(session.shown, out))
+            next.shown = out
+            return next
+        }
+        Outcome.Rejected(diags) => eprint(diags),
+        Outcome.Failed(out, err) => {
+            show(newOutput(session.shown, out))
+            eprint(err)
+        }
+    }
+    return session
+}
+
+fn copySession(session: &Session) Session {
+    return Session{imports: session.imports.clone(), items: session.items.clone(),
+        body: session.body.clone(), shown: session.shown.clone(), values: session.values}
+}
+
+// What a run printed after the output of the session before it.
+fn newOutput(before: str, out: str) str {
+    if out.startsWith(before) {
+        return out.sliceFrom(before.len()).toOwned()
+    }
+    return out.toOwned()
+}
+
+// Prints output, with the value of an expression entry (a line marked by
+// `\x01`) shown unless it is `()`.
+fn show(out: str) {
+    for line in out.lines() {
+        if const Option.Some(value) = line.stripPrefix("\x01") {
+            if value != "()" {
+                println(value)
+            }
+        } else {
+            println(line)
+        }
+    }
+}
+
+/**
+ * The session module: the imports, the items, and `main` with the body.
+ *
+ * @param session the session
+ * @returns the source text
+ */
+fn source(session: &Session) str {
+    let out = ""
+    for i in 0..session.imports.len() {
+        out.push("{session.imports[i]}\n")
+    }
+    for i in 0..session.items.len() {
+        out.push("\n{session.items[i]}\n")
+    }
+    out.push("\nfn main() \{\n")
+    for i in 0..session.body.len() {
+        for line in session.body[i].lines() {
+            out.push("    {line}\n")
+        }
+    }
+    out.push("\}\n")
+    return out
+}
+
+fn showSource(session: &Session) {
+    let n = 1
+    for line in source(session).lines() {
+        const num = "{n}"
+        println("{" ".repeat(4 - num.len())}{num} | {line}")
+        n += 1
+    }
+}
+
+fn build(work: &Workspace, session: &Session) Outcome {
+    const file = "{work.dir}/session.of"
+    const exe = "{work.dir}/session"
+    if fs.writeString(file, source(session)).isErr() {
+        return Outcome.Rejected("error[E0902]: cannot write `{file}`\n")
+    }
+    const args = ["build", file.clone(), "-o", exe.clone()]
+    const Result.Ok(built) = os.run(work.exe, args) else {
+        return Outcome.Rejected("error[E0902]: cannot run `{work.exe}`\n")
+    }
+    if built.status != 0 {
+        return Outcome.Rejected("{built.stderr}{built.stdout}")
+    }
+    const none: List<str> = []
+    const Result.Ok(ran) = os.run(exe, none) else {
+        return Outcome.Failed("", "error[E0902]: cannot run `{exe}`\n")
+    }
+    if ran.status != 0 {
+        return Outcome.Failed(ran.stdout, ran.stderr)
+    }
+    return Outcome.Ran(ran.stdout)
+}
+
+fn cleanUp(work: &Workspace) {
+    const names = ["session.of", "session", "session.exe"]
+    for i in 0..names.len() {
+        const path = "{work.dir}/{names[i]}"
+        if fs.exists(path) {
+            fs.removeFile(path).isOk()
+        }
+    }
+    fs.removeDir(work.dir).isOk()
+}
+
+// The temporary directory: `TMPDIR`, `TEMP` or `/tmp`.
+fn tempRoot() str {
+    const names = ["TMPDIR", "TEMP"]
+    for i in 0..names.len() {
+        if const Option.Some(dir) = os.env(names[i]) {
+            if dir.len() > 0 {
+                return dir.replace("\\", "/")
+            }
+        }
+    }
+    return "/tmp".toOwned()
+}

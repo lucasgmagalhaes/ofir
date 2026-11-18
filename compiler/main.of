@@ -42,6 +42,9 @@ import fmt.fmtCommand
 import driver.modules.Front
 import driver.object_cache
 import driver.modules.loadProgram
+import driver.repl.replCommand
+import driver.watch.wantsWatch
+import driver.watch.watchCommand
 import lsp.lspCommand
 import sema.c_symbols.linkLibraries
 import sema.check.Checker
@@ -80,6 +83,7 @@ fn printUsage() {
              + "  fetch             fetch the git dependencies and write ofir.lock\n"
              + "  update [name]     choose the newest versions of the git dependencies again\n"
              + "  lsp               run the language server on standard input and output\n"
+             + "  repl              read and run entries from standard input (ADR 0074)\n"
              + "  version           print the compiler version\n\noptions:\n"
              + "  -o <path>                 output path\n"
              + "  --emit=tokens             print the tokens and stop\n"
@@ -97,6 +101,7 @@ fn printUsage() {
              + "  --no-cache                compile every unit, without the object cache\n"
              + "  -g                        write debug info (DWARF: functions, lines)\n"
              + "  --coverage                count executed lines for gcov (implies -g)\n"
+             + "  --watch                   run the command again when a source changes\n"
              + "  --deny-warnings           treat warnings as errors\n"
              + "  --locked                  fail instead of changing ofir.lock (also fetch)\n"
              + "  --offline                 use only the package cache (also fetch, update)\n"
@@ -303,6 +308,9 @@ fn main() {
     if command == "lsp" {
         os.exit(lspCommand())
     }
+    if command == "repl" {
+        os.exit(replCommand())
+    }
     if command == "help" {
         printUsage()
         return
@@ -313,6 +321,9 @@ fn main() {
         eprintln("error: unknown command `{command}`\n")
         printUsage()
         os.exit(2)
+    }
+    if command != "metadata" && command != "bench" && wantsWatch(&args) {
+        os.exit(watchCommand(&args))
     }
     const Option.Some(opts) = parseOptions(&args) else {
         os.exit(2)

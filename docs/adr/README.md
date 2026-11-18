@@ -84,6 +84,7 @@ starts with the same word as the record's status line.
 | [0071](0071-lint-levels.md) | Lint categories with levels per item, package and command | Accepted |
 | [0072](0072-debug-adapters.md) | Editors debug Ofir through the existing DAP adapters | Accepted |
 | [0073](0073-coverage-and-profiling.md) | Coverage through gcov counters and profiling through DWARF | Accepted |
+| [0074](0074-watch-and-repl.md) | Watch mode re-runs the driver and the REPL replays its session | Accepted |
 
 ## Template
 
