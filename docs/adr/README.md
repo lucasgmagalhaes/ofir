@@ -93,6 +93,7 @@ starts with the same word as the record's status line.
 | [0080](0080-code-for-agents.md) | Tools and rules for code written by agents | Accepted |
 | [0081](0081-supply-chain-integrity.md) | Supply-chain integrity and provenance | Proposed |
 | [0082](0082-installation-and-toolchains.md) | Installation archives, side-by-side toolchains and `toolchain` pins | Proposed |
+| [0083](0083-reproducible-builds.md) | Reproducible builds: logical paths, no timestamps, build records | Proposed |
 
 ## Template
 
