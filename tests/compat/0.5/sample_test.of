@@ -1,0 +1,21 @@
+// The tests of sample.of, in its test file (spec 12.2).
+
+@test
+fn addWorks() {
+    assert(add(2, 2) == 4)
+}
+
+@test
+fn addFails() {
+    println("printed before the failure")
+    assert(add(2, 2) == 5)
+}
+
+@test
+fn stillRuns() {
+    var total = 0
+    for i in 1..=10 {
+        total = add(total, i)
+    }
+    assert(total == 55)
+}

@@ -1,0 +1,6 @@
+test sample.addWorks ... ok
+test sample.addFails ... printed before the failure
+FAILED (exit status 101)
+test sample.stillRuns ... ok
+
+3 tests: 2 passed, 1 failed
