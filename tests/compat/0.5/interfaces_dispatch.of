@@ -1,0 +1,59 @@
+// requires: stage1
+// Interfaces as bounds (spec 9.1, 9.2, 9.6): satisfaction is structural and
+// calls through a bound are resolved for each instance.
+
+interface Shape {
+    fn area(self) float
+    fn name(self) str
+}
+
+struct Circle {
+    radius: float
+
+    fn area(self) float {
+        return 3.0 * self.radius * self.radius
+    }
+
+    fn name(self) str {
+        return "circle"
+    }
+}
+
+struct Square {
+    side: float
+
+    fn area(self) float {
+        return self.side * self.side
+    }
+
+    fn name(self) str {
+        return "square"
+    }
+}
+
+fn report<S: Shape>(s: S) str {
+    return "{s.name()} {s.area()}"
+}
+
+fn total<S: Shape>(shapes: List<S>) float {
+    var sum = 0.0
+    for i in 0..shapes.len() {
+        sum += shapes[i].area()
+    }
+    return sum
+}
+
+fn twice<S: Shape>(s: S) float {
+    return area2(s) + s.area()
+}
+
+fn area2<T: Shape>(t: T) float {
+    return t.area()
+}
+
+fn main() {
+    println(report(Circle{radius: 1.0}))
+    println(report(Square{side: 2.0}))
+    println("{total([Square{side: 1.0}, Square{side: 3.0}])}")
+    println("{twice(Circle{radius: 2.0})}")
+}

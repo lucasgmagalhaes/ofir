@@ -1,0 +1,18 @@
+// requires: stage1 (format specifiers, roadmap 5.10)
+// Format specifiers in interpolation (spec 1.7).
+
+fn main() {
+    let pi = 3.14159
+    let n = 42
+    let neg: i8 = -1
+    let name = "ofir"
+    println("[{pi:.2}] [{pi:.0}] [{2.5:.3}]")
+    println("[{n:5}] [{n:<5}] [{n:05}] [{-n:05}]")
+    println("[{255:x}] [{255:X}] [{10:b}] [{neg:x}] [{n:08b}]")
+    println("[{name:6}] [{name:<6}] [{true:<6}]")
+    println("[{pi:8.3}] [{pi:<8.1}] [{n:2}]")
+    let s = "{n:x}-{name:<5}|"
+    println(s)
+    let point = (1, 2)
+    println("{point.0:3}{point.1:3}")
+}
