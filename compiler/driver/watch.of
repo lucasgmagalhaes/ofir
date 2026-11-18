@@ -1,0 +1,159 @@
+/**
+ * @module
+ * `--watch` (ADR 0074): runs a `build`, `run`, `test` or `check` command
+ * again each time a source under its directory changes.
+ */
+
+import std.fs
+import std.io
+import std.os
+import std.time
+
+// How long the watch sleeps between two looks at the sources.
+const POLL_NANOS = 200000000
+
+/**
+ * Whether the arguments of a command ask for watch mode.
+ *
+ * @param args the arguments of the process
+ * @returns true if one of them is `--watch`
+ */
+pub fn wantsWatch(args: &List<str>) bool {
+    for i in 2..args.len() {
+        if args[i] == "--watch" {
+            return true
+        }
+    }
+    return false
+}
+
+/**
+ * Runs the command without `--watch`, then again after each change, until
+ * the process is stopped. `OFIR_WATCH_RUNS=N` stops after N runs (for the
+ * tests).
+ *
+ * @param args the arguments of the process
+ * @returns the exit status of the last run, when a run limit is set
+ */
+pub fn watchCommand(args: &List<str>) int {
+    const Result.Ok(exe) = os.executablePath() else {
+        eprintln("error[E0902]: cannot find the compiler executable")
+        return 1
+    }
+    let rest: List<str> = []
+    for i in 1..args.len() {
+        if args[i] != "--watch" {
+            rest.push(args[i].clone())
+        }
+    }
+    let limit = 0
+    if const Option.Some(text) = os.env("OFIR_WATCH_RUNS") {
+        limit = runLimit(text)
+    }
+    const root = watchRoot(args)
+    let seen = snapshot(root)
+    let runs = 0
+    for {
+        const status = runOnce(exe, rest.clone())
+        runs += 1
+        if limit > 0 && runs >= limit {
+            return status
+        }
+        eprintln("[watch] waiting for changes under {root}")
+        io.flush().expect("stdout is writable")
+        for {
+            time.sleep(POLL_NANOS)
+            const now = snapshot(root)
+            if now != seen {
+                seen = now
+                break
+            }
+        }
+    }
+}
+
+fn runLimit(text: str) int {
+    let n = 0
+    for b in text.bytes() {
+        if b < 48 || b > 57 {
+            return 0
+        }
+        n = n * 10 + (b - 48) as int
+    }
+    return n
+}
+
+// The directory of the input file, or the current directory.
+fn watchRoot(args: &List<str>) str {
+    for i in 2..args.len() {
+        const arg = args[i].clone()
+        if arg.endsWith(".of") {
+            if const Option.Some(slash) = arg.rfind("/") {
+                if slash == 0 {
+                    return "/".toOwned()
+                }
+                return arg.slice(0, slash).toOwned()
+            }
+            return ".".toOwned()
+        }
+    }
+    return ".".toOwned()
+}
+
+fn runOnce(exe: str, args: [str]) int {
+    return match os.run(exe, args) {
+        Result.Ok(out) => {
+            print(out.stdout)
+            eprint(out.stderr)
+            io.flush().expect("stdout is writable")
+            const status = if out.status < 0 { 1 } else { out.status }
+            eprintln("[watch] finished with status {status}")
+            status
+        }
+        Result.Err(_) => {
+            eprintln("error[E0902]: cannot run `{exe}`")
+            1
+        }
+    }
+}
+
+/**
+ * The watched files under a directory and their modification times, one
+ * `path size modified` line each, in a fixed order.
+ *
+ * @param root the directory
+ * @returns the lines
+ */
+pub fn snapshot(root: str) str {
+    let out = ""
+    walk(root, out, 0)
+    return out
+}
+
+fn skipped(name: str) bool {
+    if name.startsWith(".") {
+        return true
+    }
+    return name == "build" || name == "target" || name == "node_modules"
+}
+
+fn walk(dir: str, out: mut str, depth: int) {
+    if depth > 32 {
+        return
+    }
+    const Result.Ok(entries) = fs.readDir(dir) else {
+        return
+    }
+    for entry in entries {
+        if skipped(entry.name) {
+            continue
+        }
+        if entry.name.endsWith(".of") || entry.name == "ofir.json" {
+            if const Result.Ok(info) = fs.metadata(entry.path) {
+                out.push("{entry.path} {info.size} {info.modified}\n")
+            }
+        } else {
+            walk(entry.path, out, depth + 1)
+        }
+    }
+}
