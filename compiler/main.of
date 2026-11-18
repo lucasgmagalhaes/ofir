@@ -40,6 +40,9 @@ import driver.explain.explain
 import driver.metadata.metadataJson
 import driver.fetch.fetchCommand
 import driver.vendor.vendorCommand
+import driver.publish.packageCommand
+import driver.publish.publishCommand
+import driver.publish.yankCommand
 import fmt.fmtCommand
 import driver.modules.Front
 import driver.object_cache
@@ -85,6 +88,9 @@ fn printUsage() {
              + "  fetch             fetch the git dependencies and write ofir.lock\n"
              + "  update [name]     choose the newest versions of the git dependencies again\n"
              + "  vendor [dir]      copy the locked packages into dir (default vendor)\n"
+             + "  package           write the package's archive into build/package\n"
+             + "  publish           add the package to a clone of the index (--index DIR)\n"
+             + "  yank <version>    mark a published version yanked (--undo: not yanked)\n"
              + "  lsp               run the language server on standard input and output\n"
              + "  repl              read and run entries from standard input (ADR 0074)\n"
              + "  version           print the compiler version\n\noptions:\n"
@@ -322,6 +328,19 @@ fn main() {
             rest.push(args[i].clone())
         }
         os.exit(fetchCommand(rest, command == "update"))
+    }
+    if command == "package" || command == "publish" || command == "yank" {
+        let rest: List<str> = []
+        for i in 2..args.len() {
+            rest.push(args[i].clone())
+        }
+        if command == "package" {
+            os.exit(packageCommand(rest))
+        }
+        if command == "publish" {
+            os.exit(publishCommand(rest))
+        }
+        os.exit(yankCommand(rest))
     }
     if command == "vendor" {
         let rest: List<str> = []
