@@ -2002,7 +2002,11 @@ fn debugDir(trim: bool) str {
 fn debugFile(g: mut Gen, c: Checker, id: FileId) int {
     let path = ""
     const file = c.r.map.file(id)
-    escapedBytes(path, if g.trim { file.logical } else { file.path })
+    if g.trim {
+        escapedBytes(path, file.logical)
+    } else {
+        escapedBytes(path, file.path)
+    }
     return g.di.file(id.0, path, g.dir)
 }
 
