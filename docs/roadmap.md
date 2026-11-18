@@ -422,6 +422,15 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.29d | Registry publishing (ADR 0079): the git index is the registry, `ofir package`, `ofir publish [--index DIR] [--dry-run]` and `ofir yank [--undo]` commit to a clone of it, immutable versions, flat names owned through the index host, mirrors checked by checksums; E0919; `tools/check_publish.py` | OFIR-67 | **done** |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
+| 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
+| 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | |
+| 6.32b | Cascades suppressed: an error type silences diagnostics about its values and failed declarations; `--error-limit=N` (default 50); compile-fail expectations updated | ADR 0080 | |
+| 6.32c | `ofir outline`, `ofir sig`, `ofir def` and `ofir type`: text one line per item, versioned JSON, shared with `compiler/lsp` | ADR 0080 | |
+| 6.32d | `ofir refs`, `ofir impls [--of]` and `ofir callers` over the whole program | ADR 0080 | |
+| 6.32e | `ofir fix`, `ofir rename` and `ofir move`: refuse an edit that leaves errors, `--dry-run` prints a diff | ADR 0080 | |
+| 6.32f | `ofir check --fmt`: the files `ofir fmt` would change, as warnings | ADR 0080 | |
+| 6.32g | Contracts: `@requires` and `@ensures` (spec 12.1), `result`, no effects in a condition, checked in debug and test, a profile setting for release; shown by `sig`, `outline` and `ofir doc`; new codes | ADR 0080 | |
+| 6.32h | Effects `io`, `alloc` and `unsafe` over the call graph, per instantiation, every effect through function and interface values; `@effects(...)` bound with a new code; bounds on the public functions of `std` | ADR 0080 | |
 
 Keep stage 0 minimal. GUI, scientific computing, mobile, embedded, WebAssembly,
 alternative backends and async require separate workload and maintenance
@@ -467,5 +476,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 3. Validate a CLI/filesystem utility, C consumer and concurrent program
    (OFIR-76), plus each API milestone with the reference service (API-49).
    Select optional adapters and domain ecosystems by concrete demand and ownership.
+4. Code written by agents (6.32, ADR 0080): start with 6.32a and 6.32b,
+   then the query commands (6.32c, 6.32d) before edits, contracts and effects.
 
 See also the [risk register](risks.md).
