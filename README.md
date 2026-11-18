@@ -26,6 +26,8 @@ Ofir logo. Install it locally using the commands in its README.
 
 ## Documentation
 
+The [website](site/README.md) has a landing page and a short getting-started guide.
+
 | Document | Content |
 |----------|---------|
 | [Specification](docs/spec/README.md) | the language, chapter by chapter, with the full grammar |
