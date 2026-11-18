@@ -1,0 +1,15 @@
+{
+    "0.5/closures_captures.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/drops_order.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/enums_patterns.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/errors_result.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/generics_bounds.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/interfaces.of": "`Any` is now the builtin `dyn` type `any`",
+    "0.5/interfaces_dispatch.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/iterators_user.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/map_basics.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/ownership.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/sample_test.of": "`assert` is no longer in the prelude",
+    "0.5/shapes.of": "`var` is no longer a keyword (ADR 0031).",
+    "0.5/word_count.of": "`var` is no longer a keyword (ADR 0031)."
+}
