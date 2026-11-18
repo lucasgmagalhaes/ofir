@@ -169,6 +169,8 @@ project uses [Semantic Versioning](https://semver.org/).
 - `let` declares a mutable binding and `const` an immutable one, in
   functions and at module level; `if let` and `let ... else` are now
   `if const` and `const ... else`. `var` is no longer a keyword (ADR 0031).
+- `assert` is no longer in the prelude: import it with
+  `import std.testing.assert` (E0200, ADR 0036).
 
 ### Fixed
 
