@@ -13,7 +13,7 @@ A single executable provides every tool:
 | `ofir test [filter]` | build and run `@test` functions and doc tests |
 | `ofir bench [filter]` | build with optimizations and run `@bench` functions |
 | `ofir fmt [--check] [--stdout] [paths]` | format source files (below) |
-| `ofir doc [-o dir] [--stdout] [paths]` | generate HTML documentation (below) |
+| `ofir doc [-o dir] [--stdout] [--private] [paths]` | generate HTML documentation (below) |
 | `ofir metadata <file.of>` | print the modules of a program as JSON (below) |
 | `ofir explain <code>` | describe an error code |
 | `ofir lsp` | run the language server on standard input and output (below) |
@@ -335,8 +335,22 @@ of the file, each with an anchor named after it (`#parse`, `#Point.x`): its
 signature as written, without its attributes and body, on one line, and its
 comment. A struct lists its public fields and methods, an enum its variants
 and public methods, an interface its methods. Private declarations, imports
-and `extern` blocks are left out; a public declaration without a comment is
-listed all the same.
+and `extern` blocks are left out (`--private` documents the private
+declarations too); a public declaration without a comment is listed all the
+same.
+
+The site works offline (ADR 0075): it refers to no network address. Each
+page heads its navigation with the package's name and version, read from
+the `ofir.json` of the current directory, and has a search box served by
+`search.js`, which lists every documented declaration with its module and
+the first sentence of its comment. Documentation for each version goes to
+its own directory (`-o build/doc/1.2.0`).
+
+A `` `code` `` span that names a documented declaration links to it: a
+name or `Type.member` of the same module, `module.name` of another one, or
+a name that exactly one other module declares. Code blocks and signatures
+are not linked. The examples of the comments are the doc tests that
+`ofir test` runs.
 
 A comment's text is Markdown, of which `ofir doc` renders paragraphs
 (separated by blank lines), `-` lists, fenced code blocks and `` `code` ``
