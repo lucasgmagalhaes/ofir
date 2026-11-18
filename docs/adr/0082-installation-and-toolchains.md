@@ -96,14 +96,16 @@ yet.
 ### Pinned toolchains
 
 10. **A manifest can name the toolchain it needs.** The root's
-    `ofir.json` takes `"toolchain": "<requirement>"`, a version
-    requirement in the syntax of dependencies (`"0.6.0"`, `">=0.6,
-    <0.8"`). A compiler whose version does not satisfy it stops before
-    resolving with E0923, naming both versions, and the help line names
-    the command that switches to an installed version that does
-    (`sh <prefix>/install.sh --use 0.6.2`) when one is installed. An
-    invalid requirement is E0910. A dependency's `toolchain` is not
-    read; in a workspace, the root's applies.
+    `ofir.json` takes `"toolchain": "<range>"`, a range of versions in the
+    syntax of advisories (ADR 0081): requirements of dependencies, or
+    `<`, `<=` and `>` with a full version, joined by `,` and `||`
+    (`"0.6.0"`, which is `^0.6.0`, or `">=0.6.0, <0.8.0"`). A compiler
+    whose version is not in it stops before resolving with E0923, naming
+    both, and the help line names the command that switches to an
+    installed version in the range (`sh <prefix>/install.sh --use
+    0.6.2`) when one is installed. An invalid range is E0910. A
+    dependency's `toolchain` is not read; in a workspace, the root's
+    applies.
 11. **The compiler does not download compilers.** Fetching a toolchain
     needs a trusted release host and signed releases; until the project
     runs one, a pinned version is installed from its archive, by the
