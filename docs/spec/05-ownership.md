@@ -36,6 +36,11 @@ fn main() {
 - Assigning a move type to a variable or field, passing it to a `move`
   parameter, or returning it **moves** it. The source can no longer be used
   (unless it is a `let` that is assigned a new value).
+- The value of an `if`, a `match` or a block is a new value: the last
+  expression of the branch taken is moved into it, whatever uses it.
+  `show(if c { a } else { b })` moves `a` or `b`, even though `show` only
+  borrows its parameter. To keep them, write `if c { show(a) } else
+  { show(b) }`, or call `.clone()`.
 - Copy types (chapter 2.9) are copied instead of moved.
 - To duplicate a move type explicitly, call `.clone()`.
 - A value can only be moved out of a place the function owns entirely.
