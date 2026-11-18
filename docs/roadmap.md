@@ -416,6 +416,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.28g | Watch mode and REPL (ADR 0074): `--watch` re-runs `build`, `run`, `test` or `check` when a source under its directory changes, `ofir repl` replays its session for each entry, and `tools/check_watch.py` checks both | OFIR-62 | **done** |
 | 6.28h | Documentation site (ADR 0075): `search.js` and a search box on each page, cross-links from `code` spans, `--private`, the package's name and version on each page, offline pages, and `tools/check_doc_site.py` | OFIR-63 | **done** |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
+| 6.29a | Dependency graph contracts (ADR 0076): cycles of packages are E0916, and `tools/check_resolution.py` checks a conflict-free lock, an untouched refetch, the same lock from reversed manifests, `--locked` and the cycle | OFIR-64 | **done** |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 
@@ -453,7 +454,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. 6.28 is done (OFIR-56 to OFIR-63, as 6.28a to 6.28h); continue with 6.29, OFIR-64.
+1. Continue 6.29 with OFIR-65; OFIR-64 is done as 6.29a.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
