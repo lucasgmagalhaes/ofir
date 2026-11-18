@@ -26,7 +26,8 @@ typedef struct {
     int64_t count;
     int64_t capacity;       // 0: unbounded
     int64_t senders;
-    bool receiver;
+    bool receiver;          // the receiver is alive: it frees the channel otherwise
+    bool closed;            // the receiver closed: sends fail
 } channel;
 
 void *ofir_channel_new_bounded(int64_t capacity) {
@@ -40,6 +41,7 @@ void *ofir_channel_new_bounded(int64_t capacity) {
     ch->capacity = capacity;
     ch->senders = 1;
     ch->receiver = true;
+    ch->closed = false;
     return ch;
 }
 
@@ -57,10 +59,10 @@ static void destroy(channel *ch) {
 bool ofir_channel_send(void *c, void *value) {
     channel *ch = c;
     pthread_mutex_lock(&ch->lock);
-    while (ch->receiver && ch->capacity > 0 && ch->count >= ch->capacity) {
+    while (!ch->closed && ch->capacity > 0 && ch->count >= ch->capacity) {
         pthread_cond_wait(&ch->space, &ch->lock);
     }
-    if (!ch->receiver) {
+    if (ch->closed) {
         pthread_mutex_unlock(&ch->lock);
         return false;
     }
@@ -149,7 +151,7 @@ void ofir_channel_drop_sender(void *c) {
 void ofir_channel_close(void *c) {
     channel *ch = c;
     pthread_mutex_lock(&ch->lock);
-    ch->receiver = false;
+    ch->closed = true;
     pthread_cond_broadcast(&ch->space);
     pthread_mutex_unlock(&ch->lock);
 }
@@ -157,6 +159,9 @@ void ofir_channel_close(void *c) {
 void ofir_channel_drop_receiver(void *c) {
     channel *ch = c;
     pthread_mutex_lock(&ch->lock);
+    // Clearing `receiver` here, not in close, keeps the channel alive while
+    // the receiver drains it: a sender that goes meanwhile does not free it.
+    ch->receiver = false;
     bool last = ch->senders == 0;
     pthread_mutex_unlock(&ch->lock);
     if (last) {
