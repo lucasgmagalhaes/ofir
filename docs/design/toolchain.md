@@ -578,9 +578,10 @@ flags and `--target`; the program declares their functions in an
 at build time: there are no build scripts, and generated code is either
 computed by `comptime` or committed.
 
-A debug build also passes `-mllvm -pre-RA-sched=linearize` to the clang
-calls that generate code: at `-O0` it changes nothing observable and makes
-clang about 40% faster on large functions (ADR 0054). There is no other
+A build at `-O0` also passes `-mllvm -pre-RA-sched=linearize` to the
+clang calls that generate code: it changes nothing observable and makes
+clang about 40% faster on large functions (ADR 0054). A profile with a
+higher `opt` does not, since the AArch64 backend crashes with it there. There is no other
 backend and no JIT.
 
 ### Debug info
