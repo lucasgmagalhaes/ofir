@@ -23,8 +23,8 @@ import driver.registry.releases
 import driver.resolve.Mode
 import driver.resolve.resolve
 import driver.semver.Version
-import driver.semver.parseRequirement
 import driver.semver.parseVersion
+import driver.semver.satisfies
 import lsp.json.JsonDoc
 import lsp.json.parseJson
 import lsp.json.parseJsonc
@@ -96,7 +96,7 @@ pub fn auditCommand(args: List<str>) int {
             }
             const id = doc.text(doc.field(0, "id"))
             const versions = doc.text(doc.field(0, "versions"))
-            const Option.Some(hit) = affects(versions, version) else {
+            const Option.Some(hit) = satisfies(versions, version) else {
                 report.note("the advisory {id} has invalid `versions`: `{versions}`")
                 continue
             }
@@ -196,66 +196,6 @@ fn ignoreList(dir: str) List<str> {
     return out
 }
 
-/**
- * Whether the `versions` of an advisory take in `v`: requirements as in
- * dependencies, or `<`, `<=` and `>` with a full version, all of which
- * must hold when separated by `,`; alternatives separated by `||`.
- *
- * @param versions the advisory's `versions`
- * @param v a version
- * @returns whether `v` is affected, or `None` if `versions` is invalid
- */
-pub fn affects(versions: str, v: Version) Option<bool> {
-    if versions.trim().len() == 0 {
-        return Option.None
-    }
-    let any = false
-    for alternative in versions.split("||") {
-        let all = true
-        for part in alternative.split(",") {
-            const Option.Some(ok) = holdsFor(part.trim(), v) else {
-                return Option.None
-            }
-            all = all && ok
-        }
-        any = any || all
-    }
-    return Option.Some(any)
-}
-
-// Whether `v` meets one requirement; `None` if it is not one.
-fn holdsFor(part: str, v: Version) Option<bool> {
-    let skip = 0
-    let want = 0
-    if part.startsWith("<=") {
-        skip = 2
-        want = 1
-    } else if part.startsWith("<") {
-        skip = 1
-        want = 2
-    } else if part.startsWith(">") && !part.startsWith(">=") {
-        skip = 1
-        want = 3
-    }
-    if want == 0 {
-        const Option.Some(req) = parseRequirement(part) else {
-            return Option.None
-        }
-        return Option.Some(req.matches(v))
-    }
-    const Option.Some(bound) = parseVersion(part.sliceFrom(skip).trim()) else {
-        return Option.None
-    }
-    const order = v.compare(bound)
-    if want == 1 {
-        return Option.Some(order <= 0)
-    }
-    if want == 2 {
-        return Option.Some(order < 0)
-    }
-    return Option.Some(order > 0)
-}
-
 // The lowest version above `v` that is published, not yanked and not
 // affected; empty if there is none.
 fn fixedIn(versions: str, v: Version, known: &List<Release>) str {
@@ -265,7 +205,7 @@ fn fixedIn(versions: str, v: Version, known: &List<Release>) str {
         if r.yanked || r.version.compare(v) <= 0 {
             continue
         }
-        if affects(versions, r.version) ?? true {
+        if satisfies(versions, r.version) ?? true {
             continue
         }
         if best < 0 || r.version.compare(known[best].version) < 0 {
