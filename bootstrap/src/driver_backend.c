@@ -54,10 +54,12 @@ static Next link_program(const Options *opts, const char *ll, const char *exe) {
     // The module has no target triple: clang uses its default target, except
     // on Windows, where the runtime is built for MinGW rather than MSVC and
     // the main thread gets 32 MiB, not 1 MiB: the ABI's shadow space makes a
-    // frame about twice its size on Linux, whose stack is 8 MiB.
+    // frame about twice its size on Linux, whose stack is 8 MiB. The PE
+    // header gets no link time (ADR 0083).
     char *argv[] = {(char *)(clang && clang[0] ? clang : "clang"),
 #ifdef _WIN32
                     "--target=x86_64-w64-windows-gnu", "-Wl,--stack,33554432",
+                    "-Wl,--no-insert-timestamp",
 #endif
                     opts->release ? "-O2" : "-O0", "-Wno-override-module", (char *)ll, runtime,
                     "-lm",
