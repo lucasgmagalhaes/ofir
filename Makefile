@@ -6,7 +6,7 @@ BUILD  ?= build
 include tools/platform.mk
 PYTHON ?= python3
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed bench bench-programs bench-compare clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed dist bench bench-programs bench-compare clean
 
 all: stage0 runtime
 
@@ -99,6 +99,11 @@ seed: verify
 	cd $(BUILD)/seed && (sha256sum ofir-$(VERSION).ll 2>/dev/null || \
 	    shasum -a 256 ofir-$(VERSION).ll) > ofir-$(VERSION).ll.sha256
 	@cat $(BUILD)/seed/ofir-$(VERSION).ll.sha256
+
+# The release archive for the host and its checksum (ADR 0082).
+dist: stage1
+	$(PYTHON) tools/dist.py --compiler $(BUILD)/stage1/ofir$(EXE) \
+	    --runtime $(BUILD)/libofir_rt.a --out $(BUILD)/dist
 
 # The fast path of the bootstrap: clang builds a compiler from a seed
 # (SEED=path) whose SHA-256 is recorded (its .sha256, else seed/SEEDS.md), which
