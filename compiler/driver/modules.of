@@ -425,7 +425,7 @@ fn nameUnder(input: str, dir: str, prefix: str) Option<str> {
 
 // The project root (spec 7.2): the nearest directory above the root file
 // that holds an `ofir.json`.
-fn projectDir(input: str) Option<str> {
+pub fn projectDir(input: str) Option<str> {
     const Result.Ok(path) = fs.canonicalize(input) else {
         return Option.None
     }
@@ -542,5 +542,11 @@ pub fn loadProgram(input: str, root: move Module, front: mut Front,
             }
         }
     }
-    return newProgram(ld.modules)
+    let program = newProgram(ld.modules)
+    for p in 0..ld.packages.len() {
+        for i in 0..ld.packages[p].native.len() {
+            program.native.push(ld.packages[p].native[i].clone())
+        }
+    }
+    return program
 }
