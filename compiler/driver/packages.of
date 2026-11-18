@@ -49,6 +49,8 @@ pub struct Dependency {
     pub key: str
     /** The package it names, an index into the list of packages. */
     pub package: int
+    /** Its entry in the manifest. */
+    pub at: Span
 }
 
 /**
@@ -139,6 +141,7 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
         packages[p].deps = deps
         p += 1
     }
+    checkCycles(&packages, diags)
     if !diags.hasErrors() && (r.pins.len() > 0 || r.hadLock) {
         let locked: List<Locked> = []
         for i in 0..r.pins.len() {
@@ -157,6 +160,51 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
         }
     }
     return packages
+}
+
+// Reports each cycle of dependencies (E0916, ADR 0076), at the dependency
+// that closes it, walking the graph depth first from the root.
+fn checkCycles(packages: &List<Package>, diags: mut Diagnostics) {
+    let state: List<int> = []   // 0 unseen, 1 on the path, 2 done
+    for _ in 0..packages.len() {
+        state.push(0)
+    }
+    let path: List<int> = []
+    visit(packages, 0, state, path, diags)
+}
+
+fn visit(packages: &List<Package>, p: int, state: mut List<int>, path: mut List<int>,
+         diags: mut Diagnostics) {
+    state[p] = 1
+    path.push(p)
+    const deps = &packages[p].deps
+    for i in 0..deps.len() {
+        const q = deps[i].package
+        if state[q] == 1 {
+            diags.error("E0916", deps[i].at, "the dependency `{deps[i].key}` makes a cycle")
+            diags.note("the packages depend on each other: {cycleText(packages, &path, q)}")
+        } else if state[q] == 0 {
+            visit(packages, q, state, path, diags)
+        }
+    }
+    path.pop()
+    state[p] = 2
+}
+
+// The packages of a cycle, from `q` on the path back to `q`.
+fn cycleText(packages: &List<Package>, path: &List<int>, q: int) str {
+    let out = ""
+    let on = false
+    for i in 0..path.len() {
+        if path[i] == q {
+            on = true
+        }
+        if on {
+            out.push("`{packages[path[i]].name}` -> ")
+        }
+    }
+    out.push("`{packages[q].name}`")
+    return out
 }
 
 // Reports that the lock would change under `--locked` (E0913), at the
@@ -278,7 +326,7 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, reporte
         const at = spanOf(&doc, file, member)
         const target = dependencyTarget(packages, p, &doc, file, member, r, reported, map, diags)
         if target >= 0 && validKey(&packages, p, key, at, diags) {
-            out.push(Dependency{key, package: target})
+            out.push(Dependency{key, package: target, at})
         }
         member = doc.nodes[member].next
     }
