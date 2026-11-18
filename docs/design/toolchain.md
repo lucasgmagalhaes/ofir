@@ -303,6 +303,19 @@ fits, yanked or not. Its files must have the index's checksum (E0914);
 the lock records the index and the version, with no commit. A package
 missing from the index is E0911, and the manifest of the archive, not
 the index's `dependencies`, gives its dependencies.
+
+Publishing writes the index (ADR 0079). `ofir package` writes
+`build/package/<name>-<version>.tar.gz`, the package's files without
+`.git` and `build`, and prints their checksum. `ofir publish [--index DIR]
+[--dry-run]` packages the project and, in `DIR`, a clone of the index
+(default `$OFIR_REGISTRY` when it is a path), appends its line, copies
+the archive where a `file://` `download` URL points and commits; the user
+pushes the commit, so the git host authenticates. A version is published
+once; a bad name or version, a `path` or `git` dependency, or a version
+already published is E0919. `ofir yank <version> [--undo]` sets `yanked`
+in that line and commits. Names are flat, and who may publish one is the
+index host's policy; a mirror of the index or of the archives is checked
+by the checksums.
 The modules of a package are found from the directory of its
 `build.root` (default `src/index.of`), which is the module named like the
 package; a package imports its own modules by their names in it, as a
