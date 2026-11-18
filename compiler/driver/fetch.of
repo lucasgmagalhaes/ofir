@@ -58,7 +58,11 @@ pub fn fetchCommand(args: List<str>, update: bool) int {
     for i in 0..lock.len() {
         const p = &lock[i]
         const what = if p.version.len() > 0 { p.version.clone() } else { p.rev.clone() }
-        println("{p.name} {what} ({p.commit.slice(0, 12)})")
+        if p.commit.len() >= 12 {
+            println("{p.name} {what} ({p.commit.slice(0, 12)})")
+        } else {
+            println("{p.name} {what}")
+        }
     }
     return 0
 }
