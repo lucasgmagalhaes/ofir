@@ -11,6 +11,7 @@ import driver.lock.checksum
 import driver.registry.indexPath
 import driver.resolve.registryVersion
 import driver.semver.parseVersion
+import driver.spdx.checkLicense
 import lsp.json.parseJson
 import lsp.json.parseJsonc
 import std.fs
@@ -26,6 +27,8 @@ struct Packaged {
     sum: str
     // Its registry dependencies, as a JSON object.
     deps: str
+    // Its SPDX license expression (ADR 0081).
+    license: str
 }
 
 /**
@@ -120,7 +123,8 @@ pub fn publishCommand(args: List<str>) int {
         text.push("\n")
     }
     text.push("\{\"version\": {jsonString(p.version)}, \"dependencies\": {p.deps}, ")
-    text.push("\"checksum\": {jsonString(p.sum)}, \"yanked\": false\}\n")
+    text.push("\"checksum\": {jsonString(p.sum)}, \"license\": {jsonString(p.license)}, ")
+    text.push("\"yanked\": false\}\n")
     if fs.createDirAll(parent(file)).isErr() || fs.writeString(file, text).isErr() {
         eprintln("error: cannot write `{file}`")
         return 1
@@ -243,6 +247,15 @@ fn makePackage() Result<Packaged, str> {
         return Result.Err(refusal("the `version` of `{name}` must be `X.Y.Z`, "
                                   + "not `{version}`"))
     }
+    const license = doc.text(doc.field(0, "license"))
+    if license.len() == 0 {
+        return Result.Err(refusal("`{name}` has no `license`: a published package needs "
+                                  + "an SPDX license expression, such as `\"MIT\"`"))
+    }
+    const problem = checkLicense(license)
+    if problem.len() > 0 {
+        return Result.Err("error[E0910]: `license` is not an SPDX license expression: {problem}")
+    }
     let deps = "\{"
     const list = doc.field(0, "dependencies")
     if list >= 0 {
@@ -273,7 +286,7 @@ fn makePackage() Result<Packaged, str> {
     }
     run("tar", ["-czf", archive.clone(), "-C", stage.clone(), "."])?
     const sum = checksum(stage)
-    return Result.Ok(Packaged{name, version, archive, sum, deps})
+    return Result.Ok(Packaged{name, version, archive, sum, deps, license})
 }
 
 // The error line of a refused publish.

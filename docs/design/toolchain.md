@@ -15,6 +15,7 @@ A single executable provides every tool:
 | `ofir fmt [--check] [--stdout] [paths]` | format source files (below) |
 | `ofir doc [-o dir] [--stdout] [--private] [paths]` | generate HTML documentation (below) |
 | `ofir metadata <file.of>` | print the modules of a program as JSON (below) |
+| `ofir sbom [--format=cyclonedx\|spdx]` | print the project's bill of materials (below) |
 | `ofir explain <code>` | describe an error code |
 | `ofir lsp` | run the language server on standard input and output (below) |
 | `ofir version` | print version and LLVM/clang versions in use |
@@ -193,6 +194,7 @@ allowed, the format of `tsconfig.json` (ADR 0026). Keys are camelCase.
   "name": "my_app",
   "version": "0.1.0",
   "edition": "2027",
+  "license": "MIT OR Apache-2.0",   // an SPDX license expression (ADR 0081)
   "build": {
     "kind": "exe",            // "exe" or "lib"
     "root": "src/main.of",
@@ -316,6 +318,30 @@ already published is E0919. `ofir yank <version> [--undo]` sets `yanked`
 in that line and commits. Names are flat, and who may publish one is the
 index host's policy; a mirror of the index or of the archives is checked
 by the checksums.
+
+A manifest's `license` is an SPDX license expression (ADR 0081):
+identifiers of the SPDX license list, written as the list writes them,
+combined with `AND`, `OR`, `WITH` an exception and parentheses, a `+`
+after a license, or `LicenseRef-<id>`; anything else is E0910. The list
+is embedded in the compiler (`compiler/driver/spdx_list.of`, written by
+`tools/gen_spdx.py`). A package without a `license` cannot be published
+(E0919), and its index line records it as `"license"`.
+
+`ofir sbom [--format=cyclonedx|spdx]` prints the project's software bill
+of materials: CycloneDX 1.5 JSON by default, SPDX 2.3 JSON with
+`--format=spdx`. It reads the lock as `--locked` does (E0913 when it is
+missing or out of date) and does not count `devDependencies`. The root
+is the subject; each package has its name, its version (a git package
+without one: its commit), its license, its source and a package URL
+(`pkg:ofir/<name>@<version>`, with `repository_url` outside the official
+index; `pkg:generic/<name>@<commit>?vcs_url=` for git). The lock's
+checksum is the property `ofir:checksum` (in SPDX, the package's
+`comment`): it is a hash of the files, not of an archive. `path`
+packages and overrides are marked `ofir:source` `local`. The graph of
+dependencies is included. The same lock gives the same output: the only
+date is `SOURCE_DATE_EPOCH`'s (SPDX needs one: 1970-01-01 without it), and
+the SPDX namespace is derived from the lock's SHA-256
+(`tools/check_sbom.py`).
 The modules of a package are found from the directory of its
 `build.root` (default `src/index.of`), which is the module named like the
 package; a package imports its own modules by their names in it, as a

@@ -37,6 +37,7 @@ import driver.resolve.registryVersion
 import driver.resolve.resolve
 import driver.registry.defaultIndex
 import driver.semver.parseRequirement
+import driver.spdx.checkLicense
 import lsp.json.JsonDoc
 import lsp.json.JsonKind
 import lsp.json.parseJsonc
@@ -289,7 +290,8 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
         Result.Ok(doc) => {
             const native = doc.at(["build", "native"]) >= 0
             const lints = doc.field(0, "lints") >= 0
-            if register && (doc.field(0, "dependencies") >= 0 || lints || native) {
+            const license = licenseError(&doc).len() > 0
+            if register && (doc.field(0, "dependencies") >= 0 || lints || native || license) {
                 return Option.Some((doc, map.add(path, text.clone())))
             }
             return Option.Some((doc, FileId(-1)))
@@ -300,6 +302,22 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
             return Option.None
         }
     }
+}
+
+// What is wrong with the manifest's `license` (ADR 0081), or an empty string.
+fn licenseError(doc: &JsonDoc) str {
+    const node = doc.field(0, "license")
+    if node < 0 {
+        return ""
+    }
+    if doc.nodes[node].kind != JsonKind.String {
+        return "`license` must be a string"
+    }
+    const problem = checkLicense(doc.nodes[node].text)
+    if problem.len() == 0 {
+        return ""
+    }
+    return "`license` is not an SPDX license expression: {problem}"
 }
 
 fn spanOf(doc: &JsonDoc, file: FileId, node: int) Span {
@@ -325,6 +343,10 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
     const list = doc.field(0, "dependencies")
     readList(packages, p, &doc, file, list, "dependencies", r, mode, reported, map, diags, out)
     if p == 0 {
+        const license = licenseError(&doc)
+        if license.len() > 0 {
+            diags.error("E0910", spanOf(&doc, file, doc.field(0, "license")), license)
+        }
         checkOverrides(&doc, file, diags)
         const dev = doc.field(0, "devDependencies")
         checkTwice(&doc, file, list, dev, diags)
