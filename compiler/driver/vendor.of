@@ -3,7 +3,8 @@
  * `ofir vendor [dir]` (ADR 0077): copy the source of each git and registry
  * package of the lock into `dir/<name>` (default `vendor`) and print the
  * `overrides` that make the build use those copies, with no cache and no
- * network.
+ * network. In a workspace member, `dir` is relative to the workspace root,
+ * whose `overrides` the build reads.
  */
 
 import base.span.SourceMap
@@ -64,11 +65,12 @@ pub fn vendorCommand(args: List<str>) int {
     for i in 0..r.pins.len() {
         const pin = &r.pins[i]
         const to = "{target}/{pin.name}"
-        if fs.exists(to) && !removeAll(to) {
+        const at = "{r.lockDir}/{to}"
+        if fs.exists(at) && !removeAll(at) {
             eprintln("error: cannot remove `{to}`")
             return 1
         }
-        if !copyTree(pin.dir, to) {
+        if !copyTree(pin.dir, at) {
             eprintln("error: cannot copy `{pin.name}` into `{to}`")
             return 1
         }
