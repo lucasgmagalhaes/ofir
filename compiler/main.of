@@ -1043,6 +1043,11 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, native: &List<str
         args.push("-Wl,--stack,33554432".toOwned())
         args.push("-Wl,--no-insert-timestamp".toOwned())
     }
+    // A Mach-O debug map names the temporary objects clang linked, and
+    // their times: `--trim-paths` leaves it out (ADR 0083).
+    if opts.trimPaths && targetOs(opts.target) == "macos" {
+        args.push("-Wl,-S".toOwned())
+    }
     return match os.spawn(clang, args) {
         Result.Ok(child) => finishClang(opts, clang, child, quiet)
         Result.Err(_) => {
