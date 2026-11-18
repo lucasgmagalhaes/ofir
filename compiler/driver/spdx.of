@@ -1,0 +1,166 @@
+/**
+ * @module
+ * SPDX license expressions (ADR 0081): `MIT`, `MIT OR Apache-2.0`,
+ * `GPL-2.0-only WITH Classpath-exception-2.0`, `(MIT AND BSD-3-Clause)`,
+ * `LicenseRef-<id>`. `AND` binds tighter than `OR`; operators are upper
+ * case; a license may end with `+` (that version or a later one).
+ */
+
+import driver.spdx_list.exceptionIds
+import driver.spdx_list.licenseIds
+
+/**
+ * Checks a license expression.
+ *
+ * @param text the expression
+ * @returns an empty string when it is valid, or what is wrong
+ */
+pub fn checkLicense(text: str) str {
+    let p = Parser{tokens: tokens(text), at: 0, error: "", licenses: licenseIds(),
+                   exceptions: exceptionIds()}
+    if p.tokens.len() == 0 {
+        return "the license is empty"
+    }
+    p.expression()
+    if p.error.len() == 0 && p.at < p.tokens.len() {
+        p.error = "unexpected `{p.tokens[p.at]}`"
+    }
+    return p.error.clone()
+}
+
+// The words and parentheses of `text`.
+fn tokens(text: str) List<str> {
+    let out: List<str> = []
+    let word = ""
+    for b in text.bytes() {
+        if b == b' ' || b == b'\t' || b == b'(' || b == b')' {
+            if word.len() > 0 {
+                out.push(word.clone())
+                word.clear()
+            }
+            if b == b'(' {
+                out.push("(")
+            } else if b == b')' {
+                out.push(")")
+            }
+        } else {
+            word.pushChar(b as u32)
+        }
+    }
+    if word.len() > 0 {
+        out.push(word.clone())
+    }
+    return out
+}
+
+// A recursive descent over the tokens; the first error is kept.
+struct Parser {
+    tokens: List<str>
+    at: int
+    error: str
+    licenses: List<str>
+    exceptions: List<str>
+
+    // expression = conjunction ("OR" conjunction)*
+    fn expression(mut self) {
+        self.conjunction()
+        for self.error.len() == 0 && self.next() == "OR" {
+            self.at += 1
+            self.conjunction()
+        }
+    }
+
+    // conjunction = term ("AND" term)*
+    fn conjunction(mut self) {
+        self.term()
+        for self.error.len() == 0 && self.next() == "AND" {
+            self.at += 1
+            self.term()
+        }
+    }
+
+    // term = "(" expression ")" | license ["WITH" exception]
+    fn term(mut self) {
+        const word = self.next()
+        if word.len() == 0 {
+            self.error = "the expression ends where a license is expected"
+            return
+        }
+        self.at += 1
+        if word == "(" {
+            self.expression()
+            if self.error.len() == 0 && self.next() != ")" {
+                self.error = "a `(` is not closed"
+            } else if self.error.len() == 0 {
+                self.at += 1
+            }
+            return
+        }
+        if isOperator(word) || word == ")" {
+            self.error = "unexpected `{word}` where a license is expected"
+            return
+        }
+        self.error = license(&self.licenses, word)
+        if self.error.len() == 0 && self.next() == "WITH" {
+            self.at += 1
+            const exception = self.next()
+            if exception.len() == 0 || isOperator(exception) || exception == "(" {
+                self.error = "`WITH` needs a license exception"
+                return
+            }
+            self.at += 1
+            self.error = known(&self.exceptions, exception, "license exception")
+        }
+    }
+
+    // The token at the position, or an empty string at the end.
+    fn next(self) str {
+        if self.at < self.tokens.len() {
+            return self.tokens[self.at].clone()
+        }
+        return ""
+    }
+}
+
+fn isOperator(word: str) bool {
+    const lower = word.toLower()
+    return lower == "and" || lower == "or" || lower == "with"
+}
+
+// What is wrong with the license `word`, or an empty string.
+fn license(ids: &List<str>, word: str) str {
+    if word.startsWith("LicenseRef-") || word.startsWith("DocumentRef-") {
+        return idChars(word, "license")
+    }
+    const id = word.stripSuffix("+") ?? word.clone()
+    return known(ids, id, "license")
+}
+
+// What is wrong with the identifier `id` of the list `ids`, or an empty string.
+fn known(ids: &List<str>, id: str, what: str) str {
+    for i in 0..ids.len() {
+        if ids[i] == id {
+            return ""
+        }
+        if ids[i].eqIgnoreAsciiCase(id) {
+            return "the {what} `{id}` is written `{ids[i]}`"
+        }
+    }
+    return "`{id}` is not an SPDX {what} identifier"
+}
+
+// What is wrong with the characters of a `LicenseRef-` identifier.
+fn idChars(word: str, what: str) str {
+    const rest = word.sliceFrom(word.find("-").expect("a dash") + 1)
+    if rest.len() == 0 {
+        return "the {what} `{word}` has no name after the `-`"
+    }
+    for b in word.bytes() {
+        const letter = (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z')
+        const digit = b >= b'0' && b <= b'9'
+        if !letter && !digit && b != b'-' && b != b'.' && b != b':' {
+            return "the {what} `{word}` may only hold letters, digits, `-`, `.` and `:`"
+        }
+    }
+    return ""
+}

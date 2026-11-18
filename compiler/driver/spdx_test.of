@@ -1,0 +1,25 @@
+// The tests of `driver.spdx`.
+
+import std.testing.assert
+
+fn valid(text: str) bool {
+    return checkLicense(text).len() == 0
+}
+
+@test
+fn singleLicensesAreChecked() {
+    assert(valid("MIT") && valid("Apache-2.0") && valid("GPL-2.0+"))
+    assert(valid("LicenseRef-acme-internal"))
+    assert(!valid("") && !valid("Mit-Like") && !valid("LicenseRef-"))
+    assert(checkLicense("mit") == "the license `mit` is written `MIT`")
+}
+
+@test
+fn expressionsCombineLicenses() {
+    assert(valid("MIT OR Apache-2.0"))
+    assert(valid("(MIT AND BSD-3-Clause) OR Apache-2.0"))
+    assert(valid("GPL-2.0-only WITH Classpath-exception-2.0"))
+    assert(!valid("MIT OR") && !valid("OR MIT") && !valid("MIT Apache-2.0"))
+    assert(!valid("(MIT OR Apache-2.0") && !valid("MIT)"))
+    assert(!valid("MIT WITH") && !valid("MIT WITH Unknown-exception"))
+}
