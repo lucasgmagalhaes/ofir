@@ -87,6 +87,7 @@ starts with the same word as the record's status line.
 | [0074](0074-watch-and-repl.md) | Watch mode re-runs the driver and the REPL replays its session | Accepted |
 | [0075](0075-documentation-site.md) | A static documentation site: search, links, visibility, versions | Accepted |
 | [0076](0076-dependency-graph-contracts.md) | Dependency graphs: no cycles, deterministic resolution | Accepted |
+| [0077](0077-dependency-sources-and-workspaces.md) | Dependency scopes, overrides, vendoring and workspaces | Accepted |
 
 ## Template
 

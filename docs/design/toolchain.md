@@ -238,6 +238,21 @@ E0916 (ADR 0076). Resolution is deterministic: the same manifests, lock and
 sources give the same `ofir.lock`, byte for byte, whatever the order of the
 keys of `dependencies` (`tools/check_resolution.py`).
 
+Scopes and overrides (ADR 0077, `tools/check_sources.py`):
+
+- `devDependencies`, in the root's manifest and written like
+  `dependencies`, are in the graph only under `ofir test` and `ofir
+  bench`; a dependency's own are never read. Every command resolves and
+  locks them, so the lock does not depend on the command. A key in both
+  lists is E0917.
+- A dependency object with `"os": "linux"`, `"macos"` or `"windows"` is
+  in the graph only when the program is built for that OS; it is locked
+  for every OS. Another value is E0910.
+- The root's `"overrides": {"text": {"path": "patched/text"}}` replaces
+  every dependency whose key is `text`, in every manifest, by that
+  directory, relative to the root. An overridden package is not fetched
+  or locked; the `overrides` of a dependency are not read.
+
 | Command | Effect |
 |---------|--------|
 | `ofir fetch` | resolves the graph, downloads what is missing, writes `ofir.lock` |
