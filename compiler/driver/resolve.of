@@ -258,11 +258,26 @@ pub fn gitUrl(given: str, base: str) str {
     if given.contains("://") || given.startsWith("git@") {
         return given.toOwned()
     }
-    const joined = if given.startsWith("/") { given.toOwned() } else { "{base}/{given}" }
+    const joined = if isAbsolutePath(given) { given.toOwned() } else { "{base}/{given}" }
     if const Result.Ok(dir) = fs.canonicalize(joined) {
         return dir
     }
     return joined
+}
+
+/**
+ * Whether a path in a manifest is absolute: it starts with a separator,
+ * or with a drive and a separator (`C:/`, `C:\`).
+ *
+ * @param given the path
+ * @returns true if it does not depend on the manifest's directory
+ */
+pub fn isAbsolutePath(given: str) bool {
+    if given.startsWith("/") || given.startsWith("\\") {
+        return true
+    }
+    const b = given.asBytes()
+    return b.len() >= 3 && b[1] == b':' && (b[2] == b'/' || b[2] == b'\\')
 }
 
 /**
