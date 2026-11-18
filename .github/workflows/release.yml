@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (must equal VERSION in compiler/main.of)"
+        description: "Version to release (must equal VERSION in compiler/driver/version.of)"
         required: true
       publish:
         description: "Create the release (off: only build and check the seed)"
@@ -33,9 +33,9 @@ jobs:
 
       - name: Check the version
         run: |
-          version=$(sed -n 's/^const VERSION: str = "\(.*\)"/\1/p' compiler/main.of)
+          version=$(sed -n 's/^pub const VERSION: str = "\(.*\)"/\1/p' compiler/driver/version.of)
           if [ "$version" != "${{ inputs.version }}" ]; then
-            echo "compiler/main.of has version $version, not ${{ inputs.version }}"
+            echo "compiler/driver/version.of has version $version, not ${{ inputs.version }}"
             exit 1
           fi
 
