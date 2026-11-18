@@ -417,6 +417,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.28h | Documentation site (ADR 0075): `search.js` and a search box on each page, cross-links from `code` spans, `--private`, the package's name and version on each page, offline pages, and `tools/check_doc_site.py` | OFIR-63 | **done** |
 | 6.29 | Packages, build inputs, registry, installation and releases | OFIR-64 to OFIR-71 | Clean-machine/offline builds, integrity and compatibility evidence |
 | 6.29a | Dependency graph contracts (ADR 0076): cycles of packages are E0916, and `tools/check_resolution.py` checks a conflict-free lock, an untouched refetch, the same lock from reversed manifests, `--locked` and the cycle | OFIR-64 | **done** |
+| 6.29b | Dependency sources and workspaces (ADR 0077): root-only `devDependencies` (E0917 for a key in both lists), `"os"` target dependencies, root `overrides` by key, `ofir vendor [dir]` for offline builds with an empty cache, and workspaces with one lock and the root's overrides; `tools/check_sources.py` | OFIR-65 | **done** |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 
@@ -454,7 +455,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.29 with OFIR-65; OFIR-64 is done as 6.29a.
+1. Continue 6.29 with OFIR-66; OFIR-64 and OFIR-65 are done as 6.29a and 6.29b.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
