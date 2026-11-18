@@ -1,5 +1,10 @@
+const copyStatus = document.getElementById("copy-status");
+
 document.querySelectorAll(".copy-button").forEach((button) => {
+  let resetTimer;
   button.addEventListener("click", async () => {
+    clearTimeout(resetTimer);
+    copyStatus.textContent = "";
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(button.dataset.copy);
@@ -14,11 +19,12 @@ document.querySelectorAll(".copy-button").forEach((button) => {
         field.remove();
         if (!copied) throw new Error("Copy failed");
       }
-      const label = button.textContent;
-      button.textContent = "Copied ✓";
-      setTimeout(() => { button.textContent = label; }, 1800);
+      button.textContent = "Copied";
+      copyStatus.textContent = "Copied to clipboard.";
     } catch {
-      button.textContent = "Copy failed";
+      button.textContent = "Try again";
+      copyStatus.textContent = "Copy failed. Select the code and copy it manually.";
     }
+    resetTimer = setTimeout(() => { button.textContent = "Copy"; }, 1800);
   });
 });
