@@ -67,7 +67,9 @@ path in the output.
 
 5. **No timestamps.** The Windows link gets `-Wl,--no-insert-timestamp`;
    an ELF build-id and a Mach-O UUID are hashes of the content, which
-   clang already makes them. The runtime archive is built with
+   clang already makes them. A Mach-O debug map names the temporary
+   objects clang linked and their times, so with `--trim-paths` a macOS
+   link gets `-Wl,-S` and no debug map. The runtime archive is built with
    `ar rcsD` (and `ZERO_AR_DATE=1` on macOS), so it is the same on every
    build.
 
