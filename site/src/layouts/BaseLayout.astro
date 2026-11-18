@@ -1,6 +1,7 @@
 ---
 import "../../styles.css";
 import logo from "../../../docs/assets/logo.png";
+import SpeedInsights from '@vercel/speed-insights/astro';
 
 interface Props {
   title: string;
@@ -48,6 +49,7 @@ const { title, description, page } = Astro.props;
         <a href="https://github.com/lucasgmagalhaes/ofir" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </div>
     </footer>
+    <SpeedInsights />
     <script>
       import "../../script.js";
     </script>
