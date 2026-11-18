@@ -208,3 +208,64 @@ fn parseParts(text: str) (Version, int) {
     }
     return (Version{major: parts[0], minor: parts[1], patch: parts[2]}, count)
 }
+
+/**
+ * Whether `v` is in a range of versions: requirements as in dependencies,
+ * or `<`, `<=` and `>` with a full version, all of which must hold when
+ * separated by `,`; alternatives separated by `||`. Advisories (ADR 0081)
+ * and the manifest's `toolchain` (ADR 0082) use it.
+ *
+ * @param versions the range
+ * @param v a version
+ * @returns whether `v` is in it, or `None` if `versions` is not a range
+ */
+pub fn satisfies(versions: str, v: Version) Option<bool> {
+    if versions.trim().len() == 0 {
+        return Option.None
+    }
+    let any = false
+    for alternative in versions.split("||") {
+        let all = true
+        for part in alternative.split(",") {
+            const Option.Some(ok) = holdsFor(part.trim(), v) else {
+                return Option.None
+            }
+            all = all && ok
+        }
+        any = any || all
+    }
+    return Option.Some(any)
+}
+
+// Whether `v` meets one requirement; `None` if it is not one.
+fn holdsFor(part: str, v: Version) Option<bool> {
+    let skip = 0
+    let want = 0
+    if part.startsWith("<=") {
+        skip = 2
+        want = 1
+    } else if part.startsWith("<") {
+        skip = 1
+        want = 2
+    } else if part.startsWith(">") && !part.startsWith(">=") {
+        skip = 1
+        want = 3
+    }
+    if want == 0 {
+        const Option.Some(req) = parseRequirement(part) else {
+            return Option.None
+        }
+        return Option.Some(req.matches(v))
+    }
+    const Option.Some(bound) = parseVersion(part.sliceFrom(skip).trim()) else {
+        return Option.None
+    }
+    const order = v.compare(bound)
+    if want == 1 {
+        return Option.Some(order <= 0)
+    }
+    if want == 2 {
+        return Option.Some(order < 0)
+    }
+    return Option.Some(order > 0)
+}

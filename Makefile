@@ -6,7 +6,7 @@ BUILD  ?= build
 include tools/platform.mk
 PYTHON ?= python3
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed bench bench-programs bench-compare clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed dist bench bench-programs bench-compare clean
 
 all: stage0 runtime
 
@@ -91,7 +91,7 @@ verify: stage2
 
 # The seed of a release (docs/bootstrap.md): the LLVM IR that the compiler
 # writes for itself, once stage 2 and stage 3 agree on it.
-VERSION := $(shell sed -n 's/^const VERSION: str = "\(.*\)"/\1/p' compiler/main.of)
+VERSION := $(shell sed -n 's/^pub const VERSION: str = "\(.*\)"/\1/p' compiler/driver/version.of)
 SEED    ?= $(BUILD)/seed/ofir-$(VERSION).ll
 seed: verify
 	mkdir -p $(BUILD)/seed
@@ -99,6 +99,11 @@ seed: verify
 	cd $(BUILD)/seed && (sha256sum ofir-$(VERSION).ll 2>/dev/null || \
 	    shasum -a 256 ofir-$(VERSION).ll) > ofir-$(VERSION).ll.sha256
 	@cat $(BUILD)/seed/ofir-$(VERSION).ll.sha256
+
+# The release archive for the host and its checksum (ADR 0082).
+dist: stage1
+	$(PYTHON) tools/dist.py --compiler $(BUILD)/stage1/ofir$(EXE) \
+	    --runtime $(BUILD)/libofir_rt.a --out $(BUILD)/dist
 
 # The fast path of the bootstrap: clang builds a compiler from a seed
 # (SEED=path) whose SHA-256 is recorded (its .sha256, else seed/SEEDS.md), which
@@ -153,6 +158,8 @@ test-stage1: stage1
 	    $(PYTHON) tools/check_trust.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_service.py --compiler $(BUILD)/stage1/ofir$(EXE)
+	$(PYTHON) tools/check_install.py --compiler $(BUILD)/stage1/ofir$(EXE) \
+	    --runtime $(BUILD)/libofir_rt.a
 
 # The run tests compiled for TARGET and run by OFIR_RUNNER (ADR 0066).
 test-cross: stage1

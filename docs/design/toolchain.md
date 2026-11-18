@@ -198,6 +198,7 @@ allowed, the format of `tsconfig.json` (ADR 0026). Keys are camelCase.
   "license": "MIT OR Apache-2.0",   // an SPDX license expression (ADR 0081)
   "audit": {"ignore": ["OFIR-2026-0001"]},   // advisories accepted by `ofir audit`
   "trust": {"git": ["https://github.com/acme/"]},   // the accepted sources (ADR 0081)
+  "toolchain": ">=0.5.0, <0.7.0",   // the compiler versions it builds with (ADR 0082)
   "build": {
     "kind": "exe",            // "exe" or "lib"
     "root": "src/main.of",
@@ -756,8 +757,36 @@ The compiler finds:
 ├── lib/ofir/
 │   ├── std/                 standard library sources
 │   └── libofir_rt.a        runtime
-└── share/ofir/errors/       explanations for `ofir explain`
+├── share/ofir/
+│   ├── errors/              explanations for `ofir explain`
+│   ├── LICENSE
+│   ├── version              the active version (written by install.sh)
+│   └── files                the files of the active copy
+├── install.sh
+└── toolchains/<version>/    every installed version, in this layout
 ```
+
+The compiler finds these files relative to its executable, so an
+installed compiler needs no environment variable and no repository
+(ADR 0082). A release is one archive per target,
+`ofir-<version>-<target>.tar.gz`, built by `make dist` with its
+`.sha256`; it holds `ofir-<version>/` in this layout, without
+`toolchains/`. Its `install.sh` installs it:
+
+```
+sh install.sh [--prefix DIR] [--sums FILE] [--no-verify] [ARCHIVE]
+sh install.sh [--prefix DIR] --use VERSION     switch the active version
+sh install.sh [--prefix DIR] --list
+sh install.sh [--prefix DIR] --remove VERSION
+sh install.sh [--prefix DIR] --uninstall
+```
+
+The prefix defaults to `$OFIR_HOME`, then `~/.ofir`. The checksum is
+checked before anything is written. Every version stays in
+`toolchains/`, so `--use` rolls back; `--uninstall` removes only the
+files the installer wrote. A manifest's `toolchain` that the running
+compiler is not in is E0923, whose help names the installed version to
+`--use`. `ofir version` prints the version and the prefix.
 
 ## 6. Targets
 

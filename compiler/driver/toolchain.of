@@ -1,0 +1,128 @@
+/**
+ * @module
+ * The manifest's `toolchain` (ADR 0082): the versions of the compiler a
+ * project builds with.
+ */
+
+import base.span.SourceMap
+import base.span.Span
+import diag.Diagnostics
+import driver.semver.Version
+import driver.semver.parseVersion
+import driver.semver.satisfies
+import driver.version.VERSION
+import lsp.json.JsonKind
+import lsp.json.parseJsonc
+import std.fs
+import std.os
+
+/**
+ * Checks the `toolchain` of the manifest in `dir` against this compiler:
+ * an invalid range is E0910, and a range that this version is not in is
+ * E0923, with the installed version to switch to, if one is in the range.
+ *
+ * @param dir the root project's directory
+ * @param map where the manifest goes when it has an error
+ * @param diags where the error goes
+ * @returns whether the compiler may go on
+ */
+pub fn checkToolchain(dir: str, map: mut SourceMap, diags: mut Diagnostics) bool {
+    const path = "{dir}/ofir.json"
+    const Result.Ok(text) = fs.readToString(path) else {
+        return true
+    }
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return true   // reported when the manifest is read
+    }
+    const node = doc.field(0, "toolchain")
+    if node < 0 {
+        return true
+    }
+    const at = &doc.nodes[node]
+    const range = at.text.clone()
+    const isString = at.kind == JsonKind.String
+    const current = parseVersion(VERSION).expect("VERSION is a version")
+    const verdict: Option<bool> = if isString { satisfies(range, current) } else { Option.None }
+    if verdict ?? false {
+        return true
+    }
+    const file = map.add(path, text.clone())
+    const span = Span{file, start: at.start, end: at.end}
+    if !isString {
+        diags.error("E0910", span, "`toolchain` must be a string")
+        return false
+    }
+    if verdict.isNone() {
+        diags.error("E0910", span, "`{range}` is not a range of versions")
+        diags.note("a range is requirements such as `0.6.0` or `>=0.6.0, <0.8.0`")
+        return false
+    }
+    diags.error("E0923", span, "this project needs the toolchain `{range}`, not {VERSION}")
+    match installedIn(range) {
+        Option.Some(found) => {
+            const (prefix, version) = found
+            diags.help("switch to an installed version: `sh {prefix}/install.sh --use {version}`")
+        }
+        Option.None => {
+            diags.help("install a version in `{range}` (ADR 0082)")
+        }
+    }
+    return false
+}
+
+/**
+ * The prefix this compiler is installed in: the parent of the directory
+ * of its executable.
+ *
+ * @returns it, or `None` if the executable's path is unknown
+ */
+pub fn installPrefix() Option<str> {
+    const Result.Ok(exe) = os.executablePath() else {
+        return Option.None
+    }
+    const bin = parentOf(exe)
+    return Option.Some(parentOf(bin))
+}
+
+// The directory of `path`; `.` when it has none.
+fn parentOf(path: str) str {
+    let slash = -1
+    for i in 0..path.len() {
+        if path[i] == b'/' || path[i] == b'\\' {
+            slash = i
+        }
+    }
+    if slash < 0 {
+        return ".".toOwned()
+    }
+    return path.slice(0, slash).toOwned()
+}
+
+// The prefix and the highest version installed next to this compiler, in
+// `<prefix>/toolchains`, that is in `range`.
+fn installedIn(range: str) Option<(str, str)> {
+    const Option.Some(prefix) = installPrefix() else {
+        return Option.None
+    }
+    const Result.Ok(entries) = fs.readDir("{prefix}/toolchains") else {
+        return Option.None
+    }
+    let best = ""
+    let bestVersion = Version{major: 0, minor: 0, patch: 0}
+    for entry in entries {
+        const Option.Some(v) = parseVersion(entry.name) else {
+            continue
+        }
+        if !(satisfies(range, v) ?? false) {
+            continue
+        }
+        if best.len() == 0 || v.compare(bestVersion) > 0 {
+            best = entry.name.clone()
+            bestVersion = v
+        }
+    }
+    if best.len() == 0 {
+        return Option.None
+    }
+    return Option.Some((prefix, best))
+}

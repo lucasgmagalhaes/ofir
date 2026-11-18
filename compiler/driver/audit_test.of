@@ -1,11 +1,12 @@
 // The tests of `driver.audit`.
 
 import driver.semver.parseVersion
+import driver.semver.satisfies
 import std.testing.assert
 
 fn hit(versions: str, version: str) bool {
     const v = parseVersion(version).expect("a version")
-    return affects(versions, v) ?? false
+    return satisfies(versions, v) ?? false
 }
 
 @test
@@ -22,6 +23,6 @@ fn alternativesAndInvalidVersions() {
     assert(hit("<1.0.0 || >=2.0.0, <2.1.0", "2.0.3"))
     assert(!hit("<1.0.0 || >=2.0.0, <2.1.0", "1.5.0"))
     const v = parseVersion("1.0.0").expect("a version")
-    assert(affects("", v).isNone() && affects("<1.x", v).isNone())
-    assert(affects("1.0.0, ", v).isNone())
+    assert(satisfies("", v).isNone() && satisfies("<1.x", v).isNone())
+    assert(satisfies("1.0.0, ", v).isNone())
 }

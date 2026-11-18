@@ -1,0 +1,8 @@
+/**
+ * @module
+ * The version of the compiler, which `ofir version` prints and a manifest's
+ * `toolchain` is checked against (ADR 0082).
+ */
+
+/** The version of this compiler; a release sets it (docs/bootstrap.md). */
+pub const VERSION: str = "0.5.0"
