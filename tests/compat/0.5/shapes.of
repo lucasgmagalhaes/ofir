@@ -1,0 +1,27 @@
+copy enum Shape {
+    Circle(radius: float)
+    Rect(width: float, height: float)
+    Empty
+
+    fn area(self) float {
+        return match self {
+            Shape.Circle(r) => 3.14159 * r * r
+            Shape.Rect(w, h) => w * h
+            Shape.Empty => 0.0
+        }
+    }
+}
+
+fn main() {
+    let shapes: List<Shape> = [
+        Shape.Circle(1.0),
+        Shape.Rect(2.0, 3.0),
+        Shape.Empty,
+    ]
+
+    var total = 0.0
+    for shape in shapes {
+        total += shape.area()
+    }
+    println("total area = {total}")
+}
