@@ -1,0 +1,115 @@
+/**
+ * @module
+ * Build profiles (ADR 0078): the built-in `dev` and `release` and the ones
+ * the root manifest's `profiles` names or changes.
+ */
+
+import driver.modules.projectDir
+import driver.resolve.workspaceRoot
+import lsp.json.JsonDoc
+import lsp.json.JsonKind
+import lsp.json.parseJsonc
+import std.fs
+
+/** How a profile builds. */
+pub struct Profile {
+    /** Whether it inherits `release`: one LLVM module, `@cfg(debug)` false. */
+    pub release: bool
+    /** The optimization level, 0 to 3. */
+    pub opt: int
+    /** Whether debug info is written. */
+    pub debugInfo: bool
+}
+
+/**
+ * The profile `name` of the project of `input`.
+ *
+ * @param input the root file
+ * @param name the profile: `dev`, `release` or one of the manifest's
+ * @returns the profile, or the E0918 message
+ */
+pub fn readProfile(input: str, name: str) Result<Profile, str> {
+    let profile = builtIn(name == "release")
+    let found = name == "dev" || name == "release"
+    if const Option.Some(dir) = projectDir(input) {
+        const root = workspaceRoot(dir)
+        // A manifest that cannot be read is reported by `driver.packages` (E0910).
+        const Result.Ok(text) = fs.readToString("{root}/ofir.json") else {
+            return Result.Ok(profile)
+        }
+        const Result.Ok(doc) = parseJsonc(text) else {
+            return Result.Ok(profile)
+        }
+        const list = doc.field(0, "profiles")
+        if list >= 0 && doc.nodes[list].kind != JsonKind.Object {
+            return Result.Err("`profiles` must be an object")
+        }
+        let member = if list >= 0 { doc.nodes[list].child } else { -1 }
+        for member >= 0 {
+            match checkProfile(&doc, member) {
+                Result.Ok(checked) => {
+                    if doc.nodes[member].key == name {
+                        profile = checked
+                        found = true
+                    }
+                }
+                Result.Err(message) => {
+                    return Result.Err(message)
+                }
+            }
+            member = doc.nodes[member].next
+        }
+    }
+    if !found {
+        return Result.Err("there is no profile `{name}`: use `dev`, `release` or one of `profiles`")
+    }
+    return Result.Ok(profile)
+}
+
+// A built-in profile.
+fn builtIn(release: bool) Profile {
+    return Profile{release: release, opt: if release { 2 } else { 0 }, debugInfo: false}
+}
+
+// Checks the entry `member` of `profiles` and returns what it builds.
+fn checkProfile(doc: &JsonDoc, member: int) Result<Profile, str> {
+    const name = doc.nodes[member].key.clone()
+    if doc.nodes[member].kind != JsonKind.Object {
+        return Result.Err("the profile `{name}` must be an object")
+    }
+    const builtin = name == "dev" || name == "release"
+    let profile = builtIn(name == "release")
+    const inherits = doc.field(member, "inherits")
+    if inherits >= 0 {
+        const base = doc.text(inherits)
+        if builtin {
+            return Result.Err("the built-in profile `{name}` cannot have `inherits`")
+        }
+        if base != "dev" && base != "release" {
+            return Result.Err("`inherits` of `{name}` must be \"dev\" or \"release\"")
+        }
+        profile = builtIn(base == "release")
+    }
+    let item = doc.nodes[member].child
+    for item >= 0 {
+        const key = doc.nodes[item].key.clone()
+        const kind = doc.nodes[item].kind
+        if key == "opt" {
+            const t = doc.nodes[item].text.clone()
+            const level = t == "0" || t == "1" || t == "2" || t == "3"
+            if kind != JsonKind.Number || !level {
+                return Result.Err("`opt` of `{name}` must be 0, 1, 2 or 3")
+            }
+            profile.opt = doc.int(item)
+        } else if key == "debugInfo" {
+            if kind != JsonKind.Bool {
+                return Result.Err("`debugInfo` of `{name}` must be true or false")
+            }
+            profile.debugInfo = doc.bool(item)
+        } else if key != "inherits" {
+            return Result.Err("the profile `{name}` has an unknown key `{key}`")
+        }
+        item = doc.nodes[item].next
+    }
+    return Result.Ok(profile)
+}

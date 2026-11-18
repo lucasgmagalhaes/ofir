@@ -30,6 +30,9 @@ pub struct Program {
     /** The declaration of the types the checker makes, union types (spec 17.6): an enum
      * without variants, attributes or type parameters. */
     pub synthetic: Item
+    /** The C files of the packages' `build.native`, compiled and linked with the
+     * program (ADR 0078). */
+    pub native: List<str>
 }
 
 /**
@@ -41,5 +44,5 @@ pub struct Program {
 pub fn newProgram(modules: move List<ProgramModule>) Program {
     const synthetic = Item{kind: ItemKind.Enum(false, [], [], []), span: noSpan(), name: Symbol(0),
                            attributes: [], isPub: true, bounds: [], asserts: []}
-    return Program{modules, synthetic}
+    return Program{modules, synthetic, native: []}
 }

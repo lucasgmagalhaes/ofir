@@ -502,14 +502,42 @@ module, `:reset` empties it and `:quit` ends the REPL.
 
 ## 3. Build profiles
 
-| Profile | clang flags | Checks | Debug info |
-|---------|-------------|--------|------------|
-| `debug` (default) | `-O0 -g` | all | yes |
-| `release` | `-O2` | all (checked arithmetic and bounds stay on) | no |
-| `release-fast` **[planned]** | `-O3 -march=native` + LTO | all | no |
+`--profile=NAME` chooses a profile (ADR 0078); `--release` is
+`--profile=release`, and the two cannot both be given. `ofir bench`
+builds with `release` unless `--profile` says otherwise.
 
+| Profile | clang flags | `@cfg(debug)` | LLVM modules |
+|---------|-------------|---------------|--------------|
+| `dev` (default) | `-O0` | true | one per Ofir module |
+| `release` | `-O2` | false | one |
+
+The root manifest's `profiles` (the workspace root's in a workspace)
+changes these and names others. `inherits` is `"dev"` (the default) or
+`"release"`, `opt` is the optimization level (0 to 3) and `debugInfo`
+acts like `-g`:
+
+```jsonc
+"profiles": {
+  "release": {"debugInfo": true},
+  "fast": {"inherits": "release", "opt": 3}
+}
+```
+
+A profile that does not exist, an unknown key or a bad value is E0918.
 Safety checks are never disabled by a profile. The optimizer removes the
-checks it can prove unnecessary.
+checks it can prove unnecessary. `tools/check_build_profiles.py`, run by
+`make test`, checks the profiles and the native inputs below.
+
+### Native inputs
+
+A package's `"build": {"native": ["c/fast.c"]}` lists C files, relative
+to its manifest. The C files of every package of the program are passed
+to the clang call that links it, so they are compiled with the profile's
+flags and `--target`; the program declares their functions in an
+`extern "C"` block. A missing file is E0918, and a static library
+(`--lib=static`) cannot have native files yet. No code of a package runs
+at build time: there are no build scripts, and generated code is either
+computed by `comptime` or committed.
 
 A debug build also passes `-mllvm -pre-RA-sched=linearize` to the clang
 calls that generate code: at `-O0` it changes nothing observable and makes
@@ -546,9 +574,8 @@ line still stops, and a local it removed prints as `<optimized out>`;
 the compile unit says the code is optimized. `tools/check_debugger.py`,
 run by `make test` when gdb is installed, checks both builds.
 
-Until projects exist the flag is opt-in, and it is stage 1's: without
-it the `.ll` is the one stage 0 writes. The `debug` profile will turn
-it on.
+The flag is opt-in, and it is stage 1's: without it the `.ll` is the
+one stage 0 writes. A profile with `"debugInfo": true` turns it on.
 
 ### Debugging in an editor
 

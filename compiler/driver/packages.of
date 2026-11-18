@@ -70,6 +70,8 @@ pub struct Package {
     pub deps: List<Dependency>
     /** The levels of its manifest's `lints` (ADR 0071). */
     pub lints: List<Lint>
+    /** The C files of its manifest's `build.native`, as paths (ADR 0078). */
+    pub native: List<str>
 }
 
 /**
@@ -130,7 +132,7 @@ pub fn dependencyOf(packages: &List<Package>, p: int, key: str) int {
 pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut SourceMap,
                     diags: mut Diagnostics) List<Package> {
     let packages = [Package{name: "", dir: rootDir.toOwned(), srcDir: rootDir.toOwned(),
-                            rootFile: "", deps: [], lints: []}]
+                            rootFile: "", deps: [], lints: [], native: []}]
     if !hasManifest {
         return packages
     }
@@ -285,7 +287,9 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
     }
     match parseJsonc(text) {
         Result.Ok(doc) => {
-            if register && (doc.field(0, "dependencies") >= 0 || doc.field(0, "lints") >= 0) {
+            const native = doc.at(["build", "native"]) >= 0
+            const lints = doc.field(0, "lints") >= 0
+            if register && (doc.field(0, "dependencies") >= 0 || lints || native) {
                 return Option.Some((doc, map.add(path, text.clone())))
             }
             return Option.Some((doc, FileId(-1)))
@@ -316,6 +320,8 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
     const (doc, file) = manifest
     const lints = readLints(&doc, file, diags)
     packages[p].lints = lints
+    const native = readNative(&doc, file, dir, diags)
+    packages[p].native = native
     const list = doc.field(0, "dependencies")
     readList(packages, p, &doc, file, list, "dependencies", r, mode, reported, map, diags, out)
     if p == 0 {
@@ -326,6 +332,34 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
             readList(packages, p, &doc, file, dev, "devDependencies", r, mode, reported, map,
                      diags, out)
         }
+    }
+    return out
+}
+
+// The C files of `build.native`, relative to the manifest's `dir`; each
+// must exist (E0918, ADR 0078).
+fn readNative(doc: &JsonDoc, file: FileId, dir: str, diags: mut Diagnostics) List<str> {
+    let out: List<str> = []
+    const list = doc.at(["build", "native"])
+    if list < 0 {
+        return out
+    }
+    if doc.nodes[list].kind != JsonKind.Array {
+        diags.error("E0918", spanOf(doc, file, list), "`build.native` must be a list of C files")
+        return out
+    }
+    let item = doc.nodes[list].child
+    for item >= 0 {
+        const name = doc.text(item)
+        const path = "{dir}/{name}"
+        if doc.nodes[item].kind != JsonKind.String || !name.endsWith(".c") {
+            diags.error("E0918", spanOf(doc, file, item), "a native file must be a `.c` path")
+        } else if !fs.exists(path) {
+            diags.error("E0918", spanOf(doc, file, item), "cannot find the native file `{path}`")
+        } else {
+            out.push(path)
+        }
+        item = doc.nodes[item].next
     }
     return out
 }
@@ -665,7 +699,7 @@ fn packageAt(packages: mut List<Package>, dir: str, key: str, at: Span, map: mut
     const srcDir = if slash > 0 { root.slice(0, slash).toOwned() } else { dir.clone() }
     const name = uniqueName(&packages, key)
     packages.push(Package{name, dir: dir.toOwned(), srcDir, rootFile: root, deps: [],
-                          lints: []})
+                          lints: [], native: []})
     return packages.len() - 1
 }
 
