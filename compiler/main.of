@@ -29,6 +29,7 @@ import diag.Severity
 import diag.jsonNoSource
 import doc.docCommand
 import driver.audit.auditCommand
+import driver.version.VERSION
 import driver.profile.readProfile
 import driver.cfg.CfgTarget
 import driver.target.hostTriple
@@ -71,8 +72,6 @@ import syntax.token_print.printTokens
 extern "C" {
     fn ofir_now_ns() i64
 }
-
-const VERSION: str = "0.5.0"
 
 fn printUsage() {
     eprintln("usage: ofir <command> [arguments]\n\ncommands:\n"

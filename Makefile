@@ -91,7 +91,7 @@ verify: stage2
 
 # The seed of a release (docs/bootstrap.md): the LLVM IR that the compiler
 # writes for itself, once stage 2 and stage 3 agree on it.
-VERSION := $(shell sed -n 's/^const VERSION: str = "\(.*\)"/\1/p' compiler/main.of)
+VERSION := $(shell sed -n 's/^pub const VERSION: str = "\(.*\)"/\1/p' compiler/driver/version.of)
 SEED    ?= $(BUILD)/seed/ofir-$(VERSION).ll
 seed: verify
 	mkdir -p $(BUILD)/seed
