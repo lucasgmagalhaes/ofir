@@ -5,7 +5,8 @@
  * the cache and write `ofir.lock`. `fetch` keeps the locked versions that
  * still fit; `update` fetches the repositories again and chooses the
  * highest versions, for every package or only `name`. `--locked` (fetch)
- * fails instead of changing the lock; `--offline` uses only the cache.
+ * fails instead of changing the lock; `--offline` uses only the cache;
+ * `--index-reset` (update) accepts an index whose history was rewritten.
  */
 
 import base.span.SourceMap
@@ -29,11 +30,14 @@ pub fn fetchCommand(args: List<str>, update: bool) int {
     let only = ""
     let locked = false
     let offline = false
+    let indexReset = false
     for i in 0..args.len() {
         if args[i] == "--locked" && !update {
             locked = true
         } else if args[i] == "--offline" {
             offline = true
+        } else if args[i] == "--index-reset" && update {
+            indexReset = true
         } else if !update || only.len() > 0 || args[i].startsWith("-") {
             eprintln("error: unexpected argument `{args[i]}` for `{command}`")
             return 2
@@ -46,7 +50,7 @@ pub fn fetchCommand(args: List<str>, update: bool) int {
         return 2
     }
     const dir = fs.canonicalize(".").ok() ?? "."
-    const mode = Mode{update, only, locked, offline, dev: true, os: "", indexReset: false}
+    const mode = Mode{update, only, locked, offline, dev: true, os: "", indexReset}
     let map = SourceMap.new()
     let diags = Diagnostics.new()
     readPackages(dir, true, &mode, map, diags)
