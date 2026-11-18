@@ -86,6 +86,7 @@ starts with the same word as the record's status line.
 | [0073](0073-coverage-and-profiling.md) | Coverage through gcov counters and profiling through DWARF | Accepted |
 | [0074](0074-watch-and-repl.md) | Watch mode re-runs the driver and the REPL replays its session | Accepted |
 | [0075](0075-documentation-site.md) | A static documentation site: search, links, visibility, versions | Accepted |
+| [0076](0076-dependency-graph-contracts.md) | Dependency graphs: no cycles, deterministic resolution | Accepted |
 
 ## Template
 

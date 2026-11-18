@@ -192,6 +192,7 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0913 | `ofir.lock` is out of date and `--locked` was given | stage 1 |
 | E0914 | the checksum of `x` differs from `ofir.lock` | stage 1 |
 | E0915 | the dependency `x` is named like a module of the project, or `std` | stage 1 |
+| E0916 | the dependency `x` makes a cycle of packages | stage 1 |
 
 ### Warnings
 
