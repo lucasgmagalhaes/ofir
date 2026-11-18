@@ -38,6 +38,7 @@ import driver.target.targetRuntime
 import driver.explain.explain
 import driver.metadata.metadataJson
 import driver.fetch.fetchCommand
+import driver.vendor.vendorCommand
 import fmt.fmtCommand
 import driver.modules.Front
 import driver.object_cache
@@ -82,6 +83,7 @@ fn printUsage() {
              + "directory; --stdout: print it)\n"
              + "  fetch             fetch the git dependencies and write ofir.lock\n"
              + "  update [name]     choose the newest versions of the git dependencies again\n"
+             + "  vendor [dir]      copy the locked packages into dir (default vendor)\n"
              + "  lsp               run the language server on standard input and output\n"
              + "  repl              read and run entries from standard input (ADR 0074)\n"
              + "  version           print the compiler version\n\noptions:\n"
@@ -304,6 +306,13 @@ fn main() {
             rest.push(args[i].clone())
         }
         os.exit(fetchCommand(rest, command == "update"))
+    }
+    if command == "vendor" {
+        let rest: List<str> = []
+        for i in 2..args.len() {
+            rest.push(args[i].clone())
+        }
+        os.exit(vendorCommand(rest))
     }
     if command == "lsp" {
         os.exit(lspCommand())
