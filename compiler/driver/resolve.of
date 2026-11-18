@@ -44,6 +44,10 @@ pub struct Mode {
     pub locked: bool
     /** `--offline`: only the cache is used. */
     pub offline: bool
+    /** Whether the root's `devDependencies` are in the graph (`ofir test`). */
+    pub dev: bool
+    /** The OS the program is built for; empty for every OS (`ofir fetch`). */
+    pub os: str
 }
 
 /**
@@ -93,6 +97,66 @@ pub struct Resolution {
     pub failures: List<Failure>
     /** Whether the project had a lock. */
     pub hadLock: bool
+    /** The root's `overrides` (ADR 0077). */
+    pub overrides: List<Override>
+}
+
+/**
+ * A dependency replaced in the whole graph (ADR 0077).
+ */
+pub struct Override {
+    /** The key it replaces, in every manifest. */
+    pub key: str
+    /** The directory it is replaced by, canonical when it exists. */
+    pub dir: str
+}
+
+/**
+ * The `overrides` of the root's manifest that have a `path`; the others
+ * are left for `driver.packages` to report.
+ *
+ * @param rootDir the root project's directory
+ * @returns the overrides, in the manifest's order
+ */
+pub fn readOverrides(rootDir: str) List<Override> {
+    let out: List<Override> = []
+    const Result.Ok(text) = fs.readToString("{rootDir}/ofir.json") else {
+        return out
+    }
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return out
+    }
+    const table = doc.field(0, "overrides")
+    if table < 0 || doc.nodes[table].kind != JsonKind.Object {
+        return out
+    }
+    let member = doc.nodes[table].child
+    for member >= 0 {
+        const isObject = doc.nodes[member].kind == JsonKind.Object
+        const pathNode = if isObject { doc.field(member, "path") } else { -1 }
+        if pathNode >= 0 && doc.nodes[pathNode].kind == JsonKind.String {
+            out.push(Override{key: doc.nodes[member].key.clone(),
+                              dir: gitUrl(doc.nodes[pathNode].text, rootDir)})
+        }
+        member = doc.nodes[member].next
+    }
+    return out
+}
+
+/**
+ * The override of a key.
+ *
+ * @param overrides the root's overrides
+ * @param key a key of `dependencies`
+ * @returns its index in `overrides`, or -1
+ */
+pub fn overrideOf(overrides: &List<Override>, key: str) int {
+    for i in 0..overrides.len() {
+        if overrides[i].key == key {
+            return i
+        }
+    }
+    return -1
 }
 
 /**
@@ -168,12 +232,13 @@ pub fn failureOf(r: &Resolution, url: str) int {
 pub fn resolve(rootDir: str, mode: &Mode) Resolution {
     const lock = readLock(rootDir)
     const index = defaultIndex()
-    let r = Resolution{pins: [], failures: [], hadLock: fs.exists("{rootDir}/ofir.lock")}
+    let r = Resolution{pins: [], failures: [], hadLock: fs.exists("{rootDir}/ofir.lock"),
+                       overrides: []}
     let repos: List<Repo> = []
     let round = 0
     for round < 16 {
         const needs = collect(rootDir, index, &r)
-        let next = Resolution{pins: [], failures: [], hadLock: r.hadLock}
+        let next = Resolution{pins: [], failures: [], hadLock: r.hadLock, overrides: []}
         let urls: List<str> = []
         for i in 0..needs.len() {
             if !contains(&urls, needs[i].url) {
@@ -187,10 +252,12 @@ pub fn resolve(rootDir: str, mode: &Mode) Resolution {
         r = next
         if stable {
             verify(r, &lock)
+            r.overrides = readOverrides(rootDir)
             return r
         }
         round += 1
     }
+    r.overrides = readOverrides(rootDir)
     return r
 }
 
@@ -217,9 +284,11 @@ struct Need {
 }
 
 // The requirements of the projects reached from `rootDir`, through path
-// dependencies and the checkouts of the pins of `r`. Invalid entries are
-// left for `driver.packages` to report.
+// dependencies, overrides and the checkouts of the pins of `r`, with the
+// root's dev dependencies. Invalid entries are left for `driver.packages`
+// to report.
 fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
+    const overrides = readOverrides(rootDir)
     let needs: List<Need> = []
     let dirs = [rootDir.toOwned()]
     let d = 0
@@ -234,49 +303,65 @@ fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
         }
         const from = projectName(&doc, dir)
         const list = doc.field(0, "dependencies")
-        if list < 0 || doc.nodes[list].kind != JsonKind.Object {
-            continue
+        collectList(&doc, list, dir, from, index, r, &overrides, dirs, needs)
+        if d == 1 {   // the root, whose dev dependencies are locked too
+            const dev = doc.field(0, "devDependencies")
+            collectList(&doc, dev, dir, from, index, r, &overrides, dirs, needs)
         }
-        let member = doc.nodes[list].child
-        for member >= 0 {
-            const next = doc.nodes[member].next
-            const key = doc.nodes[member].key.clone()
-            const version = registryVersion(&doc, member)
-            if parseRequirement(version).isSome() {
-                const url = registrySource(index, key)
+    }
+    return needs
+}
+
+// Adds the requirements of the dependencies `list` of the project in `dir`
+// to `needs`, and the directories they reach to `dirs`.
+fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Resolution,
+               overrides: &List<Override>, dirs: mut List<str>, needs: mut List<Need>) {
+    if list < 0 || doc.nodes[list].kind != JsonKind.Object {
+        return
+    }
+    let member = doc.nodes[list].child
+    for member >= 0 {
+        const next = doc.nodes[member].next
+        const key = doc.nodes[member].key.clone()
+        const version = registryVersion(doc, member)
+        const o = overrideOf(overrides, key)
+        if o >= 0 {   // replaced by a directory (ADR 0077)
+            if !contains(&dirs, overrides[o].dir) {
+                dirs.push(overrides[o].dir.clone())
+            }
+        } else if parseRequirement(version).isSome() {
+            const url = registrySource(index, key)
+            const p = pinOf(r, url)
+            if p >= 0 && !contains(&dirs, r.pins[p].dir) {
+                dirs.push(r.pins[p].dir.clone())
+            }
+            needs.push(Need{url, registry: index.toOwned(), key, version, rev: "",
+                            from: from.clone()})
+        } else if doc.nodes[member].kind == JsonKind.Object {
+            const gitNode = doc.field(member, "git")
+            const pathNode = doc.field(member, "path")
+            if gitNode >= 0 && doc.nodes[gitNode].kind == JsonKind.String {
+                const url = gitUrl(doc.nodes[gitNode].text, dir)
+                let rev = doc.text(doc.field(member, "rev"))
+                if rev.len() == 0 {
+                    rev = doc.text(doc.field(member, "branch"))
+                }
                 const p = pinOf(r, url)
                 if p >= 0 && !contains(&dirs, r.pins[p].dir) {
                     dirs.push(r.pins[p].dir.clone())
                 }
-                needs.push(Need{url, registry: index.toOwned(), key, version, rev: "",
+                needs.push(Need{url, registry: "", key,
+                                version: doc.text(doc.field(member, "version")), rev,
                                 from: from.clone()})
-            } else if doc.nodes[member].kind == JsonKind.Object {
-                const gitNode = doc.field(member, "git")
-                const pathNode = doc.field(member, "path")
-                if gitNode >= 0 && doc.nodes[gitNode].kind == JsonKind.String {
-                    const url = gitUrl(doc.nodes[gitNode].text, dir)
-                    let rev = doc.text(doc.field(member, "rev"))
-                    if rev.len() == 0 {
-                        rev = doc.text(doc.field(member, "branch"))
-                    }
-                    const p = pinOf(r, url)
-                    if p >= 0 && !contains(&dirs, r.pins[p].dir) {
-                        dirs.push(r.pins[p].dir.clone())
-                    }
-                    needs.push(Need{url, registry: "", key,
-                                    version: doc.text(doc.field(member, "version")), rev,
-                                    from: from.clone()})
-                } else if pathNode >= 0 && doc.nodes[pathNode].kind == JsonKind.String {
-                    const path = gitUrl(doc.nodes[pathNode].text, dir)
-                    if !contains(&dirs, path) {
-                        dirs.push(path)
-                    }
+            } else if pathNode >= 0 && doc.nodes[pathNode].kind == JsonKind.String {
+                const path = gitUrl(doc.nodes[pathNode].text, dir)
+                if !contains(&dirs, path) {
+                    dirs.push(path)
                 }
             }
-            member = next
         }
+        member = next
     }
-    return needs
 }
 
 /**
