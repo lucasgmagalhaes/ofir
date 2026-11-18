@@ -236,7 +236,6 @@ pub fn workspaceRoot(dir: str) str {
             return at
         }
     }
-    return dir.toOwned()
 }
 
 /**
