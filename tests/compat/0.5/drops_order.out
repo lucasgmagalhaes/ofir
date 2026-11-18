@@ -1,0 +1,22 @@
+scope
+inner block
+drop inner
+consume moved
+drop moved
+drop old
+4 after temp
+drop temp
+drop early-b
+drop early-a
+drop loop0
+drop loop1
+took left
+drop ignored
+after ignored
+end 1
+drop inside
+drop left
+drop right
+drop new
+drop second
+drop first
