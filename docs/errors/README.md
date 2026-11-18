@@ -196,6 +196,7 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0917 | the dependency `x` is declared twice | stage 1 |
 | E0918 | invalid build configuration | stage 1 |
 | E0919 | a package cannot be published | stage 1 |
+| E0920 | a locked package has an advisory | stage 1 |
 
 ### Warnings
 
