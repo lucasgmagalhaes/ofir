@@ -29,6 +29,7 @@ import driver.lock.writeLock
 import driver.resolve.Mode
 import driver.resolve.Resolution
 import driver.resolve.failureOf
+import driver.resolve.overrideOf
 import driver.resolve.gitUrl
 import driver.resolve.pinOf
 import driver.resolve.registrySource
@@ -137,7 +138,7 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
     let reported: List<str> = []
     let p = 0
     for p < packages.len() {   // grows while it is walked
-        const deps = readDependencies(packages, p, &r, reported, map, diags)
+        const deps = readDependencies(packages, p, &r, mode, reported, map, diags)
         packages[p].deps = deps
         p += 1
     }
@@ -301,9 +302,12 @@ fn spanOf(doc: &JsonDoc, file: FileId, node: int) Span {
     return Span{file, start: doc.nodes[node].start, end: doc.nodes[node].end}
 }
 
-// The dependencies of package `p`; the packages they name are added.
-fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, reported: mut List<str>,
-                    map: mut SourceMap, diags: mut Diagnostics) List<Dependency> {
+// The dependencies of package `p`; the packages they name are added. The
+// root's dev dependencies count under `mode.dev`, and a dependency for
+// another OS than `mode.os` does not (ADR 0077).
+fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &Mode,
+                    reported: mut List<str>, map: mut SourceMap,
+                    diags: mut Diagnostics) List<Dependency> {
     let out: List<Dependency> = []
     const dir = packages[p].dir.clone()
     const Option.Some(manifest) = readManifest(dir, true, map, diags) else {
@@ -313,24 +317,109 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, reporte
     const lints = readLints(&doc, file, diags)
     packages[p].lints = lints
     const list = doc.field(0, "dependencies")
+    readList(packages, p, &doc, file, list, "dependencies", r, mode, reported, map, diags, out)
+    if p == 0 {
+        checkOverrides(&doc, file, diags)
+        const dev = doc.field(0, "devDependencies")
+        checkTwice(&doc, file, list, dev, diags)
+        if mode.dev {
+            readList(packages, p, &doc, file, dev, "devDependencies", r, mode, reported, map,
+                     diags, out)
+        }
+    }
+    return out
+}
+
+// Adds the dependencies of the object `list` of a manifest, named `what`,
+// to `out`.
+fn readList(packages: mut List<Package>, p: int, doc: &JsonDoc, file: FileId, list: int,
+            what: str, r: &Resolution, mode: &Mode, reported: mut List<str>,
+            map: mut SourceMap, diags: mut Diagnostics, out: mut List<Dependency>) {
     if list < 0 {
-        return out
+        return
     }
     if doc.nodes[list].kind != JsonKind.Object {
-        diags.error("E0910", spanOf(&doc, file, list), "`dependencies` must be an object")
-        return out
+        diags.error("E0910", spanOf(doc, file, list), "`{what}` must be an object")
+        return
     }
     let member = doc.nodes[list].child
     for member >= 0 {
         const key = doc.nodes[member].key.clone()
-        const at = spanOf(&doc, file, member)
-        const target = dependencyTarget(packages, p, &doc, file, member, r, reported, map, diags)
-        if target >= 0 && validKey(&packages, p, key, at, diags) {
-            out.push(Dependency{key, package: target, at})
+        const at = spanOf(doc, file, member)
+        if forTarget(doc, file, member, mode, diags) {
+            const target = dependencyTarget(packages, p, doc, file, member, r, reported, map,
+                                            diags)
+            if target >= 0 && validKey(&packages, p, key, at, diags) {
+                out.push(Dependency{key, package: target, at})
+            }
         }
         member = doc.nodes[member].next
     }
-    return out
+}
+
+// Whether the dependency `member` is for the OS of `mode`: it has no `os`,
+// or its `os` is that one, or `mode` is for every OS.
+fn forTarget(doc: &JsonDoc, file: FileId, member: int, mode: &Mode,
+             diags: mut Diagnostics) bool {
+    if doc.nodes[member].kind != JsonKind.Object {
+        return true
+    }
+    const osNode = doc.field(member, "os")
+    if osNode < 0 {
+        return true
+    }
+    const os = doc.text(osNode)
+    const known = os == "linux" || os == "macos" || os == "windows"
+    if doc.nodes[osNode].kind != JsonKind.String || !known {
+        diags.error("E0910", spanOf(doc, file, osNode),
+                    "`os` must be \"linux\", \"macos\" or \"windows\"")
+        return false
+    }
+    return mode.os.isEmpty() || mode.os == os
+}
+
+// Reports each key of `devDependencies` that `dependencies` has too (E0917).
+fn checkTwice(doc: &JsonDoc, file: FileId, list: int, dev: int, diags: mut Diagnostics) {
+    if list < 0 || dev < 0 {
+        return
+    }
+    if doc.nodes[list].kind != JsonKind.Object || doc.nodes[dev].kind != JsonKind.Object {
+        return
+    }
+    let member = doc.nodes[dev].child
+    for member >= 0 {
+        const key = doc.nodes[member].key.clone()
+        if doc.field(list, key) >= 0 {
+            diags.error("E0917", spanOf(doc, file, member),
+                        "the dependency `{key}` is declared twice")
+            diags.note("`{key}` is in `dependencies` and in `devDependencies`")
+        }
+        member = doc.nodes[member].next
+    }
+}
+
+// Reports the `overrides` of the root's manifest that are not
+// `{"path": dir}` (E0910).
+fn checkOverrides(doc: &JsonDoc, file: FileId, diags: mut Diagnostics) {
+    const table = doc.field(0, "overrides")
+    if table < 0 {
+        return
+    }
+    if doc.nodes[table].kind != JsonKind.Object {
+        diags.error("E0910", spanOf(doc, file, table), "`overrides` must be an object")
+        return
+    }
+    let member = doc.nodes[table].child
+    for member >= 0 {
+        const isObject = doc.nodes[member].kind == JsonKind.Object
+        const pathNode = if isObject { doc.field(member, "path") } else { -1 }
+        if pathNode < 0 || doc.nodes[pathNode].kind != JsonKind.String {
+            const key = doc.nodes[member].key.clone()
+            diags.error("E0910", spanOf(doc, file, member),
+                        "the override of `{key}` needs a `path`")
+        }
+        member = doc.nodes[member].next
+    }
 }
 
 // The levels of the manifest's `"lints": {"<category>": "allow|warn|deny"}`.
@@ -426,6 +515,16 @@ fn dependencyTarget(packages: mut List<Package>, p: int, doc: &JsonDoc, file: Fi
                     diags: mut Diagnostics) int {
     const key = doc.nodes[member].key.clone()
     const at = spanOf(doc, file, member)
+    const o = overrideOf(&r.overrides, key)
+    if o >= 0 {   // replaced in the whole graph (ADR 0077)
+        const dir = r.overrides[o].dir.clone()
+        if !fs.exists("{dir}/ofir.json") {
+            diags.error("E0911", at, "cannot find the override of `{key}`")
+            diags.note("`{dir}` has no `ofir.json`")
+            return -1
+        }
+        return packageAt(packages, dir, key, at, map, diags)
+    }
     if registryVersion(doc, member).len() > 0 {
         const Option.Some(dir) = registryTarget(doc, file, member, r, reported, diags) else {
             return -1
