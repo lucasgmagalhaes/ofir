@@ -11,6 +11,7 @@
  */
 
 import driver.git.fileAt
+import driver.git.fileAtRev
 import driver.git.hashHex
 import driver.git.ofirHome
 import driver.semver.Version
@@ -74,7 +75,20 @@ pub fn indexPath(name: str) str {
  * has no such package
  */
 pub fn releases(dir: str, name: str) Option<List<Release>> {
-    const Option.Some(text) = fileAt(dir, indexPath(name)) else {
+    return releasesAt(dir, "HEAD", name)
+}
+
+/**
+ * The published versions of a package at a commit of the index.
+ *
+ * @param dir the bare clone of the index
+ * @param rev the commit, or `HEAD`
+ * @param name the package
+ * @returns its versions, in the order of the file; `None` when the index
+ * has no such package
+ */
+pub fn releasesAt(dir: str, rev: str, name: str) Option<List<Release>> {
+    const Option.Some(text) = fileAtRev(dir, rev, indexPath(name)) else {
         return Option.None
     }
     let out: List<Release> = []
