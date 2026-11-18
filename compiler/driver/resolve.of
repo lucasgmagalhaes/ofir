@@ -99,6 +99,11 @@ pub struct Resolution {
     pub hadLock: bool
     /** The root's `overrides` (ADR 0077). */
     pub overrides: List<Override>
+    /**
+     * Where `ofir.lock` is: the workspace root of the project, or the
+     * project itself (ADR 0077).
+     */
+    pub lockDir: str
 }
 
 /**
@@ -179,6 +184,62 @@ pub fn gitUrl(given: str, base: str) str {
 }
 
 /**
+ * The canonical directories of the members of the workspace whose root
+ * is `dir` (ADR 0077); none when its manifest has no `workspace`.
+ *
+ * @param dir a project's directory
+ * @returns the members, in the manifest's order
+ */
+pub fn workspaceMembers(dir: str) List<str> {
+    let out: List<str> = []
+    const Result.Ok(text) = fs.readToString("{dir}/ofir.json") else {
+        return out
+    }
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return out
+    }
+    const workspace = doc.field(0, "workspace")
+    if workspace < 0 || doc.nodes[workspace].kind != JsonKind.Object {
+        return out
+    }
+    const list = doc.field(workspace, "members")
+    if list < 0 || doc.nodes[list].kind != JsonKind.Array {
+        return out
+    }
+    let item = doc.nodes[list].child
+    for item >= 0 {
+        if doc.nodes[item].kind == JsonKind.String {
+            out.push(gitUrl(doc.nodes[item].text, dir))
+        }
+        item = doc.nodes[item].next
+    }
+    return out
+}
+
+/**
+ * The workspace root of the project in `dir`: the nearest directory above
+ * it whose manifest lists it as a member, or `dir` itself (ADR 0077).
+ *
+ * @param dir a project's canonical directory
+ * @returns the directory whose lock and overrides the project uses
+ */
+pub fn workspaceRoot(dir: str) str {
+    let at = dir.toOwned()
+    for {
+        const slash = at.rfind("/") ?? -1
+        if slash <= 0 {
+            return dir.toOwned()
+        }
+        at = at.slice(0, slash).toOwned()
+        const members = workspaceMembers(at)
+        if contains(&members, dir) {
+            return at
+        }
+    }
+    return dir.toOwned()
+}
+
+/**
  * How a registry package is named among the repositories.
  *
  * @param index the registry's index
@@ -229,16 +290,18 @@ pub fn failureOf(r: &Resolution, url: str) int {
  * @param mode what may change
  * @returns the pins and the failures
  */
-pub fn resolve(rootDir: str, mode: &Mode) Resolution {
+pub fn resolve(project: str, mode: &Mode) Resolution {
+    const rootDir = workspaceRoot(project)
     const lock = readLock(rootDir)
     const index = defaultIndex()
     let r = Resolution{pins: [], failures: [], hadLock: fs.exists("{rootDir}/ofir.lock"),
-                       overrides: []}
+                       overrides: [], lockDir: rootDir.clone()}
     let repos: List<Repo> = []
     let round = 0
     for round < 16 {
         const needs = collect(rootDir, index, &r)
-        let next = Resolution{pins: [], failures: [], hadLock: r.hadLock, overrides: []}
+        let next = Resolution{pins: [], failures: [], hadLock: r.hadLock, overrides: [],
+                              lockDir: rootDir.clone()}
         let urls: List<str> = []
         for i in 0..needs.len() {
             if !contains(&urls, needs[i].url) {
@@ -283,14 +346,21 @@ struct Need {
     from: str
 }
 
-// The requirements of the projects reached from `rootDir`, through path
-// dependencies, overrides and the checkouts of the pins of `r`, with the
-// root's dev dependencies. Invalid entries are left for `driver.packages`
-// to report.
+// The requirements of the projects reached from `rootDir` and its
+// workspace members, through path dependencies, overrides and the
+// checkouts of the pins of `r`, with the dev dependencies of the root and
+// the members. Invalid entries are left for `driver.packages` to report.
 fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
     const overrides = readOverrides(rootDir)
     let needs: List<Need> = []
     let dirs = [rootDir.toOwned()]
+    const members = workspaceMembers(rootDir)
+    for i in 0..members.len() {
+        if !contains(&dirs, members[i]) {
+            dirs.push(members[i].clone())
+        }
+    }
+    const seeds = dirs.len()
     let d = 0
     for d < dirs.len() {   // grows while it is walked
         const dir = dirs[d].clone()
@@ -304,7 +374,7 @@ fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
         const from = projectName(&doc, dir)
         const list = doc.field(0, "dependencies")
         collectList(&doc, list, dir, from, index, r, &overrides, dirs, needs)
-        if d == 1 {   // the root, whose dev dependencies are locked too
+        if d <= seeds {   // the root or a member, whose dev dependencies are locked too
             const dev = doc.field(0, "devDependencies")
             collectList(&doc, dev, dir, from, index, r, &overrides, dirs, needs)
         }
