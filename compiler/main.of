@@ -996,12 +996,12 @@ fn clangFlags(opts: &Options) List<str> {
     return args
 }
 
-// The clang flags of a call that generates code: `clangFlags` and, in a debug
-// build, the linear pre-register-allocation scheduler, which is about 40%
-// faster at -O0 on large functions (ADR 0054).
+// The clang flags of a call that generates code: `clangFlags` and, at -O0,
+// the linear pre-register-allocation scheduler, which is about 40% faster on
+// large functions (ADR 0054). Above -O0 it crashes the AArch64 backend.
 fn codegenFlags(opts: &Options) List<str> {
     let args = clangFlags(opts)
-    if !opts.release {
+    if opts.opt == 0 {
         args.push("-mllvm".toOwned())
         args.push("-pre-RA-sched=linearize".toOwned())
     }

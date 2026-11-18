@@ -31,6 +31,7 @@ import driver.resolve.Resolution
 import driver.resolve.failureOf
 import driver.resolve.overrideOf
 import driver.resolve.gitUrl
+import driver.resolve.isAbsolutePath
 import driver.resolve.pinOf
 import driver.resolve.registrySource
 import driver.resolve.registryVersion
@@ -609,7 +610,7 @@ fn dependencyTarget(packages: mut List<Package>, p: int, doc: &JsonDoc, file: Fi
     }
     const given = doc.nodes[pathNode].text.clone()
     const base = packages[p].dir.clone()
-    const joined = if given.startsWith("/") { given.clone() } else { "{base}/{given}" }
+    const joined = if isAbsolutePath(given) { given.clone() } else { "{base}/{given}" }
     const Result.Ok(dir) = fs.canonicalize(joined) else {
         diags.error("E0911", spanOf(doc, file, pathNode), "cannot find the dependency `{key}`")
         diags.note("no directory `{given}` next to `ofir.json`")
