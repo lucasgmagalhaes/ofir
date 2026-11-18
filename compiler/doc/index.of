@@ -12,7 +12,6 @@ import diag.Diagnostics
 import diag.Format
 import doc.links.Targets
 import doc.links.linkCode
-import doc.fonts.writeFonts
 import doc.page.Site
 import doc.page.comments
 import doc.page.indexPage
@@ -131,10 +130,6 @@ fn document(sources: &List<Source>, out: str, stdout: bool, site: &Site) int {
         return 2
     }
     if !write("{out}/search.js", searchScript(search)) {
-        return 2
-    }
-    if !writeFonts(out) {
-        eprintln("error: cannot write documentation fonts to `{out}`")
         return 2
     }
     return status

@@ -115,12 +115,6 @@ def check(compiler, work):
 
     run([compiler, "doc", "-o", "out"], work)
     out = work / "out"
-    for name in ("plex-sans", "plex-mono"):
-        font = out / "fonts" / f"{name}.woff2"
-        if not font.read_bytes().startswith(b"wOF2"):
-            fail(f"{font} is not a WOFF2 font")
-    expect((out / "fonts" / "OFL.txt").read_text(), "SIL OPEN FONT LICENSE",
-           "font license")
     search = (out / "search.js").read_text()
     for entry in ['["Meter", "units"', '["Meter.double", "units"', '["norm", "geometry"',
                   '["Point.x", "geometry"']:
@@ -140,8 +134,6 @@ def check(compiler, work):
         expect(page, '<main id="content">', f"{name}.html")
         expect(page, 'href="#content">Skip to content</a>', f"{name}.html")
         expect(page, 'for="search">Search documentation</label>', f"{name}.html")
-        expect(page, "fonts/plex-sans.woff2", f"{name}.html")
-        expect(page, "fonts/plex-mono.woff2", f"{name}.html")
     for name, text in [*pages.items(), ("search.js", search)]:
         if re.search(r"(src|href)=\"(https?:)?//", text) or "@import" in text:
             fail(f"{name} refers to the network")
