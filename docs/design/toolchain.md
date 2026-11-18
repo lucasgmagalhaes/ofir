@@ -256,6 +256,10 @@ Scopes and overrides (ADR 0077, `tools/check_sources.py`):
   `.git`, into `dir/<name>` (default `vendor`) and prints the `overrides`
   that use those copies. With them, `--offline` builds with an empty
   `$OFIR_HOME`.
+- A manifest with `"workspace": {"members": ["app", "tool"]}` is a
+  workspace root. A build in a member uses the root's `ofir.lock` and
+  `overrides` (its own are not read); the lock holds the packages of
+  every member, and `ofir fetch` at the root resolves them together.
 
 | Command | Effect |
 |---------|--------|

@@ -153,11 +153,11 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
                                commit: pin.commit.clone(), checksum: pin.checksum.clone()})
         }
         if mode.locked {
-            if !lockMatches(rootDir, &locked) {
-                staleLock(rootDir, &locked, map, diags)
+            if !lockMatches(r.lockDir, &locked) {
+                staleLock(r.lockDir, &locked, map, diags)
             }
-        } else if !writeLock(rootDir, &locked) {
-            eprintln("warning: cannot write `{rootDir}/ofir.lock`")
+        } else if !writeLock(r.lockDir, &locked) {
+            eprintln("warning: cannot write `{r.lockDir}/ofir.lock`")
         }
     }
     return packages

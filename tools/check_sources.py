@@ -9,7 +9,9 @@
 - an override replaces a dependency everywhere in the graph, and its
   package is not locked;
 - `ofir vendor` copies the locked packages, and with the overrides it
-  prints the build holds `--offline` with an empty `$OFIR_HOME`.
+  prints the build holds `--offline` with an empty `$OFIR_HOME`;
+- the members of a workspace share the lock and the `overrides` of its
+  root, and a member's own `overrides` are not read.
 
     python3 tools/check_sources.py --compiler build/stage1/ofir
 """
@@ -177,6 +179,40 @@ def check_vendor(compiler, tmp):
     print("sources: vendoring ok")
 
 
+def check_workspace(compiler, tmp):
+    work = tmp / "workspace"
+    text = f'{{"git": "{(FIXTURES / "text").as_posix()}", "version": "^1.0"}}'
+    write(work / "ofir.json", '{\n  "workspace": {"members": ["app", "tool"]}\n}\n')
+    write(work / "app" / "ofir.json", manifest("app", "exe", [
+        ("dependencies", [("text", text)]),
+        ("overrides", [("text", '{"path": "../missing"}')])]))
+    write(work / "app" / "main.of",
+          "import text\n\nfn main() {\n    println(text.version())\n}\n")
+    write(work / "tool" / "ofir.json", manifest("tool", "exe", [
+        ("dependencies", [("shade", text.replace("text", "shade").replace("^1.0", "^0.2"))])]))
+    write(work / "tool" / "main.of", "fn main() {\n}\n")
+    home = tmp / "home-workspace"
+    built = run([compiler, "run", "main.of"], work / "app", home)
+    if built.stdout.strip() != "1.1.0":
+        fail(f"the member printed {built.stdout!r}")
+    if (work / "app" / "ofir.lock").exists():
+        fail("a member wrote its own lock")
+    lock = (work / "ofir.lock").read_text()
+    if '"name": "text"' not in lock or '"name": "shade"' not in lock:
+        fail(f"the workspace lock does not hold every member's packages:\n{lock}")
+    fetched = run([compiler, "fetch", "--locked"], work, home)
+    if "text 1.1.0" not in fetched.stdout:
+        fail(f"fetch at the workspace root printed {fetched.stdout!r}")
+
+    library(work / "patched", "text", version_fn("patched"))
+    write(work / "ofir.json", '{\n  "workspace": {"members": ["app", "tool"]},\n'
+          '  "overrides": {"text": {"path": "patched/text"}}\n}\n')
+    built = run([compiler, "run", "main.of"], work / "app", home)
+    if built.stdout.strip() != "patched":
+        fail(f"the root's override is not used in a member: {built.stdout!r}")
+    print("sources: workspaces ok")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--compiler", default="build/stage1/ofir")
@@ -189,6 +225,7 @@ def main():
         check_os(compiler, Path(tmp))
         check_overrides(compiler, Path(tmp))
         check_vendor(compiler, Path(tmp))
+        check_workspace(compiler, Path(tmp))
     return 0
 
 
