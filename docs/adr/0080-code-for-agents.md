@@ -1,6 +1,6 @@
 # 0080. Tools and rules for code written by agents
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-18
 
 ## Context
