@@ -5,7 +5,8 @@
  * package's repository, its version (or the `rev` or `branch` it follows),
  * its commit and the checksum of its files. A registry package has its
  * index and version instead of a repository and a commit. Path dependencies
- * are not in it.
+ * are not in it. `indexes` has the commit of each registry index the
+ * resolution read (ADR 0081).
  */
 
 import diag.jsonString
@@ -32,6 +33,40 @@ pub struct Locked {
     pub commit: str
     /** The SHA-256 of its files (`checksum`); empty in a lock that has none. */
     pub checksum: str
+}
+
+/**
+ * The commit of a registry index in the lock.
+ */
+pub struct IndexPin {
+    /** The index: a URL, or a canonical local path. */
+    pub url: str
+    /** The commit of the index that was read. */
+    pub commit: str
+}
+
+/**
+ * Reads the index commits of the lock of the project in `dir`.
+ *
+ * @param dir the project's directory
+ * @returns them; none when there is no lock, or it has no `indexes`
+ */
+pub fn readIndexes(dir: str) List<IndexPin> {
+    let out: List<IndexPin> = []
+    const Result.Ok(text) = fs.readToString("{dir}/ofir.lock") else {
+        return out
+    }
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return out
+    }
+    for node in doc.elements(doc.field(0, "indexes")) {
+        const pin = IndexPin{url: doc.text(doc.field(node, "url")),
+                             commit: doc.text(doc.field(node, "commit"))}
+        if pin.url.len() > 0 && pin.commit.len() > 0 {
+            out.push(pin)
+        }
+    }
+    return out
 }
 
 /**
@@ -87,9 +122,10 @@ pub fn sourceOf(p: &Locked) str {
  * The text of a lock.
  *
  * @param packages its packages, in any order
- * @returns the JSON, sorted by name, then repository
+ * @param indexes the commits of the indexes, in any order
+ * @returns the JSON, sorted by name, then repository; the indexes by URL
  */
-pub fn lockText(packages: &List<Locked>) str {
+pub fn lockText(packages: &List<Locked>, indexes: &List<IndexPin>) str {
     let order: List<int> = []
     for i in 0..packages.len() {
         let at = order.len()
@@ -120,7 +156,25 @@ pub fn lockText(packages: &List<Locked>) str {
         }
         out.push("\}")
     }
-    out.push(if order.len() > 0 { "\n  ]\n\}\n" } else { "]\n\}\n" })
+    out.push(if order.len() > 0 { "\n  ]" } else { "]" })
+    if indexes.len() > 0 {
+        let sorted: List<int> = []
+        for i in 0..indexes.len() {
+            let at = sorted.len()
+            for at > 0 && indexes[i].url < indexes[sorted[at - 1]].url {
+                at -= 1
+            }
+            sorted.insert(at, i)
+        }
+        out.push(",\n  \"indexes\": [")
+        for k in 0..sorted.len() {
+            const x = &indexes[sorted[k]]
+            out.push(if k > 0 { ",\n" } else { "\n" })
+            out.push("    \{\"url\": {jsonString(x.url)}, \"commit\": {jsonString(x.commit)}\}")
+        }
+        out.push("\n  ]")
+    }
+    out.push("\n\}\n")
     return out
 }
 
@@ -130,11 +184,12 @@ pub fn lockText(packages: &List<Locked>) str {
  *
  * @param dir the project's directory
  * @param packages its packages
+ * @param indexes the commits of the indexes
  * @returns true if it would not change
  */
-pub fn lockMatches(dir: str, packages: &List<Locked>) bool {
+pub fn lockMatches(dir: str, packages: &List<Locked>, indexes: &List<IndexPin>) bool {
     if const Result.Ok(old) = fs.readToString("{dir}/ofir.lock") {
-        return old == lockText(packages)
+        return old == lockText(packages, indexes)
     }
     return packages.len() == 0
 }
@@ -144,13 +199,14 @@ pub fn lockMatches(dir: str, packages: &List<Locked>) bool {
  *
  * @param dir the project's directory
  * @param packages its packages
+ * @param indexes the commits of the indexes
  * @returns false if it could not be written
  */
-pub fn writeLock(dir: str, packages: &List<Locked>) bool {
-    if lockMatches(dir, packages) {
+pub fn writeLock(dir: str, packages: &List<Locked>, indexes: &List<IndexPin>) bool {
+    if lockMatches(dir, packages, indexes) {
         return true
     }
-    return fs.writeString("{dir}/ofir.lock", lockText(packages)).isOk()
+    return fs.writeString("{dir}/ofir.lock", lockText(packages, indexes)).isOk()
 }
 
 /**
