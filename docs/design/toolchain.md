@@ -232,7 +232,11 @@ comes from:
 
 A requirement is `^1.2.3` (the default), `~1.2.3`, `=1.2.3`, `>=1.2.3` or
 `*`. A program has one version of each package; when no version fits every
-requirement, resolution fails (E0912).
+requirement, resolution fails (E0912). The packages form a graph without
+cycles: a dependency that leads back to a package that depends on it is
+E0916 (ADR 0076). Resolution is deterministic: the same manifests, lock and
+sources give the same `ofir.lock`, byte for byte, whatever the order of the
+keys of `dependencies` (`tools/check_resolution.py`).
 
 | Command | Effect |
 |---------|--------|
