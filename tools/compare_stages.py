@@ -52,9 +52,10 @@ def executable(path: str) -> str:
     return str(full)
 
 
-# Mutants only stage 1 handles: a `name @ pattern` binding (ADR 0043), and a
-# copy of a std file exporting a runtime symbol, E0819 outside std (spec 11).
-ONE_STAGE_MUTANT = re.compile(r'\w@\w|@export\("ofir_')
+# Mutants only stage 1 handles: a `name @ pattern` binding (ADR 0043), a
+# copy of a std file exporting a runtime symbol, E0819 outside std (spec 11),
+# and a key literal type (`&.x`, `: .x`; spec 16).
+ONE_STAGE_MUTANT = re.compile(r'\w@\w|@export\("ofir_|[&:]\s*\.[A-Za-z_]')
 
 
 def comparable(path: Path) -> bool:
