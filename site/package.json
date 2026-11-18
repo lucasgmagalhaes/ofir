@@ -8,6 +8,7 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.1.0",
     "astro": "7.4.13"
   }
 }
