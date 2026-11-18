@@ -1,0 +1,119 @@
+/**
+ * @module
+ * `ofir vendor [dir]` (ADR 0077): copy the source of each git and registry
+ * package of the lock into `dir/<name>` (default `vendor`) and print the
+ * `overrides` that make the build use those copies, with no cache and no
+ * network.
+ */
+
+import base.span.SourceMap
+import diag.Diagnostics
+import diag.Format
+import driver.packages.readPackages
+import driver.resolve.Mode
+import driver.resolve.resolve
+import std.fs
+
+/**
+ * Runs `ofir vendor`.
+ *
+ * @param args the arguments after the command
+ * @returns the exit code
+ */
+pub fn vendorCommand(args: List<str>) int {
+    let target = "vendor"
+    let given = false
+    let offline = false
+    for i in 0..args.len() {
+        if args[i] == "--offline" {
+            offline = true
+        } else if given || args[i].startsWith("-") {
+            eprintln("error: unexpected argument `{args[i]}` for `vendor`")
+            return 2
+        } else {
+            target = args[i].clone()
+            given = true
+        }
+    }
+    if !fs.exists("ofir.json") {
+        eprintln("error: `vendor` needs an `ofir.json` in the current directory")
+        return 2
+    }
+    const dir = fs.canonicalize(".").ok() ?? "."
+    const mode = Mode{update: false, only: "", locked: false, offline, dev: true, os: ""}
+    let map = SourceMap.new()
+    let diags = Diagnostics.new()
+    readPackages(dir, true, &mode, map, diags)
+    if diags.hasErrors() {
+        eprint(diags.render(map, Format.Human))
+        return 1
+    }
+    const r = resolve(dir, &mode)
+    let names: List<str> = []
+    for i in 0..r.pins.len() {
+        const name = r.pins[i].name.clone()
+        for j in 0..names.len() {
+            if names[j] == name {
+                eprintln("error: two packages of the lock are named `{name}`")
+                return 1
+            }
+        }
+        names.push(name)
+    }
+    let out = "\"overrides\": \{\n"
+    for i in 0..r.pins.len() {
+        const pin = &r.pins[i]
+        const to = "{target}/{pin.name}"
+        if fs.exists(to) && !removeAll(to) {
+            eprintln("error: cannot remove `{to}`")
+            return 1
+        }
+        if !copyTree(pin.dir, to) {
+            eprintln("error: cannot copy `{pin.name}` into `{to}`")
+            return 1
+        }
+        const comma = if i + 1 < r.pins.len() { "," } else { "" }
+        out.push("  \"{pin.name}\": \{\"path\": \"{to}\"\}{comma}\n")
+    }
+    out.push("\}")
+    println(out)
+    return 0
+}
+
+// Copies the directory `from` into `to`, without `.git`.
+fn copyTree(from: str, to: str) bool {
+    if fs.createDirAll(to).isErr() {
+        return false
+    }
+    const entries = fs.readDir(from).ok() ?? []
+    for i in 0..entries.len() {
+        const e = &entries[i]
+        if e.name == ".git" {
+            continue
+        }
+        const dest = "{to}/{e.name}"
+        if fs.readDir(e.path).isOk() {
+            if !copyTree(e.path, dest) {
+                return false
+            }
+        } else if fs.copyFile(e.path, dest).isErr() {
+            return false
+        }
+    }
+    return true
+}
+
+// Removes the file or directory `path` and all it holds.
+fn removeAll(path: str) bool {
+    const listed = fs.readDir(path)
+    if listed.isErr() {
+        return fs.removeFile(path).isOk()
+    }
+    const entries = listed.ok() ?? []
+    for i in 0..entries.len() {
+        if !removeAll(entries[i].path) {
+            return false
+        }
+    }
+    return fs.removeDir(path).isOk()
+}

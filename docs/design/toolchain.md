@@ -252,11 +252,16 @@ Scopes and overrides (ADR 0077, `tools/check_sources.py`):
   every dependency whose key is `text`, in every manifest, by that
   directory, relative to the root. An overridden package is not fetched
   or locked; the `overrides` of a dependency are not read.
+- `ofir vendor [dir]` copies each locked git and registry package, without
+  `.git`, into `dir/<name>` (default `vendor`) and prints the `overrides`
+  that use those copies. With them, `--offline` builds with an empty
+  `$OFIR_HOME`.
 
 | Command | Effect |
 |---------|--------|
 | `ofir fetch` | resolves the graph, downloads what is missing, writes `ofir.lock` |
 | `ofir update [name]` | resolves again, all packages or one |
+| `ofir vendor [dir]` | copies the locked packages into `dir` and prints their `overrides` |
 | `--locked` | `build`, `run`, `test` and `fetch` fail instead of changing `ofir.lock` (E0913) |
 | `--offline` | uses only the cache |
 
