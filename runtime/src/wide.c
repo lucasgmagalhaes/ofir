@@ -86,6 +86,21 @@ int ofir_w_utime(const char *name) {
     WIDE_CALL(name, _wutime(w, NULL));
 }
 
+// `stat` keeps only whole seconds, so two edits in a second would look the same.
+int64_t ofir_w_mtime(const char *name) {
+    wchar_t *w = ofir_wide(name);
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    BOOL found = w && GetFileAttributesExW(w, GetFileExInfoStandard, &data);
+    ofir_free(w);
+    if (!found) {
+        return 0;
+    }
+    // FILETIME counts 100 ns ticks since 1601.
+    uint64_t ticks = ((uint64_t)data.ftLastWriteTime.dwHighDateTime << 32)
+                     | data.ftLastWriteTime.dwLowDateTime;
+    return ((int64_t)ticks - 116444736000000000LL) * 100;
+}
+
 // Copies the UTF-8 form of `w` into `out` of `size` bytes; NULL if it does not fit.
 static char *narrow_into(const wchar_t *w, char *out, size_t size) {
     char *s = ofir_narrow(w);

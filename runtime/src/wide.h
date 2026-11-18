@@ -25,6 +25,8 @@ int ofir_w_rmdir(const char *name);
 int ofir_w_mkdir(const char *name);
 int ofir_w_access(const char *name, int mode);
 int ofir_w_utime(const char *name);
+// The modification time in nanoseconds since 1970, to 100 ns; 0 when unknown.
+int64_t ofir_w_mtime(const char *name);
 char *ofir_w_fullpath(char *full, const char *name, size_t size);
 char *ofir_w_getcwd(char *path, size_t size);
 int ofir_w_rename(const char *from, const char *to);
