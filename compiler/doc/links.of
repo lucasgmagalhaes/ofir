@@ -1,0 +1,139 @@
+/**
+ * @module
+ * Cross-links and the search index of `ofir doc` (ADR 0075): a `code`
+ * span that names a documented declaration links to it, and `search.js`
+ * lists the declarations for the search box of each page.
+ */
+
+/**
+ * Where each documented declaration is, by the names that reach it:
+ * `module.anchor` always, and the bare `anchor` when only one module
+ * declares it (an empty target marks a name declared in several).
+ */
+pub struct Targets {
+    names: Map<str, str>
+
+    /** No declarations yet. */
+    pub fn new() Targets {
+        return Targets{names: Map.new()}
+    }
+
+    /**
+     * Adds a declaration.
+     *
+     * @param module its module
+     * @param anchor its anchor on the module's page (`parse`, `Point.x`)
+     */
+    pub fn add(mut self, module: str, anchor: str) {
+        const href = "{module}.html#{anchor}"
+        self.names.insert("{module}.{anchor}", href.clone())
+        const bare = anchor.toOwned()
+        if self.names.contains(bare.clone()) {
+            self.names.insert(bare, "".toOwned())
+        } else {
+            self.names.insert(bare, href)
+        }
+    }
+
+    // The link of a name written in a comment of `module`; "" for none.
+    fn href(self, module: str, name: str) str {
+        if const Option.Some(local) = self.names.get("{module}.{name}") {
+            return local.clone()
+        }
+        if const Option.Some(other) = self.names.get(name.toOwned()) {
+            return other.clone()
+        }
+        return "".toOwned()
+    }
+}
+
+// Whether `text` can name a declaration: letters, digits, `_` and `.`.
+fn isPath(text: str) bool {
+    if text.isEmpty() {
+        return false
+    }
+    for b in text.bytes() {
+        const letter = (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z')
+        if !letter && !(b >= b'0' && b <= b'9') && b != b'_' && b != b'.' {
+            return false
+        }
+    }
+    return true
+}
+
+// Whether the `<code>` at `at` starts a code block or a signature: the
+// tag before it is a `<pre`.
+fn inPre(html: str, at: int) bool {
+    const Option.Some(open) = html.slice(0, at).rfind("<") else {
+        return false
+    }
+    return html.sliceFrom(open).startsWith("<pre")
+}
+
+/**
+ * A page with each `code` span that names a declaration made a link.
+ *
+ * @param html the page
+ * @param module the page's module
+ * @param targets the documented declarations
+ * @returns the page with the links
+ */
+pub fn linkCode(html: str, module: str, targets: &Targets) str {
+    let out = ""
+    let plain = 0
+    for {
+        const Option.Some(found) = html.sliceFrom(plain).find("<code>") else {
+            break
+        }
+        const at = plain + found
+        const start = at + 6
+        const Option.Some(len) = html.sliceFrom(start).find("</code>") else {
+            break
+        }
+        const name = html.slice(start, start + len)
+        const href = if isPath(name) && !inPre(html, at) { targets.href(module, name) } else { "" }
+        out.push(html.slice(plain, at))
+        if href.isEmpty() {
+            out.push(html.slice(at, start + len + 7))
+        } else {
+            out.push("<a href=\"{href}\"><code>{name}</code></a>")
+        }
+        plain = start + len + 7
+    }
+    out.push(html.sliceFrom(plain))
+    return out
+}
+
+/**
+ * Text as a JavaScript string literal.
+ *
+ * @param text the text
+ * @returns it between double quotes, with `"`, `\`, `<` and line breaks
+ *          escaped
+ */
+pub fn jsString(text: str) str {
+    let out = "\""
+    let plain = 0
+    for i in 0..text.len() {
+        const b = text[i]
+        const escaped = if b == b'"' {
+            "\\\""
+        } else if b == b'\\' {
+            "\\\\"
+        } else if b == b'<' {
+            "\\x3c"
+        } else if b == b'\n' {
+            "\\n"
+        } else {
+            ""
+        }
+        if escaped.len() > 0 {
+            out.push(text.slice(plain, i))
+            out.push(escaped)
+            plain = i + 1
+        }
+    }
+    out.push(text.sliceFrom(plain))
+    out.push("\"")
+    return out
+}
