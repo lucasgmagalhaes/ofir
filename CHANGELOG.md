@@ -8,6 +8,15 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Release candidates (ADR 0084): the Release workflow tags
+  `v<version>-rc.N` as a pre-release, and promotes the last candidate only
+  when the seed and archives hash the same; patch releases come from
+  `release/<major>.<minor>` branches (docs/releasing.md).
+- A compatibility corpus, `tests/compat/0.5`, built and run by
+  `tools/check_compat.py` in `make test` and by the installed compiler;
+  its known breaks are listed in `tests/compat/breaks.json`.
+- `tools/llvm.json` declares the supported LLVM range (17 to 21), and
+  `make check-docs` checks the workflows and docs against it.
 - A type alias may name itself in a branch of a conditional type
   (`type Deep<T> = if T is Option<infer U> { Deep<U> } else { T }`); more
   than 64 nested expansions are E0346.
