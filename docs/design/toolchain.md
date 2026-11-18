@@ -585,8 +585,8 @@ builds with `release` unless `--profile` says otherwise.
 
 The root manifest's `profiles` (the workspace root's in a workspace)
 changes these and names others. `inherits` is `"dev"` (the default) or
-`"release"`, `opt` is the optimization level (0 to 3) and `debugInfo`
-acts like `-g`:
+`"release"`, `opt` is the optimization level (0 to 3), `debugInfo`
+acts like `-g` and `trimPaths` like `--trim-paths`:
 
 ```jsonc
 "profiles": {
@@ -649,6 +649,33 @@ run by `make test` when gdb is installed, checks both builds.
 
 The flag is opt-in, and it is stage 1's: without it the `.ll` is the
 one stage 0 writes. A profile with `"debugInfo": true` turns it on.
+
+The debug info names the real paths of the sources and the working
+directory, so a debugger finds them. `--trim-paths`, or
+`"trimPaths": true` in a profile, names the logical paths of a panic
+location instead (spec 6.5), with the directory `.` (ADR 0083).
+
+### Reproducible builds
+
+The same inputs give the same bytes (ADR 0083). The inputs are the root
+file and what it imports, the packages pinned by `ofir.lock`, the
+standard library, `ofir.json` and the profile, the compiler's version,
+the clang version, the target, the flags, the `OFIR_*` variables and
+`SOURCE_DATE_EPOCH`; the directory, the user, `HOME`, the time and the
+locale do not change the output. The `.ll`, the executable or library,
+`ofir doc`'s site, `ofir sbom`'s documents and `make dist`'s archive are
+covered; with `-g`, only with `--trim-paths`.
+
+`--record=FILE` writes the inputs and the SHA-256 of each artifact as
+JSON: the versions, the target, the profile and the flags, the hash of
+the runtime and of `ofir.lock`, the logical path and hash of each source
+file, and the name and hash of each artifact. The variables that name
+paths (`OFIR_STD`, `OFIR_RUNTIME`, `OFIR_CLANG`) are recorded through
+the hashes of what they point to. Two records of the same inputs are the
+same bytes, so comparing them shows which input differs.
+`tools/check_reproducible.py`, run by `make test`, builds a project twice
+in different directories, homes, times and umasks and compares the
+artifacts.
 
 ### Debugging in an editor
 
