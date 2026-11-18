@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111315">
+  <meta name="description" content="Ofir is a compiled systems language with clear syntax, memory safety, and an LLVM backend.">
+  <title>Ofir — Build with clarity</title>
+  <link rel="icon" href="../docs/assets/logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="index.html" aria-label="Ofir home"><img src="../docs/assets/logo.png" alt="" width="36" height="36"><span>ofir<span class="brand-dot">.</span></span></a>
+      <nav aria-label="Main navigation"><a href="#why-ofir">Why Ofir</a><a href="docs.html">Documentation</a><a href="https://github.com/lucasgmagalhaes/ofir" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+      <a class="header-cta" href="docs.html#getting-started">Get started ↗</a>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero shell">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="signal"></span> THE OFIR LANGUAGE <span class="eyebrow-line"></span> BUILT FOR WHAT'S NEXT</div>
+        <h1>Build with<br><em>clarity.</em></h1>
+        <p class="hero-lead">A systems language with the syntax you want and the control you need. Statically typed, memory safe, and compiled through LLVM.</p>
+        <div class="hero-actions"><a class="button button-primary" href="docs.html#getting-started">Start building ↗</a><a class="button button-secondary" href="docs.html">Read the docs →</a></div>
+        <p class="hero-note"><span class="note-mark">✳</span> Open source. Built in Ofir.</p>
+      </div>
+      <div class="hero-visual" aria-label="Ofir code example">
+        <div class="visual-glow"></div><div class="visual-grid"></div>
+        <div class="code-window">
+          <div class="window-top"><div class="window-dots"><i></i><i></i><i></i></div><span>hello.of</span><span class="window-language">OFIR</span></div>
+          <div class="code-content"><div class="line-numbers" aria-hidden="true">1<br>2<br>3<br>4</div><pre><code><span class="syntax-purple">fn</span> main() {
+    <span class="syntax-purple">const</span> name = <span class="syntax-yellow">"world"</span>
+    println(<span class="syntax-yellow">"Hello, {name}!"</span>)
+}</code></pre></div>
+          <div class="terminal"><span class="terminal-label">TERMINAL</span><div><span class="prompt">$</span> ofir run hello.of</div><div class="terminal-result">Hello, world!<span class="cursor"></span></div></div>
+        </div>
+        <div class="visual-caption"><span class="caption-square"></span> SOURCE → LLVM IR → NATIVE BINARY <span>01 / 03</span></div>
+      </div>
+    </section>
+    <div class="section-rule shell"><span>01 / THE LANGUAGE</span><span>DESIGNED TO FEEL RIGHT</span></div>
+    <section class="intro shell" id="why-ofir"><div><span class="section-kicker">WHY OFIR</span><h2>Less friction.<br><span>More building.</span></h2></div><p>Ofir brings a small, readable syntax to systems programming. Write code that is easy to follow, while keeping ownership, predictable performance, and native compilation in your hands.</p></section>
+    <section class="features shell" aria-label="Language features">
+      <article class="feature"><div class="feature-icon">{ }</div><span class="feature-number">01</span><h3>Readable by design</h3><p>Familiar syntax, inferred types, and no semicolons. Spend time on the problem instead of ceremony.</p></article>
+      <article class="feature"><div class="feature-icon">↗</div><span class="feature-number">02</span><h3>Safety with control</h3><p>Ownership and borrowing make memory behavior explicit, without a garbage collector.</p></article>
+      <article class="feature"><div class="feature-icon">▣</div><span class="feature-number">03</span><h3>Built to compile</h3><p>Ofir emits LLVM IR and uses clang to produce native programs. The compiler is written in Ofir.</p></article>
+    </section>
+    <section class="showcase shell">
+      <div class="showcase-heading"><span class="section-kicker">A FIRST LOOK</span><h2>Write it. Run it.<br><span>Make it yours.</span></h2><p>A small example says more than a long explanation. Start with one file and see the output right away.</p><a class="text-link" href="docs.html#getting-started">Explore the quickstart ↗</a></div>
+      <div class="showcase-code"><div class="showcase-code-top"><span><span class="small-dot"></span> examples/hello.of</span><button class="copy-button" type="button" data-copy="fn main() {&#10;    const name = &quot;Ofir&quot;&#10;    println(&quot;Hello, {name}!&quot;)&#10;}" aria-label="Copy Ofir example">Copy ⧉</button></div><pre><code><span class="syntax-purple">fn</span> main() {
+    <span class="syntax-purple">const</span> name = <span class="syntax-yellow">"Ofir"</span>
+    println(<span class="syntax-yellow">"Hello, {name}!"</span>)
+}</code></pre><div class="showcase-output"><span>OUTPUT</span><strong>Hello, Ofir!</strong></div></div>
+    </section>
+    <section class="bottom-cta shell"><div><span class="section-kicker">READY WHEN YOU ARE</span><h2>Make something<br><em>remarkable.</em></h2><p>Everything you need to take your first step with Ofir.</p></div><a class="button button-dark" href="docs.html#getting-started">Get started ↗</a></section>
+  </main>
+  <footer class="site-footer shell"><a class="brand" href="index.html"><img src="../docs/assets/logo.png" alt="" width="30" height="30"><span>ofir<span class="brand-dot">.</span></span></a><p>A language for clear thinking and powerful software.</p><div><a href="docs.html">Docs</a><a href="https://github.com/lucasgmagalhaes/ofir" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div></footer>
+</body>
+</html>
