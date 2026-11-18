@@ -28,6 +28,7 @@ import diag.Format
 import diag.Severity
 import diag.jsonNoSource
 import doc.docCommand
+import driver.profile.readProfile
 import driver.cfg.CfgTarget
 import driver.target.hostTriple
 import driver.target.knownTarget
@@ -95,6 +96,7 @@ fn printUsage() {
              + "  --emit=air                print the intermediate representation and stop\n"
              + "  --emit=llvm               write <output>.ll and stop\n"
              + "  --release                 optimize the program (as one LLVM module)\n"
+            + "  --profile=NAME            build with a profile: dev, release or ofir.json's\n"
              + "  --codegen-units=1         compile the program as one LLVM module\n"
              + "  --lib=static, --lib=shared  build a C library and its header (ADR 0064)\n"
              + "  --target=TRIPLE           compile for another target (spec 13.8)\n"
@@ -126,8 +128,12 @@ struct Options {
     emit: str
     /** `--stop-after=...`: the last phase, or "". */
     stopAfter: str
-    /** `--release`. */
+    /** `--release`, or a profile that inherits `release` (ADR 0078). */
     release: bool
+    /** `--profile=NAME`, or "" for `dev`. */
+    profile: str
+    /** The optimization level of the profile, 0 to 3. */
+    opt: int
     /** `-g`. */
     debugInfo: bool
     /** `--coverage`: gcov line counters, with `-g` and without the cache. */
@@ -158,9 +164,9 @@ struct Options {
 
 fn parseOptions(args: &List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
-                       stopAfter: "", release: false, debugInfo: false, coverage: false,
-                       deny: false, locked: false, offline: false, oneUnit: false, jobs: 0,
-                       testJobs: 0,
+                       stopAfter: "", release: false, profile: "", opt: 0, debugInfo: false,
+                       coverage: false, deny: false, locked: false, offline: false,
+                       oneUnit: false, jobs: 0, testJobs: 0,
                        noCache: false, timePasses: false,
                        format: Format.Human, lib: "", target: ""}
     let hasInput = false
@@ -199,6 +205,8 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.oneUnit = true
             } else if arg == "--release" {
                 opts.release = true
+            } else if arg.startsWith("--profile=") && arg.len() > 10 {
+                opts.profile = arg.sliceFrom(10).toOwned()
             } else if arg == "-g" {
                 opts.debugInfo = true
             } else if arg == "--coverage" {
@@ -241,8 +249,16 @@ fn parseOptions(args: &List<str>) Option<Options> {
         eprintln("error: `{opts.command}` needs an input file")
         return Option.None
     }
-    if opts.command == "bench" {
+    if opts.release && opts.profile.len() > 0 && opts.profile != "release" {
+        eprintln("error: `--release` and `--profile={opts.profile}` cannot both be given")
+        return Option.None
+    }
+    if opts.command == "bench" && opts.profile.len() == 0 {
         opts.release = true   // benchmarks are optimized (spec 12.3)
+    }
+    if opts.release {
+        opts.profile = "release".toOwned()
+        opts.opt = 2
     }
     if opts.lib.len() > 0 && opts.command != "build" {
         eprintln("error: `--lib` applies only to `build`")
@@ -397,6 +413,21 @@ fn build(given: move Options) int {
     let opts = given
     const totalStart = timerStart(opts.timePasses)
     opts.input = testRoot(&opts)
+    if opts.profile.len() == 0 {
+        opts.profile = "dev".toOwned()
+    }
+    // Every build reads the manifest's profiles, so a bad one is reported (ADR 0078).
+    match readProfile(opts.input, opts.profile) {
+        Result.Ok(p) => {
+            opts.release = p.release
+            opts.opt = p.opt
+            opts.debugInfo = opts.debugInfo || p.debugInfo
+        }
+        Result.Err(message) => {
+            driverError(opts.format, "E0918", message)
+            return 1
+        }
+    }
     let pipeline = Pipeline{opts: opts.clone(), exe: "", tests: [], totalStart: totalStart}
     let front = Front{map: SourceMap.new(), names: Interner.new(), diags: Diagnostics.new(),
                       overlays: Map.new(), locked: opts.locked, offline: opts.offline}
@@ -601,10 +632,15 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         return true
     }
     const libraries = linkLibraries(c.r, program)
+    if opts.lib == "static" && program.native.len() > 0 {
+        driverError(opts.format, "E0918", "a static library cannot have `build.native` files yet")
+        removeFiles(&files)
+        return false
+    }
     const linked = if opts.lib == "static" {
         archive(&opts, &files, &cached, exe.clone())
     } else {
-        link(&opts, &files, &cached, exe.clone(), libraries.clone())
+        link(&opts, &files, &cached, exe.clone(), libraries.clone(), &program.native)
     }
     removeFiles(&files)
     if linked && opts.lib.len() > 0 {   // the library's header, next to it (ADR 0064)
@@ -785,7 +821,7 @@ fn runtimeLibrary() Option<str> {
 // default target. `cached` is empty without the object cache, or holds
 // where the object of each unit is cached (ADR 0033).
 fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
-        libraries: List<str>) bool {
+        libraries: List<str>, native: &List<str>) bool {
     let phaseStart = timerStart(opts.timePasses)
     const Option.Some(host) = runtimeLibrary() else {
         const message = "cannot find the runtime library libofir_rt.a (set OFIR_RUNTIME)"
@@ -813,7 +849,8 @@ fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
     timerReport(opts.timePasses, "objects", phaseStart)
     phaseStart = timerStart(opts.timePasses)
     let inputs = if objects.len() > 0 { objects.clone() } else { files.clone() }
-    let ok = linkObjects(opts, clang, &inputs, runtime, &libraries, exe, hits.len() > 0)
+    let ok = linkObjects(opts, clang, &inputs, native, runtime, &libraries, exe,
+                         hits.len() > 0)
     if !ok && hits.len() > 0 {   // a cached object may be bad: compile those units again
         let again: List<str> = []
         let fresh: List<str> = []
@@ -830,7 +867,7 @@ fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
             }
         }
         if ok {
-            ok = linkObjects(opts, clang, &objects, runtime, &libraries, exe, false)
+            ok = linkObjects(opts, clang, &objects, native, runtime, &libraries, exe, false)
         }
         removeFiles(&fresh)
     }
@@ -865,9 +902,9 @@ fn removeObjects(objects: &List<str>, cached: &List<str>) {
 
 // The final clang call. With `quiet`, a failure prints nothing: the
 // caller tries again.
-fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
-               libraries: &List<str>, exe: str, quiet: bool) bool {
-    let compiles = false
+fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, native: &List<str>,
+               runtime: str, libraries: &List<str>, exe: str, quiet: bool) bool {
+    let compiles = native.len() > 0
     for i in 0..inputs.len() {
         compiles = compiles || inputs[i].endsWith(".ll")
     }
@@ -875,6 +912,9 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
     let args = if compiles { codegenFlags(opts) } else { clangFlags(opts) }
     for i in 0..inputs.len() {
         args.push(inputs[i].clone())
+    }
+    for i in 0..native.len() {   // compiled with the program's flags (ADR 0078)
+        args.push(native[i].clone())
     }
     args.push(runtime.toOwned())
     for i in 0..libraries.len() {
@@ -907,8 +947,7 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, runtime: str,
 // The clang flags of both compiling and linking: the optimization level,
 // debug info and, on Windows, MinGW rather than MSVC.
 fn clangFlags(opts: &Options) List<str> {
-    const level = if opts.release { "-O2" } else { "-O0" }
-    let args = [level.toOwned(), "-Wno-override-module".toOwned()]
+    let args = ["-O{opts.opt}", "-Wno-override-module".toOwned()]
     if opts.debugInfo {
         args.push("-g".toOwned())
     }
