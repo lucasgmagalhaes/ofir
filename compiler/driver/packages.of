@@ -290,7 +290,8 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
         Result.Ok(doc) => {
             const native = doc.at(["build", "native"]) >= 0
             const lints = doc.field(0, "lints") >= 0
-            const invalid = licenseError(&doc).len() > 0 || auditError(&doc).len() > 0
+            const audit = auditError(&doc).len() > 0 || trustError(&doc).len() > 0
+            const invalid = licenseError(&doc).len() > 0 || audit
             if register && (doc.field(0, "dependencies") >= 0 || lints || native || invalid) {
                 return Option.Some((doc, map.add(path, text.clone())))
             }
@@ -345,6 +346,34 @@ fn auditError(doc: &JsonDoc) str {
     return ""
 }
 
+// Why the root's `trust` is invalid: it must be an object whose
+// `registries` and `git` are lists of strings; empty if it is valid.
+fn trustError(doc: &JsonDoc) str {
+    const node = doc.field(0, "trust")
+    if node < 0 {
+        return ""
+    }
+    if doc.nodes[node].kind != JsonKind.Object {
+        return "`trust` must be an object, such as `\{\"git\": [\"https://github.com/acme/\"]\}`"
+    }
+    for name in ["registries", "git"] {
+        const list = doc.field(node, name)
+        if list < 0 {
+            continue
+        }
+        const message = "`trust.{name}` must be a list of strings"
+        if doc.nodes[list].kind != JsonKind.Array {
+            return message
+        }
+        for item in doc.elements(list) {
+            if doc.nodes[item].kind != JsonKind.String {
+                return message
+            }
+        }
+    }
+    return ""
+}
+
 fn spanOf(doc: &JsonDoc, file: FileId, node: int) Span {
     return Span{file, start: doc.nodes[node].start, end: doc.nodes[node].end}
 }
@@ -375,6 +404,10 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
         const audit = auditError(&doc)
         if audit.len() > 0 {
             diags.error("E0910", spanOf(&doc, file, doc.field(0, "audit")), audit)
+        }
+        const trust = trustError(&doc)
+        if trust.len() > 0 {
+            diags.error("E0910", spanOf(&doc, file, doc.field(0, "trust")), trust)
         }
         checkOverrides(&doc, file, diags)
         const dev = doc.field(0, "devDependencies")
