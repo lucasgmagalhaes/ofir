@@ -90,8 +90,8 @@ pub struct Failure {
     pub url: str
     /**
      * E0911 (it cannot be fetched), E0912 (no version fits), E0914 (its
-     * checksum differs from the lock) or E0922 (the history of its index
-     * was rewritten).
+     * checksum differs from the lock), E0921 (the root does not trust its
+     * source) or E0922 (the history of its index was rewritten).
      */
     pub code: str
     pub message: str
@@ -173,6 +173,77 @@ pub fn overrideOf(overrides: &List<Override>, key: str) int {
         }
     }
     return -1
+}
+
+/**
+ * The sources the root accepts: its `trust` (ADR 0081).
+ */
+pub struct Trust {
+    /** Whether the root has `trust`; without it every source is accepted. */
+    pub given: bool
+    /** The registry indexes accepted, as `gitUrl` gives them. */
+    pub registries: List<str>
+    /** The prefixes of the git URLs accepted. */
+    pub git: List<str>
+}
+
+/**
+ * The `trust` of the root's manifest; invalid entries are left for
+ * `driver.packages` to report.
+ *
+ * @param rootDir the root project's directory
+ * @returns what it accepts
+ */
+pub fn readTrust(rootDir: str) Trust {
+    let out = Trust{given: false, registries: [], git: []}
+    const Result.Ok(text) = fs.readToString("{rootDir}/ofir.json") else {
+        return out
+    }
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return out
+    }
+    const node = doc.field(0, "trust")
+    if node < 0 || doc.nodes[node].kind != JsonKind.Object {
+        return out
+    }
+    out.given = true
+    for item in doc.elements(doc.field(node, "registries")) {
+        out.registries.push(gitUrl(doc.text(item), rootDir))
+    }
+    for item in doc.elements(doc.field(node, "git")) {
+        out.git.push(gitUrl(doc.text(item), rootDir))
+    }
+    return out
+}
+
+// Whether `trust` accepts the source of `need`.
+fn trusts(trust: &Trust, need: &Need) bool {
+    if !trust.given {
+        return true
+    }
+    if need.registry.len() > 0 {
+        return contains(&trust.registries, need.registry)
+    }
+    for i in 0..trust.git.len() {
+        if need.url.startsWith(trust.git[i]) {
+            return true
+        }
+    }
+    return false
+}
+
+// The failure for a source that `trust` does not accept (E0921).
+fn untrusted(need: &Need) Failure {
+    if need.registry.len() > 0 {
+        let message = "`{need.key}` comes from the registry `{need.registry}`, "
+        message.push("which `trust.registries` does not list")
+        return Failure{url: need.url.clone(), code: "E0921", message,
+                       notes: ["add the registry to `trust.registries` to accept it"]}
+    }
+    let message = "`{need.key}` comes from `{need.url}`, "
+    message.push("which no entry of `trust.git` starts")
+    return Failure{url: need.url.clone(), code: "E0921", message,
+                   notes: ["add a prefix of the URL to `trust.git` to accept it"]}
 }
 
 /**
@@ -304,6 +375,7 @@ pub fn resolve(project: str, mode: &Mode) Resolution {
     const rootDir = workspaceRoot(project)
     const lock = readLock(rootDir)
     const pinned = readIndexes(rootDir)
+    const trust = readTrust(rootDir)
     const index = defaultIndex()
     let r = Resolution{pins: [], failures: [], hadLock: fs.exists("{rootDir}/ofir.lock"),
                        overrides: [], lockDir: rootDir.clone(), indexes: []}
@@ -320,6 +392,11 @@ pub fn resolve(project: str, mode: &Mode) Resolution {
             }
         }
         for i in 0..urls.len() {
+            const first = firstNeed(&needs, urls[i])
+            if !trusts(&trust, &needs[first]) {
+                next.failures.push(untrusted(&needs[first]))
+                continue
+            }
             choose(urls[i], &needs, &lock, &pinned, mode, repos, next)
         }
         const stable = samePins(&r, &next)
@@ -919,6 +996,16 @@ fn fetched(url: str, refresh: bool, offline: bool, repos: mut List<Repo>) int {
 fn refetch(repo: mut Repo) bool {
     repo.fetched = true
     return repository(repo.url, true).isOk()
+}
+
+// The first requirement on `url`.
+fn firstNeed(needs: &List<Need>, url: str) int {
+    for i in 0..needs.len() {
+        if needs[i].url == url {
+            return i
+        }
+    }
+    return 0
 }
 
 fn contains(list: &List<str>, text: str) bool {
