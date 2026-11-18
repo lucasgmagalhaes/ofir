@@ -29,6 +29,7 @@ import diag.Severity
 import diag.jsonNoSource
 import doc.docCommand
 import driver.audit.auditCommand
+import driver.version.VERSION
 import driver.profile.readProfile
 import driver.cfg.CfgTarget
 import driver.target.hostTriple
@@ -37,6 +38,7 @@ import driver.target.runnerWords
 import driver.target.targetArch
 import driver.target.targetOs
 import driver.target.targetRuntime
+import driver.toolchain.installPrefix
 import driver.explain.explain
 import driver.metadata.metadataJson
 import driver.fetch.fetchCommand
@@ -73,8 +75,6 @@ import syntax.token_print.printTokens
 extern "C" {
     fn ofir_now_ns() i64
 }
-
-const VERSION: str = "0.5.0"
 
 fn printUsage() {
     eprintln("usage: ofir <command> [arguments]\n\ncommands:\n"
@@ -315,6 +315,10 @@ fn main() {
     const command = args[1].clone()
     if command == "version" {
         println("ofir {VERSION} (stage 1)")
+        match installPrefix() {
+            Option.Some(prefix) => println("prefix: {prefix}")
+            Option.None => {}
+        }
         return
     }
     if command == "explain" {

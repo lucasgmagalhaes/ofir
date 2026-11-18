@@ -39,6 +39,7 @@ import driver.resolve.resolve
 import driver.registry.defaultIndex
 import driver.semver.parseRequirement
 import driver.spdx.checkLicense
+import driver.toolchain.checkToolchain
 import lsp.json.JsonDoc
 import lsp.json.JsonKind
 import lsp.json.parseJsonc
@@ -135,7 +136,7 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
                     diags: mut Diagnostics) List<Package> {
     let packages = [Package{name: "", dir: rootDir.toOwned(), srcDir: rootDir.toOwned(),
                             rootFile: "", deps: [], lints: [], native: []}]
-    if !hasManifest {
+    if !hasManifest || !checkToolchain(rootDir, map, diags) {
         return packages
     }
     const r = resolve(rootDir, mode)
