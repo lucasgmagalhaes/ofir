@@ -91,6 +91,7 @@ starts with the same word as the record's status line.
 | [0078](0078-build-profiles-and-native-inputs.md) | Build profiles and native inputs | Accepted |
 | [0079](0079-registry-publishing.md) | Registry publishing | Accepted |
 | [0080](0080-code-for-agents.md) | Tools and rules for code written by agents | Proposed |
+| [0081](0081-supply-chain-integrity.md) | Supply-chain integrity and provenance | Proposed |
 
 ## Template
 
