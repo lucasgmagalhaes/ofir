@@ -68,6 +68,11 @@ pub copy struct LineCol {
 pub struct SourceFile {
     /** The path the file was read from, as given. */
     pub path: str
+    /**
+     * The path panic locations and `source_filename` name: relative to the
+     * project, `std/...` or `<package>-<version>/...` (ADR 0083).
+     */
+    pub logical: str
     /** The whole text. */
     pub text: str
     lineStarts: List<int>
@@ -86,7 +91,7 @@ pub struct SourceFile {
                 starts.push(i + 1)
             }
         }
-        return SourceFile{path, text, lineStarts: starts}
+        return SourceFile{logical: path.clone(), path, text, lineStarts: starts}
     }
 
     /**
@@ -171,6 +176,16 @@ pub struct SourceMap {
      */
     pub fn file(self, id: FileId) &SourceFile {
         return &self.files[id.0]
+    }
+
+    /**
+     * Sets the logical path of a file.
+     *
+     * @param id the file's id
+     * @param logical its path relative to the project, std or its package
+     */
+    pub fn setLogical(mut self, id: FileId, logical: move str) {
+        self.files[id.0].logical = logical
     }
 
     /**
