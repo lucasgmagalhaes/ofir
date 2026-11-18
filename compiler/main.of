@@ -38,6 +38,7 @@ import driver.target.runnerWords
 import driver.target.targetArch
 import driver.target.targetOs
 import driver.target.targetRuntime
+import driver.toolchain.installPrefix
 import driver.explain.explain
 import driver.metadata.metadataJson
 import driver.fetch.fetchCommand
@@ -302,6 +303,10 @@ fn main() {
     const command = args[1].clone()
     if command == "version" {
         println("ofir {VERSION} (stage 1)")
+        match installPrefix() {
+            Option.Some(prefix) => println("prefix: {prefix}")
+            Option.None => {}
+        }
         return
     }
     if command == "explain" {
