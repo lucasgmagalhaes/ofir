@@ -1,0 +1,55 @@
+---
+import "../../styles.css";
+import logo from "../../../docs/assets/logo.png";
+
+interface Props {
+  title: string;
+  description: string;
+  page: "home" | "docs";
+}
+
+const { title, description, page } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#111315" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" href={logo.src} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/" aria-label="Ofir home">
+          <img src={logo.src} alt="" width="36" height="36" />
+          <span>ofir<span class="brand-dot">.</span></span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="/#why-ofir">Why Ofir</a>
+          <a href="/docs/" aria-current={page === "docs" ? "page" : undefined}>Documentation</a>
+          <a href="https://github.com/lucasgmagalhaes/ofir" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </nav>
+        <a class="header-cta" href="/docs/#getting-started">Get started ↗</a>
+      </div>
+    </header>
+    <slot />
+    <footer class="site-footer shell">
+      <a class="brand" href="/">
+        <img src={logo.src} alt="" width="30" height="30" />
+        <span>ofir<span class="brand-dot">.</span></span>
+      </a>
+      <p>A language for clear thinking and powerful software.</p>
+      <div>
+        <a href={page === "home" ? "/docs/" : "/"}>{page === "home" ? "Docs" : "Home"}</a>
+        <a href="https://github.com/lucasgmagalhaes/ofir" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+      </div>
+    </footer>
+    <script>
+      import "../../script.js";
+    </script>
+  </body>
+</html>
