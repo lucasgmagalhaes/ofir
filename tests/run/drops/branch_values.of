@@ -1,0 +1,43 @@
+// The value of an `if`, a `match` or a block passed to a borrowed
+// parameter is a temporary: the last expression of the branch taken is
+// moved into it, and it is dropped once, after the call (spec 5.1, 5.2).
+
+fn show(out: mut str, text: str) {
+    out.push(text)
+    out.push(" ")
+}
+
+fn make(flag: bool) Option<str> {
+    if flag {
+        return Option.Some("bound".toOwned())
+    }
+    return Option.None
+}
+
+fn main() {
+    let out = ""
+    for k in 0..2 {
+        const a = "first".toOwned()
+        const b = "second".toOwned()
+        show(out, if k == 0 { a } else { b })
+    }
+    for k in 0..2 {
+        const a = "one".toOwned()
+        show(out, match k {
+            0 => a
+            _ => "other".toOwned()
+        })
+    }
+    show(out, match make(true) {
+        Option.Some(s) => s
+        Option.None => ""
+    })
+    show(out, {
+        const t = "local".toOwned()
+        t
+    })
+    const kept = "kept".toOwned()
+    show(out, if out.len() > 0 { kept.clone() } else { "".toOwned() })
+    println(out)
+    println(kept)
+}
