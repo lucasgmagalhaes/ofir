@@ -1,8 +1,10 @@
 name: Release
 
-# Publishes a release and its seed (docs/bootstrap.md): the LLVM IR that
-# the compiler writes for itself, checked by building the compiler from it
-# on every CI platform before the release is created.
+# Publishes a release, its seed (docs/bootstrap.md) and its archives
+# (ADR 0082). The seed is the LLVM IR that the compiler writes for itself,
+# checked by building the compiler from it on every CI platform; each
+# archive is built and installed on its own target's runner before the
+# release is created.
 
 on:
   workflow_dispatch:
@@ -82,6 +84,18 @@ jobs:
       - name: Build the compiler from the seed
         run: make check-seed SEED=seed-download/ofir-${{ inputs.version }}.ll
 
+      - name: Build and install the archive
+        if: matrix.llvm == '21'
+        run: |
+          make dist
+          python3 tools/check_install.py --compiler build/stage1/ofir --runtime build/libofir_rt.a
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.llvm == '21'
+        with:
+          name: dist-${{ matrix.os }}
+          path: build/dist/*
+
   # Windows (roadmap 6.8): clang for the MinGW target, as in ci.yml.
   check-windows:
     name: check windows-2025 / LLVM
@@ -104,6 +118,16 @@ jobs:
       - name: Build the compiler from the seed
         run: mingw32-make check-seed SEED=seed-download/ofir-${{ inputs.version }}.ll
 
+      - name: Build and install the archive
+        run: |
+          mingw32-make dist
+          python tools/check_install.py --compiler build/stage1/ofir.exe --runtime build/libofir_rt.a
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: build/dist/*
+
   release:
     name: release
     needs: [check, check-windows]
@@ -118,6 +142,12 @@ jobs:
         with:
           name: seed
           path: seed-download
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
 
       - name: Create the release
         env:
@@ -138,6 +168,8 @@ jobs:
             cat "seed-download/ofir-$VERSION.ll.sha256"
             echo '```'
           } >> notes.md
+          (cd dist && sha256sum ofir-*.tar.gz > SHA256SUMS)
           gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Ofir $VERSION" \
             --notes-file notes.md \
-            "seed-download/ofir-$VERSION.ll" "seed-download/ofir-$VERSION.ll.sha256"
+            "seed-download/ofir-$VERSION.ll" "seed-download/ofir-$VERSION.ll.sha256" \
+            dist/ofir-*.tar.gz dist/ofir-*.tar.gz.sha256 dist/SHA256SUMS
