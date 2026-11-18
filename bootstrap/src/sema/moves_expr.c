@@ -253,7 +253,7 @@ static void literal(Moves *m, Expr *e, State *s) {
     }
 }
 
-static void walk(Moves *m, Expr *e, State *s, Use use) {
+static void walk(Moves *m, Expr *e, State *s) {
     switch (e->kind) {
     case EXPR_INTERP: each(m, e->as.parts, s, USE_READ); break;
     case EXPR_UNARY: unary(m, e, s); break;
@@ -278,9 +278,12 @@ static void walk(Moves *m, Expr *e, State *s, Use use) {
     case EXPR_VARIANT:
         each_arg(m, e->as.variant.args, NULL, USE_MOVE, s);
         break;
-    case EXPR_IF: moves_if(m, e, s, use); break;
-    case EXPR_MATCH: moves_match(m, e, s, use); break;
-    case EXPR_BLOCK: case EXPR_UNSAFE: moves_block(m, e->as.block, s, use); break;
+    // The value of an `if`, a `match` or a block is a new value, which its
+    // user consumes or drops: the last expression of each branch is moved
+    // into it, whatever the use (spec 5.1).
+    case EXPR_IF: moves_if(m, e, s, USE_MOVE); break;
+    case EXPR_MATCH: moves_match(m, e, s, USE_MOVE); break;
+    case EXPR_BLOCK: case EXPR_UNSAFE: moves_block(m, e->as.block, s, USE_MOVE); break;
     default: break;   // literals, names of types and functions, constants
     }
 }
@@ -293,7 +296,7 @@ void moves_expr(Moves *m, Expr *e, State *s, Use use) {
         place_expr(m, e, s, use);
     } else {
         e->consumed = e->consumed || use == USE_MOVE;   // else a temporary, dropped (3.2)
-        walk(m, e, s, use);
+        walk(m, e, s);
     }
     if (e->type.id == TID_NEVER) {
         s->dead = true;

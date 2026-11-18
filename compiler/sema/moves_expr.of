@@ -265,7 +265,7 @@ fn movesView(m: mut Moves, c: mut Checker, p: Program, e: &Expr, depth: int, s: 
         if use == Use.Move {   // else a temporary, dropped (3.2)
             markFlag(c, e.id.0, CONSUMED)
         }
-        walk(m, c, p, e, s, if use == Use.Mutate { Use.Read } else { use })
+        walk(m, c, p, e, s)
     }
     if viewType(c, e, depth) == NEVER {
         s.dead = true
@@ -808,7 +808,7 @@ fn refRoot(m: Moves, c: Checker, e: &Expr) int {
     }
 }
 
-fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State, use: Use) {
+fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
     match e.kind {
         ExprKind.Interp(parts, _) => each(m, c, p, &parts, s, Use.Read)
         ExprKind.Unary(op, operand) => {
@@ -870,9 +870,12 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State, use: U
             const none: List<Use> = []
             eachArg(m, c, p, &args, &none, Use.Move, s)
         }
-        ExprKind.If(_, _, _, _) => movesIf(m, c, p, e, s, use)
-        ExprKind.Match(_, _) => movesMatch(m, c, p, e, s, use)
-        ExprKind.Block(block) | ExprKind.Unsafe(block) => movesBlock(m, c, p, &block, s, use)
+        // The value of an `if`, a `match` or a block is a new value, which
+        // its user consumes or drops: the last expression of each branch is
+        // moved into it, whatever the use (spec 5.1).
+        ExprKind.If(_, _, _, _) => movesIf(m, c, p, e, s, Use.Move)
+        ExprKind.Match(_, _) => movesMatch(m, c, p, e, s, Use.Move)
+        ExprKind.Block(block) | ExprKind.Unsafe(block) => movesBlock(m, c, p, &block, s, Use.Move)
         ExprKind.Closure(params, _, body, isMove) => closure(m, c, p, e, &params, &*body, isMove, s)
         _ => {}   // literals, names of types and functions, constants
     }
