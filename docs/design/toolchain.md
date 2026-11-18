@@ -428,6 +428,36 @@ the order of its edits.
 client's messages, and the server's messages in `.out`, where `$URI` is the
 document, `$DIR` its directory and `$STD` the standard library's directory.
 
+### Watch mode, scratch files and the REPL
+
+A scratch file needs no manifest: `ofir run notes.of` builds and runs one
+file. `--watch` on `build`, `run`, `test` or `check` runs the command again
+each time an `.of` file or an `ofir.json` under the input's directory
+changes (ADR 0074):
+
+```
+ofir test --watch src/parser_test.of
+```
+
+`ofir repl` reads entries from standard input. An entry ends at the end of
+a line where its brackets are balanced. An item (`fn`, `struct`, `import`
+and so on) goes at the top of the session, a `let` or `const` binding into
+its `main`, and any other entry is an expression whose value is printed
+(unless it is `()`), or else a statement:
+
+```
+> let xs = [1, 2, 3]
+> xs.push(4)
+> xs
+[1, 2, 3, 4]
+```
+
+Each entry builds and runs the whole session again, and the REPL shows
+only the new output. A binding keeps its value because its initializer
+runs again; side effects outside the program happen again too. An entry
+that does not compile or panics is dropped. `:show` prints the session
+module, `:reset` empties it and `:quit` ends the REPL.
+
 ## 3. Build profiles
 
 | Profile | clang flags | Checks | Debug info |
