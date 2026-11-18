@@ -197,6 +197,8 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0918 | invalid build configuration | stage 1 |
 | E0919 | a package cannot be published | stage 1 |
 | E0920 | a locked package has an advisory | stage 1 |
+| E0921 | a source is not trusted | stage 1 |
+| E0922 | an index's history was rewritten | stage 1 |
 
 ### Warnings
 

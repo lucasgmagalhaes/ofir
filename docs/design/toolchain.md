@@ -197,6 +197,7 @@ allowed, the format of `tsconfig.json` (ADR 0026). Keys are camelCase.
   "edition": "2027",
   "license": "MIT OR Apache-2.0",   // an SPDX license expression (ADR 0081)
   "audit": {"ignore": ["OFIR-2026-0001"]},   // advisories accepted by `ofir audit`
+  "trust": {"git": ["https://github.com/acme/"]},   // the accepted sources (ADR 0081)
   "build": {
     "kind": "exe",            // "exe" or "lib"
     "root": "src/main.of",
@@ -269,6 +270,7 @@ Scopes and overrides (ADR 0077, `tools/check_sources.py`):
 |---------|--------|
 | `ofir fetch` | resolves the graph, downloads what is missing, writes `ofir.lock` |
 | `ofir update [name]` | resolves again, all packages or one |
+| `ofir update --index-reset` | accepts an index whose history was rewritten (E0922) |
 | `ofir vendor [dir]` | copies the locked packages into `dir` and prints their `overrides` |
 | `--locked` | `build`, `run`, `test` and `fetch` fail instead of changing `ofir.lock` (E0913) |
 | `--offline` | uses only the cache |
@@ -360,6 +362,19 @@ lock is a warning; git packages have no advisories and are noted.
 `--message-format=json` prints the errors and warnings as JSON
 diagnostics. `build`, `fetch` and `update` never check advisories, so
 a later advisory does not break a build (`tools/check_audit.py`).
+
+The root's `trust` lists the sources it accepts (ADR 0081): the indexes
+in `trust.registries` and the git URL prefixes in `trust.git`. With it,
+a registry or git dependency anywhere in the graph from a source it does
+not list is E0921, before anything is fetched; path dependencies and
+overrides are always accepted. Without `trust`, every source is.
+`ofir.lock` also has `indexes`, the commit of each registry index read,
+sorted by URL; a lock without registry packages has none. `fetch` and
+builds keep that commit while the locked versions fit; `update` records
+the index's head. When an index is fetched again, a head that does not
+descend from the locked commit means its history was rewritten: E0922,
+until `ofir update --index-reset` accepts it. With `--locked`, the
+releases are read at the locked commit (`tools/check_trust.py`).
 The modules of a package are found from the directory of its
 `build.root` (default `src/index.of`), which is the module named like the
 package; a package imports its own modules by their names in it, as a

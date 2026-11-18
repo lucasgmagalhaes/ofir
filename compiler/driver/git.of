@@ -134,7 +134,32 @@ pub fn hasCommit(dir: str, commit: str) bool {
  * @returns its text, or `None` if there is no such file
  */
 pub fn fileAt(dir: str, path: str) Option<str> {
-    return git(["-C", dir.clone(), "show", "HEAD:{path}"]).ok()
+    return fileAtRev(dir, "HEAD", path)
+}
+
+/**
+ * A file of a bare clone at a revision.
+ *
+ * @param dir the clone
+ * @param rev the revision, as `HEAD` or a full hash
+ * @param path the file's path in the repository
+ * @returns its text, or `None` if there is no such file
+ */
+pub fn fileAtRev(dir: str, rev: str, path: str) Option<str> {
+    return git(["-C", dir.clone(), "show", "{rev}:{path}"]).ok()
+}
+
+/**
+ * Whether a commit is an ancestor of another, or the same commit.
+ *
+ * @param dir a bare clone
+ * @param older the older commit
+ * @param newer the newer commit
+ * @returns true if `newer` descends from `older`
+ */
+pub fn isAncestor(dir: str, older: str, newer: str) bool {
+    const args = ["-C", dir.clone(), "merge-base", "--is-ancestor", older.clone(), newer.clone()]
+    return git(args).isOk()
 }
 
 /**

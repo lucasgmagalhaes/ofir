@@ -12,17 +12,20 @@ import driver.git.checkout
 import driver.git.commitOf
 import driver.git.hasCommit
 import driver.git.hashHex
+import driver.git.isAncestor
 import driver.git.isCached
 import driver.git.repository
 import driver.git.tags
+import driver.lock.IndexPin
 import driver.lock.Locked
 import driver.lock.checksum
+import driver.lock.readIndexes
 import driver.lock.readLock
 import driver.lock.sourceOf
 import driver.registry.Release
 import driver.registry.archive
 import driver.registry.defaultIndex
-import driver.registry.releases
+import driver.registry.releasesAt
 import driver.semver.Requirement
 import driver.semver.Version
 import driver.semver.parseRequirement
@@ -48,6 +51,11 @@ pub struct Mode {
     pub dev: bool
     /** The OS the program is built for; empty for every OS (`ofir fetch`). */
     pub os: str
+    /**
+     * `ofir update --index-reset`: an index whose history was rewritten is
+     * accepted (E0922, ADR 0081).
+     */
+    pub indexReset: bool
 }
 
 /**
@@ -81,8 +89,9 @@ pub struct Pin {
 pub struct Failure {
     pub url: str
     /**
-     * E0911 (it cannot be fetched), E0912 (no version fits) or E0914 (its
-     * checksum differs from the lock).
+     * E0911 (it cannot be fetched), E0912 (no version fits), E0914 (its
+     * checksum differs from the lock), E0921 (the root does not trust its
+     * source) or E0922 (the history of its index was rewritten).
      */
     pub code: str
     pub message: str
@@ -104,6 +113,8 @@ pub struct Resolution {
      * project itself (ADR 0077).
      */
     pub lockDir: str
+    /** The commit of each registry index the pins come from (ADR 0081). */
+    pub indexes: List<IndexPin>
 }
 
 /**
@@ -162,6 +173,77 @@ pub fn overrideOf(overrides: &List<Override>, key: str) int {
         }
     }
     return -1
+}
+
+/**
+ * The sources the root accepts: its `trust` (ADR 0081).
+ */
+pub struct Trust {
+    /** Whether the root has `trust`; without it every source is accepted. */
+    pub given: bool
+    /** The registry indexes accepted, as `gitUrl` gives them. */
+    pub registries: List<str>
+    /** The prefixes of the git URLs accepted. */
+    pub git: List<str>
+}
+
+/**
+ * The `trust` of the root's manifest; invalid entries are left for
+ * `driver.packages` to report.
+ *
+ * @param rootDir the root project's directory
+ * @returns what it accepts
+ */
+pub fn readTrust(rootDir: str) Trust {
+    let out = Trust{given: false, registries: [], git: []}
+    const Result.Ok(text) = fs.readToString("{rootDir}/ofir.json") else {
+        return out
+    }
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return out
+    }
+    const node = doc.field(0, "trust")
+    if node < 0 || doc.nodes[node].kind != JsonKind.Object {
+        return out
+    }
+    out.given = true
+    for item in doc.elements(doc.field(node, "registries")) {
+        out.registries.push(gitUrl(doc.text(item), rootDir))
+    }
+    for item in doc.elements(doc.field(node, "git")) {
+        out.git.push(gitUrl(doc.text(item), rootDir))
+    }
+    return out
+}
+
+// Whether `trust` accepts the source of `need`.
+fn trusts(trust: &Trust, need: &Need) bool {
+    if !trust.given {
+        return true
+    }
+    if need.registry.len() > 0 {
+        return contains(&trust.registries, need.registry)
+    }
+    for i in 0..trust.git.len() {
+        if need.url.startsWith(trust.git[i]) {
+            return true
+        }
+    }
+    return false
+}
+
+// The failure for a source that `trust` does not accept (E0921).
+fn untrusted(need: &Need) Failure {
+    if need.registry.len() > 0 {
+        let message = "`{need.key}` comes from the registry `{need.registry}`, "
+        message.push("which `trust.registries` does not list")
+        return Failure{url: need.url.clone(), code: "E0921", message,
+                       notes: ["add the registry to `trust.registries` to accept it"]}
+    }
+    let message = "`{need.key}` comes from `{need.url}`, "
+    message.push("which no entry of `trust.git` starts")
+    return Failure{url: need.url.clone(), code: "E0921", message,
+                   notes: ["add a prefix of the URL to `trust.git` to accept it"]}
 }
 
 /**
@@ -307,15 +389,17 @@ pub fn failureOf(r: &Resolution, url: str) int {
 pub fn resolve(project: str, mode: &Mode) Resolution {
     const rootDir = workspaceRoot(project)
     const lock = readLock(rootDir)
+    const pinned = readIndexes(rootDir)
+    const trust = readTrust(rootDir)
     const index = defaultIndex()
     let r = Resolution{pins: [], failures: [], hadLock: fs.exists("{rootDir}/ofir.lock"),
-                       overrides: [], lockDir: rootDir.clone()}
+                       overrides: [], lockDir: rootDir.clone(), indexes: []}
     let repos: List<Repo> = []
     let round = 0
     for round < 16 {
         const needs = collect(rootDir, index, &r)
         let next = Resolution{pins: [], failures: [], hadLock: r.hadLock, overrides: [],
-                              lockDir: rootDir.clone()}
+                              lockDir: rootDir.clone(), indexes: []}
         let urls: List<str> = []
         for i in 0..needs.len() {
             if !contains(&urls, needs[i].url) {
@@ -323,12 +407,18 @@ pub fn resolve(project: str, mode: &Mode) Resolution {
             }
         }
         for i in 0..urls.len() {
-            choose(urls[i], &needs, &lock, mode, repos, next)
+            const first = firstNeed(&needs, urls[i])
+            if !trusts(&trust, &needs[first]) {
+                next.failures.push(untrusted(&needs[first]))
+                continue
+            }
+            choose(urls[i], &needs, &lock, &pinned, mode, repos, next)
         }
         const stable = samePins(&r, &next)
         r = next
         if stable {
             verify(r, &lock)
+            pinIndexes(r, &lock, &pinned, mode, repos)
             r.overrides = readOverrides(rootDir)
             return r
         }
@@ -487,8 +577,8 @@ fn projectName(doc: &JsonDoc, dir: str) str {
 }
 
 // Chooses the commit of `url` for its requirements, into `out`.
-fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, mode: &Mode, repos: mut List<Repo>,
-          out: mut Resolution) {
+fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<IndexPin>, mode: &Mode,
+          repos: mut List<Repo>, out: mut Resolution) {
     let mine: List<int> = []
     for i in 0..needs.len() {
         if needs[i].url == url {
@@ -500,7 +590,8 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, mode: &Mode, repos:
     const updating = mode.update && (mode.only.len() == 0 || mode.only == name)
     if first.registry.len() > 0 {
         const index = first.registry.clone()
-        chooseRelease(url, index, name, needs, &mine, lock, updating, mode.offline, repos, out)
+        const at = if mode.locked { pinnedCommit(pinned, index) } else { "" }
+        chooseRelease(url, index, name, needs, &mine, lock, updating, mode.offline, at, repos, out)
         return
     }
     const r = fetched(url, updating, mode.offline, repos)
@@ -577,10 +668,11 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, mode: &Mode, repos:
 
 // Chooses the version of the registry package `name` for its requirements,
 // into `out`: the locked one while it fits, else the highest that is not
-// yanked. Its files must have the index's checksum (E0914).
+// yanked. Its files must have the index's checksum (E0914). The index is
+// read at the commit `at` when it is given (`--locked`), else at its head.
 fn chooseRelease(url: str, index: str, name: str, needs: &List<Need>, mine: &List<int>,
-                 lock: &List<Locked>, updating: bool, offline: bool, repos: mut List<Repo>,
-                 out: mut Resolution) {
+                 lock: &List<Locked>, updating: bool, offline: bool, at: str,
+                 repos: mut List<Repo>, out: mut Resolution) {
     const r = fetched(index, updating, offline, repos)
     if repos[r].dir.len() == 0 {
         out.failures.push(Failure{url: url.toOwned(), code: "E0911",
@@ -589,9 +681,13 @@ fn chooseRelease(url: str, index: str, name: str, needs: &List<Need>, mine: &Lis
                                           repos[r].error.clone()]})
         return
     }
-    let found = releases(repos[r].dir, name)
+    if at.len() > 0 && !hasCommit(repos[r].dir, at) && !repos[r].fetched && !offline {
+        refetch(repos[r])
+    }
+    const rev = if at.len() > 0 && hasCommit(repos[r].dir, at) { at.toOwned() } else { "HEAD" }
+    let found = releasesAt(repos[r].dir, rev, name)
     if found.isNone() && !repos[r].fetched && !offline && refetch(repos[r]) {
-        found = releases(repos[r].dir, name)
+        found = releasesAt(repos[r].dir, rev, name)
     }
     const Option.Some(listed) = found else {
         out.failures.push(Failure{url: url.toOwned(), code: "E0911",
@@ -614,7 +710,7 @@ fn chooseRelease(url: str, index: str, name: str, needs: &List<Need>, mine: &Lis
     let known = listed
     let best = latestRelease(&known, &reqs, locked.clone())
     if best < 0 && !repos[r].fetched && !offline && refetch(repos[r]) {
-        known = releases(repos[r].dir, name) ?? []
+        known = releasesAt(repos[r].dir, rev, name) ?? []
         best = latestRelease(&known, &reqs, locked)
     }
     if best < 0 {
@@ -801,6 +897,89 @@ fn verify(r: mut Resolution, lock: &List<Locked>) {
     }
 }
 
+// Records in `r.indexes` the commit of each index its pins come from: the
+// locked one while the index's pins keep their locked versions, else the
+// index's head. A head that neither descends from the locked commit nor
+// precedes it means the history was rewritten: the index's pins become
+// failures (E0922), unless `--index-reset` was given. With `--locked`, an
+// index the lock has no commit for is not recorded.
+fn pinIndexes(r: mut Resolution, lock: &List<Locked>, pinned: &List<IndexPin>, mode: &Mode,
+              repos: mut List<Repo>) {
+    let urls: List<str> = []
+    for i in 0..r.pins.len() {
+        if r.pins[i].registry.len() > 0 && !contains(&urls, r.pins[i].registry) {
+            urls.push(r.pins[i].registry.clone())
+        }
+    }
+    for u in 0..urls.len() {
+        const index = urls[u].clone()
+        const k = fetched(index, false, mode.offline, repos)
+        const dir = repos[k].dir.clone()
+        const head = commitOf(dir, "HEAD") ?? ""
+        const old = pinnedCommit(pinned, index)
+        if dir.len() == 0 || head.len() == 0 || (old.len() == 0 && mode.locked) {
+            continue
+        }
+        if old.len() > 0 && !hasCommit(dir, old) && !repos[k].fetched && !mode.offline {
+            refetch(repos[k])
+        }
+        const known = old.len() > 0 && hasCommit(dir, old)
+        const kept = old == head || isAncestor(dir, old, head) || isAncestor(dir, head, old)
+        const lost = old.len() > 0 && !known && !mode.offline
+        if !mode.indexReset && (lost || (known && !kept)) {
+            rewritten(r, index, old, head)
+            continue
+        }
+        let keep = old.len() > 0 && !mode.indexReset && !mode.update
+        for i in 0..r.pins.len() {
+            if r.pins[i].registry == index && !lockedVersion(lock, &r.pins[i]) {
+                keep = false
+            }
+        }
+        const commit = if keep { old } else { head }
+        r.indexes.push(IndexPin{url: index, commit})
+    }
+}
+
+// Turns the pins of `index` into failures: its history was rewritten
+// (E0922).
+fn rewritten(r: mut Resolution, index: str, old: str, head: str) {
+    let i = 0
+    for i < r.pins.len() {
+        if r.pins[i].registry != index {
+            i += 1
+            continue
+        }
+        const p = r.pins.remove(i)
+        const notes = ["`ofir.lock` has the commit `{old}` of the registry",
+                       "its head `{head}` does not descend from it",
+                       "`ofir update --index-reset` accepts the new history"]
+        r.failures.push(Failure{url: p.url.clone(), code: "E0922",
+                                message: "the history of the registry `{index}` was rewritten",
+                                notes})
+    }
+}
+
+// Whether the lock has `pin` at its version.
+fn lockedVersion(lock: &List<Locked>, pin: &Pin) bool {
+    for i in 0..lock.len() {
+        if sourceOf(&lock[i]) == pin.url && lock[i].version == pin.version {
+            return true
+        }
+    }
+    return false
+}
+
+// The commit of `index` in the lock; empty if it has none.
+fn pinnedCommit(pinned: &List<IndexPin>, index: str) str {
+    for i in 0..pinned.len() {
+        if pinned[i].url == index {
+            return pinned[i].commit.clone()
+        }
+    }
+    return ""
+}
+
 // The bare clone of `url`, fetched again if `refresh` (never `offline`):
 // its index in `repos`, whose `dir` is empty if it cannot be fetched.
 fn fetched(url: str, refresh: bool, offline: bool, repos: mut List<Repo>) int {
@@ -832,6 +1011,16 @@ fn fetched(url: str, refresh: bool, offline: bool, repos: mut List<Repo>) int {
 fn refetch(repo: mut Repo) bool {
     repo.fetched = true
     return repository(repo.url, true).isOk()
+}
+
+// The first requirement on `url`.
+fn firstNeed(needs: &List<Need>, url: str) int {
+    for i in 0..needs.len() {
+        if needs[i].url == url {
+            return i
+        }
+    }
+    return 0
 }
 
 fn contains(list: &List<str>, text: str) bool {
