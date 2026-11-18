@@ -174,16 +174,17 @@ struct Page {
     anchors: List<str>
 
     // The comment of the declaration that starts at `start`, as HTML.
-    fn doc(self, start: int) str {
+    fn doc(self, start: int, headingLevel: int) str {
         if const Option.Some(text) = self.docs.before.get(start) {
-            return renderDoc(text)
+            return renderDoc(text, headingLevel)
         }
         return "".toOwned()
     }
 
     // A declaration: its anchor, signature and comment.
     fn entry(mut self, anchor: str, signature: str, start: int) {
-        const doc = self.doc(start)
+        const level = if anchor.find(".").isSome() { 3 } else { 2 }
+        const doc = self.doc(start, level + 1)
         let brief = ""
         if const Option.Some(text) = self.docs.before.get(start) {
             brief = summary(text)
@@ -191,6 +192,7 @@ struct Page {
         self.anchors.push(anchor.clone())
         self.search.push("[{jsString(anchor)}, {jsString(self.module)}, {jsString(brief)}],\n")
         self.out.push("<section class=\"decl\" id=\"{escape(anchor)}\">\n")
+        self.out.push("<h{level} class=\"decl-title\">{escape(anchor)}</h{level}>\n")
         self.out.push("<pre class=\"signature\"><code>{escape(signature)}</code></pre>\n")
         if doc.len() > 0 {
             self.out.push("<div class=\"doc\">\n{doc}</div>\n")
@@ -288,22 +290,78 @@ pub struct Site {
 // the package and the search box.
 fn head(title: str, site: &Site) str {
     let out = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
-    out.push("<title>{escape(title)}</title>\n<style>\n")
-    out.push("body \{ font-family: sans-serif; max-width: 50em; margin: 2em auto; ")
-    out.push("padding: 0 1em; line-height: 1.5; \}\n")
-    out.push("pre \{ background: #f4f4f4; padding: 0.5em; overflow-x: auto; \}\n")
-    out.push(".decl \{ border-top: 1px solid #ddd; margin-top: 1em; \}\n")
-    out.push(".decl .decl \{ margin-left: 2em; \}\n")
-    out.push(".deprecated \{ background: #fff3cd; padding: 0.5em; \}\n")
-    out.push("#results \{ list-style: none; padding: 0; \}\n")
+    out.push("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
+    out.push("<title>{escape(title)} · Ofir documentation</title>\n<style>\n")
+    out.push("* \{ box-sizing: border-box; \}\n")
+    out.push(":root \{ color-scheme: light; background: #f7f8f5; color: #202b29; \}\n")
+    out.push("body \{ margin: 0; font: 1rem/1.7 system-ui, sans-serif; \}\n")
+    out.push("a \{ color: #136257; text-underline-offset: .2em; \}\n")
+    out.push("a:hover \{ color: #083f38; \}\n")
+    out.push(":focus-visible \{ outline: 3px solid #138577; outline-offset: 3px; \}\n")
+    out.push("::selection \{ background: #c7e8df; color: #172b27; \}\n")
+    out.push(".skip \{ position: absolute; top: -4rem; left: 1rem; z-index: 3;")
+    out.push(" padding: .5rem .8rem; background: #fff; \}\n")
+    out.push(".skip:focus \{ top: 1rem; \}\n")
+    out.push("nav \{ border-bottom: 1px solid #d8ded9; background: #fff; \}\n")
+    out.push(".nav-inner \{ max-width: 76rem; margin: auto; padding: 1rem 2rem;")
+    out.push(" display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; \}\n")
+    out.push(".home \{ font-weight: 750; font-size: 1.1rem; text-decoration: none; \}\n")
+    out.push(".package \{ color: #53645e; font-size: .9rem; \}\n")
+    out.push(".search \{ position: relative; margin-left: auto; width: min(100%, 22rem); \}\n")
+    out.push(".search label \{ display: block; font-size: .8rem; font-weight: 650;")
+    out.push(" line-height: 1.3; margin-bottom: .3rem; \}\n")
+    out.push("#search \{ width: 100%; min-height: 2.75rem; padding: .55rem .8rem;")
+    out.push(" border: 1px solid #a9b9b1; border-radius: .4rem; background: #fff;")
+    out.push(" color: inherit; font: inherit; \}\n")
+    out.push("#results \{ position: absolute; z-index: 2; top: 100%; width: 100%;")
+    out.push(" max-height: 22rem; overflow: auto; margin: .35rem 0 0; padding: .4rem;")
+    out.push(" list-style: none; background: #fff; border: 1px solid #d8ded9;")
+    out.push(" border-radius: .4rem; box-shadow: 0 12px 25px #172b271c; \}\n")
+    out.push("#results:empty \{ display: none; \}\n")
+    out.push("#results li \{ padding: .5rem .6rem; border-bottom: 1px solid #edf0ec; \}\n")
+    out.push("#results li:last-child \{ border: 0; \}\n")
+    out.push("#results a \{ font-weight: 650; \}\n")
+    out.push("#results span \{ display: block; color: #53645e; font-size: .85rem; \}\n")
+    out.push("main \{ max-width: 74ch; margin: 0 auto; padding: 3rem 1.5rem 6rem; \}\n")
+    out.push("h1, h2, h3, h4 \{ font-family: Georgia, serif; line-height: 1.2;")
+    out.push(" letter-spacing: -.02em; color: #172b27; \}\n")
+    out.push("h1 \{ margin: 0 0 1.4rem; font-size: clamp(2rem, 5vw, 3.4rem); \}\n")
+    out.push("h2 \{ margin: 2.5rem 0 .8rem; font-size: 1.55rem; \}\n")
+    out.push("h3 \{ margin: 1.5rem 0 .5rem; font-size: 1.2rem; \}\n")
+    out.push("h4 \{ margin: 1.5rem 0 .5rem; font-size: 1.05rem; \}\n")
+    out.push("p, ul, dl \{ margin-top: 0; \}\n")
+    out.push("dt \{ font-weight: 650; margin-top: 1.25rem; \}\n")
+    out.push("dd \{ margin: .2rem 0 0; color: #42534d; \}\n")
+    out.push("code, pre \{ font-family: ui-monospace, Consolas, monospace; \}\n")
+    out.push("code \{ font-size: .92em; \}\n")
+    out.push("p code, li code, dd code \{ background: #e9efea; padding: .1em .28em;")
+    out.push(" border-radius: .2rem; \}\n")
+    out.push("pre \{ overflow-x: auto; padding: 1rem 1.2rem; margin: 1.25rem 0;")
+    out.push(" background: #eaf0eb; border-radius: .4rem; line-height: 1.55; \}\n")
+    out.push(".decl \{ border-top: 1px solid #d8ded9; margin-top: 2.5rem;")
+    out.push(" padding-top: 1.1rem; \}\n")
+    out.push(".decl-title \{ margin: 0 0 .5rem; \}\n")
+    out.push(".decl .decl \{ margin: 1.25rem 0 0 1.25rem; padding-top: .5rem;")
+    out.push(" border-color: #e4e9e4; \}\n")
+    out.push(".signature \{ background: transparent; padding: 0; margin: 0 0 .7rem;")
+    out.push(" color: #164f48; font-weight: 650; \}\n")
+    out.push(".doc > :last-child \{ margin-bottom: 0; \}\n")
+    out.push(".deprecated \{ background: #fff1d6; padding: .8rem 1rem; border-radius: .4rem; \}\n")
+    out.push("@media (max-width: 40rem) \{ .nav-inner \{ padding: 1rem 1.25rem; \}")
+    out.push(" .search \{ margin-left: 0; width: 100%; \} main \{ padding-top: 2rem; \}")
+    out.push(" .decl .decl \{ margin-left: .6rem; \} \}\n")
     out.push("</style>\n<script src=\"search.js\" defer></script>\n</head>\n<body>\n")
-    out.push("<nav><a href=\"index.html\">Index</a>")
+    out.push("<a class=\"skip\" href=\"#content\">Skip to content</a>\n")
+    out.push("<nav aria-label=\"Documentation\"><div class=\"nav-inner\">")
+    out.push("<a class=\"home\" href=\"index.html\">Ofir documentation</a>")
     if site.label.len() > 0 {
         out.push(" <span class=\"package\">{escape(site.label)}</span>")
     }
-    out.push("\n<input id=\"search\" type=\"search\" placeholder=\"Search\"")
-    out.push(" autocomplete=\"off\">")
-    out.push("\n<ul id=\"results\"></ul></nav>\n")
+    out.push("\n<div class=\"search\"><label for=\"search\">Search documentation</label>")
+    out.push("<input id=\"search\" type=\"search\" placeholder=\"Find a declaration\"")
+    out.push(" autocomplete=\"off\" aria-controls=\"results\">")
+    out.push("<ul id=\"results\" aria-live=\"polite\"></ul></div></div></nav>\n")
+    out.push("<main id=\"content\">\n")
     return out
 }
 
@@ -326,7 +384,7 @@ pub fn modulePage(name: str, src: str, module: &Module, names: &Interner,
                     all: site.all, search: "", anchors: []}
     page.out.push("<h1>Module <code>{escape(name)}</code></h1>\n")
     if page.docs.module.len() > 0 {
-        const text = renderDoc(page.docs.module)
+        const text = renderDoc(page.docs.module, 2)
         page.out.push(text)
     }
     for i in 0..module.items.len() {
@@ -334,7 +392,7 @@ pub fn modulePage(name: str, src: str, module: &Module, names: &Interner,
             page.item(names, &module.items[i])
         }
     }
-    page.out.push("</body>\n</html>\n")
+    page.out.push("</main>\n</body>\n</html>\n")
     search.push(page.search)
     for i in 0..page.anchors.len() {
         targets.add(name, page.anchors[i])
@@ -360,6 +418,6 @@ pub fn indexPage(modules: &List<str>, docs: &List<str>, site: &Site) str {
         out.push("<dt><a href=\"{name}.html\"><code>{name}</code></a></dt>\n")
         out.push("<dd>{summary(docs[i])}</dd>\n")
     }
-    out.push("</dl>\n</body>\n</html>\n")
+    out.push("</dl>\n</main>\n</body>\n</html>\n")
     return out
 }

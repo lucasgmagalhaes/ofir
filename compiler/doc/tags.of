@@ -95,7 +95,7 @@ fn firstTag(lines: &List<str>) int {
 }
 
 // The `<dl>` of the `@param` or `@typeParam` sections, under `heading`.
-fn named(all: &List<Section>, tag: str, heading: str) str {
+fn named(all: &List<Section>, tag: str, heading: str, level: int) str {
     let out = ""
     for i in 0..all.len() {
         if all[i].tag != tag {
@@ -105,7 +105,7 @@ fn named(all: &List<Section>, tag: str, heading: str) str {
         let lines = all[i].lines.clone()
         lines[0] = parts.1.clone()
         if out.len() == 0 {
-            out.push("<h4>{heading}</h4>\n<dl>\n")
+            out.push("<h{level}>{heading}</h{level}>\n<dl>\n")
         }
         out.push("<dt><code>{escape(parts.0)}</code></dt>\n")
         out.push("<dd>{blocks(&lines, 0, lines.len())}</dd>\n")
@@ -121,11 +121,12 @@ fn named(all: &List<Section>, tag: str, heading: str) str {
  *
  * @param text its text, a line for each line of the comment without the
  *             `*` that starts it
+ * @param headingLevel the heading level for tag sections in this context
  * @returns its text and the sections of its tags: `@deprecated` before
  *          the text, `@typeParam` and `@param` as lists, the others in
  *          their order
  */
-pub fn renderDoc(text: str) str {
+pub fn renderDoc(text: str, headingLevel: int) str {
     let lines: List<str> = []
     for part in text.split("\n") {
         lines.push(part.toOwned())
@@ -140,14 +141,14 @@ pub fn renderDoc(text: str) str {
         }
     }
     out.push(blocks(&lines, 0, first))
-    out.push(named(&all, "typeParam", "Type parameters"))
-    out.push(named(&all, "param", "Parameters"))
+    out.push(named(&all, "typeParam", "Type parameters", headingLevel))
+    out.push(named(&all, "param", "Parameters", headingLevel))
     for i in 0..all.len() {
         const tag = all[i].tag.clone()
         if tag == "deprecated" || tag == "param" || tag == "typeParam" || tag == "module" {
             continue
         }
-        out.push("<h4>{escape(title(tag))}</h4>\n")
+        out.push("<h{headingLevel}>{escape(title(tag))}</h{headingLevel}>\n")
         out.push(blocks(&all[i].lines, 0, all[i].lines.len()))
     }
     return out

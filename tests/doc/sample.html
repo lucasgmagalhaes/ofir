@@ -2,25 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>sample</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sample · Ofir documentation</title>
 <style>
-body { font-family: sans-serif; max-width: 50em; margin: 2em auto; padding: 0 1em; line-height: 1.5; }
-pre { background: #f4f4f4; padding: 0.5em; overflow-x: auto; }
-.decl { border-top: 1px solid #ddd; margin-top: 1em; }
-.decl .decl { margin-left: 2em; }
-.deprecated { background: #fff3cd; padding: 0.5em; }
-#results { list-style: none; padding: 0; }
+* { box-sizing: border-box; }
+:root { color-scheme: light; background: #f7f8f5; color: #202b29; }
+body { margin: 0; font: 1rem/1.7 system-ui, sans-serif; }
+a { color: #136257; text-underline-offset: .2em; }
+a:hover { color: #083f38; }
+:focus-visible { outline: 3px solid #138577; outline-offset: 3px; }
+::selection { background: #c7e8df; color: #172b27; }
+.skip { position: absolute; top: -4rem; left: 1rem; z-index: 3; padding: .5rem .8rem; background: #fff; }
+.skip:focus { top: 1rem; }
+nav { border-bottom: 1px solid #d8ded9; background: #fff; }
+.nav-inner { max-width: 76rem; margin: auto; padding: 1rem 2rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+.home { font-weight: 750; font-size: 1.1rem; text-decoration: none; }
+.package { color: #53645e; font-size: .9rem; }
+.search { position: relative; margin-left: auto; width: min(100%, 22rem); }
+.search label { display: block; font-size: .8rem; font-weight: 650; line-height: 1.3; margin-bottom: .3rem; }
+#search { width: 100%; min-height: 2.75rem; padding: .55rem .8rem; border: 1px solid #a9b9b1; border-radius: .4rem; background: #fff; color: inherit; font: inherit; }
+#results { position: absolute; z-index: 2; top: 100%; width: 100%; max-height: 22rem; overflow: auto; margin: .35rem 0 0; padding: .4rem; list-style: none; background: #fff; border: 1px solid #d8ded9; border-radius: .4rem; box-shadow: 0 12px 25px #172b271c; }
+#results:empty { display: none; }
+#results li { padding: .5rem .6rem; border-bottom: 1px solid #edf0ec; }
+#results li:last-child { border: 0; }
+#results a { font-weight: 650; }
+#results span { display: block; color: #53645e; font-size: .85rem; }
+main { max-width: 74ch; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+h1, h2, h3, h4 { font-family: Georgia, serif; line-height: 1.2; letter-spacing: -.02em; color: #172b27; }
+h1 { margin: 0 0 1.4rem; font-size: clamp(2rem, 5vw, 3.4rem); }
+h2 { margin: 2.5rem 0 .8rem; font-size: 1.55rem; }
+h3 { margin: 1.5rem 0 .5rem; font-size: 1.2rem; }
+h4 { margin: 1.5rem 0 .5rem; font-size: 1.05rem; }
+p, ul, dl { margin-top: 0; }
+dt { font-weight: 650; margin-top: 1.25rem; }
+dd { margin: .2rem 0 0; color: #42534d; }
+code, pre { font-family: ui-monospace, Consolas, monospace; }
+code { font-size: .92em; }
+p code, li code, dd code { background: #e9efea; padding: .1em .28em; border-radius: .2rem; }
+pre { overflow-x: auto; padding: 1rem 1.2rem; margin: 1.25rem 0; background: #eaf0eb; border-radius: .4rem; line-height: 1.55; }
+.decl { border-top: 1px solid #d8ded9; margin-top: 2.5rem; padding-top: 1.1rem; }
+.decl-title { margin: 0 0 .5rem; }
+.decl .decl { margin: 1.25rem 0 0 1.25rem; padding-top: .5rem; border-color: #e4e9e4; }
+.signature { background: transparent; padding: 0; margin: 0 0 .7rem; color: #164f48; font-weight: 650; }
+.doc > :last-child { margin-bottom: 0; }
+.deprecated { background: #fff1d6; padding: .8rem 1rem; border-radius: .4rem; }
+@media (max-width: 40rem) { .nav-inner { padding: 1rem 1.25rem; } .search { margin-left: 0; width: 100%; } main { padding-top: 2rem; } .decl .decl { margin-left: .6rem; } }
 </style>
 <script src="search.js" defer></script>
 </head>
 <body>
-<nav><a href="index.html">Index</a>
-<input id="search" type="search" placeholder="Search" autocomplete="off">
-<ul id="results"></ul></nav>
+<a class="skip" href="#content">Skip to content</a>
+<nav aria-label="Documentation"><div class="nav-inner"><a class="home" href="index.html">Ofir documentation</a>
+<div class="search"><label for="search">Search documentation</label><input id="search" type="search" placeholder="Find a declaration" autocomplete="off" aria-controls="results"><ul id="results" aria-live="polite"></ul></div></div></nav>
+<main id="content">
 <h1>Module <code>sample</code></h1>
 <p>A module to document: shapes and <code>Ågé</code> (non-ASCII text).</p>
 <p>A second paragraph, with <code>a `tick` inside</code> and &lt;markup&gt; to escape.</p>
 <section class="decl" id="Point">
+<h2 class="decl-title">Point</h2>
 <pre class="signature"><code>pub struct Point</code></pre>
 <div class="doc">
 <p>A point on the plane.</p>
@@ -30,18 +69,21 @@ pre { background: #f4f4f4; padding: 0.5em; overflow-x: auto; }
 </ul>
 </div>
 <section class="decl" id="Point.x">
+<h3 class="decl-title">Point.x</h3>
 <pre class="signature"><code>pub x: int</code></pre>
 <div class="doc">
 <p>Its abscissa.</p>
 </div>
 </section>
 <section class="decl" id="Point.y">
+<h3 class="decl-title">Point.y</h3>
 <pre class="signature"><code>pub y: int</code></pre>
 <div class="doc">
 <p>Its ordinate.</p>
 </div>
 </section>
 <section class="decl" id="Point.moved">
+<h3 class="decl-title">Point.moved</h3>
 <pre class="signature"><code>pub fn moved(self, dx: int, dy: int) Point</code></pre>
 <div class="doc">
 <p>The point moved by an offset.</p>
@@ -60,26 +102,31 @@ pre { background: #f4f4f4; padding: 0.5em; overflow-x: auto; }
 </section>
 </section>
 <section class="decl" id="Shape">
+<h2 class="decl-title">Shape</h2>
 <pre class="signature"><code>pub enum Shape</code></pre>
 <div class="doc">
 <p>A shape.</p>
 </div>
 <section class="decl" id="Shape.Circle">
+<h3 class="decl-title">Shape.Circle</h3>
 <pre class="signature"><code>Circle(radius: int)</code></pre>
 <div class="doc">
 <p>A circle and its radius.</p>
 </div>
 </section>
 <section class="decl" id="Shape.Square">
+<h3 class="decl-title">Shape.Square</h3>
 <pre class="signature"><code>Square(side: int)</code></pre>
 </section>
 </section>
 <section class="decl" id="HasArea">
+<h2 class="decl-title">HasArea</h2>
 <pre class="signature"><code>pub interface HasArea</code></pre>
 <div class="doc">
 <p>Something with an area.</p>
 </div>
 <section class="decl" id="HasArea.area">
+<h3 class="decl-title">HasArea.area</h3>
 <pre class="signature"><code>fn area(self) int</code></pre>
 <div class="doc">
 <p>The area.</p>
@@ -87,28 +134,31 @@ pre { background: #f4f4f4; padding: 0.5em; overflow-x: auto; }
 </section>
 </section>
 <section class="decl" id="ORIGIN">
+<h2 class="decl-title">ORIGIN</h2>
 <pre class="signature"><code>pub const ORIGIN: int = 0</code></pre>
 <div class="doc">
 <p>The origin's coordinates.</p>
 </div>
 </section>
 <section class="decl" id="Points">
+<h2 class="decl-title">Points</h2>
 <pre class="signature"><code>pub type Points = List&lt;Point&gt;</code></pre>
 <div class="doc">
 <p>A list of points.</p>
 </div>
 </section>
 <section class="decl" id="add">
+<h2 class="decl-title">add</h2>
 <pre class="signature"><code>pub fn add(first: int, second: int) int</code></pre>
 <div class="doc">
 <p>The sum of many numbers, a signature on more than one line.</p>
-<h4>Type parameters</h4>
+<h3>Type parameters</h3>
 <dl>
 <dt><code>T</code></dt>
 <dd><p>unused here</p>
 </dd>
 </dl>
-<h4>Parameters</h4>
+<h3>Parameters</h3>
 <dl>
 <dt><code>first</code></dt>
 <dd><p>the first number</p>
@@ -117,26 +167,27 @@ pre { background: #f4f4f4; padding: 0.5em; overflow-x: auto; }
 <dd><p>the second one, described on two lines</p>
 </dd>
 </dl>
-<h4>Returns</h4>
+<h3>Returns</h3>
 <p>their sum</p>
-<h4>Panics</h4>
+<h3>Panics</h3>
 <p>never</p>
-<h4>Complexity</h4>
+<h3>Complexity</h3>
 <p>O(1)</p>
-<h4>Allocates</h4>
+<h3>Allocates</h3>
 <p>nothing</p>
-<h4>Platform</h4>
+<h3>Platform</h3>
 <p>every target</p>
-<h4>Example</h4>
+<h3>Example</h3>
 <pre><code class="language-ofir">const n = sample.add(1, 2)
 
 println(&quot;{n}&quot;)
 </code></pre>
-<h4>See also</h4>
+<h3>See also</h3>
 <p><a href="sample.html#Point.moved"><code>Point.moved</code></a></p>
 </div>
 </section>
 <section class="decl" id="plus">
+<h2 class="decl-title">plus</h2>
 <pre class="signature"><code>pub fn plus(a: int, b: int) int</code></pre>
 <div class="doc">
 <div class="deprecated"><strong>Deprecated.</strong>
@@ -145,7 +196,9 @@ println(&quot;{n}&quot;)
 </div>
 </section>
 <section class="decl" id="undocumented">
+<h2 class="decl-title">undocumented</h2>
 <pre class="signature"><code>pub fn undocumented()</code></pre>
 </section>
+</main>
 </body>
 </html>
