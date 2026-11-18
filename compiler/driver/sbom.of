@@ -70,7 +70,8 @@ pub fn sbomCommand(args: List<str>, compiler: str) int {
         return 2
     }
     const dir = fs.canonicalize(".").ok() ?? "."
-    const mode = Mode{update: false, only: "", locked: true, offline: false, dev: false, os: ""}
+    const mode = Mode{update: false, only: "", locked: true, offline: false, dev: false, os: "",
+                      indexReset: false}
     let map = SourceMap.new()
     let diags = Diagnostics.new()
     const packages = readPackages(dir, true, &mode, map, diags)

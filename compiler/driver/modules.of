@@ -501,7 +501,7 @@ pub fn loadProgram(input: str, root: move Module, front: mut Front,
     }
     const testing = target.test
     const mode = Mode{update: false, only: "", locked: front.locked, offline: front.offline,
-                      dev: testing || target.bench, os: target.os.clone()}
+                      dev: testing || target.bench, os: target.os.clone(), indexReset: false}
     const packages = readPackages(rootDir, inProject, &mode, front.map, front.diags)
     let ld = Loader{modules: [], rootDir, stdDir: findStd(), testing, docTests, target, packages}
     const name = rootModuleName(ld, input, inProject)

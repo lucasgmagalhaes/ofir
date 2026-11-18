@@ -48,6 +48,11 @@ pub struct Mode {
     pub dev: bool
     /** The OS the program is built for; empty for every OS (`ofir fetch`). */
     pub os: str
+    /**
+     * `ofir update --index-reset`: an index whose history was rewritten is
+     * accepted (E0922, ADR 0081).
+     */
+    pub indexReset: bool
 }
 
 /**

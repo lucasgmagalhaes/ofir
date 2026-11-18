@@ -46,7 +46,7 @@ pub fn fetchCommand(args: List<str>, update: bool) int {
         return 2
     }
     const dir = fs.canonicalize(".").ok() ?? "."
-    const mode = Mode{update, only, locked, offline, dev: true, os: ""}
+    const mode = Mode{update, only, locked, offline, dev: true, os: "", indexReset: false}
     let map = SourceMap.new()
     let diags = Diagnostics.new()
     readPackages(dir, true, &mode, map, diags)
