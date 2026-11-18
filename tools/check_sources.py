@@ -7,7 +7,9 @@
 - a dependency with `"os"` is in the graph only for that OS, and an
   unknown `os` is E0910;
 - an override replaces a dependency everywhere in the graph, and its
-  package is not locked.
+  package is not locked;
+- `ofir vendor` copies the locked packages, and with the overrides it
+  prints the build holds `--offline` with an empty `$OFIR_HOME`.
 
     python3 tools/check_sources.py --compiler build/stage1/ofir
 """
@@ -154,6 +156,27 @@ def check_overrides(compiler, tmp):
     print("sources: overrides ok")
 
 
+def check_vendor(compiler, tmp):
+    work = tmp / "vendor"
+    text = f'{{"git": "{(FIXTURES / "text").as_posix()}", "version": "^1.0"}}'
+    write(work / "ofir.json", manifest("app", "exe", [("dependencies", [("text", text)])]))
+    write(work / "main.of", "import text\n\nfn main() {\n    println(text.version())\n}\n")
+    home = tmp / "home-vendor"
+    out = run([compiler, "vendor"], work, home).stdout
+    if '"text": {"path": "vendor/text"}' not in out:
+        fail(f"vendor printed {out!r}")
+    copy = work / "vendor" / "text"
+    if not (copy / "ofir.json").exists() or (copy / ".git").exists():
+        fail("the package was not copied without `.git`")
+    write(work / "ofir.json", manifest("app", "exe", [
+        ("dependencies", [("text", text)]),
+        ("overrides", [("text", '{"path": "vendor/text"}')])]))
+    built = run([compiler, "run", "--offline", "main.of"], work, tmp / "home-empty")
+    if built.stdout.strip() != "1.1.0":
+        fail(f"the vendored build printed {built.stdout!r}")
+    print("sources: vendoring ok")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--compiler", default="build/stage1/ofir")
@@ -165,6 +188,7 @@ def main():
         check_dev(compiler, Path(tmp))
         check_os(compiler, Path(tmp))
         check_overrides(compiler, Path(tmp))
+        check_vendor(compiler, Path(tmp))
     return 0
 
 
