@@ -7,6 +7,8 @@
 - `--dry-run` leaves the index as it is;
 - a version is published once, and a bad name, a bad version or a path
   dependency is E0919;
+- a package without a `license` is E0919 and one with an invalid SPDX
+  expression is E0910; the license is recorded in the index (ADR 0081);
 - `ofir yank` keeps a yanked version out of `ofir update`, and `--undo`
   brings it back.
 
@@ -82,8 +84,8 @@ def main():
                      f"{result.stdout[-2000:]}{result.stderr[-2000:]}")
             return result
 
-        def library(version, name="greet", deps="{}"):
-            write(lib / "ofir.json", f'{{"name": "{name}", "version": "{version}", '
+        def library(version, name="greet", deps="{}", license='"license": "MIT", '):
+            write(lib / "ofir.json", f'{{"name": "{name}", "version": "{version}", {license}'
                   f'"build": {{"kind": "lib"}}, "dependencies": {deps}}}\n')
             write(lib / "src" / "index.of", LIB.format(version=version))
 
@@ -100,7 +102,8 @@ def main():
             fail("--dry-run wrote to the index")
         ofir(lib, "publish")
         lines = [json.loads(line) for line in entry.read_text().splitlines()]
-        if [line["version"] for line in lines] != ["1.0.0"] or lines[0]["yanked"]:
+        if [line["version"] for line in lines] != ["1.0.0"] or lines[0]["yanked"] \
+                or lines[0].get("license") != "MIT":
             fail(f"the index has {lines}")
         if not (archives / "greet-1.0.0.tar.gz").exists():
             fail("the archive was not written")
@@ -146,6 +149,12 @@ def main():
         refused(["publish"], "`X.Y.Z`")
         library("1.2.0", deps='{"other": {"path": "../other"}}')
         refused(["publish"], "path or git")
+        library("1.2.0", license="")
+        refused(["publish"], "has no `license`")
+        library("1.2.0", license='"license": "MIT OR Nope", ')
+        bad = ofir(lib, "publish", ok=False)
+        if bad.returncode == 0 or "E0910" not in bad.stderr or "`Nope`" not in bad.stderr:
+            fail(f"an invalid license is not E0910:\n{bad.stderr}")
     print("publish: ok")
 
 
