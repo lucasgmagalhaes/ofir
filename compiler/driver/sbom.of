@@ -1,0 +1,299 @@
+/**
+ * @module
+ * `ofir sbom [--format=cyclonedx|spdx]` (ADR 0081): the software bill of
+ * materials of the project, built from `ofir.lock`, as CycloneDX 1.5 JSON
+ * or SPDX 2.3 JSON on standard output. The same lock gives the same
+ * output, byte for byte: the only date is `SOURCE_DATE_EPOCH`'s.
+ */
+
+import base.span.SourceMap
+import diag.Diagnostics
+import diag.Format
+import diag.jsonString
+import driver.packages.Package
+import driver.packages.readPackages
+import driver.resolve.Mode
+import driver.resolve.Resolution
+import driver.resolve.resolve
+import driver.sha256.Sha256
+import lsp.json.JsonDoc
+import lsp.json.parseJsonc
+import std.fs
+import std.os
+import std.time.date.DateTime
+
+// The official registry, whose packages' URLs need no `repository_url`.
+const OFFICIAL_INDEX: str = "https://github.com/ofir-lang/index"
+
+// A package of the bill.
+struct Entry {
+    // Its reference within the bill.
+    ref: str
+    name: str
+    // Its version, or its commit; empty when it has neither.
+    version: str
+    // Its SPDX license expression; empty when it declares none.
+    license: str
+    // `registry`, `git` or `local`.
+    kind: str
+    // The index or repository it comes from; empty for a local package.
+    url: str
+    // Its package URL; empty for a local package.
+    purl: str
+    // Its checksum in `ofir.lock`; empty for a local package.
+    checksum: str
+    // Whether it builds a program, not a library.
+    program: bool
+    // The entries it depends on.
+    deps: List<int>
+}
+
+/**
+ * Runs `ofir sbom`.
+ *
+ * @param args the arguments after the command
+ * @param compiler the compiler's version
+ * @returns the exit code
+ */
+pub fn sbomCommand(args: List<str>, compiler: str) int {
+    let format = "cyclonedx"
+    for i in 0..args.len() {
+        if args[i] == "--format=cyclonedx" || args[i] == "--format=spdx" {
+            format = args[i].sliceFrom(9)
+        } else {
+            eprintln("error: unexpected argument `{args[i]}` for `sbom`")
+            eprintln("usage: ofir sbom [--format=cyclonedx|spdx]")
+            return 2
+        }
+    }
+    if !fs.exists("ofir.json") {
+        eprintln("error: `sbom` needs an `ofir.json` in the current directory")
+        return 2
+    }
+    const dir = fs.canonicalize(".").ok() ?? "."
+    const mode = Mode{update: false, only: "", locked: true, offline: false, dev: false, os: ""}
+    let map = SourceMap.new()
+    let diags = Diagnostics.new()
+    const packages = readPackages(dir, true, &mode, map, diags)
+    if diags.hasErrors() {
+        eprint(diags.render(map, Format.Human))
+        return 1
+    }
+    const r = resolve(dir, &mode)
+    const entries = entriesOf(&packages, &r)
+    const lock = fs.readToString("{r.lockDir}/ofir.lock").ok() ?? ""
+    let h = Sha256.new()
+    h.updateText(lock)
+    const sum = h.finish()
+    if format == "spdx" {
+        print(spdxJson(&entries, compiler, sum))
+    } else {
+        print(cycloneJson(&entries, compiler))
+    }
+    return 0
+}
+
+// An entry for each package, the root first.
+fn entriesOf(packages: &List<Package>, r: &Resolution) List<Entry> {
+    let out: List<Entry> = []
+    for i in 0..packages.len() {
+        const p = &packages[i]
+        const manifest = parseJsonc(fs.readToString("{p.dir}/ofir.json").ok() ?? "\{\}")
+        const doc = manifest.ok() ?? parseJsonc("\{\}").expect("an empty object")
+        let name = doc.text(doc.field(0, "name"))
+        if name.len() == 0 {
+            name = if i == 0 { "root" } else { p.name.clone() }
+        }
+        let e = Entry{ref: "ofir:{p.name}", name, version: doc.text(doc.field(0, "version")),
+                      license: doc.text(doc.field(0, "license")), kind: "local", url: "",
+                      purl: "", checksum: "", program: false, deps: []}
+        if i == 0 {
+            e.ref = "ofir:root"
+            e.program = doc.text(doc.at(["build", "kind"])) != "lib"
+        }
+        for j in 0..r.pins.len() {
+            const pin = &r.pins[j]
+            if pin.dir != p.dir {
+                continue
+            }
+            e.checksum = pin.checksum.clone()
+            if pin.registry.len() > 0 {
+                e.kind = "registry"
+                e.url = pin.registry.clone()
+                e.version = pin.version.clone()
+                e.purl = "pkg:ofir/{e.name}@{e.version}"
+                if pin.registry != OFFICIAL_INDEX {
+                    e.purl.push("?repository_url={escape(pin.registry)}")
+                }
+            } else {
+                e.kind = "git"
+                e.url = pin.url.clone()
+                e.version = if pin.version.len() > 0 { pin.version.clone() } else {
+                    pin.commit.clone()
+                }
+                e.purl = "pkg:generic/{e.name}@{pin.commit}?vcs_url={escape(pin.url)}"
+            }
+        }
+        for d in 0..p.deps.len() {
+            const q = p.deps[d].package
+            if q >= 0 && !holds(&e.deps, q) {
+                e.deps.push(q)
+            }
+        }
+        out.push(e)
+    }
+    return out
+}
+
+fn holds(list: &List<int>, n: int) bool {
+    for i in 0..list.len() {
+        if list[i] == n {
+            return true
+        }
+    }
+    return false
+}
+
+// The CycloneDX 1.5 document.
+fn cycloneJson(entries: &List<Entry>, compiler: str) str {
+    let out = "\{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.5\",\"version\":1"
+    out.push(",\"metadata\":\{")
+    const date = sourceDate()
+    if date.len() > 0 {
+        out.push("\"timestamp\":{jsonString(date)},")
+    }
+    out.push("\"tools\":\{\"components\":[\{\"type\":\"application\",\"name\":\"ofir\"")
+    out.push(",\"version\":{jsonString(compiler)}\}]\}")
+    out.push(",\"component\":{cycloneComponent(&entries[0])}\},\"components\":[")
+    for i in 1..entries.len() {
+        if i > 1 {
+            out.push(",")
+        }
+        out.push(cycloneComponent(&entries[i]))
+    }
+    out.push("],\"dependencies\":[")
+    for i in 0..entries.len() {
+        const e = &entries[i]
+        if i > 0 {
+            out.push(",")
+        }
+        out.push("\{\"ref\":{jsonString(e.ref)},\"dependsOn\":[")
+        for d in 0..e.deps.len() {
+            if d > 0 {
+                out.push(",")
+            }
+            out.push(jsonString(entries[e.deps[d]].ref))
+        }
+        out.push("]\}")
+    }
+    out.push("]\}\n")
+    return out
+}
+
+fn cycloneComponent(e: &Entry) str {
+    const kind = if e.program { "application" } else { "library" }
+    let out = "\{\"type\":\"{kind}\",\"bom-ref\":{jsonString(e.ref)}"
+    out.push(",\"name\":{jsonString(e.name)}")
+    if e.version.len() > 0 {
+        out.push(",\"version\":{jsonString(e.version)}")
+    }
+    if e.license.len() > 0 {
+        out.push(",\"licenses\":[\{\"expression\":{jsonString(e.license)}\}]")
+    }
+    if e.purl.len() > 0 {
+        out.push(",\"purl\":{jsonString(e.purl)}")
+    }
+    if e.url.len() > 0 {
+        const kind = if e.kind == "git" { "vcs" } else { "distribution" }
+        out.push(",\"externalReferences\":[\{\"type\":\"{kind}\",\"url\":{jsonString(e.url)}\}]")
+    }
+    out.push(",\"properties\":[\{\"name\":\"ofir:source\",\"value\":\"{e.kind}\"\}")
+    if e.checksum.len() > 0 {
+        out.push(",\{\"name\":\"ofir:checksum\",\"value\":{jsonString(e.checksum)}\}")
+    }
+    out.push("]\}")
+    return out
+}
+
+// The SPDX 2.3 document; `lockSum` makes its namespace unique to the lock.
+fn spdxJson(entries: &List<Entry>, compiler: str, lockSum: str) str {
+    const root = &entries[0]
+    const date = sourceDate()
+    const created = if date.len() > 0 { date.clone() } else { "1970-01-01T00:00:00Z" }
+    const label = if root.version.len() > 0 { "{root.name}-{root.version}" } else {
+        root.name.clone()
+    }
+    let out = "\{\"spdxVersion\":\"SPDX-2.3\",\"dataLicense\":\"CC0-1.0\""
+    out.push(",\"SPDXID\":\"SPDXRef-DOCUMENT\",\"name\":{jsonString(label)}")
+    out.push(",\"documentNamespace\":{jsonString("urn:ofir:sbom:{escape(label)}:{lockSum}")}")
+    out.push(",\"creationInfo\":\{\"created\":{jsonString(created)}")
+    out.push(",\"creators\":[{jsonString("Tool: ofir-{compiler}")}]\}")
+    out.push(",\"documentDescribes\":[\"SPDXRef-Package-0\"],\"packages\":[")
+    for i in 0..entries.len() {
+        const e = &entries[i]
+        if i > 0 {
+            out.push(",")
+        }
+        out.push("\{\"SPDXID\":\"SPDXRef-Package-{i}\",\"name\":{jsonString(e.name)}")
+        if e.version.len() > 0 {
+            out.push(",\"versionInfo\":{jsonString(e.version)}")
+        }
+        const location = if e.url.len() > 0 { e.url.clone() } else { "NOASSERTION" }
+        out.push(",\"downloadLocation\":{jsonString(location)},\"filesAnalyzed\":false")
+        const license = if e.license.len() > 0 { e.license.clone() } else { "NOASSERTION" }
+        out.push(",\"licenseConcluded\":\"NOASSERTION\"")
+        out.push(",\"licenseDeclared\":{jsonString(license)}")
+        let comment = "ofir:source={e.kind}"
+        if e.checksum.len() > 0 {
+            comment.push(" ofir:checksum={e.checksum}")
+        }
+        out.push(",\"comment\":{jsonString(comment)}")
+        if e.purl.len() > 0 {
+            out.push(",\"externalRefs\":[\{\"referenceCategory\":\"PACKAGE-MANAGER\"")
+            out.push(",\"referenceType\":\"purl\",\"referenceLocator\":{jsonString(e.purl)}\}]")
+        }
+        out.push("\}")
+    }
+    out.push("],\"relationships\":[\{\"spdxElementId\":\"SPDXRef-DOCUMENT\"")
+    out.push(",\"relationshipType\":\"DESCRIBES\",\"relatedSpdxElement\":\"SPDXRef-Package-0\"\}")
+    for i in 0..entries.len() {
+        const e = &entries[i]
+        for d in 0..e.deps.len() {
+            out.push(",\{\"spdxElementId\":\"SPDXRef-Package-{i}\"")
+            out.push(",\"relationshipType\":\"DEPENDS_ON\"")
+            out.push(",\"relatedSpdxElement\":\"SPDXRef-Package-{e.deps[d]}\"\}")
+        }
+    }
+    out.push("]\}\n")
+    return out
+}
+
+// `SOURCE_DATE_EPOCH` as RFC 3339, or an empty string when it is not set.
+fn sourceDate() str {
+    const Option.Some(text) = os.env("SOURCE_DATE_EPOCH") else {
+        return ""
+    }
+    const Result.Ok(seconds) = int.parse(text.trim()) else {
+        return ""
+    }
+    return DateTime.fromUnixSeconds(seconds).format()
+}
+
+// `text` percent-encoded for a package URL qualifier.
+fn escape(text: str) str {
+    const hex = "0123456789ABCDEF"
+    let out = ""
+    for b in text.bytes() {
+        const letter = (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z')
+        const digit = b >= b'0' && b <= b'9'
+        const mark = b == b'-' || b == b'.' || b == b'_' || b == b'~' || b == b'/' || b == b':'
+        if letter || digit || mark {
+            out.pushChar(b as u32)
+        } else {
+            out.push("%")
+            out.push(hex.slice((b >> 4) as int, ((b >> 4) as int) + 1))
+            out.push(hex.slice((b & 15) as int, ((b & 15) as int) + 1))
+        }
+    }
+    return out
+}
