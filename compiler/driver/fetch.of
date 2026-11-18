@@ -14,6 +14,7 @@ import diag.Format
 import driver.lock.readLock
 import driver.packages.readPackages
 import driver.resolve.Mode
+import driver.resolve.workspaceRoot
 import std.fs
 
 /**
@@ -53,7 +54,7 @@ pub fn fetchCommand(args: List<str>, update: bool) int {
         eprint(diags.render(map, Format.Human))
         return 1
     }
-    const lock = readLock(dir)
+    const lock = readLock(workspaceRoot(dir))
     for i in 0..lock.len() {
         const p = &lock[i]
         const what = if p.version.len() > 0 { p.version.clone() } else { p.rev.clone() }
