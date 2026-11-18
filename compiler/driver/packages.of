@@ -21,7 +21,6 @@ import diag.LINT_ALLOW
 import diag.LINT_DENY
 import diag.LINT_WARN
 import diag.lintCodes
-import driver.lock.IndexPin
 import driver.lock.Locked
 import driver.lock.lockMatches
 import driver.lock.readLock
@@ -156,12 +155,11 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
                                version: pin.version.clone(), rev: pin.rev.clone(),
                                commit: pin.commit.clone(), checksum: pin.checksum.clone()})
         }
-        const indexes: List<IndexPin> = []
         if mode.locked {
-            if !lockMatches(r.lockDir, &locked, &indexes) {
+            if !lockMatches(r.lockDir, &locked, &r.indexes) {
                 staleLock(r.lockDir, &locked, map, diags)
             }
-        } else if !writeLock(r.lockDir, &locked, &indexes) {
+        } else if !writeLock(r.lockDir, &locked, &r.indexes) {
             eprintln("warning: cannot write `{r.lockDir}/ofir.lock`")
         }
     }
