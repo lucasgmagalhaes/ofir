@@ -19,6 +19,8 @@ pub struct Profile {
     pub opt: int
     /** Whether debug info is written. */
     pub debugInfo: bool
+    /** Whether the debug info names logical paths (ADR 0083). */
+    pub trimPaths: bool
 }
 
 /**
@@ -68,7 +70,8 @@ pub fn readProfile(input: str, name: str) Result<Profile, str> {
 
 // A built-in profile.
 fn builtIn(release: bool) Profile {
-    return Profile{release: release, opt: if release { 2 } else { 0 }, debugInfo: false}
+    return Profile{release: release, opt: if release { 2 } else { 0 }, debugInfo: false,
+                   trimPaths: false}
 }
 
 // Checks the entry `member` of `profiles` and returns what it builds.
@@ -106,6 +109,11 @@ fn checkProfile(doc: &JsonDoc, member: int) Result<Profile, str> {
                 return Result.Err("`debugInfo` of `{name}` must be true or false")
             }
             profile.debugInfo = doc.bool(item)
+        } else if key == "trimPaths" {
+            if kind != JsonKind.Bool {
+                return Result.Err("`trimPaths` of `{name}` must be true or false")
+            }
+            profile.trimPaths = doc.bool(item)
         } else if key != "inherits" {
             return Result.Err("the profile `{name}` has an unknown key `{key}`")
         }

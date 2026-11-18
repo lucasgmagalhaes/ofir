@@ -114,6 +114,7 @@ fn printUsage() {
              + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
              + "  --no-cache                compile every unit, without the object cache\n"
              + "  -g                        write debug info (DWARF: functions, lines)\n"
+             + "  --trim-paths              debug info without the build's directories\n"
              + "  --coverage                count executed lines for gcov (implies -g)\n"
              + "  --watch                   run the command again when a source changes\n"
              + "  --deny-warnings           treat warnings as errors\n"
@@ -146,6 +147,8 @@ struct Options {
     opt: int
     /** `-g`. */
     debugInfo: bool
+    /** `--trim-paths`: the debug info names logical paths (ADR 0083). */
+    trimPaths: bool
     /** `--coverage`: gcov line counters, with `-g` and without the cache. */
     coverage: bool
     /** `--deny-warnings`. */
@@ -175,8 +178,8 @@ struct Options {
 fn parseOptions(args: &List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
                        stopAfter: "", release: false, profile: "", opt: 0, debugInfo: false,
-                       coverage: false, deny: false, locked: false, offline: false,
-                       oneUnit: false, jobs: 0, testJobs: 0,
+                       trimPaths: false, coverage: false, deny: false, locked: false,
+                       offline: false, oneUnit: false, jobs: 0, testJobs: 0,
                        noCache: false, timePasses: false,
                        format: Format.Human, lib: "", target: ""}
     let hasInput = false
@@ -219,6 +222,8 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.profile = arg.sliceFrom(10).toOwned()
             } else if arg == "-g" {
                 opts.debugInfo = true
+            } else if arg == "--trim-paths" {
+                opts.trimPaths = true
             } else if arg == "--coverage" {
                 opts.coverage = true
                 opts.debugInfo = true
@@ -459,6 +464,7 @@ fn build(given: move Options) int {
             opts.release = p.release
             opts.opt = p.opt
             opts.debugInfo = opts.debugInfo || p.debugInfo
+            opts.trimPaths = opts.trimPaths || p.trimPaths
         }
         Result.Err(message) => {
             driverError(opts.format, "E0918", message)
@@ -607,7 +613,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         const ll = "{exe}.ll"
         files.push(ll.clone())
         phaseStart = timerStart(opts.timePasses)
-        const text = generate(c, program, &l.out, opts.debugInfo, opts.release)
+        const text = generate(c, program, &l.out, opts.debugInfo, opts.trimPaths, opts.release)
         timerReport(opts.timePasses, "codegen", phaseStart)
         phaseStart = timerStart(opts.timePasses)
         const salt = if opts.noCache || opts.emit == "llvm" {
@@ -625,7 +631,8 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         timerReport(opts.timePasses, "cache+write", phaseStart)
     } else {   // a module for each codegen unit (ADR 0033)
         phaseStart = timerStart(opts.timePasses)
-        const units = generateUnits(c, program, &l.out, opts.debugInfo, opts.release)
+        const units = generateUnits(c, program, &l.out, opts.debugInfo, opts.trimPaths,
+                                    opts.release)
         timerReport(opts.timePasses, "codegen", phaseStart)
         phaseStart = timerStart(opts.timePasses)
         let hashNanos: i64 = 0
@@ -969,8 +976,11 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, native: &List<str
     args.push(exe.toOwned())
     // The main thread gets 32 MiB: the Windows ABI's 32-byte shadow space
     // makes a frame about twice its size on Linux, whose stack is 8 MiB.
+    // The PE header gets no link time, so the same inputs give the same
+    // bytes (ADR 0083).
     if windowsTarget(opts) {
         args.push("-Wl,--stack,33554432".toOwned())
+        args.push("-Wl,--no-insert-timestamp".toOwned())
     }
     return match os.spawn(clang, args) {
         Result.Ok(child) => finishClang(opts, clang, child, quiet)
