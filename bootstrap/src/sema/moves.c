@@ -333,11 +333,12 @@ static bool builds_value(Checker *c, const Expr *call) {
     return kind == DEF_STRUCT || kind == DEF_VARIANT;
 }
 
-// An aggregate moves its parts in.
+// An aggregate moves its parts in; an `if`, a `match` or a block, its tails.
 void note_aggregate(Checker *c, const Expr *e) {
     bool aggregate = e->kind == EXPR_STRUCT || e->kind == EXPR_TUPLE || e->kind == EXPR_ARRAY ||
                      e->kind == EXPR_ARRAY_REPEAT || e->kind == EXPR_VARIANT ||
-                     e->kind == EXPR_TRY ||
+                     e->kind == EXPR_TRY || e->kind == EXPR_IF || e->kind == EXPR_MATCH ||
+                     e->kind == EXPR_BLOCK || e->kind == EXPR_UNSAFE ||
                      (e->kind == EXPR_BINARY && e->as.binary.op == OP_COALESCE) ||
                      (e->kind == EXPR_CALL && builds_value(c, e));
     if (aggregate) {
