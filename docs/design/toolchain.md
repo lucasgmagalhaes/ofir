@@ -16,6 +16,7 @@ A single executable provides every tool:
 | `ofir doc [-o dir] [--stdout] [--private] [paths]` | generate HTML documentation (below) |
 | `ofir metadata <file.of>` | print the modules of a program as JSON (below) |
 | `ofir sbom [--format=cyclonedx\|spdx]` | print the project's bill of materials (below) |
+| `ofir audit [--offline] [--message-format=json]` | check the locked packages against advisories (below) |
 | `ofir explain <code>` | describe an error code |
 | `ofir lsp` | run the language server on standard input and output (below) |
 | `ofir version` | print version and LLVM/clang versions in use |
@@ -195,6 +196,7 @@ allowed, the format of `tsconfig.json` (ADR 0026). Keys are camelCase.
   "version": "0.1.0",
   "edition": "2027",
   "license": "MIT OR Apache-2.0",   // an SPDX license expression (ADR 0081)
+  "audit": {"ignore": ["OFIR-2026-0001"]},   // advisories accepted by `ofir audit`
   "build": {
     "kind": "exe",            // "exe" or "lib"
     "root": "src/main.of",
@@ -342,6 +344,22 @@ dependencies is included. The same lock gives the same output: the only
 date is `SOURCE_DATE_EPOCH`'s (SPDX needs one: 1970-01-01 without it), and
 the SPDX namespace is derived from the lock's SHA-256
 (`tools/check_sbom.py`).
+
+`ofir audit` checks each registry package of the lock against the
+advisories of its index (ADR 0081), fetching the index unless
+`--offline`. The index's `advisories/<package file>` (the package's path
+under `advisories/`) has a JSON line per advisory: `id`, `versions`,
+`severity` (`low`, `medium`, `high` or `critical`), `summary`, `url`,
+`aliases` and `withdrawn`. `versions` holds requirements as in
+dependencies, or `<`, `<=` and `>` with a full version, separated by `,`
+when all must hold (`">=1.0.0, <1.4.2"`), and alternatives separated by
+`||`. An advisory that affects a locked version is E0920, with the lowest
+published version that fixes it, and the exit status is 1; one named in
+the root's `audit.ignore` is a note instead. A yanked version in the
+lock is a warning; git packages have no advisories and are noted.
+`--message-format=json` prints the errors and warnings as JSON
+diagnostics. `build`, `fetch` and `update` never check advisories, so
+a later advisory does not break a build (`tools/check_audit.py`).
 The modules of a package are found from the directory of its
 `build.root` (default `src/index.of`), which is the module named like the
 package; a package imports its own modules by their names in it, as a

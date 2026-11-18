@@ -291,8 +291,8 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
         Result.Ok(doc) => {
             const native = doc.at(["build", "native"]) >= 0
             const lints = doc.field(0, "lints") >= 0
-            const license = licenseError(&doc).len() > 0
-            if register && (doc.field(0, "dependencies") >= 0 || lints || native || license) {
+            const invalid = licenseError(&doc).len() > 0 || auditError(&doc).len() > 0
+            if register && (doc.field(0, "dependencies") >= 0 || lints || native || invalid) {
                 return Option.Some((doc, map.add(path, text.clone())))
             }
             return Option.Some((doc, FileId(-1)))
@@ -321,6 +321,31 @@ fn licenseError(doc: &JsonDoc) str {
     return "`license` is not an SPDX license expression: {problem}"
 }
 
+// What is wrong with `audit`: an object whose `ignore` lists advisory ids.
+fn auditError(doc: &JsonDoc) str {
+    const node = doc.field(0, "audit")
+    if node < 0 {
+        return ""
+    }
+    if doc.nodes[node].kind != JsonKind.Object {
+        return "`audit` must be an object, such as `\{\"ignore\": [\"OFIR-2026-0001\"]\}`"
+    }
+    const ignore = doc.field(node, "ignore")
+    if ignore < 0 {
+        return ""
+    }
+    if doc.nodes[ignore].kind != JsonKind.Array {
+        return "`audit.ignore` must be a list of advisory ids"
+    }
+    const ids = doc.elements(ignore)
+    for i in 0..ids.len() {
+        if doc.nodes[ids[i]].kind != JsonKind.String {
+            return "`audit.ignore` must be a list of advisory ids"
+        }
+    }
+    return ""
+}
+
 fn spanOf(doc: &JsonDoc, file: FileId, node: int) Span {
     return Span{file, start: doc.nodes[node].start, end: doc.nodes[node].end}
 }
@@ -347,6 +372,10 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
         const license = licenseError(&doc)
         if license.len() > 0 {
             diags.error("E0910", spanOf(&doc, file, doc.field(0, "license")), license)
+        }
+        const audit = auditError(&doc)
+        if audit.len() > 0 {
+            diags.error("E0910", spanOf(&doc, file, doc.field(0, "audit")), audit)
         }
         checkOverrides(&doc, file, diags)
         const dev = doc.field(0, "devDependencies")

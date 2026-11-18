@@ -195,14 +195,17 @@ int32_t ofir_file_info(const uint8_t *path, int64_t len, int64_t *size, int64_t 
     char *name = ofir_c_string(path, len);
     struct stat info;
     int32_t code = !name ? EINVAL : stat(name, &info) == 0 ? 0 : errno;
-    ofir_free(name);
     *size = code == 0 ? (int64_t)info.st_size : 0;
     *modified = code == 0 ? (int64_t)info.st_mtime * 1000000000 : 0;
 #if defined(__APPLE__)   // st_mtimespec is hidden by _POSIX_C_SOURCE
     *modified += code == 0 ? (int64_t)info.st_mtimensec : 0;
-#elif !defined(_WIN32)
+#elif defined(_WIN32)
+    int64_t precise = code == 0 ? ofir_w_mtime(name) : 0;
+    *modified = precise != 0 ? precise : *modified;
+#else
     *modified += code == 0 ? (int64_t)info.st_mtim.tv_nsec : 0;
 #endif
+    ofir_free(name);
     return code;
 }
 

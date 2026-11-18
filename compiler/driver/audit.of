@@ -1,0 +1,296 @@
+/**
+ * @module
+ * `ofir audit [--offline] [--message-format=json]` (ADR 0081): checks each
+ * registry package of `ofir.lock` against the advisories of its index.
+ * The index's `advisories/<package file>` has a JSON line per advisory:
+ * its `id`, the `versions` it affects, `severity`, `summary`, `url`,
+ * `aliases` and whether it was `withdrawn`. A match is E0920 and the exit
+ * status is 1, unless the root's `"audit": {"ignore": [...]}` names the
+ * advisory; a yanked version in the lock is a warning.
+ */
+
+import base.span.SourceMap
+import diag.Diagnostics
+import diag.Format
+import diag.Severity
+import diag.jsonNoSource
+import driver.git.fileAt
+import driver.git.repository
+import driver.packages.readPackages
+import driver.registry.Release
+import driver.registry.indexPath
+import driver.registry.releases
+import driver.resolve.Mode
+import driver.resolve.resolve
+import driver.semver.Version
+import driver.semver.parseRequirement
+import driver.semver.parseVersion
+import lsp.json.JsonDoc
+import lsp.json.parseJson
+import lsp.json.parseJsonc
+import std.fs
+
+/**
+ * Runs `ofir audit`.
+ *
+ * @param args the arguments after the command
+ * @returns the exit code
+ */
+pub fn auditCommand(args: List<str>) int {
+    let offline = false
+    let format = Format.Human
+    for i in 0..args.len() {
+        if args[i] == "--offline" {
+            offline = true
+        } else if args[i] == "--message-format=json" {
+            format = Format.Json
+        } else {
+            eprintln("error: unexpected argument `{args[i]}` for `audit`")
+            eprintln("usage: ofir audit [--offline] [--message-format=json]")
+            return 2
+        }
+    }
+    if !fs.exists("ofir.json") {
+        eprintln("error: `audit` needs an `ofir.json` in the current directory")
+        return 2
+    }
+    const dir = fs.canonicalize(".").ok() ?? "."
+    const mode = Mode{update: false, only: "", locked: true, offline, dev: true, os: ""}
+    let map = SourceMap.new()
+    let diags = Diagnostics.new()
+    readPackages(dir, true, &mode, map, diags)
+    if diags.hasErrors() {
+        eprint(diags.render(map, format))
+        return 1
+    }
+    const ignored = ignoreList(dir)
+    const r = resolve(dir, &mode)
+    let report = Report{format, matches: 0, ignored: 0, checked: 0, failed: 0}
+    for i in 0..r.pins.len() {
+        const pin = &r.pins[i]
+        if pin.registry.len() == 0 {
+            report.note("`{pin.name}` comes from git (`{pin.url}`): it has no advisories")
+            continue
+        }
+        const Result.Ok(index) = repository(pin.registry, !offline) else {
+            report.say(Severity.Error, "", "cannot read the index `{pin.registry}`")
+            report.failed += 1
+            continue
+        }
+        const Option.Some(version) = parseVersion(pin.version) else {
+            continue
+        }
+        report.checked += 1
+        const known = releases(index, pin.name) ?? []
+        if isYanked(&known, version) {
+            report.say(Severity.Warning, "", "`{pin.name}` {pin.version} is yanked")
+        }
+        const text = fileAt(index, "advisories/{indexPath(pin.name)}") ?? ""
+        for line in text.lines() {
+            const Option.Some(doc) = parseJson(line.trim()) else {
+                continue
+            }
+            if doc.bool(doc.field(0, "withdrawn")) {
+                continue
+            }
+            const id = doc.text(doc.field(0, "id"))
+            const versions = doc.text(doc.field(0, "versions"))
+            const Option.Some(hit) = affects(versions, version) else {
+                report.note("the advisory {id} has invalid `versions`: `{versions}`")
+                continue
+            }
+            if hit {
+                report.advisory(&doc, pin.name, version, &known, holds(&ignored, id))
+            }
+        }
+    }
+    const status = if report.matches + report.failed > 0 { 1 } else { 0 }
+    if format == Format.Human {
+        let summary = "audit: {report.checked} registry packages checked, "
+        summary.push("{report.matches} advisories")
+        if report.ignored > 0 {
+            summary.push(", {report.ignored} ignored")
+        }
+        eprintln(summary)
+    }
+    return status
+}
+
+// What `ofir audit` prints, and what it found.
+struct Report {
+    format: Format
+    // The advisories that match.
+    matches: int
+    // The indexes that could not be read.
+    failed: int
+    // The advisories that match and are ignored.
+    ignored: int
+    // The registry packages checked.
+    checked: int
+
+    // Prints a match of the advisory `doc` with `name` at `version`.
+    fn advisory(mut self, doc: &JsonDoc, name: str, version: Version, known: &List<Release>,
+                ignore: bool) {
+        const id = doc.text(doc.field(0, "id"))
+        let message = "`{name}` {version.text()} is affected by {id}"
+        const severity = doc.text(doc.field(0, "severity"))
+        if severity.len() > 0 {
+            message.push(" ({severity})")
+        }
+        const summary = doc.text(doc.field(0, "summary"))
+        if summary.len() > 0 {
+            message.push(": {summary}")
+        }
+        const fixed = fixedIn(doc.text(doc.field(0, "versions")), version, known)
+        if fixed.len() > 0 {
+            message.push("; fixed in {fixed}")
+        } else {
+            message.push("; no version fixes it yet")
+        }
+        const url = doc.text(doc.field(0, "url"))
+        if url.len() > 0 {
+            message.push("; see {url}")
+        }
+        if ignore {
+            self.ignored += 1
+            self.note("{message} (ignored by `audit.ignore`)")
+            return
+        }
+        self.matches += 1
+        self.say(Severity.Error, "E0920", message)
+    }
+
+    // Prints a note, which only the human format shows.
+    fn note(self, message: str) {
+        if self.format == Format.Human {
+            eprintln("note: {message}")
+        }
+    }
+
+    // Prints an error or a warning.
+    fn say(self, severity: Severity, code: str, message: str) {
+        if self.format == Format.Json {
+            eprint(jsonNoSource(severity, code, message))
+            return
+        }
+        const word = if severity == Severity.Error { "error" } else { "warning" }
+        if code.len() > 0 {
+            eprintln("{word}[{code}]: {message}")
+        } else {
+            eprintln("{word}: {message}")
+        }
+    }
+}
+
+// The advisories the root accepts: `audit.ignore` of its `ofir.json`.
+fn ignoreList(dir: str) List<str> {
+    let out: List<str> = []
+    const Result.Ok(doc) = parseJsonc(fs.readToString("{dir}/ofir.json").ok() ?? "\{\}") else {
+        return out
+    }
+    const list = doc.elements(doc.at(["audit", "ignore"]))
+    for i in 0..list.len() {
+        out.push(doc.text(list[i]))
+    }
+    return out
+}
+
+/**
+ * Whether the `versions` of an advisory take in `v`: requirements as in
+ * dependencies, or `<`, `<=` and `>` with a full version, all of which
+ * must hold when separated by `,`; alternatives separated by `||`.
+ *
+ * @param versions the advisory's `versions`
+ * @param v a version
+ * @returns whether `v` is affected, or `None` if `versions` is invalid
+ */
+pub fn affects(versions: str, v: Version) Option<bool> {
+    if versions.trim().len() == 0 {
+        return Option.None
+    }
+    let any = false
+    for alternative in versions.split("||") {
+        let all = true
+        for part in alternative.split(",") {
+            const Option.Some(ok) = holdsFor(part.trim(), v) else {
+                return Option.None
+            }
+            all = all && ok
+        }
+        any = any || all
+    }
+    return Option.Some(any)
+}
+
+// Whether `v` meets one requirement; `None` if it is not one.
+fn holdsFor(part: str, v: Version) Option<bool> {
+    let skip = 0
+    let want = 0
+    if part.startsWith("<=") {
+        skip = 2
+        want = 1
+    } else if part.startsWith("<") {
+        skip = 1
+        want = 2
+    } else if part.startsWith(">") && !part.startsWith(">=") {
+        skip = 1
+        want = 3
+    }
+    if want == 0 {
+        const Option.Some(req) = parseRequirement(part) else {
+            return Option.None
+        }
+        return Option.Some(req.matches(v))
+    }
+    const Option.Some(bound) = parseVersion(part.sliceFrom(skip).trim()) else {
+        return Option.None
+    }
+    const order = v.compare(bound)
+    if want == 1 {
+        return Option.Some(order <= 0)
+    }
+    if want == 2 {
+        return Option.Some(order < 0)
+    }
+    return Option.Some(order > 0)
+}
+
+// The lowest version above `v` that is published, not yanked and not
+// affected; empty if there is none.
+fn fixedIn(versions: str, v: Version, known: &List<Release>) str {
+    let best = -1
+    for i in 0..known.len() {
+        const r = &known[i]
+        if r.yanked || r.version.compare(v) <= 0 {
+            continue
+        }
+        if affects(versions, r.version) ?? true {
+            continue
+        }
+        if best < 0 || r.version.compare(known[best].version) < 0 {
+            best = i
+        }
+    }
+    if best < 0 {
+        return ""
+    }
+    return known[best].version.text()
+}
+
+fn isYanked(known: &List<Release>, v: Version) bool {
+    for i in 0..known.len() {
+        if known[i].yanked && known[i].version.compare(v) == 0 {
+            return true
+        }
+    }
+    return false
+}
+
+fn holds(list: &List<str>, text: str) bool {
+    for i in 0..list.len() {
+        if list[i] == text {
+            return true
+        }
+    }
+    return false
+}
