@@ -21,6 +21,7 @@ typedef struct {
 
 typedef struct {
     StrView path;
+    StrView logical;   // for panic locations and `source_filename` (ADR 0083)
     StrView text;
     uint32_t *line_starts;   // byte offset where each line begins
     uint32_t line_count;
@@ -48,6 +49,9 @@ FileId source_map_add(SourceMap *map, StrView path, StrView text);
 bool source_map_load(SourceMap *map, const char *path, FileId *out);
 
 const SourceFile *source_file(const SourceMap *map, FileId id);
+
+// Sets the logical path of a file (copied into the arena).
+void source_set_logical(SourceMap *map, FileId id, StrView logical);
 LineCol source_line_col(const SourceMap *map, FileId id, uint32_t offset);
 
 // The text of line `line` (1-based), without its line terminator.

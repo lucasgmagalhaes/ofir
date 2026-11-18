@@ -50,6 +50,8 @@ import driver.publish.yankCommand
 import fmt.fmtCommand
 import driver.modules.Front
 import driver.object_cache
+import driver.record.RecordInputs
+import driver.record.buildRecord
 import driver.modules.loadProgram
 import driver.repl.replCommand
 import driver.watch.wantsWatch
@@ -114,6 +116,8 @@ fn printUsage() {
              + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
              + "  --no-cache                compile every unit, without the object cache\n"
              + "  -g                        write debug info (DWARF: functions, lines)\n"
+             + "  --trim-paths              debug info without the build's directories\n"
+             + "  --record=FILE             write the build's inputs and hashes to FILE\n"
              + "  --coverage                count executed lines for gcov (implies -g)\n"
              + "  --watch                   run the command again when a source changes\n"
              + "  --deny-warnings           treat warnings as errors\n"
@@ -146,6 +150,8 @@ struct Options {
     opt: int
     /** `-g`. */
     debugInfo: bool
+    /** `--trim-paths`: the debug info names logical paths (ADR 0083). */
+    trimPaths: bool
     /** `--coverage`: gcov line counters, with `-g` and without the cache. */
     coverage: bool
     /** `--deny-warnings`. */
@@ -170,15 +176,17 @@ struct Options {
     lib: str
     /** `--target=<triple>` other than the host's, or "" (ADR 0066). */
     target: str
+    /** `--record=FILE`: where to write the build record, or "" (ADR 0083). */
+    record: str
 }
 
 fn parseOptions(args: &List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
                        stopAfter: "", release: false, profile: "", opt: 0, debugInfo: false,
-                       coverage: false, deny: false, locked: false, offline: false,
-                       oneUnit: false, jobs: 0, testJobs: 0,
+                       trimPaths: false, coverage: false, deny: false, locked: false,
+                       offline: false, oneUnit: false, jobs: 0, testJobs: 0,
                        noCache: false, timePasses: false,
-                       format: Format.Human, lib: "", target: ""}
+                       format: Format.Human, lib: "", target: "", record: ""}
     let hasInput = false
     let i = 2
     for i < args.len() {
@@ -219,6 +227,8 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.profile = arg.sliceFrom(10).toOwned()
             } else if arg == "-g" {
                 opts.debugInfo = true
+            } else if arg == "--trim-paths" {
+                opts.trimPaths = true
             } else if arg == "--coverage" {
                 opts.coverage = true
                 opts.debugInfo = true
@@ -235,6 +245,8 @@ fn parseOptions(args: &List<str>) Option<Options> {
                 opts.timePasses = true
             } else if arg == "--lib=static" || arg == "--lib=shared" {
                 opts.lib = arg.sliceFrom(6).toOwned()
+            } else if arg.startsWith("--record=") {
+                opts.record = arg.sliceFrom(9).toOwned()
             } else if arg.startsWith("--target=") {
                 opts.target = arg.sliceFrom(9).toOwned()
                 if !knownTarget(opts.target) {
@@ -463,6 +475,7 @@ fn build(given: move Options) int {
             opts.release = p.release
             opts.opt = p.opt
             opts.debugInfo = opts.debugInfo || p.debugInfo
+            opts.trimPaths = opts.trimPaths || p.trimPaths
         }
         Result.Err(message) => {
             driverError(opts.format, "E0918", message)
@@ -549,7 +562,55 @@ fn build(given: move Options) int {
         timerReport(opts.timePasses, "total", totalStart)
         return 1
     }
+    if opts.record.len() > 0 && !c.r.diags.hasErrors() {
+        if !writeRecord(&opts, &pipeline, &c.r.map) {
+            return 1
+        }
+    }
     return finish(c.r.diags, c.r.map, &pipeline)
+}
+
+// Writes `--record=FILE`: the inputs of the build and the hashes of what it
+// wrote (ADR 0083). Returns false if the file cannot be written.
+fn writeRecord(opts: &Options, pipeline: &Pipeline, map: &SourceMap) bool {
+    let artifacts: List<str> = []
+    if opts.emit == "llvm" {
+        artifacts.push("{outputPath(opts)}.ll")
+    } else if pipeline.exe.len() > 0 {
+        artifacts.push(pipeline.exe.clone())
+        if opts.lib.len() > 0 {
+            artifacts.push("{directoryOf(pipeline.exe)}{inputBase(opts)}.h")
+        }
+    }
+    let flags: List<str> = []
+    if opts.release {
+        flags.push("--release")
+    }
+    flags.push("-O{opts.opt}")
+    if opts.debugInfo {
+        flags.push("-g")
+    }
+    if opts.trimPaths {
+        flags.push("--trim-paths")
+    }
+    if opts.coverage {
+        flags.push("--coverage")
+    }
+    if opts.lib.len() > 0 {
+        flags.push("--lib={opts.lib}")
+    }
+    if opts.emit.len() > 0 {
+        flags.push("--emit={opts.emit}")
+    }
+    const inputs = RecordInputs{ofir: VERSION.toOwned(), clang: clangPath(),
+                                target: opts.target.clone(), profile: opts.profile.clone(),
+                                flags, input: opts.input.clone(),
+                                runtime: runtimeLibrary() ?? ""}
+    if fs.writeString(opts.record, buildRecord(&inputs, map, &artifacts)).isErr() {
+        driverError(opts.format, "E0902", "cannot write `{opts.record}`")
+        return false
+    }
+    return true
 }
 
 // Stops the compiler on a malformed body (air/validate.of), with the body:
@@ -611,7 +672,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         const ll = "{exe}.ll"
         files.push(ll.clone())
         phaseStart = timerStart(opts.timePasses)
-        const text = generate(c, program, &l.out, opts.debugInfo, opts.release)
+        const text = generate(c, program, &l.out, opts.debugInfo, opts.trimPaths, opts.release)
         timerReport(opts.timePasses, "codegen", phaseStart)
         phaseStart = timerStart(opts.timePasses)
         const salt = if opts.noCache || opts.emit == "llvm" {
@@ -629,7 +690,8 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         timerReport(opts.timePasses, "cache+write", phaseStart)
     } else {   // a module for each codegen unit (ADR 0033)
         phaseStart = timerStart(opts.timePasses)
-        const units = generateUnits(c, program, &l.out, opts.debugInfo, opts.release)
+        const units = generateUnits(c, program, &l.out, opts.debugInfo, opts.trimPaths,
+                                    opts.release)
         timerReport(opts.timePasses, "codegen", phaseStart)
         phaseStart = timerStart(opts.timePasses)
         let hashNanos: i64 = 0
@@ -706,7 +768,9 @@ fn archive(opts: &Options, files: &List<str>, cached: &List<str>, lib: str) bool
     let ok = compileUnits(opts, clang, files, cached, object_cache.tempTag(lib), objects, hits)
     if ok {
         const _ = fs.removeFile(lib)   // `ar r` adds to an archive that exists
-        let args = ["rcs".toOwned(), lib.clone()]
+        // `D`: no times or owners in the archive (ADR 0083); macOS's ar has no `D`.
+        const flags = if hostTriple().contains("apple") { "rcs" } else { "rcsD" }
+        let args = [flags.toOwned(), lib.clone()]
         for i in 0..objects.len() {
             args.push(objects[i].clone())
         }
@@ -973,8 +1037,16 @@ fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, native: &List<str
     args.push(exe.toOwned())
     // The main thread gets 32 MiB: the Windows ABI's 32-byte shadow space
     // makes a frame about twice its size on Linux, whose stack is 8 MiB.
+    // The PE header gets no link time, so the same inputs give the same
+    // bytes (ADR 0083).
     if windowsTarget(opts) {
         args.push("-Wl,--stack,33554432".toOwned())
+        args.push("-Wl,--no-insert-timestamp".toOwned())
+    }
+    // A Mach-O debug map names the temporary objects clang linked, and
+    // their times: `--trim-paths` leaves it out (ADR 0083).
+    if opts.trimPaths && targetOs(opts.target) == "macos" {
+        args.push("-Wl,-S".toOwned())
     }
     return match os.spawn(clang, args) {
         Result.Ok(child) => finishClang(opts, clang, child, quiet)

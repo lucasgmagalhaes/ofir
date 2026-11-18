@@ -442,6 +442,61 @@ pub fn projectDir(input: str) Option<str> {
     }
 }
 
+// The canonical form of `path`, or "" when it cannot be found.
+fn canonical(path: str) str {
+    const Result.Ok(full) = fs.canonicalize(path) else {
+        return ""
+    }
+    return full
+}
+
+// `file` (canonical) relative to the canonical directory `dir`, with
+// `prefix` before it, if it is inside it.
+fn under(file: str, dir: str, prefix: str) Option<str> {
+    if dir.len() == 0 || !file.startsWith("{dir}/") {
+        return Option.None
+    }
+    return Option.Some("{prefix}{file.sliceFrom(dir.len() + 1)}")
+}
+
+// The logical paths of the files read (ADR 0083): `std/<path>` in the
+// standard library, `<name>-<version>/<path>` in a dependency (the name of
+// its directory in the cache), and relative to the root directory in the
+// project; any other file keeps its path.
+fn setLogicalPaths(ld: Loader, map: mut SourceMap) {
+    const std = match ld.stdDir.clone() {
+        Option.Some(dir) => canonical(dir),
+        Option.None => "",
+    }
+    let deps: List<str> = []
+    let dirs: List<str> = []
+    for p in 1..ld.packages.len() {
+        const dir = ld.packages[p].dir.clone()
+        const slash = lastSlash(dir)
+        deps.push("{dir.sliceFrom(slash + 1)}/")
+        dirs.push(canonical(dir))
+    }
+    const root = canonical(ld.rootDir)
+    for i in 0..map.len() {
+        const file = canonical(map.file(FileId(i)).path)
+        if file.len() == 0 {
+            continue
+        }
+        let logical = under(file, std, "std/")
+        for d in 0..dirs.len() {
+            if logical.isNone() {
+                logical = under(file, dirs[d], deps[d])
+            }
+        }
+        if logical.isNone() {
+            logical = under(file, root, "")
+        }
+        if const Option.Some(path) = logical {
+            map.setLogical(FileId(i), path)
+        }
+    }
+}
+
 // The standard library: `$OFIR_STD`, or installed next to the compiler.
 fn findStd() Option<str> {
     if const Option.Some(given) = os.env("OFIR_STD") {
@@ -542,6 +597,7 @@ pub fn loadProgram(input: str, root: move Module, front: mut Front,
             }
         }
     }
+    setLogicalPaths(ld, front.map)
     let program = newProgram(ld.modules)
     for p in 0..ld.packages.len() {
         for i in 0..ld.packages[p].native.len() {

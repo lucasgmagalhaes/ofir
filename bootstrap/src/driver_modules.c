@@ -203,6 +203,44 @@ static StrView root_module_name(Loader *ld, const char *input, bool in_project) 
     return root_name(ld, input);
 }
 
+// `file` (canonical) relative to the canonical directory `dir`, with
+// `prefix` before it, into `out`, if it is inside it.
+static bool under(const char *file, const char *dir, const char *prefix, char *out) {
+    size_t n = strlen(dir);
+    if (n == 0 || strncmp(file, dir, n) != 0 || file[n] != '/') {
+        return false;
+    }
+    return snprintf(out, PLATFORM_PATH_SIZE, "%s%s", prefix, file + n + 1) <
+           PLATFORM_PATH_SIZE;
+}
+
+// The logical paths of the files read (ADR 0083): `std/<path>` in the
+// standard library and relative to the root directory in the project; any
+// other file keeps its path.
+static void set_logical_paths(Loader *ld) {
+    char std[PLATFORM_PATH_SIZE] = "", root[PLATFORM_PATH_SIZE] = "";
+    if (ld->has_std && !platform_realpath(ld->std_dir, std)) {
+        std[0] = '\0';
+    }
+    if (!platform_realpath(ld->root_dir, root)) {
+        root[0] = '\0';
+    }
+    SourceMap *map = &ld->p->session->sources;
+    for (uint32_t i = 0; i < map->count; i++) {
+        char path[PLATFORM_PATH_SIZE], file[PLATFORM_PATH_SIZE], logical[PLATFORM_PATH_SIZE];
+        StrView given = map->files[i].path;
+        if (given.len >= sizeof path) {
+            continue;
+        }
+        memcpy(path, given.ptr, given.len);
+        path[given.len] = '\0';
+        if (platform_realpath(path, file) &&
+            (under(file, std, "std/", logical) || under(file, root, "", logical))) {
+            source_set_logical(map, (FileId){i}, sv_from_cstr(logical));
+        }
+    }
+}
+
 Program load_program(Pipeline *p, Module *root) {
     Loader ld = {.p = p};
     const char *slash = strrchr(p->opts->input, '/');
@@ -229,6 +267,7 @@ Program load_program(Pipeline *p, Module *root) {
             }
         }
     }
+    set_logical_paths(&ld);
     Program program = {.len = (uint32_t)ld.modules.len};
     program.items = ARENA_ARRAY(&p->session->arena, ProgramModule, ld.modules.len);
     memcpy(program.items, ld.modules.data, ld.modules.len * sizeof(ProgramModule));

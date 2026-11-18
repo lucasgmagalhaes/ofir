@@ -23,8 +23,18 @@ else
 all: $(BUILD)/libofir_rt.a
 endif
 
+# The archive is the same bytes on every build (ADR 0083): no member
+# times, owners or modes. macOS's ar has no `D` and reads ZERO_AR_DATE.
+ifeq ($(shell uname -s 2>/dev/null),Darwin)
+AR_FLAGS := rcs
+else
+AR_FLAGS := rcsD
+endif
+export ZERO_AR_DATE := 1
+
 $(BUILD)/libofir_rt.a: $(OBJS)
-	$(AR) rcs $@ $^
+	rm -f $@
+	$(AR) $(AR_FLAGS) $@ $^
 
 $(BUILD)/runtime/%.o: src/%.c
 	@mkdir -p $(dir $@)

@@ -1,0 +1,124 @@
+/**
+ * @module
+ * `ofir build --record=FILE` (ADR 0083): a JSON document of the inputs of
+ * a build and the SHA-256 of each artifact it wrote. Paths in it are
+ * logical (the sources) or base names (the artifacts), so two builds of the
+ * same inputs in different directories write the same bytes.
+ */
+
+import base.span.FileId
+import base.span.SourceMap
+import diag.jsonString
+import driver.modules.projectDir
+import driver.resolve.workspaceRoot
+import driver.sha256.Sha256
+import std.fs
+import std.os
+
+/** What a record holds besides the sources and the artifacts. */
+pub struct RecordInputs {
+    /** The compiler's version. */
+    pub ofir: str
+    /** The clang program, whose `--version` is recorded. */
+    pub clang: str
+    /** `--target`, or "" for the host. */
+    pub target: str
+    /** The selected profile. */
+    pub profile: str
+    /** The flags that change the output, in a fixed order. */
+    pub flags: List<str>
+    /** The root file, whose project's `ofir.lock` is recorded. */
+    pub input: str
+    /** The runtime library, or "" if it was not found. */
+    pub runtime: str
+}
+
+/**
+ * The record of a build.
+ *
+ * @param inputs the inputs besides the sources
+ * @param map the source files the build read
+ * @param artifacts the files the build wrote
+ * @returns the JSON document, ending in a newline
+ */
+pub fn buildRecord(inputs: &RecordInputs, map: &SourceMap, artifacts: &List<str>) str {
+    let out = "\{\n"
+    out.push("  \"ofir\": {jsonString(inputs.ofir)},\n")
+    out.push("  \"clang\": {jsonString(clangVersion(inputs.clang))},\n")
+    const target = if inputs.target.len() > 0 { inputs.target.clone() } else { "host".toOwned() }
+    out.push("  \"target\": {jsonString(target)},\n")
+    out.push("  \"profile\": {jsonString(inputs.profile)},\n")
+    out.push("  \"flags\": [")
+    for i in 0..inputs.flags.len() {
+        out.push(if i > 0 { ", " } else { "" })
+        out.push(jsonString(inputs.flags[i]))
+    }
+    out.push("],\n")
+    out.push("  \"env\": \{")
+    if const Option.Some(epoch) = os.env("SOURCE_DATE_EPOCH") {
+        out.push("\"SOURCE_DATE_EPOCH\": {jsonString(epoch)}")
+    }
+    out.push("\},\n")
+    out.push("  \"runtime\": {jsonString(fileHash(inputs.runtime))},\n")
+    out.push("  \"lock\": {jsonString(lockHash(inputs.input))},\n")
+    out.push("  \"sources\": [")
+    for i in 0..map.len() {
+        const file = map.file(FileId(i))
+        let h = Sha256.new()
+        h.updateText(file.text)
+        out.push(if i > 0 { "," } else { "" })
+        out.push("\n    \{\"path\": {jsonString(file.logical)}, ")
+        out.push("\"sha256\": {jsonString(h.finish())}\}")
+    }
+    out.push("\n  ],\n")
+    out.push("  \"artifacts\": [")
+    for i in 0..artifacts.len() {
+        out.push(if i > 0 { "," } else { "" })
+        out.push("\n    \{\"path\": {jsonString(baseName(artifacts[i]))}, ")
+        out.push("\"sha256\": {jsonString(fileHash(artifacts[i]))}\}")
+    }
+    out.push("\n  ]\n\}\n")
+    return out
+}
+
+// The first line of `clang --version`, or "" if it does not run.
+fn clangVersion(clang: str) str {
+    const Result.Ok(run) = os.run(clang, ["--version"]) else {
+        return ""
+    }
+    const text = run.stdout
+    const end = text.find("\n") ?? text.len()
+    return text.slice(0, end).toOwned()
+}
+
+// The SHA-256 of a file, or "" if it cannot be read.
+fn fileHash(path: str) str {
+    if path.len() == 0 {
+        return ""
+    }
+    const Result.Ok(data) = fs.read(path) else {
+        return ""
+    }
+    let h = Sha256.new()
+    h.update(&data)
+    return h.finish()
+}
+
+// The SHA-256 of the project's `ofir.lock`, or "" if it has none.
+fn lockHash(input: str) str {
+    const Option.Some(dir) = projectDir(input) else {
+        return ""
+    }
+    return fileHash("{workspaceRoot(dir)}/ofir.lock")
+}
+
+// The last component of a path.
+fn baseName(path: str) str {
+    let start = 0
+    for i in 0..path.len() {
+        if path[i] == b'/' || path[i] == b'\\' {
+            start = i + 1
+        }
+    }
+    return path.sliceFrom(start).toOwned()
+}

@@ -422,6 +422,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.29d | Registry publishing (ADR 0079): the git index is the registry, `ofir package`, `ofir publish [--index DIR] [--dry-run]` and `ofir yank [--undo]` commit to a clone of it, immutable versions, flat names owned through the index host, mirrors checked by checksums; E0919; `tools/check_publish.py` | OFIR-67 | **done** |
 | 6.29e | Supply-chain integrity (ADR 0081): SPDX `license` (required to publish) and `ofir sbom` (CycloneDX, SPDX), index advisories with `ofir audit` and `audit.ignore` (E0920), manifest `trust` roots (E0921) and the index commits pinned in `ofir.lock`, a rewritten index is E0922 until `ofir update --index-reset`; `tools/check_sbom.py`, `check_audit.py`, `check_trust.py` | OFIR-68 | **done** |
 | 6.29f | Installation and toolchains (ADR 0082): `make dist` builds a reproducible `ofir-<version>-<target>.tar.gz` with its `.sha256`; `install.sh` installs into a prefix with checksums, keeps every version, `--use` rolls back, `--uninstall`; the manifest's `toolchain` (E0923); the release attaches the archives and `SHA256SUMS`; `tools/check_install.py` | OFIR-69 | **done** |
+| 6.29g | Reproducible builds (ADR 0083): logical source paths in panic locations and, with `--trim-paths` (or `trimPaths`), in debug info; deterministic runtime archive and Windows link; `ofir build --record=FILE` writes the inputs and SHA-256 of each artifact; `tools/check_reproducible.py` builds twice in different directories and compares the bytes | OFIR-70 | **done** |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
@@ -468,7 +469,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue 6.29 with OFIR-70; OFIR-64 to OFIR-69 are done as 6.29a to 6.29f.
+1. Continue 6.29 with OFIR-71; OFIR-64 to OFIR-70 are done as 6.29a to 6.29g.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
