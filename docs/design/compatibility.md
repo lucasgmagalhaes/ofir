@@ -7,8 +7,9 @@ none.
 
 ## Versions
 
-- The compiler's version is `VERSION` in `compiler/main.of`, printed by
-  `ofir version`; `make seed` names the seed after it (docs/bootstrap.md).
+- The compiler's version is `VERSION` in `compiler/driver/version.of`,
+  printed by `ofir version`; `make seed` names the seed after it
+  (docs/bootstrap.md).
 - `std` and the runtime ship with the compiler and carry its version. A
   program uses the `std` of the compiler that builds it; there is no
   separate `std` version to require.
