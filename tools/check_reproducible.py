@@ -56,7 +56,8 @@ def build(compiler, root, mtime, umask):
     """Builds the project under `root`; returns {artifact name: bytes}."""
     util = root / "util"
     app = root / "app"
-    write(util / "ofir.json", '{"name": "util", "version": "1.2.0", "license": "MIT"}\n', mtime)
+    write(util / "ofir.json", '{"name": "util", "version": "1.2.0", "license": "MIT", '
+          '"build": {"kind": "lib"}}\n', mtime)
     write(util / "src" / "index.of", UTIL, mtime)
     write(app / "ofir.json", '{"name": "app", "version": "0.1.0", "license": "MIT", '
           '"dependencies": {"util": {"path": "../util"}}}\n', mtime)
@@ -77,6 +78,7 @@ def build(compiler, root, mtime, umask):
         return result
 
     out = app / "out"
+    out.mkdir()
     ofir("build", "src/main.of", "-g", "--trim-paths", "--emit=llvm", "-o", "out/ll")
     ofir("build", "src/main.of", "-g", "--trim-paths", "--record=out/record.json",
          "-o", "out/app")
