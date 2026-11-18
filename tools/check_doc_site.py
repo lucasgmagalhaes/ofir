@@ -121,12 +121,19 @@ def check(compiler, work):
         expect(search, entry, "search.js")
     refuse(search, '"helper"', "search.js")
     expect(search, "getElementById(\"search\")", "search.js")
+    expect(search, "No matching declarations.", "search.js")
+    expect(search, "link.textContent =", "search.js")
+    refuse(search, "item.innerHTML", "search.js")
 
     pages = {name: (out / f"{name}.html").read_text() for name in ["index", "units", "geometry"]}
     for name, page in pages.items():
         expect(page, '<script src="search.js" defer></script>', f"{name}.html")
         expect(page, 'id="search"', f"{name}.html")
         expect(page, "shapes 1.2.0", f"{name}.html")
+        expect(page, 'name="viewport"', f"{name}.html")
+        expect(page, '<main id="content">', f"{name}.html")
+        expect(page, 'href="#content">Skip to content</a>', f"{name}.html")
+        expect(page, 'for="search">Search documentation</label>', f"{name}.html")
     for name, text in [*pages.items(), ("search.js", search)]:
         if re.search(r"(src|href)=\"(https?:)?//", text) or "@import" in text:
             fail(f"{name} refers to the network")
