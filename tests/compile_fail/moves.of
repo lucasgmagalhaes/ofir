@@ -77,3 +77,17 @@ struct Guarded {
 fn fromDropType(g: move Guarded) str {
     return g.name                // error[E0602]: cannot move out of a field of `Guarded`, which has a `drop` method: use `mem.replace`
 }
+
+fn show(text: str) {
+}
+
+fn branchMovesPlace(flag: bool) {
+    const a = "a".toOwned()
+    const b = "b".toOwned()
+    show(if flag { a } else { b })
+    println(a)                   // error[E0600]: use of moved value `a`
+}
+
+fn branchFromBorrow(u: &User, flag: bool) {
+    show(if flag { u.name } else { "" })   // error[E0602]: cannot move out of a reference: use `remove`, `swapRemove`, `mem.replace` or `.clone()`
+}
