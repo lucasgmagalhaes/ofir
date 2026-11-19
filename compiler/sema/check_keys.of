@@ -370,7 +370,7 @@ pub fn keyLiteralType(c: mut Checker, e: &Expr) int {
  * @returns `expected`, or ERROR after an error
  */
 pub fn checkKeyLiteral(c: mut Checker, span: Span, name: Symbol, expected: int) int {
-    if contains(&c.types.keyNames(expected), name.0) {
+    if contains(c.types.keyNames(expected), name.0) {
         return expected
     }
     c.error("E0341", span, "the key type `{c.typeName(expected)}` has no key `.{c.text(name)}`")
@@ -466,7 +466,7 @@ pub fn included(c: Checker, key: int, bound: int) bool {
     const names = c.types.keyNames(keys)
     const wanted = c.types.keyNames(bound)
     for i in 0..names.len() {
-        if !contains(&wanted, names[i]) {
+        if !contains(wanted, names[i]) {
             return false
         }
     }

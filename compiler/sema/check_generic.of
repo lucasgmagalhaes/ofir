@@ -750,5 +750,5 @@ fn checkInterfaceBounds(c: mut Checker, p: Program, params: &Generics, i: int,
  * @param span where
  */
 pub fn checkBoundArgs(c: mut Checker, p: Program, inf: &Infer, span: Span) {
-    checkBounds(c, p, &inf.params, &inf.args, span)
+    checkBounds(c, p, &inf.params, inf.args, span)
 }

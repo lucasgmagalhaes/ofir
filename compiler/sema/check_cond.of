@@ -69,14 +69,14 @@ pub fn condType(c: mut Checker, p: Program, test: &TypeExpr, then: &TypeExpr,
         return ERROR
     }
     if decided == 2 {
-        return deferredCond(c, p, test, &parts, &names, then, otherwise)
+        return deferredCond(c, p, test, parts, names, then, otherwise)
     }
     c.condDepth += 1
     let ty = ERROR
     if decided == 0 {
         ty = resolveType(c, p, otherwise)
     } else {
-        ty = thenType(c, p, &names, &binds, then)
+        ty = thenType(c, p, names, binds, then)
     }
     c.condDepth -= 1
     return ty
@@ -109,7 +109,7 @@ fn deferredCond(c: mut Checker, p: Program, test: &TypeExpr, parts: List<int>,
         binds.push(c.types.param(INFER_BASE + i, names[i].0))
     }
     c.deferDepth += 1
-    const thenTy = thenType(c, p, names, &binds, then)
+    const thenTy = thenType(c, p, names, binds, then)
     const elseTy = resolveType(c, p, otherwise)
     c.deferDepth -= 1
     if thenTy == ERROR || elseTy == ERROR {
