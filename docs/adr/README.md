@@ -97,6 +97,7 @@ starts with the same word as the record's status line.
 | [0084](0084-release-engineering.md) | Release engineering: candidates, release branches, compatibility corpus, LLVM range | Proposed |
 | [0085](0085-conformance-cases.md) | Conformance cases and feature interactions | Proposed |
 | [0086](0086-fuzzing-and-differential-testing.md) | Fuzzing, properties and differential testing | Proposed |
+| [0087](0087-sanitizers-leaks-races-and-faults.md) | Sanitizers, leaks, races and fault injection | Proposed |
 
 ## Template
 
