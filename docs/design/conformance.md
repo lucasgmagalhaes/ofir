@@ -49,7 +49,7 @@ for some targets only has a `target:` gap.
 | 1.2 Comments | full | full | `tests/lex/comments.of` `tests/compile_fail/lexer/unterminated_block_comment.of` | - |
 | 1.3 Statement termination | full | full | `tests/lex/newlines.of` `tests/parse/generics_and_newlines.of` `tests/compile_fail/parser/semicolon.of` `tests/compile_fail/parser/leading_operator.of` `tests/run/basics/newlines.of` `tests/compile_fail/parser/else_next_line.of` `tests/compile_fail/parser/brace_next_line.of` | - |
 | 1.4 Identifiers | full | partial | `tests/lex/keywords_and_names.of` `tests/compile_fail/lexer/unexpected_character.of` | planned: the naming convention warning (W0007) |
-| 1.5 Keywords | full | full | `tests/lex/keywords_and_names.of` | untested: no negative case |
+| 1.5 Keywords | full | full | `tests/lex/keywords_and_names.of` `tests/compile_fail/parser/keyword_names.of` | - |
 | 1.6 Operators and punctuation | full | full | `tests/lex/operators.of` `tests/parse/expressions.of` `tests/compile_fail/parser/chained_comparison.of` `tests/compile_fail/parser/leading_operator.of` | - |
 | 1.7 Literals | partial | full | `tests/lex/numbers.of` `tests/run/numbers/bounds.of` `tests/lex/strings.of` `tests/run/strings/literals.of` `tests/run/strings/format.of` `tests/run/strings/utf8.of` `tests/panic/str_boundary_from.of` `tests/compile_fail/types/format_spec.of` `tests/compile_fail/lexer` | subset: format specifiers, raw, multi-line and byte strings |
 | 1.8 Documentation comments | full | full | `tests/doc` `tools/check_docs.py` | untested: no negative case (a documentation comment is never rejected) |
@@ -63,7 +63,7 @@ for some targets only has a `target:` gap.
 | 2.8 References | partial | full | `tests/run/refs` `tests/borrow` `tests/compile_fail/types/references.of` | subset: stage 0 checks no borrows (5.4) |
 | 2.9 Copy and move types | full | full | `tests/run/moves` `tests/compile_fail/moves.of` | - |
 | 2.10 Type equivalence | full | full | `tests/compile_fail/types/mismatch.of` `tests/run/generics_basic/types.of` | - |
-| 2.11 Tuples | full | full | `tests/run/generics_basic/types.of` `tests/parse/types.of` | untested: no run test of its own; untested: no negative case |
+| 2.11 Tuples | full | full | `tests/run/generics_basic/types.of` `tests/parse/types.of` `tests/compile_fail/types/tuples.of` | untested: no run test of its own |
 | 2.12 Slices | partial | full | `tests/run/refs/slices.of` `tests/run/slices/mutable.of` `tests/borrow/mut_slices.of` `tests/panic/slice_range.of` | subset: the exclusive borrow of a `mut` slice |
 | 2.13 Function types | none | full | `tests/run/closures/fn_values.of` `tests/compile_fail/types/closures.of` | subset: closures and function values |
 | 2.14 Type aliases | partial | full | `tests/run/generics/aliases.of` `tests/compile_fail/types/alias_cycle.of` `tests/compile_fail/types/alias_arity.of` | subset: aliases of type operators are opaque in stage 0 (E0901 on use) |
@@ -105,7 +105,7 @@ for some targets only has a `target:` gap.
 | 6.1 `Result` and `Option` | full | full | `tests/run/errors` `tests/run/option` `tests/compile_fail/types/errors.of` | - |
 | 6.2 The `?` operator | partial | full | `tests/run/errors/result.of` `tests/run/errors/try_from.of` `tests/compile_fail/types/errors.of` | subset: error conversion |
 | 6.3 Unused results | full | full | `tests/compile_fail/types/errors.of` `tests/run/errors/result.of` | - |
-| 6.4 Helper methods | partial | full | `tests/run/errors/option.of` `std/core/result_test.of` `std/core/option_test.of` | subset: the helpers that take closures; untested: no negative case |
+| 6.4 Helper methods | partial | full | `tests/run/errors/option.of` `std/core/result_test.of` `std/core/option_test.of` `tests/compile_fail/types/helpers.of` | subset: the helpers that take closures |
 | 6.5 Panics | full | full | `tests/panic` | untested: no positive case (the section only describes failures) |
 | 6.6 Ending the process | partial | full | `tests/run/system/exit_status.of` `tests/run/system/abort.of` `tests/panic/tasks_at_once.of` | subset: tasks |
 | 7.1 Files and modules | full | full | `tests/run/modules/app` `tests/compile_fail/modules/visibility` | - |
@@ -116,7 +116,7 @@ for some targets only has a `target:` gap.
 | 7.6 Standard library (bootstrap subset) | partial | partial | `std/io/index.of` `std/fs/index.of` `std/os` `std/strings` `std/mem` `std/testing/index.of` `tests/run/strings` `tests/compile_fail/names/assert_import.of` | planned: `std.math` and the rest of the standard library |
 | 8.1 Generic functions | partial | full | `tests/run/generics_basic/functions.of` `tests/run/generics/bounds.of` `tests/run/generics/bounds_stage0.of` `tests/compile_fail/types/bounds_stage0.of` | subset: bounds other than `Eq`, `Ord` and `Hash` |
 | 8.2 Generic types | full | full | `tests/run/generics_basic/types.of` `tests/compile_fail/types/generics.of` | - |
-| 8.3 Methods on generic types | full | full | `tests/run/generics_basic/types.of` `tests/run/generics_basic/edges.of` | untested: no negative case |
+| 8.3 Methods on generic types | full | full | `tests/run/generics_basic/types.of` `tests/run/generics_basic/edges.of` `tests/compile_fail/types/generic_methods.of` | - |
 | 8.4 `where` clauses | partial | full | `tests/run/generics/where.of` `tests/run/generics/bounds_stage0.of` `tests/compile_fail/types/bounds.of` | subset: bounds other than `Eq`, `Ord` and `Hash` |
 | 8.5 Explicit type arguments | full | full | `tests/run/generics_basic/functions.of` `tests/compile_fail/types/generics.of` | untested: no test of its own |
 | 8.6 Instantiation rules | full | full | `tests/compile_fail/types/generics_depth.of` `tests/run/generics` | - |
@@ -150,7 +150,7 @@ for some targets only has a `target:` gap.
 | 12.2 Tests | partial | full | `tests/ofir_test` `tests/run/testing/assert_eq.of` `tests/compile_fail/types/tests.of` | subset: `Result` tests, `assertEq`, `assertNe`, doc tests and concurrent runs |
 | 12.3 Benchmarks | none | full | `tests/ofir_bench` `tests/compile_fail/types/benches.of` | subset: `ofir bench` |
 | 12.4 Conditional compilation | none | full | `tests/run/attributes/cfg.of` `tests/run/attributes/cfg_windows.of` `tests/compile_fail/attributes/cfg.of` `tests/compile_fail/attributes/variant.of` | subset: `@cfg`; target: `cfg_windows` runs on Windows only |
-| 12.5 Documentation comments | partial | full | `tests/ofir_doctest` `tests/doc` `tools/check_docs.py` | subset: doc tests and `ofir doc`; untested: no negative case |
+| 12.5 Documentation comments | partial | full | `tests/ofir_doctest` `tests/doc` `tools/check_docs.py` | subset: doc tests and `ofir doc`; untested: no negative case (a documentation comment is never rejected, and a failing doc test is a test result) |
 | 12.6 Warnings | partial | partial | `tests/compile_fail/warn_unused.of` `tests/compile_fail/warn_unreachable.of` `tests/compile_fail/warn_imports` `tests/compile_fail/attributes/deprecated.of` `tests/run/attributes/deprecated_shim.of` | subset: stage 0 reports W0001, W0002 and W0004 only; planned: unused private items (W0003), needless `let` (W0005) and naming (W0007) |
 | 13.1 Primitive types | full | full | `tests/codegen/functions.of` `tests/run/layout/sizes.of` | untested: no negative case (a layout rejects nothing) |
 | 13.2 Structs and tuples | partial | full | `tests/run/layout/field_order.of` `tests/run/layout/repr_order.of` `tests/run/attributes/layout.of` `tests/compile_fail/attributes/layout.of` `tests/run/layout/sizes.of` `tests/run/ffi/c_layout.of` | subset: `@repr(C)`, `@packed` and `@align` |
@@ -171,7 +171,7 @@ Stage 0 implements none of these chapters (bootstrap subset).
 | 14.2 Tasks | none | full | `tests/run/tasks/run.of` `runtime/src/task.c` `tests/compile_fail/types/send.of` | subset: tasks |
 | 14.3 Marker interfaces | none | full | `tests/run/tasks/send.of` `tests/compile_fail/types/sync.of` | subset: `Send` and `Sync` |
 | 14.4 Communication | none | full | `tests/run/sync` `tests/compile_fail/types/channel.of` `tests/panic/waitgroup_below_zero.of` | subset: channels and `std.sync` |
-| 14.5 Cancellation, deadlines and shutdown | partial | full | `tests/run/sync/deadlines.of` `tests/run/tasks/shutdown.of` `std/time/index.of` `tests/compile_fail/types/sync.of` | subset: `std.time` only in stage 0; untested: no stage 0 case |
+| 14.5 Cancellation, deadlines and shutdown | partial | full | `tests/run/sync/deadlines.of` `tests/run/sync/deadline_clock.of` `tests/run/tasks/shutdown.of` `std/time/index.of` `tests/compile_fail/types/sync.of` | subset: `std.time` only in stage 0 |
 | 15.1 `comptime` blocks and constants | none | full | `tests/run/comptime/eval.of` `tests/run/comptime/consts` `tests/compile_fail/comptime/const.of` `tests/compile_fail/comptime/comptime_fn.of` | subset: compile-time code |
 | 15.2 Type information | none | full | `tests/run/comptime/predicates.of` `tests/run/comptime/fields.of` `tests/run/comptime/variants.of` `tests/compile_fail/comptime/fields_of.of` | subset: compile-time code |
 | 15.3 `comptime for` and `comptime if` | none | full | `tests/run/comptime/branches.of` `tests/run/comptime/to_json.of` `tests/compile_fail/comptime/conditions.of` | subset: compile-time code |

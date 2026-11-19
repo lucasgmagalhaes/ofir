@@ -1,0 +1,29 @@
+// Methods of generic types (spec 8.3): the result and the arguments of a
+// method follow the type arguments.
+
+struct Bag<T> {
+    items: List<T>
+
+    fn count(self) int {
+        return self.items.len()
+    }
+
+    fn pick<U>(self, u: move U) U {
+        return u
+    }
+}
+
+fn returned(bag: Bag<int>) str {
+    return bag.count()                   // error[E0300]: expected str, found int
+}
+
+fn argument(bag: Bag<int>) int {
+    return bag.pick<int>("one")          // error[E0300]: expected int, found str
+}
+
+fn missing(bag: Bag<int>) int {
+    return bag.size()                    // error[E0301]: no method `size` on type `Bag`
+}
+
+fn main() {
+}

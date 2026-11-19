@@ -1,0 +1,17 @@
+// Tuples (spec 2.11): fields by position, patterns of the same arity, and
+// the types of the elements in order.
+
+fn index(pair: (int, str)) int {
+    return pair.2                        // error[E0316]: no field `2` on type `(int, str)`
+}
+
+fn arity() {
+    const (_a, _b) = (1, 2, 3)           // error[E0302]: wrong number of fields in the pattern
+}
+
+fn types() {
+    const _pair: (int, str) = ("one", 1) // error[E0300]: expected (int, str), found (str, int)
+}
+
+fn main() {
+}
