@@ -34,5 +34,5 @@ fn subsets() {
     for i in 0..5 {
         big.insert(i)
     }
-    assert(small.isSubset(&big) && !big.isSubset(&small))
+    assert(small.isSubset(big) && !big.isSubset(small))
 }
