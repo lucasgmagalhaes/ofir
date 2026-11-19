@@ -1,0 +1,45 @@
+// requires: stage1
+// sections: 5.1 5.2 10.3 10.4
+// Closures and moves: a `move` closure owns what it captures, a closure
+// that only borrows leaves the value usable, and the capture is dropped
+// with the closure, not before.
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+fn noisy(name: str) Noisy {
+    return Noisy{name: name.toOwned()}
+}
+
+fn call(f: move fn() str) str {
+    return f()
+}
+
+fn makeNamer(n: move Noisy) move fn() str {
+    return move () str => "named {n.name}"
+}
+
+fn main() {
+    const a = noisy("a")
+    const peek = () str => "peek {a.name}"
+    println(peek())
+    println("still {a.name}")
+    const b = noisy("b")
+    println(call(move () str => "moved {b.name}"))
+    println("after call")
+    const namer = makeNamer(noisy("c"))
+    println(namer())
+    println(namer())
+    let names: List<move fn() str> = []
+    names.push(makeNamer(noisy("d")))
+    names.push(makeNamer(noisy("e")))
+    for f in names {
+        println(f())
+    }
+    println("end")
+}
