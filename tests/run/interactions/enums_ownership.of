@@ -1,0 +1,54 @@
+// sections: 2.5 4.5 5.1 5.2
+// Enums, patterns and ownership: a payload moved out by a `match` is
+// owned by its binding, the payloads of the other variants are dropped,
+// and a match on a borrow leaves the value whole.
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+enum Slot {
+    Empty
+    One(Noisy)
+    Two(Noisy, Noisy)
+}
+
+fn noisy(name: str) Noisy {
+    return Noisy{name: name.toOwned()}
+}
+
+fn describe(s: Slot) str {
+    return match s {
+        Slot.Empty => "empty",
+        Slot.One(n) => "one {n.name}",
+        Slot.Two(a, b) => "two {a.name} {b.name}",
+    }
+}
+
+fn takeFirst(s: move Slot) Option<Noisy> {
+    return match s {
+        Slot.Empty => Option.None,
+        Slot.One(n) => Option.Some(n),
+        Slot.Two(a, _) => Option.Some(a),
+    }
+}
+
+fn main() {
+    const two = Slot.Two(noisy("a"), noisy("b"))
+    println(describe(two))
+    println("described")
+    const first = takeFirst(two)
+    println("took")
+    match first {
+        Option.Some(n) => println("first {n.name}"),
+        Option.None => println("none"),
+    }
+    const one = Slot.One(noisy("c"))
+    println(describe(one))
+    println(describe(Slot.Empty))
+    println("end")
+}
