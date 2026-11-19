@@ -6,7 +6,7 @@ BUILD  ?= build
 include tools/platform.mk
 PYTHON ?= python3
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed dist bench bench-programs bench-compare clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed dist bench bench-programs bench-compare clean
 
 all: stage0 runtime
 
@@ -63,6 +63,14 @@ check-asan: stage1 runtime
 # Stage 1 (compiler/, built by stage 0) gives the same output as stage 0.
 compare-stages: stage1
 	$(PYTHON) tools/compare_stages.py --compiler $(BUILD)/stage0/ofir$(EXE) --stage1 $(BUILD)/stage1/ofir$(EXE) --fuzz 200
+
+# Fuzzing (ADR 0086): the regression seeds, mutated sources on both stages, and
+# generated programs checked against an oracle in dev and release. Fixed seeds.
+check-fuzz: stage1
+	$(STAGE_ENV) $(PYTHON) tools/fuzz_frontend.py --compiler $(BUILD)/stage0/ofir$(EXE) --count 100 --seed 1
+	$(STAGE_ENV) $(PYTHON) tools/fuzz_frontend.py --compiler $(BUILD)/stage1/ofir$(EXE) --count 100 --seed 2
+	$(STAGE_ENV) $(PYTHON) tools/fuzz_programs.py --compiler $(BUILD)/stage0/ofir$(EXE) \
+	    --stage1 $(BUILD)/stage1/ofir$(EXE) --count 20 --seed 1
 
 # Stage 1, built once by stage 0 and reused until its inputs change.
 STAGE1_SOURCES := $(shell find compiler std -name '*.of' ! -name '*_test.of' -type f)
@@ -172,7 +180,7 @@ test-cross: stage1
 	$(STAGE_ENV) $(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage1/ofir$(EXE) \
 	    --stage 1 --target $(TARGET) run
 
-test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format check-fmt-corpus test-std compare-stages test-stage1 verify
+test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format check-fmt-corpus test-std compare-stages check-fuzz test-stage1 verify
 	$(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
 
 # Performance (docs/design/performance.md)
