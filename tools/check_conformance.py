@@ -19,6 +19,15 @@ of the specification:
   `untested:` (implemented, with no test of its own) or `target:`
   (depends on the platform). A stage that is `partial` or `none` needs a
   gap that says why.
+
+Cases (ADR 0085): an evidence path under `tests/compile_fail/` or
+`tests/panic/`, or a file under `tests/borrow/` with an `// error[`
+annotation, is a negative case; any other path under `tests/` is a
+positive one, and a directory is each kind its `.of` files are. A section
+a stage implements needs both kinds, or the gap `untested: no positive
+case` or `untested: no negative case`. A section stage 0 implements
+needs a case without `// requires: stage1`, or `untested: no stage 0
+case`. A gap that names a missing case is an error once the case exists.
 """
 
 import re
@@ -45,6 +54,55 @@ def spec_sections():
     return sections
 
 
+NEGATIVE_DIRS = ("tests/compile_fail/", "tests/panic/")
+CASE_GAPS = {
+    "positive": "untested: no positive case",
+    "negative": "untested: no negative case",
+    "stage0": "untested: no stage 0 case",
+}
+
+
+def case_files(path):
+    full = ROOT / path
+    if full.is_dir():
+        return sorted(p for p in full.rglob("*.of"))
+    return [full]
+
+
+def case_kinds(paths):
+    """The kinds of case (`positive`, `negative`, `stage0`) the paths give."""
+    kinds = set()
+    for path in paths:
+        if not path.startswith("tests/") or not (ROOT / path).exists():
+            continue
+        for file in case_files(path):
+            rel = file.relative_to(ROOT).as_posix()
+            text = file.read_text(encoding="utf-8", errors="replace")
+            negative = rel.startswith(NEGATIVE_DIRS) or (
+                rel.startswith("tests/borrow/") and "// error[" in text
+            )
+            kinds.add("negative" if negative else "positive")
+            head = [line for line in text.splitlines()[:10] if line.startswith("// requires:")]
+            if file.suffix == ".of" and not any("stage1" in line for line in head):
+                kinds.add("stage0")
+    return kinds
+
+
+def check_cases(where, stage0, stage1, paths, gaps, errors):
+    implemented = {"full", "partial"}
+    needed = set()
+    if stage0 in implemented or stage1 in implemented:
+        needed |= {"positive", "negative"}
+    if stage0 in implemented:
+        needed.add("stage0")
+    kinds = case_kinds(paths)
+    for kind, gap in CASE_GAPS.items():
+        if kind in needed and kind not in kinds and gap not in gaps:
+            errors.append(f"{where}: no {kind} case: add one, or the gap `{gap}`")
+        if kind in kinds and gap in gaps:
+            errors.append(f"{where}: gap `{gap}`, yet the evidence has one")
+
+
 def check_row(line_no, cells, errors):
     section, stage0, stage1, evidence, gaps = cells
     where = f"{MATRIX.relative_to(ROOT)}:{line_no}: {section.split(' ')[0]}"
@@ -58,6 +116,7 @@ def check_row(line_no, cells, errors):
     quiet = {"n/a", "none"}
     if not paths and not (stage0 in quiet and stage1 in quiet):
         errors.append(f"{where}: no evidence")
+    check_cases(where, stage0, stage1, paths, gaps, errors)
     open_gap = stage0 in ("partial", "none") or stage1 in ("partial", "none")
     if gaps == "-":
         if open_gap:
