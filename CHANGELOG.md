@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Sanitizers, races and fault injection (ADR 0087): `make check-tsan` runs
+  the concurrent programs under ThreadSanitizer, `make check-faults` runs
+  every program with failing allocations and I/O, interrupted calls and
+  short writes, and `make check-safety` lists the checks this machine can
+  run. A check that cannot run says why; CI requires them on Linux.
 - Fuzzing, properties and differential testing (ADR 0086):
   `tools/fuzz_programs.py` generates integer programs and checks their
   output or panic against a Python oracle on both stages, in dev and
@@ -194,6 +199,12 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `read_line` panics with "out of memory" when a line cannot be
+  allocated, instead of crashing.
+- The pool's spin lock yields while it is held, so that a thread holding
+  it can run when task threads outnumber the cores.
+- `Arc`'s drop synchronizes with an acquire load instead of a fence, which
+  ThreadSanitizer does not model.
 - `for mut item in list` binds `item` to the element in place, in both
   stages: changes reach the list or the map, and assigning a field of an
   element that owns memory no longer frees it twice. Stage 1 rejects
