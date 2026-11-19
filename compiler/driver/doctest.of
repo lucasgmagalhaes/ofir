@@ -100,8 +100,8 @@ fn commentTests(lines: List<str>, first: int, out: mut List<DocTest>) {
         const words = infoWords(info)
         open = i
         if words.len() > 0 && words[0] == "ofir" {
-            run = !hasWord(&words, "no_run")
-            ignored = hasWord(&words, "ignore")
+            run = !hasWord(words, "no_run")
+            ignored = hasWord(words, "ignore")
         } else {
             ignored = true   // a block in another language, or none: not a test
         }
@@ -135,7 +135,7 @@ pub fn docTests(text: str, tokens: List<Token>) List<DocTest> {
         for part in text.slice(start, tokens[t].span.end).split("\n") {
             owned.push(part.toOwned())
         }
-        commentTests(&owned, line, out)
+        commentTests(owned, line, out)
     }
     return out
 }

@@ -83,7 +83,7 @@ pub fn auditCommand(args: List<str>) int {
         }
         report.checked += 1
         const known = releases(index, pin.name) ?? []
-        if isYanked(&known, version) {
+        if isYanked(known, version) {
             report.say(Severity.Warning, "", "`{pin.name}` {pin.version} is yanked")
         }
         const text = fileAt(index, "advisories/{indexPath(pin.name)}") ?? ""
@@ -101,7 +101,7 @@ pub fn auditCommand(args: List<str>) int {
                 continue
             }
             if hit {
-                report.advisory(&doc, pin.name, version, &known, holds(&ignored, id))
+                report.advisory(&doc, pin.name, version, known, holds(ignored, id))
             }
         }
     }
