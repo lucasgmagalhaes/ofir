@@ -100,7 +100,7 @@ struct Parser {
             self.error = "unexpected `{word}` where a license is expected"
             return
         }
-        self.error = license(&self.licenses, word)
+        self.error = license(self.licenses, word)
         if self.error.len() == 0 && self.next() == "WITH" {
             self.at += 1
             const exception = self.next()
@@ -109,7 +109,7 @@ struct Parser {
                 return
             }
             self.at += 1
-            self.error = known(&self.exceptions, exception, "license exception")
+            self.error = known(self.exceptions, exception, "license exception")
         }
     }
 
