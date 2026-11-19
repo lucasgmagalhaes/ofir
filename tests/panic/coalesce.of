@@ -1,0 +1,15 @@
+// panic: no count
+// The fallback of `??` runs when the left side is `None`, and it diverges.
+
+struct Count {
+    n: int
+}
+
+fn get() Option<Count> {
+    return Option.None
+}
+
+fn main() {
+    const c = get() ?? panic("no count")
+    println("not reached {c.n}")
+}

@@ -2138,7 +2138,7 @@ fn lowerCoalesce(l: mut Lowerer, c: mut Checker, p: Program, lhs: &Expr, rhs: &E
     emitGoto(l, join)
     switchTo(l, other)
     tempScopeEnter(l)   // evaluated on one path only
-    emitAssign(l, dest, rvUse(lowerExpr(l, c, p, rhs)))
+    store(l, dest, true, lowerExpr(l, c, p, rhs))   // a fallback that diverges has no value
     tempScopeLeave(l, c, p)
     emitGoto(l, join)
     switchTo(l, join)
@@ -2426,7 +2426,7 @@ fn logical(l: mut Lowerer, c: mut Checker, p: Program, isAnd: bool, lhs: &Expr,
     terminate(l, branch(opCopy(dest, BOOL), whenTrue, whenFalse))
     switchTo(l, rhsBlock)
     tempScopeEnter(l)   // evaluated on one path only
-    emitAssign(l, dest, rvUse(lowerExpr(l, c, p, rhs)))
+    store(l, dest, true, lowerExpr(l, c, p, rhs))   // a right side that diverges has no value
     tempScopeLeave(l, c, p)
     emitGoto(l, join)
     switchTo(l, join)
