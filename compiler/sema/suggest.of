@@ -97,7 +97,7 @@ pub struct Suggestion {
         if gap > limit {
             return
         }
-        const distance = editDistance(&self.name, &bytesOf(text))
+        const distance = editDistance(self.name, bytesOf(text))
         if distance == 0 || distance > limit {
             return
         }
