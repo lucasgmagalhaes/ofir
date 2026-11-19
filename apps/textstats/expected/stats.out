@@ -1,0 +1,6 @@
+fox.txt: 4 lines, 12 words, 57 bytes
+  longest line 23, crc32 eef704d5, adler32 5a3513ed
+  "the" occurs 3 times
+hello.txt: 1 lines, 1 words, 6 bytes
+  longest line 5, crc32 363a3020, adler32 084b021f
+  "the" occurs 0 times

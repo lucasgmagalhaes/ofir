@@ -1,0 +1,11 @@
+{
+  "root": "main.of",
+  "cases": [
+    {"name": "search", "args": ["-i", "todo", "testdata"]},
+    {"name": "count", "args": ["--count", "--ext", "c", "todo", "testdata"]},
+    {"name": "case", "args": ["TODO", "testdata"]},
+    {"name": "none", "args": ["zzz", "testdata"], "status": 1},
+    {"name": "missing", "args": ["x", "no-such-dir"], "status": 1},
+    {"name": "usage", "args": [], "status": 2}
+  ]
+}

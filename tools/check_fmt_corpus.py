@@ -9,7 +9,7 @@ formatter is described in docs/design/toolchain.md): for every file,
 
     python3 tools/check_fmt_corpus.py --compiler build/stage1/ofir [dir...]
 
-With no directories it checks std, compiler, tests and examples.
+With no directories it checks std, compiler, tests, examples and apps.
 """
 
 import argparse
@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DIRS = ["std", "compiler", "tests", "examples"]
+DIRS = ["std", "compiler", "tests", "examples", "apps"]
 COMMENT_RE = re.compile(r"//[^\n]*")
 
 

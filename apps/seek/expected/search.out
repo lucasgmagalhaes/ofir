@@ -1,0 +1,5 @@
+testdata/docs/notes.md:1: Notes about the TODO list.
+testdata/docs/notes.md:3: - todo: write the guide
+testdata/src/main.c:2: // TODO: parse the input
+testdata/src/util.c:2: return 1 // todo later
+4 matches in 3 files

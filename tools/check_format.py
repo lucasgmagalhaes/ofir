@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ["std", "tests", "examples", "bench", "compiler"]
+SOURCES = ["std", "tests", "examples", "bench", "compiler", "apps"]
 FMT_TESTS = ROOT / "tests" / "fmt"
 FUZZ_SEEDS = ROOT / "tests" / "fuzz"
 DOCS = ["docs", "README.md", "bench/README.md", "std/README.md"]

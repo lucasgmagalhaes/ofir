@@ -1,0 +1,8 @@
+testdata/a.txt: 10 words
+testdata/b.txt: 9 words
+testdata/c.txt: 5 words
+5 the
+4 dog
+3 a
+2 cat
+2 sat

@@ -428,6 +428,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.30b | Fuzzing, properties and differential testing (ADR 0086): `tools/fuzz_programs.py` checks generated integer programs against a Python oracle on both stages in dev and release; `tools/fuzz_frontend.py --minimize` shrinks crashes and replays the seeds of `tests/fuzz/frontend`; `make check-fuzz` in `make test` | OFIR-73 | **done** |
 | 6.30c | Sanitizers, leaks, races and fault injection (ADR 0087): `make check-tsan` runs the concurrent programs under ThreadSanitizer, `make check-faults` injects failing allocations and I/O into every program (`tools/fault/inject.c`), and `make check-safety` reports the checks that cannot run; CI requires them on Linux | OFIR-74 | **done** |
 | 6.30d | Performance budgets (ADR 0089): `make check-budgets` checks absolute ceilings in `bench/budgets.json` for compiler memory per source byte, warm self-compile and its unit count, the stripped hello world size and startup instructions, and the instructions of the generated programs; cold builds, startup and runtime distributions are reported, and the 3% gate stays | OFIR-75 | **done** |
+| 6.30e | Representative applications (ADR 0090): `apps/` holds a CLI and filesystem utility (`seek`), a C consumer of an Ofir static library (`textstats`) and a concurrent program (`wordfreq`); `make check-apps` builds each with stage 1 in dev and release and checks the output and exit status of every case, as part of `make test`; the compiler stays the largest application and the API service waits for API-49 | OFIR-76 | **done** |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
@@ -474,15 +475,15 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue with 6.30 (OFIR-76); 6.30a to 6.30d (OFIR-72 to OFIR-75) are done.
+1. Continue with 6.30 (OFIR-77); 6.30a to 6.30e (OFIR-72 to OFIR-76) are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
    [API ecosystem plan](design/api-ecosystem.md). Coordinate interfaces (5.3)
    and concurrency (6.1) before committing to shared stream/driver contracts
    or a concurrent server.
-3. Validate a CLI/filesystem utility, C consumer and concurrent program
-   (OFIR-76), plus each API milestone with the reference service (API-49).
+3. Keep the applications of `apps/` (OFIR-76) building, and validate each
+   API milestone with the reference service (API-49).
    Select optional adapters and domain ecosystems by concrete demand and ownership.
 4. Code written by agents (6.32, ADR 0080): start with 6.32a and 6.32b,
    then the query commands (6.32c, 6.32d) before edits, contracts and effects.

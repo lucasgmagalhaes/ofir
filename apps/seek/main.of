@@ -1,0 +1,115 @@
+// seek: prints the lines of the files under a directory that contain a
+// text, as `path:line: text`, or only the number of matches per file.
+// A representative CLI and filesystem utility (OFIR-76, ADR 0090): it
+// uses std.cli for its arguments, std.fs to walk the tree and read the
+// files, and std.path to filter them by extension.
+
+import std.cli
+import std.fs
+import std.os
+import std.path
+
+struct Options {
+    pattern: str
+    ignoreCase: bool
+    countOnly: bool
+    ext: Option<str>
+}
+
+struct Totals {
+    files: int
+    matches: int
+}
+
+fn command() cli.Command {
+    let cmd = cli.Command.new("seek", "Search the files of a directory for a text")
+    cmd.setVersion("0.1.0")
+    cmd.flag("ignore-case", "i", "Match without regard to ASCII case")
+    cmd.flag("count", "c", "Print only the number of matching lines per file")
+    cmd.option("ext", "e", "EXT", "Search only files with this extension")
+    cmd.positional("pattern", "The text to look for", true)
+    cmd.positional("dir", "The directory to search", true)
+    return cmd
+}
+
+// The files under `dir`, in name order, depth first.
+fn walk(dir: str, out: mut List<str>) {
+    match fs.readDir(dir) {
+        Result.Ok(entries) => {
+            for entry in entries {
+                match fs.readDir(entry.path) {
+                    Result.Ok(_) => walk(entry.path, out),
+                    Result.Err(_) => out.push(entry.path.clone())
+                }
+            }
+        },
+        Result.Err(e) => eprintln("seek: {dir}: {e.message}")
+    }
+}
+
+fn wanted(file: str, opts: Options) bool {
+    return match opts.ext {
+        Option.Some(ext) => path.extension(file) == ext,
+        Option.None => true
+    }
+}
+
+fn matches(line: str, opts: Options) bool {
+    if opts.ignoreCase {
+        return line.toLower().contains(opts.pattern.toLower())
+    }
+    return line.contains(opts.pattern)
+}
+
+// Searches one file and adds what it found to `totals`.
+fn search(file: str, opts: Options, totals: mut Totals) {
+    const text = match fs.readToString(file) {
+        Result.Ok(t) => t,
+        Result.Err(e) => {
+            eprintln("seek: {file}: {e.message}")
+            return
+        }
+    }
+    let found = 0
+    let number = 0
+    for line in text.lines() {
+        number += 1
+        if matches(line, opts) {
+            found += 1
+            if !opts.countOnly {
+                println("{file}:{number}: {line.trim()}")
+            }
+        }
+    }
+    if found > 0 {
+        totals.files += 1
+        totals.matches += found
+        if opts.countOnly {
+            println("{file}: {found}")
+        }
+    }
+}
+
+fn main() {
+    const args = os.args()
+    const m = command().parseOrExit(args.sliceFrom(1))
+    const opts = Options{
+        pattern: m.positional("pattern") ?? "",
+        ignoreCase: m.flag("ignore-case"),
+        countOnly: m.flag("count"),
+        ext: m.value("ext"),
+    }
+    const dir = m.positional("dir") ?? "."
+    let files: List<str> = []
+    walk(dir, files)
+    let totals = Totals{files: 0, matches: 0}
+    for file in files {
+        if wanted(file, opts) {
+            search(file, opts, totals)
+        }
+    }
+    println("{totals.matches} matches in {totals.files} files")
+    if totals.matches == 0 {
+        os.exit(1)
+    }
+}

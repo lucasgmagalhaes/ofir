@@ -14,7 +14,7 @@ with clang.
 - `std/`, `runtime/`, `tests/`, `tools/`, `docs/` (spec, ADRs, roadmap).
 - Manifest: `ofir.json` (JSONC, camelCase keys; ADR 0026).
 - Work follows `docs/roadmap.md`; phase 5 and 6.22 to 6.27 are done (6.27 is
-  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63) and 6.29a-h (OFIR-64 to 71) and 6.30a-d (OFIR-72 to 75) are done; next: OFIR-76.
+  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63) and 6.29a-h (OFIR-64 to 71) and 6.30a-e (OFIR-72 to 76) are done; next: OFIR-77.
 
 ## Working rules
 

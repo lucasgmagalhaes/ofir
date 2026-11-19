@@ -1,0 +1,69 @@
+// textstats: counts the lines, words and bytes of a text and checksums
+// it, for C programs. A representative C consumer (OFIR-76, ADR 0090):
+// `ofir build --lib=static` makes `textstats.a` and `textstats.h`, and
+// main.c links them; the counting uses Ofir strings and a `List`.
+
+import std.checksum
+
+@repr(C)
+struct Stats {
+    lines: i64
+    words: i64
+    bytes: i64
+    longest: i64
+    crc32: u32
+    adler32: u32
+}
+
+fn view(text: *u8, len: i64) str {
+    return unsafe { str.fromRaw(text, len as int) }
+}
+
+// The statistics of the `len` bytes at `text`, written to `*out`.
+extern "C" fn textstats_count(text: *u8, len: i64, out: *mut Stats) {
+    const s = view(text, len)
+    let lines: List<str> = []
+    for line in s.lines() {
+        lines.push(line)
+    }
+    let words = 0
+    let longest = 0
+    for line in lines {
+        for _ in line.splitWhitespace() {
+            words += 1
+        }
+        if line.len() > longest {
+            longest = line.len()
+        }
+    }
+    const stats = Stats{
+        lines: lines.len() as i64,
+        words: words as i64,
+        bytes: len,
+        longest: longest as i64,
+        crc32: checksum.crc32(s.asBytes()),
+        adler32: checksum.adler32(s.asBytes()),
+    }
+    unsafe {
+        *out = stats
+    }
+}
+
+// How many times `word` occurs as a whole word in the text.
+extern "C" fn textstats_occurrences(text: *u8, len: i64, word: *u8, wordLen: i64) i64 {
+    const s = view(text, len)
+    const w = view(word, wordLen)
+    let n: i64 = 0
+    for part in s.splitWhitespace() {
+        if part == w {
+            n += 1
+        }
+    }
+    return n
+}
+
+// Prints a summary line from the Ofir side, through Ofir's stdout.
+extern "C" fn textstats_report(name: *u8, nameLen: i64, stats: *Stats) {
+    const st = unsafe { *stats }
+    println("{view(name, nameLen)}: {st.lines} lines, {st.words} words, {st.bytes} bytes")
+}

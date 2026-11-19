@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Representative applications (ADR 0090): `apps/` holds a CLI and
+  filesystem utility, a C program linking an Ofir static library and a
+  concurrent program; `make check-apps` builds each in dev and release
+  and checks the output and exit status of every case.
 - Performance budgets (ADR 0089): `make check-budgets` checks compiler
   memory, warm self-compile, hello world size and startup, and the
   instructions of the generated programs against `bench/budgets.json`,
@@ -212,6 +216,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `a ?? b`, `a && b` and `a || b` whose right side diverges (`return`,
+  `panic`, `break`) no longer emit invalid LLVM IR.
 - `read_line` panics with "out of memory" when a line cannot be
   allocated, instead of crashing.
 - The pool's spin lock yields while it is held, so that a thread holding
