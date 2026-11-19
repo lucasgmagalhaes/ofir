@@ -349,7 +349,7 @@ pub fn scanMultiline(cur: mut Cursor, src: str, diags: mut Diagnostics) Token {
         const line = cur.pos
         skipBlanks(cur, src)
         if cur.peek(src, 0) == b'"' && cur.peek(src, 1) == b'"' && cur.peek(src, 2) == b'"' {
-            const text = dedent(cur, src, &lines, line, cur.pos, diags)
+            const text = dedent(cur, src, lines, line, cur.pos, diags)
             cur.pos += 3
             return cur.tokenWith(TokenKind.Str, start, TokenValue.Str(text))
         }

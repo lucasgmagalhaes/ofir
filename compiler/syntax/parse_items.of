@@ -128,7 +128,7 @@ fn typeAlias(p: mut Parser) (Symbol, ItemKind) {
     let bounds: List<WherePred> = []
     const params = parseTypeParams(p, bounds)
     for i in 0..bounds.len() {
-        if !keyBounds(&bounds[i].bounds) {
+        if !keyBounds(bounds[i].bounds) {
             p.syntaxError(bounds[i].span, "a type alias cannot bound its type parameters".toOwned())
             break
         }
