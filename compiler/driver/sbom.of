@@ -80,15 +80,15 @@ pub fn sbomCommand(args: List<str>, compiler: str) int {
         return 1
     }
     const r = resolve(dir, &mode)
-    const entries = entriesOf(&packages, &r)
+    const entries = entriesOf(packages, &r)
     const lock = fs.readToString("{r.lockDir}/ofir.lock").ok() ?? ""
     let h = Sha256.new()
     h.updateText(lock)
     const sum = h.finish()
     if format == "spdx" {
-        print(spdxJson(&entries, compiler, sum))
+        print(spdxJson(entries, compiler, sum))
     } else {
-        print(cycloneJson(&entries, compiler))
+        print(cycloneJson(entries, compiler))
     }
     return 0
 }
@@ -136,7 +136,7 @@ fn entriesOf(packages: List<Package>, r: &Resolution) List<Entry> {
         }
         for d in 0..p.deps.len() {
             const q = p.deps[d].package
-            if q >= 0 && !holds(&e.deps, q) {
+            if q >= 0 && !holds(e.deps, q) {
                 e.deps.push(q)
             }
         }

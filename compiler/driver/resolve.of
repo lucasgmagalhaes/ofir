@@ -222,7 +222,7 @@ fn trusts(trust: &Trust, need: &Need) bool {
         return true
     }
     if need.registry.len() > 0 {
-        return contains(&trust.registries, need.registry)
+        return contains(trust.registries, need.registry)
     }
     for i in 0..trust.git.len() {
         if need.url.startsWith(trust.git[i]) {
@@ -329,7 +329,7 @@ pub fn workspaceRoot(dir: str) str {
         }
         at = at.slice(0, slash).toOwned()
         const members = workspaceMembers(at)
-        if contains(&members, dir) {
+        if contains(members, dir) {
             return at
         }
     }
@@ -402,23 +402,23 @@ pub fn resolve(project: str, mode: &Mode) Resolution {
                               lockDir: rootDir.clone(), indexes: []}
         let urls: List<str> = []
         for i in 0..needs.len() {
-            if !contains(&urls, needs[i].url) {
+            if !contains(urls, needs[i].url) {
                 urls.push(needs[i].url.clone())
             }
         }
         for i in 0..urls.len() {
-            const first = firstNeed(&needs, urls[i])
+            const first = firstNeed(needs, urls[i])
             if !trusts(&trust, &needs[first]) {
                 next.failures.push(untrusted(&needs[first]))
                 continue
             }
-            choose(urls[i], &needs, &lock, &pinned, mode, repos, next)
+            choose(urls[i], needs, lock, pinned, mode, repos, next)
         }
         const stable = samePins(&r, &next)
         r = next
         if stable {
-            verify(r, &lock)
-            pinIndexes(r, &lock, &pinned, mode, repos)
+            verify(r, lock)
+            pinIndexes(r, lock, pinned, mode, repos)
             r.overrides = readOverrides(rootDir)
             return r
         }
@@ -460,7 +460,7 @@ fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
     let dirs = [rootDir.toOwned()]
     const members = workspaceMembers(rootDir)
     for i in 0..members.len() {
-        if !contains(&dirs, members[i]) {
+        if !contains(dirs, members[i]) {
             dirs.push(members[i].clone())
         }
     }
@@ -477,10 +477,10 @@ fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
         }
         const from = projectName(&doc, dir)
         const list = doc.field(0, "dependencies")
-        collectList(&doc, list, dir, from, index, r, &overrides, dirs, needs)
+        collectList(&doc, list, dir, from, index, r, overrides, dirs, needs)
         if d <= seeds {   // the root or a member, whose dev dependencies are locked too
             const dev = doc.field(0, "devDependencies")
-            collectList(&doc, dev, dir, from, index, r, &overrides, dirs, needs)
+            collectList(&doc, dev, dir, from, index, r, overrides, dirs, needs)
         }
     }
     return needs
@@ -500,13 +500,13 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
         const version = registryVersion(doc, member)
         const o = overrideOf(overrides, key)
         if o >= 0 {   // replaced by a directory (ADR 0077)
-            if !contains(&dirs, overrides[o].dir) {
+            if !contains(dirs, overrides[o].dir) {
                 dirs.push(overrides[o].dir.clone())
             }
         } else if parseRequirement(version).isSome() {
             const url = registrySource(index, key)
             const p = pinOf(r, url)
-            if p >= 0 && !contains(&dirs, r.pins[p].dir) {
+            if p >= 0 && !contains(dirs, r.pins[p].dir) {
                 dirs.push(r.pins[p].dir.clone())
             }
             needs.push(Need{url, registry: index.toOwned(), key, version, rev: "",
@@ -521,7 +521,7 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
                     rev = doc.text(doc.field(member, "branch"))
                 }
                 const p = pinOf(r, url)
-                if p >= 0 && !contains(&dirs, r.pins[p].dir) {
+                if p >= 0 && !contains(dirs, r.pins[p].dir) {
                     dirs.push(r.pins[p].dir.clone())
                 }
                 needs.push(Need{url, registry: "", key,
@@ -529,7 +529,7 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
                                 from: from.clone()})
             } else if pathNode >= 0 && doc.nodes[pathNode].kind == JsonKind.String {
                 const path = gitUrl(doc.nodes[pathNode].text, dir)
-                if !contains(&dirs, path) {
+                if !contains(dirs, path) {
                     dirs.push(path)
                 }
             }
@@ -591,7 +591,7 @@ fn choose(url: str, needs: List<Need>, lock: List<Locked>, pinned: List<IndexPin
     if first.registry.len() > 0 {
         const index = first.registry.clone()
         const at = if mode.locked { pinnedCommit(pinned, index) } else { "" }
-        chooseRelease(url, index, name, needs, &mine, lock, updating, mode.offline, at, repos, out)
+        chooseRelease(url, index, name, needs, mine, lock, updating, mode.offline, at, repos, out)
         return
     }
     const r = fetched(url, updating, mode.offline, repos)
@@ -618,7 +618,7 @@ fn choose(url: str, needs: List<Need>, lock: List<Locked>, pinned: List<IndexPin
         }
     }
     if mixed {
-        conflict(url, name, needs, &mine, "the requirements on it differ", out)
+        conflict(url, name, needs, mine, "the requirements on it differ", out)
         return
     }
     if rev.len() > 0 {
@@ -628,7 +628,7 @@ fn choose(url: str, needs: List<Need>, lock: List<Locked>, pinned: List<IndexPin
         } else if const Option.Some(c) = commitOf(repos[r].dir, rev) {
             commit = c
         } else {
-            conflict(url, name, needs, &mine, "it has no revision `{rev}`", out)
+            conflict(url, name, needs, mine, "it has no revision `{rev}`", out)
             return
         }
         pin(url, name, "", rev, commit, &repos[r], out)
@@ -642,7 +642,7 @@ fn choose(url: str, needs: List<Need>, lock: List<Locked>, pinned: List<IndexPin
     }
     if locked >= 0 && lock[locked].rev.len() == 0 {
         if const Option.Some(v) = parseVersion(lock[locked].version) {
-            if acceptsAll(&reqs, v) {
+            if acceptsAll(reqs, v) {
                 const version = v.text()
                 const commit = lock[locked].commit.clone()
                 pin(url, name, version, "", commit, &repos[r], out)
@@ -650,14 +650,14 @@ fn choose(url: str, needs: List<Need>, lock: List<Locked>, pinned: List<IndexPin
             }
         }
     }
-    let best = highest(repos[r].dir, &reqs)
+    let best = highest(repos[r].dir, reqs)
     if best < 0 && !repos[r].fetched && !mode.offline {
         if refetch(repos[r]) {
-            best = highest(repos[r].dir, &reqs)
+            best = highest(repos[r].dir, reqs)
         }
     }
     if best < 0 {
-        conflict(url, name, needs, &mine, versionsNote(repos[r].dir), out)
+        conflict(url, name, needs, mine, versionsNote(repos[r].dir), out)
         return
     }
     const found = tags(repos[r].dir)
@@ -708,13 +708,13 @@ fn chooseRelease(url: str, index: str, name: str, needs: List<Need>, mine: List<
         }
     }
     let known = listed
-    let best = latestRelease(&known, &reqs, locked.clone())
+    let best = latestRelease(known, reqs, locked.clone())
     if best < 0 && !repos[r].fetched && !offline && refetch(repos[r]) {
         known = releasesAt(repos[r].dir, rev, name) ?? []
-        best = latestRelease(&known, &reqs, locked)
+        best = latestRelease(known, reqs, locked)
     }
     if best < 0 {
-        conflict(url, name, needs, mine, releasesNote(&known), out)
+        conflict(url, name, needs, mine, releasesNote(known), out)
         return
     }
     const version = known[best].version.text()
@@ -907,7 +907,7 @@ fn pinIndexes(r: mut Resolution, lock: List<Locked>, pinned: List<IndexPin>, mod
               repos: mut List<Repo>) {
     let urls: List<str> = []
     for i in 0..r.pins.len() {
-        if r.pins[i].registry.len() > 0 && !contains(&urls, r.pins[i].registry) {
+        if r.pins[i].registry.len() > 0 && !contains(urls, r.pins[i].registry) {
             urls.push(r.pins[i].registry.clone())
         }
     }
