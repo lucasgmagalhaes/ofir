@@ -263,8 +263,8 @@ void lex_string_part(Lexer *lx, uint32_t start, bool opening) {
     StrBuf text = {0};
     TokenKind kind = scan_string_text(lx, start, opening, &text);
     StrView view = strbuf_view(&text);
-    emit(lx, kind, start)->as.text =
-        (StrView){arena_strndup(&lx->session->arena, view.ptr, view.len), view.len};
+    StrView copy = {arena_strndup(&lx->session->arena, view.ptr, view.len), view.len};
+    emit(lx, kind, start)->as.text = token_text(lx, copy);
     strbuf_free(&text);
 }
 

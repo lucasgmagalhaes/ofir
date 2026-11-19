@@ -40,6 +40,12 @@ Token *emit(Lexer *lx, TokenKind kind, uint32_t start) {
     return &VEC_LAST(*lx->out);
 }
 
+const StrView *token_text(Lexer *lx, StrView text) {
+    StrView *view = ARENA_NEW(&lx->session->arena, StrView);
+    *view = text;
+    return view;
+}
+
 // Newlines are tokens except directly inside `(...)` and `[...]` (spec 1.3).
 static bool newlines_matter(const Lexer *lx) {
     return lx->brackets.len == 0 || VEC_LAST(lx->brackets) == '{';
@@ -112,7 +118,7 @@ static void doc_comment(Lexer *lx, uint32_t start) {
         text.len--;
     }
     Token *t = emit(lx, module ? TOK_MODULE_DOC : TOK_DOC_COMMENT, start);
-    t->as.text = text;
+    t->as.text = token_text(lx, text);
 }
 
 // Skips `/* ... */`; `/** ... */` is a documentation comment. Returns true

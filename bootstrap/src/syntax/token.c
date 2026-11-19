@@ -70,7 +70,7 @@ static void print_value(const Token *t, const Interner *names, FILE *out) {
     case TOK_STR: case TOK_STR_START: case TOK_STR_MID: case TOK_STR_END:
     case TOK_DOC_COMMENT: case TOK_MODULE_DOC:
         fputc(' ', out);
-        print_escaped(t->as.text, out);
+        print_escaped(*t->as.text, out);
         break;
     default:
         break;

@@ -26,7 +26,7 @@ static Expr *literal_token(Parser *p) {
     case TOK_INT: e->as.int_value = t->as.int_value; break;
     case TOK_FLOAT: e->kind = EXPR_FLOAT; e->as.float_value = t->as.float_value; break;
     case TOK_BYTE: e->kind = EXPR_BYTE; e->as.byte_value = t->as.byte_value; break;
-    case TOK_STR: e->kind = EXPR_STR; e->as.str = t->as.text; break;
+    case TOK_STR: e->kind = EXPR_STR; e->as.str = *t->as.text; break;
     default: e->kind = EXPR_BOOL; e->as.bool_value = t->kind == TOK_KW_TRUE; break;
     }
     return e;
@@ -53,9 +53,9 @@ static Expr *interpolation(Parser *p) {
     Vec(Expr *) parts = {0};
     for (;;) {
         const Token *text = advance(p);
-        if (text->as.text.len > 0) {   // "{x}" has empty text around `x`
+        if (text->as.text->len > 0) {   // "{x}" has empty text around `x`
             Expr *piece = new_expr(p, EXPR_STR, text->span);
-            piece->as.str = text->as.text;
+            piece->as.str = *text->as.text;
             VEC_PUSH(parts, piece);
         }
         if (text->kind == TOK_STR_END || text->kind == TOK_EOF) {

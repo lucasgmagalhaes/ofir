@@ -50,6 +50,8 @@ static inline int digit_value(char c) {
 }
 
 Token *emit(Lexer *lx, TokenKind kind, uint32_t start);
+// `text` copied to the arena, for a token's `as.text`.
+const StrView *token_text(Lexer *lx, StrView text);
 
 // literals.c
 void lex_number(Lexer *lx);

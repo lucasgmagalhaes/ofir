@@ -102,7 +102,7 @@ static void type_alias(Parser *p, Item *item) {
 // `extern "C" { fn ... }` or `extern "C" fn name(...) { body }`.
 static void extern_item(Parser *p, Item *item, ItemHeader header) {
     const Token *abi = expect(p, TOK_STR, "the ABI string, as in `extern \"C\"`");
-    StrView abi_text = abi ? abi->as.text : SV("C");
+    StrView abi_text = abi ? *abi->as.text : SV("C");
     if (accept(p, TOK_KW_FN)) {
         item->kind = ITEM_FN;
         item->as.fn = parse_fn(p, header, true);
@@ -213,7 +213,7 @@ static void filter_docs(Parser *p, TokenList *tokens, Module *module) {
     for (size_t i = 0; i < tokens->len; i++) {
         Token t = tokens->data[i];
         if (t.kind == TOK_MODULE_DOC) {
-            VEC_PUSH(docs, t.as.text);
+            VEC_PUSH(docs, *t.as.text);
         } else if (t.kind != TOK_DOC_COMMENT) {
             tokens->data[kept++] = t;
         }
