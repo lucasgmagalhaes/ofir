@@ -552,14 +552,14 @@ pub fn checkCallArgs(c: mut Checker, p: Program, call: &Expr, args: List<Arg>, i
 pub fn checkArgsOf(c: mut Checker, p: Program, span: Span, args: List<Arg>, sig: int) int {
     const params = c.types.get(sig).args.clone()
     const ret = c.types.get(sig).inner
-    return checkArgs(c, p, span, args, &params, ret)
+    return checkArgs(c, p, span, args, params, ret)
 }
 
 // print(str), println(str) and panic(str) !; `assert` is in std.testing.
 fn builtinCall(c: mut Checker, p: Program, span: Span, args: List<Arg>, builtin: int) int {
     const param = STR
     const ret = if builtin == 2 { NEVER } else { UNIT }
-    return checkArgs(c, p, span, args, &[param], ret)
+    return checkArgs(c, p, span, args, [param], ret)
 }
 
 fn checkFnCall(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<Arg>, id: int,
@@ -583,7 +583,7 @@ fn checkFnCall(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<A
         }
         const params = c.types.get(sig).args.clone()
         const result = c.types.get(sig).inner
-        ret = checkGenericArgs(c, p, e.id.0, e.span, args, &params, result, inf, expected,
+        ret = checkGenericArgs(c, p, e.id.0, e.span, args, params, result, inf, expected,
                                id)
     }
     checkMutArgs(c, p, id, e.id.0, args)
@@ -692,18 +692,18 @@ fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
         ExprKind.Bool(_) => BOOL
         ExprKind.Str(_) => STR
         ExprKind.ByteStr(_) => sliceOf(c, U8, e.span)
-        ExprKind.Interp(parts, specs) => interpolation(c, p, &parts, &specs)
+        ExprKind.Interp(parts, specs) => interpolation(c, p, parts, specs)
         ExprKind.Ident(_) | ExprKind.SelfValue => nameValue(c, p, e, expected)
         ExprKind.Unary(op, operand) => unary(c, p, e, op, &*operand, expected)
         ExprKind.Binary(op, lhs, rhs) => checkBinary(c, p, e.span, op, &*lhs, &*rhs, expected)
         ExprKind.Cast(value, to) => cast(c, p, e, &*value, &to)
-        ExprKind.Call(callee, args) => call(c, p, e, &*callee, &args, expected)
+        ExprKind.Call(callee, args) => call(c, p, e, &*callee, args, expected)
         ExprKind.If(_, _, _, _) => checkIf(c, p, e, expected, true)
         ExprKind.Block(block) => checkBlock(c, p, &block, expected, true)
         ExprKind.Unsafe(block) => checkUnsafeBlock(c, p, &block, expected, true)
         ExprKind.Comptime(inner) => checkComptimeExpr(c, p, e, &*inner, expected)
         ExprKind.Keys(_) => c.unsupported(e.span, "`keys T` outside of `comptime for` is")
-        ExprKind.Tuple(elems) => tuple(c, p, &elems, expected)
+        ExprKind.Tuple(elems) => tuple(c, p, elems, expected)
         ExprKind.SelfType => match c.res(e.id.0) {   // `Self` as a value: the type's name
             Res.Def(id) => defValue(c, p, id, e.span, ERROR)
             _ => ERROR
@@ -723,11 +723,11 @@ fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
         ExprKind.TupleField(base, index) => checkTupleField(c, p, e, &*base, index as int)
         ExprKind.Try(inner) => checkTry(c, p, e, &*inner)
         ExprKind.Struct(_, _, _) => checkStructLiteral(c, p, e, expected)
-        ExprKind.Array(elems) => checkListLiteral(c, p, e, &elems, expected)
+        ExprKind.Array(elems) => checkListLiteral(c, p, e, elems, expected)
         ExprKind.Repeat(value, count) => checkListRepeat(c, p, e, &*value, &*count, expected)
         ExprKind.Variant(_, _, _) => checkVariantShorthand(c, p, e, expected)
         ExprKind.Match(_, _) => checkMatch(c, p, e, expected, true)
-        ExprKind.Closure(params, ret, body, isMove) => checkClosure(c, p, e, &params, &ret, &*body,
+        ExprKind.Closure(params, ret, body, isMove) => checkClosure(c, p, e, params, &ret, &*body,
                                                             isMove, expected)
     }
 }
@@ -772,7 +772,7 @@ fn weakensPointer(c: Checker, found: int, expected: int) bool {
     if f.kind == TyKind.Fn && x.kind == TyKind.Fn {   // `move fn(A) R` lends itself as `fn(A) R`
         const lends = f.data & FN_OWNED != 0 && x.data == FN_BORROWED   // or forgets `+ Send`
         const forgets = f.data & FN_SEND != 0 && x.data == f.data - FN_SEND
-        return (lends || forgets) && sameTypes(&f.args, &x.args) && f.inner == x.inner
+        return (lends || forgets) && sameTypes(f.args, x.args) && f.inner == x.inner
     }
     return f.kind == TyKind.Ptr && x.kind == TyKind.Ptr && f.data != 0 && x.data == 0 &&
            f.inner == x.inner

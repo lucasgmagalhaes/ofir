@@ -46,31 +46,31 @@ fn rewrittenItem(r: mut Resolver, item: &Item) Option<ItemKind> {
     const none: List<Symbol> = []
     return match item.kind {
         ItemKind.Fn(decl) => {
-            if !declNeeds(r, &*decl, &none) {
+            if !declNeeds(r, &*decl, none) {
                 return Option.None
             }
-            Option.Some(ItemKind.Fn(Box.new(rewrittenDecl(r, &*decl, &none))))
+            Option.Some(ItemKind.Fn(Box.new(rewrittenDecl(r, &*decl, none))))
         }
         ItemKind.Struct(isCopy, isRef, isTuple, typeParams, fields, methods) => {
-            if !anyNeeds(r, &methods, &typeParams) {
+            if !anyNeeds(r, methods, typeParams) {
                 return Option.None
             }
             Option.Some(ItemKind.Struct(isCopy, isRef, isTuple, typeParams.clone(), fields.clone(),
-                                        rewrittenList(r, &methods, &typeParams)))
+                                        rewrittenList(r, methods, typeParams)))
         }
         ItemKind.Enum(isCopy, typeParams, variants, methods) => {
-            if !anyNeeds(r, &methods, &typeParams) {
+            if !anyNeeds(r, methods, typeParams) {
                 return Option.None
             }
             Option.Some(ItemKind.Enum(isCopy, typeParams.clone(), variants.clone(),
-                                      rewrittenList(r, &methods, &typeParams)))
+                                      rewrittenList(r, methods, typeParams)))
         }
         ItemKind.Interface(typeParams, embeds, methods) => {
-            if !anyNeeds(r, &methods, &typeParams) {
+            if !anyNeeds(r, methods, typeParams) {
                 return Option.None
             }
             Option.Some(ItemKind.Interface(typeParams.clone(), embeds.clone(),
-                                           rewrittenList(r, &methods, &typeParams)))
+                                           rewrittenList(r, methods, typeParams)))
         }
         _ => Option.None
     }
@@ -100,7 +100,7 @@ fn rewrittenList(r: mut Resolver, decls: List<FnDecl>, owner: List<Symbol>) List
 // Whether a parameter of `decl` names an interface.
 fn declNeeds(r: Resolver, decl: &FnDecl, owner: List<Symbol>) bool {
     for i in 0..decl.params.len() {
-        if typeNeeds(r, &decl.params[i].ty, owner, &decl.typeParams) {
+        if typeNeeds(r, &decl.params[i].ty, owner, decl.typeParams) {
             return true
         }
     }
@@ -111,7 +111,7 @@ fn rewrittenDecl(r: mut Resolver, decl: &FnDecl, owner: List<Symbol>) FnDecl {
     let out = decl.clone()
     const named = decl.typeParams.clone()
     for i in 0..decl.params.len() {
-        const ty = rewrittenType(r, &decl.params[i].ty, owner, &named, out)
+        const ty = rewrittenType(r, &decl.params[i].ty, owner, named, out)
         out.params[i].ty = ty
     }
     return out
