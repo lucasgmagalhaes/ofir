@@ -132,7 +132,7 @@ pub fn ownerType(c: mut Checker, p: Program, id: int) int {
 pub fn resolveAlias(c: mut Checker, p: Program, id: int, args: List<TypeExpr>, span: Span) int {
     const item = itemOf(p, c.loc(id))
     return match item.kind {
-        ItemKind.TypeAlias(typeParams, aliased) => aliasType(c, p, id, &typeParams, &aliased, args,
+        ItemKind.TypeAlias(typeParams, aliased) => aliasType(c, p, id, typeParams, &aliased, args,
                                                              span)
         _ => ERROR
     }
@@ -253,7 +253,7 @@ pub fn adtInstance(c: mut Checker, p: Program, id: int, args: [int], span: Span)
     for i in 0..args.len() {
         list.push(args[i])
     }
-    checkBounds(c, p, &generics, &list, span)
+    checkBounds(c, p, &generics, list, span)
     checkInstanceStorable(c, p, ty, span)
     return ty
 }
@@ -317,7 +317,7 @@ fn namedValue(c: mut Checker, p: Program, name: Symbol, span: Span) int {
         len = param
     } else {
         const path = [name]
-        const id = pathTarget(c, &path, span)
+        const id = pathTarget(c, path, span)
         if id != 0 && c.def(id).kind == DefKind.Const {
             len = constArg(c, p, id, span)
         } else if id != 0 {
@@ -598,7 +598,7 @@ fn cType(c: mut Checker, p: Program, t: &TypeExpr) int {
  */
 pub fn resolveType(c: mut Checker, p: Program, t: &TypeExpr) int {
     return match t.kind {
-        TypeKind.Path(segments, args) => resolvePath(c, p, &segments, &args, t.span)
+        TypeKind.Path(segments, args) => resolvePath(c, p, segments, args, t.span)
         TypeKind.SelfType => {
             if c.selfType == ERROR {
                 c.error("E0200", t.span, "`Self` is only available inside a type".toOwned())

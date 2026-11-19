@@ -54,7 +54,7 @@ pub fn unionType(c: mut Checker, a: int, spanA: Span, b: int, spanB: Span, span:
             }
         }
     }
-    return unionOf(c, &members, span)
+    return unionOf(c, members, span)
 }
 
 /**
