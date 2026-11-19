@@ -467,8 +467,8 @@ fn postfixOnce(p: mut Parser, base: move Expr) (Expr, bool) {
         TokenKind.LParen => {
             p.advance()
             const args = parseCallArgs(p)
-            if comptimeGet(p, &base, &args) {
-                return (fieldGet(p, &base, &args, start), true)
+            if comptimeGet(p, &base, args) {
+                return (fieldGet(p, &base, args, start), true)
             }
             (newExpr(p, ExprKind.Call(Box.new(base), args), start), true)
         }
