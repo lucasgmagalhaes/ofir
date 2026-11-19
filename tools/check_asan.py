@@ -9,18 +9,20 @@ the sanitizer runtimes where clang may not. A run program must print its
 trigger a sanitizer report. The stack overflow tests are left out: the
 sanitizer handles SIGSEGV itself.
 
-    python3 tools/check_asan.py [--compiler build/stage0/ofir]
+    python3 tools/check_asan.py [--compiler build/stage0/ofir] [--require]
 """
 
 import argparse
 import concurrent.futures
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from safety import unavailable  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -31,35 +33,37 @@ SANITIZE = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
 C_FIXTURE_RE = re.compile(r"^//\s*c:\s*(\S+)\s*$", re.MULTILINE)
 
 
-def build_runtime(out: Path) -> Path:
+def build_runtime(out: Path, sanitize: list = SANITIZE, name: str = "asan") -> Path:
+    """The C runtime built with `sanitize` (check_tsan.py builds it with TSan)."""
     objects = []
     for source in sorted((ROOT / "runtime" / "src").glob("*.c")):
-        obj = out / (source.stem + ".o")
+        obj = out / f"{source.stem}_{name}.o"
         subprocess.run(["gcc", "-std=c11", "-D_POSIX_C_SOURCE=200809L", "-O1", "-g",
-                        "-I", str(ROOT / "runtime" / "include"), *SANITIZE, "-c", str(source),
+                        "-I", str(ROOT / "runtime" / "include"), *sanitize, "-c", str(source),
                         "-o", str(obj)], check=True)
         objects.append(str(obj))
-    library = out / "libofir_rt_asan.a"
+    library = out / f"libofir_rt_{name}.a"
     subprocess.run(["ar", "rcs", str(library), *objects], check=True)
     return library
 
 
-def build(compiler: str, path: Path, runtime: Path, out: Path):
+def build(compiler: str, path: Path, runtime: Path, out: Path, sanitize: list = SANITIZE,
+          generated: str = "-fsanitize=address"):
     base = out / (path.stem + str(abs(hash(path))))
     if subprocess.run([compiler, "build", str(path), "--emit=llvm", "-o", str(base)],
                       capture_output=True).returncode != 0:
         return None   # not a program stage 0 compiles (examples of later features)
     obj = base.with_suffix(".o")
     clang = os.environ.get("OFIR_CLANG") or "clang"
-    subprocess.run([clang, "-c", "-O1", "-fsanitize=address", "-Wno-override-module",
+    subprocess.run([clang, "-c", "-O1", generated, "-Wno-override-module",
                     str(base) + ".ll", "-o", str(obj)], check=True)
     fixtures = []
     for name in C_FIXTURE_RE.findall(path.read_text()):
         fixture = Path(str(base) + "_" + Path(name).stem + ".o")
-        subprocess.run(["gcc", "-std=c11", "-O1", "-g", *SANITIZE, "-c",
+        subprocess.run(["gcc", "-std=c11", "-O1", "-g", *sanitize, "-c",
                         str(path.parent / name), "-o", str(fixture)], check=True)
         fixtures.append(str(fixture))
-    subprocess.run(["gcc", *SANITIZE, str(obj), *fixtures, str(runtime), "-lm", "-o",
+    subprocess.run(["gcc", *sanitize, str(obj), *fixtures, str(runtime), "-lm", "-o",
                     str(base)], check=True)
     return base
 
@@ -95,10 +99,13 @@ def check(compiler: str, path: Path, runtime: Path, out: Path):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compiler", default=str(ROOT / "build" / "stage0" / "ofir"))
+    parser.add_argument("--require", action="store_true",
+                        help="fail instead of skipping when AddressSanitizer is unavailable")
     args = parser.parse_args()
-    if not shutil.which("gcc"):
-        print("asan: gcc is not installed, skipped")
-        return 0
+    reason = unavailable("asan")
+    if reason:
+        print(f"asan: unavailable ({reason}), {'failed' if args.require else 'skipped'}")
+        return 1 if args.require else 0
     # AddressSanitizer takes over SIGSEGV and its alternate stack, so the
     # runtime's stack overflow report cannot work under it.
     panics = [p for p in sorted((ROOT / "tests" / "panic").glob("*.of"))
