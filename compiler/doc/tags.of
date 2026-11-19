@@ -60,7 +60,7 @@ struct Section {
 }
 
 // The sections of the tags of `lines` from `from`.
-fn sections(lines: &List<str>, from: int) List<Section> {
+fn sections(lines: List<str>, from: int) List<Section> {
     let out: List<Section> = []
     let fenced = false
     for i in from..lines.len() {
@@ -81,7 +81,7 @@ fn sections(lines: &List<str>, from: int) List<Section> {
 
 // The index of the first line that starts with a tag, outside the fenced
 // blocks, or the number of lines.
-fn firstTag(lines: &List<str>) int {
+fn firstTag(lines: List<str>) int {
     let fenced = false
     for i in 0..lines.len() {
         if !fenced && isTag(lines[i]) {
@@ -95,7 +95,7 @@ fn firstTag(lines: &List<str>) int {
 }
 
 // The `<dl>` of the `@param` or `@typeParam` sections, under `heading`.
-fn named(all: &List<Section>, tag: str, heading: str, level: int) str {
+fn named(all: List<Section>, tag: str, heading: str, level: int) str {
     let out = ""
     for i in 0..all.len() {
         if all[i].tag != tag {
