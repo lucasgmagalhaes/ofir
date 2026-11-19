@@ -73,13 +73,15 @@ jobs:
             libgcc-13-dev-arm64-cross binutils-aarch64-linux-gnu
           make test-cross TARGET=aarch64-linux-gnu
 
-      # Memory checks of the generated programs (Linux: valgrind, and gcc's
-      # sanitizer runtimes).
-      - name: Leaks and sanitizers
+      # Memory, race and fault checks of the generated programs (Linux:
+      # valgrind, gcc's sanitizer runtimes and glibc; ADR 0087). Here every
+      # check must run: an unavailable one fails instead of being skipped.
+      - name: Leaks, sanitizers and faults
         if: runner.os == 'Linux'
         run: |
           sudo apt-get install -y valgrind
-          make check-leaks check-asan
+          make check-safety
+          make check-leaks check-asan check-tsan check-faults SAFETY_FLAGS=--require
 
   # Windows (roadmap 6.8): clang for the MinGW target, run from Git Bash
   # (docs/design/toolchain.md, section 7).

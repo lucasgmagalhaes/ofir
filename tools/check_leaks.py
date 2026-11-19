@@ -4,17 +4,23 @@
 A program must free everything it allocates and make no invalid memory
 access: drops must run exactly once. Requires valgrind.
 
-    python3 tools/check_leaks.py [--compiler build/stage0/ofir]
+A program killed by a signal fails as well. Without valgrind the check
+reports itself unavailable: skipped, or an error under `--require`.
+
+    python3 tools/check_leaks.py [--compiler build/stage0/ofir] [--require]
 """
 
 import argparse
 import concurrent.futures
 import os
-import shutil
+import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from safety import unavailable  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,6 +38,8 @@ def programs() -> list:
 
 # Every block from malloc: valgrind does not see a leaked block of the pool.
 SYSTEM_ALLOC = dict(os.environ, OFIR_SYSTEM_ALLOC="1")
+# A run test that ends by SIGABRT on purpose (tests/runner/run_tests.py).
+ABORTS = re.compile(r"^//\s*status:\s*abort\s*$", re.MULTILINE)
 
 
 def check(compiler: str, path: Path, out_dir: Path):
@@ -44,6 +52,8 @@ def check(compiler: str, path: Path, out_dir: Path):
                           "--errors-for-leak-kinds=definite,indirect", str(exe)],
                          capture_output=True, text=True, stdin=subprocess.DEVNULL,
                          env=SYSTEM_ALLOC)
+    if run.returncode < 0 and not ABORTS.search(path.read_text()):
+        return f"{path.relative_to(ROOT)}: killed by signal {-run.returncode} under valgrind"
     if run.returncode != 9:
         return None
     lines = [l for l in run.stderr.splitlines()
@@ -54,10 +64,13 @@ def check(compiler: str, path: Path, out_dir: Path):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compiler", default=str(ROOT / "build" / "stage0" / "ofir"))
+    parser.add_argument("--require", action="store_true",
+                        help="fail instead of skipping when valgrind is unavailable")
     args = parser.parse_args()
-    if not shutil.which("valgrind"):
-        print("leaks: valgrind is not installed, skipped")
-        return 0
+    reason = unavailable("leaks")
+    if reason:
+        print(f"leaks: unavailable ({reason}), {'failed' if args.require else 'skipped'}")
+        return 1 if args.require else 0
     with tempfile.TemporaryDirectory() as out:
         with concurrent.futures.ThreadPoolExecutor() as pool:
             results = list(pool.map(lambda p: check(args.compiler, p, Path(out)), programs()))

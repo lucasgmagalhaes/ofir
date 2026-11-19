@@ -666,9 +666,10 @@ pub struct Arc<T: Send + Sync> {
     fn drop(mut self) {
         unsafe {
             // Release publishes this owner's uses of the value; the last owner's
-            // Acquire fence sees all of them before the drop.
+            // Acquire load of the count sees all of them before the drop. A load,
+            // not a fence: ThreadSanitizer does not model fences (ADR 0087).
             if atomic.atomicFetchSub(self.count(), 1, atomic.Ordering.Release) == 1 {
-                atomic.fence(atomic.Ordering.Acquire)
+                atomic.atomicLoad(self.count(), atomic.Ordering.Acquire)
                 dropInPlace(self.inner)
                 ofir_free(self.inner as *mut u8)
             }

@@ -5,8 +5,9 @@ BUILD  ?= build
 
 include tools/platform.mk
 PYTHON ?= python3
+SAFETY_FLAGS ?=
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan seed check-seed dist bench bench-programs bench-compare clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan check-tsan check-faults check-safety seed check-seed dist bench bench-programs bench-compare clean
 
 all: stage0 runtime
 
@@ -50,7 +51,7 @@ check-fmt-corpus: stage1 runtime
 # Every run test and example under valgrind: no leaks, no invalid accesses.
 # Stage 1 compiles every program stage 0 does, and the stage 1 only ones.
 check-leaks: stage1 runtime
-	$(STAGE_ENV) $(PYTHON) tools/check_leaks.py --compiler $(BUILD)/stage1/ofir$(EXE)
+	$(STAGE_ENV) $(PYTHON) tools/check_leaks.py --compiler $(BUILD)/stage1/ofir$(EXE) $(SAFETY_FLAGS)
 
 # The `@test` functions of std and of the stage 1 compiler (spec 12.2).
 test-std: stage0 runtime
@@ -58,7 +59,20 @@ test-std: stage0 runtime
 
 # Every run and panic test and example under ASan and UBSan (needs gcc).
 check-asan: stage1 runtime
-	$(STAGE_ENV) $(PYTHON) tools/check_asan.py --compiler $(BUILD)/stage1/ofir$(EXE)
+	$(STAGE_ENV) $(PYTHON) tools/check_asan.py --compiler $(BUILD)/stage1/ofir$(EXE) $(SAFETY_FLAGS)
+
+# The programs that start tasks or share state, with ThreadSanitizer (ADR 0087).
+check-tsan: stage1 runtime
+	$(STAGE_ENV) $(PYTHON) tools/check_tsan.py --compiler $(BUILD)/stage1/ofir$(EXE) $(SAFETY_FLAGS)
+
+# Every run test and example with failing allocations and I/O (ADR 0087).
+check-faults: stage1 runtime
+	$(STAGE_ENV) $(PYTHON) tools/check_faults.py --compiler $(BUILD)/stage1/ofir$(EXE) $(SAFETY_FLAGS)
+
+# Which of the four checks above this machine can run, and why not.
+# `SAFETY_FLAGS=--require` makes an unavailable check fail instead of skip.
+check-safety:
+	$(PYTHON) tools/safety.py
 
 # Stage 1 (compiler/, built by stage 0) gives the same output as stage 0.
 compare-stages: stage1

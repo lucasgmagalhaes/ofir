@@ -319,7 +319,14 @@ int32_t ofir_read_dir(const uint8_t *path, int64_t len, OfirBuf *out) {
     return 0;
 }
 
+static void line_out_of_memory(void) {
+    static const char msg[] = "out of memory";
+    ofir_panic((const uint8_t *)msg, sizeof msg - 1, NULL);
+}
+
 // One line of standard input with its `\n`; an empty buffer at the end.
+// Running out of memory for the line panics, as ofir_alloc does, instead of
+// reading as the end of the input.
 int32_t ofir_read_line(OfirBuf *out) {
     ofir_stdout_flush();   // a prompt appears before the program waits
     char *line = NULL;
@@ -329,7 +336,12 @@ int32_t ofir_read_line(OfirBuf *out) {
     for (int c; (c = getc(stdin)) != EOF;) {
         if ((size_t)n + 1 >= cap) {
             cap = cap ? cap * 2 : 128;
-            line = realloc(line, cap);
+            char *grown = realloc(line, cap);
+            if (!grown) {
+                free(line);
+                line_out_of_memory();
+            }
+            line = grown;
         }
         line[n++] = (char)c;
         if (c == '\n') {
@@ -338,7 +350,12 @@ int32_t ofir_read_line(OfirBuf *out) {
     }
     n = n == 0 ? -1 : n;
 #else
+    errno = 0;
     ssize_t n = getline(&line, &cap, stdin);
+    if (n < 0 && errno == ENOMEM) {
+        free(line);
+        line_out_of_memory();
+    }
 #endif
     *out = (OfirBuf){0};
     if (n < 0) {
