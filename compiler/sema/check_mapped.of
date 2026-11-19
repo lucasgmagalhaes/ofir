@@ -112,7 +112,7 @@ pub fn mappedType(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys:
         info.types.push(ty)
         info.defaults.push(optional)
     }
-    const id = mappedStruct(c, c.aliasDef, t.span, &scope)
+    const id = mappedStruct(c, c.aliasDef, t.span, scope)
     let pubs: List<bool> = []
     for _ in 0..fieldNames.len() {
         pubs.push(true)
@@ -185,7 +185,7 @@ fn template(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &Type
 fn aliasKeys(c: mut Checker, p: Program) {
     const preds = itemOf(p, c.loc(c.aliasDef)).bounds.clone()
     for i in 0..preds.len() {
-        const index = boundedParam(&preds[i].ty, &c.generics.owner, [])
+        const index = boundedParam(&preds[i].ty, c.generics.owner, [])
         if index < 0 {
             continue
         }
@@ -256,7 +256,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         info.defaults.push(tpl.optional)
         pubs.push(true)
     }
-    const id = mappedStruct(c, alias, tpl.span, &args)
+    const id = mappedStruct(c, alias, tpl.span, args)
     c.types.setFields(id, KeyFields{module: c.def(alias).module, isTuple: false,
                                     names: kept, pubs, types: info.types.clone()})
     c.info[id].fields = Option.Some(Box.new(info))
@@ -445,7 +445,7 @@ pub fn checkAliasBounds(c: mut Checker, p: Program, id: int, span: Span) bool {
     let ok = true
     const preds = itemOf(p, c.loc(id)).bounds.clone()
     for i in 0..preds.len() {
-        const index = boundedParam(&preds[i].ty, &c.generics.owner, [])
+        const index = boundedParam(&preds[i].ty, c.generics.owner, [])
         if index < 0 || index >= c.generics.aliasArgs.len() {
             continue
         }
