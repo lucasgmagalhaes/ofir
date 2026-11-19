@@ -1,0 +1,47 @@
+// sections: 3.7 5.2 8.1 8.2
+// Destructors through generics: a generic type drops what it holds, in
+// order, whether a generic function moves it, returns it or lets it go.
+
+struct Noisy {
+    name: str
+
+    fn drop(mut self) {
+        println("drop {self.name}")
+    }
+}
+
+struct Holder<T> {
+    first: T
+    second: T
+}
+
+fn noisy(name: str) Noisy {
+    return Noisy{name: name.toOwned()}
+}
+
+fn keep<T>(value: move T) T {
+    return value
+}
+
+fn discard<T>(_value: move T) {
+    println("discard")
+}
+
+fn pair<T>(a: move T, b: move T) Holder<T> {
+    return Holder{first: a, second: b}
+}
+
+fn main() {
+    const h = pair(noisy("a"), noisy("b"))
+    println("built")
+    discard(h)
+    const kept = keep(noisy("c"))
+    println("kept {kept.name}")
+    let items: List<Holder<Noisy>> = []
+    items.push(pair(noisy("d"), noisy("e")))
+    items.push(pair(noisy("f"), noisy("g")))
+    const last = items.pop()
+    println("popped")
+    discard(last)
+    println("end")
+}
