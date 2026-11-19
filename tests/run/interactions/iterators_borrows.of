@@ -1,0 +1,48 @@
+// sections: 4.4 5.4 5.5
+// Iterators and borrows: a loop over a list borrows it, `for mut` edits
+// the elements in place, `drain` moves them out, and a user iterator
+// owns each item it hands out.
+
+struct Words {
+    items: List<str>
+    at: int
+
+    fn next(mut self) Option<str> {
+        if self.at == self.items.len() {
+            return Option.None
+        }
+        self.at += 1
+        return Option.Some(self.items[self.at - 1].clone())
+    }
+}
+
+fn longest(items: List<str>) int {
+    let best = 0
+    for s in items {
+        if s.len() > best {
+            best = s.len()
+        }
+    }
+    return best
+}
+
+fn main() {
+    let names: List<str> = ["ada", "grace", "barbara"]
+    println("longest {longest(names)} of {names.len()}")
+    let lengths: List<int> = []
+    for s in names {
+        lengths.push(s.len())
+    }
+    for mut n in lengths {
+        n *= 10
+    }
+    println("{lengths[0]} {lengths[1]} {lengths[2]}")
+    let moved: List<str> = []
+    for s in names.drain() {
+        moved.push(s)
+    }
+    println("{names.len()} left, {moved.len()} moved")
+    for w in (Words{items: moved, at: 0}) {
+        println("word {w}")
+    }
+}

@@ -1,0 +1,47 @@
+// requires: stage1
+// sections: 5.2 14.2 14.4
+// Tasks, channels and drops: values sent over a channel are dropped once
+// by their receiver, values left in a channel are dropped with it, and a
+// task's captures are dropped when it ends.
+
+import std.sync.channel
+import std.sync.Sender
+import std.task
+
+struct Noisy {
+    n: int
+
+    fn drop(mut self) {
+        println("drop {self.n}")
+    }
+}
+
+fn produce(tx: move Sender<Noisy>, from: int) task.Task<()> {
+    return task.run(move () => {
+        for i in from..from + 3 {
+            tx.send(Noisy{n: i})
+        }
+    })
+}
+
+fn main() {
+    const (tx, rx) = channel<Noisy>()
+    produce(tx, 1).join()
+    let total = 0
+    for {
+        match rx.recv() {
+            Option.Some(v) => {
+                total += v.n
+            }
+            Option.None => {
+                break
+            }
+        }
+    }
+    println("total {total}")
+    const (tx2, rx2) = channel<Noisy>()
+    produce(tx2, 10).join()
+    const first = rx2.recv().unwrap()
+    println("first {first.n}")
+    println("end")
+}

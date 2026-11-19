@@ -1,0 +1,18 @@
+// requires: stage1
+// sections: 5.1 10.3
+// Closures and moves: a value a `move` closure captured is gone from the
+// scope that made it.
+
+struct Noisy {
+    name: str
+}
+
+fn captured() int {
+    const n = Noisy{name: "a"}
+    const f = move () int => n.name.len()
+    const _ = f()
+    return n.name.len()           // error[E0600]: use of moved value `n`
+}
+
+fn main() {
+}

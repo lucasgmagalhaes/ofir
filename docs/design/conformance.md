@@ -193,6 +193,26 @@ Stage 0 implements none of these chapters (bootstrap subset).
 | 17.6 Layout | none | full | `tests/run/unions/layout.of` `tests/run/unions/drops.of` | subset: union types; untested: no negative case (a layout rejects nothing) |
 | 17.7 Errors | none | full | `tests/compile_fail/types/unions.of` `tests/compile_fail/types/union_narrowing.of` | subset: union types; untested: no positive case (the section lists errors) |
 
+## Interactions
+
+Cases that use several features together (ADR 0085), where both stages
+have had bugs. Each case starts with `// sections:`, the sections it
+combines, and lives in `tests/run/interactions/` or
+`tests/compile_fail/interactions/`; the checker requires every such file
+in this table, with the sections it declares.
+
+| Interaction | Sections | Cases |
+|-------------|----------|-------|
+| Generics and destructors | 3.7 5.2 8.1 8.2 | `tests/run/interactions/generics_drops.of` |
+| Closures and moves | 5.1 5.2 10.3 10.4 | `tests/run/interactions/closures_moves.of` |
+| Closures and moves (rejected) | 5.1 10.3 | `tests/compile_fail/interactions/closures_moves.of` |
+| Errors and loops | 4.4 4.7 6.1 6.2 | `tests/run/interactions/errors_loops.of` |
+| Enums, patterns and ownership | 2.5 4.5 5.1 5.2 | `tests/run/interactions/enums_ownership.of` |
+| Enums, patterns and ownership (rejected) | 2.5 4.5 5.1 | `tests/compile_fail/interactions/enums_ownership.of` |
+| Interfaces and generics | 8.1 8.2 9.2 9.6 | `tests/run/interactions/interfaces_generics.of` |
+| Iterators and borrows | 4.4 5.4 5.5 | `tests/run/interactions/iterators_borrows.of` |
+| Tasks, channels and drops | 5.2 14.2 14.4 | `tests/run/interactions/tasks_channels_drops.of` |
+
 ## Findings
 
 No section has a `missing:` gap.
