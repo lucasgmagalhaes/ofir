@@ -555,7 +555,7 @@ fn shorthand(m: mut Moves, c: mut Checker, p: Program, init: &FieldInit, span: S
 // ---------------------------------------------------------------------------
 // Calls
 
-fn eachArg(m: mut Moves, c: mut Checker, p: Program, args: &List<Arg>, uses: &List<Use>,
+fn eachArg(m: mut Moves, c: mut Checker, p: Program, args: List<Arg>, uses: List<Use>,
            otherwise: Use, s: mut State) {
     for i in 0..args.len() {
         const use = if i < uses.len() { uses[i] } else { otherwise }
@@ -603,7 +603,7 @@ fn argument(m: mut Moves, c: mut Checker, p: Program, arg: &Expr, use: Use, para
 
 // The parameter a function returns a borrow from (spec 5.6): -1 for
 // `self`, -2 for none.
-fn borrowSource(c: Checker, p: Program, decl: &FnDecl, callId: int, args: &List<Arg>) int {
+fn borrowSource(c: Checker, p: Program, decl: &FnDecl, callId: int, args: List<Arg>) int {
     if decl.hasSelf && decl.selfMode != Mode.Move {
         return -1
     }
@@ -630,7 +630,7 @@ fn borrowSource(c: Checker, p: Program, decl: &FnDecl, callId: int, args: &List<
 // arguments are borrowed mutably; none of them may overlap another one
 // (E0700, E0701). A result that holds a reference borrows the source.
 fn fnCall(m: mut Moves, c: mut Checker, p: Program, e: &Expr, id: int, receiver: &Expr,
-          hasReceiver: bool, args: &List<Arg>, s: mut State) {
+          hasReceiver: bool, args: List<Arg>, s: mut State) {
     const decl = fnOf(p, c.loc(id))
     let places: List<ArgPlace> = []
     if hasReceiver && decl.hasSelf {
@@ -686,7 +686,7 @@ fn isVariant(c: mut Checker, p: Program, owner: int, field: &Expr) bool {
 
 // A call of a name: a function, a constructor or a variant.
 fn nameCall(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
-            args: &List<Arg>, s: mut State) {
+            args: List<Arg>, s: mut State) {
     const none: List<Use> = []
     match c.res(callee.id.0) {
         Res.Def(id) => {
@@ -707,7 +707,7 @@ fn nameCall(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
 
 // A call consumes the arguments of `move` parameters (and of constructors
 // and variants) and only reads the others.
-fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
+fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<Arg>,
         s: mut State) {
     const none: List<Use> = []
     match callee.kind {
@@ -744,7 +744,7 @@ fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args:
 
 // ---------------------------------------------------------------------------
 
-fn each(m: mut Moves, c: mut Checker, p: Program, list: &List<Expr>, s: mut State, use: Use) {
+fn each(m: mut Moves, c: mut Checker, p: Program, list: List<Expr>, s: mut State, use: Use) {
     for i in 0..list.len() {
         movesNode(m, c, p, &list[i], s, use)
     }
@@ -884,7 +884,7 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
 // A closure (spec 10.3): a `move` closure moves or copies what it captures,
 // another borrows it, `&mut` if it modifies it, until its last use. Its
 // body is analyzed apart, the captured variables borrowed there.
-fn closure(m: mut Moves, c: mut Checker, p: Program, e: &Expr, params: &List<Param>,
+fn closure(m: mut Moves, c: mut Checker, p: Program, e: &Expr, params: List<Param>,
            body: &Expr, isMove: bool, s: mut State) {
     const captured = closureCaptures(c, e.id.0)
     let saved: List<bool> = []

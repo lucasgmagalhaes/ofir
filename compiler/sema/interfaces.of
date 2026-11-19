@@ -52,7 +52,7 @@ pub fn interfaceClosure(c: mut Checker, p: Program, iface: int) List<int> {
     return out
 }
 
-fn contains(list: &List<int>, x: int) bool {
+fn contains(list: List<int>, x: int) bool {
     for i in 0..list.len() {
         if list[i] == x {
             return true
@@ -338,8 +338,8 @@ pub fn unsatisfied(c: mut Checker, p: Program, ty: int, iface: int, args: int) s
 // The first method of `iface` without a body that `owner` lacks or declares
 // with another signature: `args` are those of `owner`, `selfArgs` those of
 // `iface`, `Self` first.
-fn unsatisfiedBy(c: mut Checker, p: Program, owner: int, args: &List<int>, iface: int,
-                 selfArgs: &List<int>) str {
+fn unsatisfiedBy(c: mut Checker, p: Program, owner: int, args: List<int>, iface: int,
+                 selfArgs: List<int>) str {
     const module = c.def(iface).module
     for m in 0..methodCount(p, c.loc(iface)) {
         const wanted = methodAt(p, c.loc(iface), m)
@@ -501,7 +501,7 @@ pub fn paramDefaultClash(c: mut Checker, p: Program, param: int, name: Symbol) s
  * @param name the method
  * @returns the reason, or ""
  */
-pub fn defaultClash(c: mut Checker, p: Program, tops: &List<int>, name: Symbol) str {
+pub fn defaultClash(c: mut Checker, p: Program, tops: List<int>, name: Symbol) str {
     let providers: List<int> = []
     for i in 0..tops.len() {
         if tops[i] == 0 {
@@ -543,7 +543,7 @@ pub fn defaultClash(c: mut Checker, p: Program, tops: &List<int>, name: Symbol) 
  * @param owner the type or interface declaring them, whose own methods win
  * @returns the reason, or ""
  */
-pub fn firstDefaultClash(c: mut Checker, p: Program, tops: &List<int>, owner: int) str {
+pub fn firstDefaultClash(c: mut Checker, p: Program, tops: List<int>, owner: int) str {
     for i in 0..tops.len() {
         if tops[i] == 0 {
             continue
@@ -599,7 +599,7 @@ pub fn embedConflict(c: mut Checker, p: Program, embedded: int, seen: mut List<i
 }
 
 // The method among `seen` named `name`, or 0.
-fn sameName(c: Checker, seen: &List<int>, name: Symbol) int {
+fn sameName(c: Checker, seen: List<int>, name: Symbol) int {
     for i in 0..seen.len() {
         if c.def(seen[i]).name.0 == name.0 {
             return seen[i]
