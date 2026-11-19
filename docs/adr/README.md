@@ -95,6 +95,7 @@ starts with the same word as the record's status line.
 | [0082](0082-installation-and-toolchains.md) | Installation archives, side-by-side toolchains and `toolchain` pins | Proposed |
 | [0083](0083-reproducible-builds.md) | Reproducible builds: logical paths, no timestamps, build records | Proposed |
 | [0084](0084-release-engineering.md) | Release engineering: candidates, release branches, compatibility corpus, LLVM range | Proposed |
+| [0085](0085-conformance-cases.md) | Conformance cases and feature interactions | Proposed |
 
 ## Template
 
