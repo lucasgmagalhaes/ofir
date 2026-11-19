@@ -27,6 +27,7 @@ import std.mem.atomic
 extern "C" {
     fn ofir_mem_reserve(size: int) *mut u8
     fn ofir_mem_commit(p: *mut u8, size: int) bool
+    fn ofir_mem_yield()
 }
 
 const CHUNK: int = 65536
@@ -104,8 +105,15 @@ fn sizeAt(c: int) *mut int {
     return unsafe { BASE.add(SIZES_OFFSET + c * 8) as *mut int }
 }
 
+// A spin lock that waits on a plain load and yields while the lock is held:
+// with more threads than cores the holder may not be running.
 fn lock(p: *mut int) {
     for unsafe { atomic.atomicSwap(p, 1, atomic.Ordering.Acquire) } != 0 {
+        for unsafe { atomic.atomicLoad(p, atomic.Ordering.Relaxed) } != 0 {
+            unsafe {
+                ofir_mem_yield()
+            }
+        }
     }
 }
 

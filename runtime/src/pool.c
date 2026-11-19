@@ -39,8 +39,12 @@ bool ofir_mem_commit(void *ptr, int64_t size) {
     return false;
 }
 
+void ofir_mem_yield(void) {
+}
+
 #else
 
+#include <sched.h>
 #include <sys/mman.h>
 
 void *ofir_mem_reserve(int64_t size) {
@@ -53,6 +57,11 @@ void *ofir_mem_reserve(int64_t size) {
 
 bool ofir_mem_commit(void *ptr, int64_t size) {
     return mprotect(ptr, (size_t)size, PROT_READ | PROT_WRITE) == 0;
+}
+
+// Lets the holder of a pool lock run (std/core/pool.of spins on it).
+void ofir_mem_yield(void) {
+    sched_yield();
 }
 
 #endif

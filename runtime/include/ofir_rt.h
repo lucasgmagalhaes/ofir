@@ -64,6 +64,7 @@ bool ofir_pool_free(void *ptr);   // frees a pool block, or returns false
 void ofir_pool_thread_exit(void);   // gives a task thread's free blocks back
 void *ofir_mem_reserve(int64_t size);
 bool ofir_mem_commit(void *ptr, int64_t size);
+void ofir_mem_yield(void);   // gives up the CPU while a pool lock is held
 
 // ---------------------------------------------------------------------------
 // Standard output, buffered by the runtime and flushed at exit and on panic.
