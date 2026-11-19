@@ -17,11 +17,17 @@ extern "C" fn twice(n: i32) i32 {
 fn main() {
     unsafe {
         const p = malloc(16)
+        if p as u64 == 0 {
+            panic("out of memory")
+        }
         *p = 72
         *p.add(1) = 105
         *p.add(2) = 0
         println("{strlen(p)} {*p} {*p.add(1)}")
         const pairs = malloc(32) as *mut Pair
+        if pairs as u64 == 0 {
+            panic("out of memory")
+        }
         *pairs = Pair{a: 1, b: 2}
         (*pairs).b += 40
         const second = pairs.add(1)
