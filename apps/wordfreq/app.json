@@ -1,0 +1,8 @@
+{
+  "root": "main.of",
+  "cases": [
+    {"name": "top", "args": ["testdata"]},
+    {"name": "top2", "args": ["--top", "2", "testdata"]},
+    {"name": "bad", "args": ["--top", "x", "testdata"], "status": 1}
+  ]
+}

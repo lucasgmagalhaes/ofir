@@ -1,0 +1,128 @@
+// wordfreq: counts the words of the files under a directory with one task
+// per file, and prints the most frequent ones. A representative concurrent
+// program (OFIR-76, ADR 0090): the tasks of std.task read and count, send
+// their counts through a std.sync channel, and bump a shared AtomicInt;
+// the output does not depend on the order the tasks finish in.
+
+import std.cli
+import std.fs
+import std.os
+import std.sync
+import std.sync.Arc
+import std.sync.AtomicInt
+import std.task
+
+struct Count {
+    file: str
+    words: Map<str, int>
+}
+
+fn command() cli.Command {
+    let cmd = cli.Command.new("wordfreq", "Count the words of the files under a directory")
+    cmd.option("top", "n", "N", "How many words to print")
+    cmd.withDefault("5")
+    cmd.positional("dir", "The directory to read", true)
+    return cmd
+}
+
+fn normalize(word: str) str {
+    let out = str.new()
+    for c in word.toLower().chars() {
+        if (c >= 97 && c <= 122) || (c >= 48 && c <= 57) {
+            out.pushChar(c)
+        }
+    }
+    return out
+}
+
+fn count(file: str) Count {
+    let words: Map<str, int> = Map.new()
+    match fs.readToString(file) {
+        Result.Ok(text) => {
+            for raw in text.splitWhitespace() {
+                const word = normalize(raw)
+                if word.len() > 0 {
+                    let slot = words.getOrInsert(word, 0)
+                    *slot += 1
+                }
+            }
+        },
+        Result.Err(e) => eprintln("wordfreq: {file}: {e.message}")
+    }
+    return Count{file: file.clone(), words: words}
+}
+
+// The index of the most frequent word left in `words`, ties to the first
+// in name order.
+fn best(words: List<str>, totals: Map<str, int>, taken: List<bool>) int {
+    let at = -1
+    let most = 0
+    for i in 0..words.len() {
+        const n = *(totals.get(words[i]) ?? &0)
+        if !taken[i] && n > most {
+            at = i
+            most = n
+        }
+    }
+    return at
+}
+
+fn main() {
+    const args = os.args()
+    const m = command().parseOrExit(args.sliceFrom(1))
+    const top = match int.parse(m.value("top") ?? "5") {
+        Result.Ok(n) => n,
+        Result.Err(_) => cli.fail("--top needs a number")
+    }
+    const dir = m.positional("dir") ?? "."
+    const entries = match fs.readDir(dir) {
+        Result.Ok(list) => list,
+        Result.Err(e) => cli.fail("{dir}: {e.message}")
+    }
+    const (tx, rx) = sync.channel<Count>()
+    const done = Arc.new(AtomicInt.new(0))
+    let tasks: List<task.Task<()>> = []
+    for entry in entries {
+        const file = entry.path.clone()
+        const send = tx.clone()
+        const finished = done.clone()
+        tasks.push(task.run(move () => {
+            finished.get().fetchAdd(1)
+            send.send(count(file))
+        }))
+    }
+    for t in tasks.drain() {
+        t.join()
+    }
+    let totals: Map<str, int> = Map.new()
+    let perFile: List<str> = []
+    for _ in 0..done.get().load() {
+        const c = rx.recv() ?? cli.fail("a task sent no count")
+        let n = 0
+        for word in c.words.keys() {
+            const k = *(c.words.get(word) ?? &0)
+            n += k
+            let slot = totals.getOrInsert(word.clone(), 0)
+            *slot += k
+        }
+        perFile.push("{c.file}: {n} words")
+    }
+    perFile.sort()
+    for line in perFile {
+        println(line)
+    }
+    let words: List<str> = []
+    for word in totals.keys() {
+        words.push(word.clone())
+    }
+    words.sort()
+    let taken = List.filled(false, words.len())
+    for _ in 0..top {
+        const i = best(words, totals, taken)
+        if i < 0 {
+            break
+        }
+        taken[i] = true
+        println("{*(totals.get(words[i]) ?? &0)} {words[i]}")
+    }
+}

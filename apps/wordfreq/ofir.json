@@ -1,0 +1,9 @@
+// wordfreq: counts the words of many files in parallel (OFIR-76).
+{
+  "name": "wordfreq",
+  "version": "0.1.0",
+  "build": {
+    "kind": "exe",
+    "root": "main.of",
+  },
+}
