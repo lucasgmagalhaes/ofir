@@ -244,7 +244,7 @@ pub fn boundedParam(t: &TypeExpr, owner: List<Symbol>, fnParams: List<Symbol>) i
  */
 pub fn interfaceOf(c: Checker, t: &TypeExpr) int {
     return match t.kind {
-        TypeKind.Path(segments, _) => interfaceAt(c, &segments)
+        TypeKind.Path(segments, _) => interfaceAt(c, segments)
         _ => 0
     }
 }
@@ -271,7 +271,7 @@ fn noIfaces(n: int) List<List<int>> {
 // The bounds of `preds`, added to `g`, whose parameters are already set.
 fn addBounds(c: mut Checker, p: Program, preds: List<WherePred>, g: mut Generics) {
     for i in 0..preds.len() {
-        const index = boundedParam(&preds[i].ty, &g.owner, &g.fnParams)
+        const index = boundedParam(&preds[i].ty, g.owner, g.fnParams)
         if index < 0 {
             continue   // E0334, reported with the declaration
         }
@@ -398,14 +398,14 @@ pub fn typeGenerics(c: mut Checker, p: Program, item: &Item) Generics {
     let g = Generics{owner: owner.clone(), fnParams: [], bounds: List.filled(0, owner.len()),
                      ifaces: noIfaces(owner.len()), ifaceArgs: noIfaces(owner.len()),
                      aliasArgs: [], keys: List.filled(0, owner.len())}
-    addBounds(c, p, &item.bounds, g)
+    addBounds(c, p, item.bounds, g)
     const isInterface = match item.kind {
         ItemKind.Interface(_, _, _) => true
         _ => false
     }
     if isInterface {   // `Self` satisfies the interface it is declared in
         g.ifaces[0].push(interfaceDef(c, item))
-        g.ifaceArgs[0].push(ownArgs(c, &owner))
+        g.ifaceArgs[0].push(ownArgs(c, owner))
     }
     return g
 }
@@ -463,7 +463,7 @@ pub fn fnGenericsIn(c: mut Checker, p: Program, outer: &Generics, decl: &FnDecl)
             g.ifaceArgs[i] = outer.ifaceArgs[i].clone()
         }
     }
-    addBounds(c, p, &decl.bounds, g)
+    addBounds(c, p, decl.bounds, g)
     return g
 }
 
@@ -848,7 +848,7 @@ pub struct Checker {
             }
             TyKind.Tuple => {
                 out.push("(")
-                self.appendList(out, &t.args, qualified)
+                self.appendList(out, t.args, qualified)
                 out.push(if t.args.len() == 1 { ",)" } else { ")" })
             }
             TyKind.Fn => {
@@ -856,7 +856,7 @@ pub struct Checker {
                     out.push("extern \"C\" ")
                 }
                 out.push(if t.data & FN_OWNED != 0 { "move fn(" } else { "fn(" })
-                self.appendList(out, &t.args, qualified)
+                self.appendList(out, t.args, qualified)
                 out.push(")")
                 if t.inner != UNIT {
                     out.push(" ")
@@ -893,7 +893,7 @@ pub struct Checker {
                 out.push(self.text(self.r.defs[t.data].name))
                 if t.args.len() > 0 {
                     out.push("<")
-                    self.appendList(out, &t.args, qualified)
+                    self.appendList(out, t.args, qualified)
                     out.push(">")
                 }
             }
@@ -928,7 +928,7 @@ pub struct Checker {
             TyKind.Mapped => {
                 out.push(self.text(self.def(t.data).name))
                 out.push("<")
-                self.appendList(out, &t.args, qualified)
+                self.appendList(out, t.args, qualified)
                 out.push(">")
             }
             TyKind.KeyOp => {
@@ -1148,7 +1148,7 @@ pub fn checkFn(c: mut Checker, p: Program, id: int, selfType: int) {
     const decl = fnOf(p, c.loc(id))
     const inner = fnGenericsIn(c, p, &c.generics.clone(), decl)
     const outer = c.enterGenerics(inner)
-    checkDeclBounds(c, p, &decl.bounds)
+    checkDeclBounds(c, p, decl.bounds)
     const sig = fnSignature(c, p, id)
     checkBorrowSource(c, p, id, sig, selfType)   // what callers need, now
     c.info[id].cellParams = cellParams(c, p, decl, sig, selfType)
@@ -1352,7 +1352,7 @@ fn checkExtern(c: mut Checker, p: Program, item: &Item, abi: str, fns: List<FnDe
 pub fn checkDeclBounds(c: mut Checker, p: Program, preds: List<WherePred>) {
     for i in 0..preds.len() {
         const pred = &preds[i]
-        if boundedParam(&pred.ty, &c.generics.owner, &c.generics.fnParams) < 0 {
+        if boundedParam(&pred.ty, c.generics.owner, c.generics.fnParams) < 0 {
             c.error("E0334", pred.ty.span, "`{typeText(&pred.ty, c.r.names)}` is not a type "
                     + "parameter of this declaration: only type parameters take bounds")
         }
@@ -1383,7 +1383,7 @@ fn checkConstParamType(c: mut Checker, p: Program, pred: &WherePred) {
 
 fn checkTypeBounds(c: mut Checker, p: Program, item: &Item) {
     const outer = c.enterGenerics(typeGenerics(c, p, item))
-    checkDeclBounds(c, p, &item.bounds)
+    checkDeclBounds(c, p, item.bounds)
     c.enterGenerics(outer)
 }
 
@@ -1401,7 +1401,7 @@ fn checkItem(c: mut Checker, p: Program, index: int) {
             }
             checkFn(c, p, def, ERROR)
         }
-        ItemKind.Extern(abi, fns) => checkExtern(c, p, item, abi, &fns)
+        ItemKind.Extern(abi, fns) => checkExtern(c, p, item, abi, fns)
         ItemKind.Struct(_, _, _, _, _, methods) => {
             checkTypeBounds(c, p, item)
             if id != 0 {
@@ -1409,7 +1409,7 @@ fn checkItem(c: mut Checker, p: Program, index: int) {
                 checkStructLayouts(c, p, id)
                 checkStructAttrs(c, p, id)
             }
-            checkMethods(c, p, index, &methods)
+            checkMethods(c, p, index, methods)
             checkAsserts(c, p, index)
         }
         ItemKind.Enum(_, _, _, methods) => {
@@ -1419,7 +1419,7 @@ fn checkItem(c: mut Checker, p: Program, index: int) {
                 checkEnumLayouts(c, p, id)
                 checkEnumAttrs(c, p, id)
             }
-            checkMethods(c, p, index, &methods)
+            checkMethods(c, p, index, methods)
             checkAsserts(c, p, index)
         }
         ItemKind.Const(_, _) | ItemKind.Global(_, _) => {
@@ -1427,7 +1427,7 @@ fn checkItem(c: mut Checker, p: Program, index: int) {
                 checkConst(c, p, id)
             }
         }
-        ItemKind.Interface(_, _, methods) => checkInterface(c, p, index, &methods)
+        ItemKind.Interface(_, _, methods) => checkInterface(c, p, index, methods)
         ItemKind.TypeAlias(_, _) | ItemKind.Import(_, _) => {}
     }
 }
@@ -1438,13 +1438,13 @@ fn checkInterface(c: mut Checker, p: Program, index: int, methods: List<FnDecl>)
     const item = &p.modules[c.module()].module.items[index]
     match item.kind {
         ItemKind.Interface(_, embeds, _) => {
-            notInterfaces(c, p, &embeds)
+            notInterfaces(c, p, embeds)
             for i in 0..embeds.len() {
                 if typeArgCount(&embeds[i]) > 0 {
                     c.unsupported(embeds[i].span, "embedded generic interfaces are")
                 }
             }
-            checkEmbeds(c, p, index, &embeds)
+            checkEmbeds(c, p, index, embeds)
         }
         _ => {}
     }
@@ -1485,7 +1485,7 @@ fn checkEmbeds(c: mut Checker, p: Program, index: int, embeds: List<TypeExpr>) {
             c.error("E0328", embeds[i].span, "conflicting methods: {why}")
         }
     }
-    const clash = firstDefaultClash(c, p, &tops, me)
+    const clash = firstDefaultClash(c, p, tops, me)
     if clash.len() > 0 {
         c.error("E0329", embeds[embeds.len() - 1].span, "conflicting defaults: {clash}; "
                 + "declare the method in `{c.text(c.def(me).name)}`")
@@ -1534,7 +1534,7 @@ fn checkAsserts(c: mut Checker, p: Program, index: int) {
     if item.asserts.len() == 0 || c.itemDefs[c.module()][index] == 0 {
         return
     }
-    notInterfaces(c, p, &item.asserts)
+    notInterfaces(c, p, item.asserts)
     const ty = ownerTypeOf(c, p, c.module(), index)
     const generics = typeGenerics(c, p, item)
     for i in 0..item.asserts.len() {
@@ -1554,7 +1554,7 @@ fn checkAsserts(c: mut Checker, p: Program, index: int) {
         ifaces.push(interfaceOf(c, &item.asserts[i]))
     }
     const owner = c.itemDefs[c.module()][index]
-    const clash = firstDefaultClash(c, p, &ifaces, owner)
+    const clash = firstDefaultClash(c, p, ifaces, owner)
     if clash.len() > 0 {
         c.error("E0329", item.asserts[item.asserts.len() - 1].span, "conflicting defaults: "
                 + "{clash}; declare the method in `{c.typeName(ty)}`")

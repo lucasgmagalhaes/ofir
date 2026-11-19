@@ -198,7 +198,7 @@ pub fn noteWrite(c: mut Checker, span: Span, local: int) {
             Option.Some(list) => list.clone()
             Option.None => []
         }
-        if !contains(&written, local) {
+        if !contains(written, local) {
             written.push(local)
         }
         c.capturesMut[m].insert(closure, written)

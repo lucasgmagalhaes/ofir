@@ -391,7 +391,7 @@ pub fn narrowingOf(c: mut Checker, p: Program, e: &Expr) Narrowing {
                     }
                 } else {
                     n.bits[i] = a.bits[i] & b.bits[i]
-                    n.ifaces[i] = common(&a.ifaces[i], &b.ifaces[i])
+                    n.ifaces[i] = common(a.ifaces[i], b.ifaces[i])
                 }
             }
         }
