@@ -129,7 +129,7 @@ pub fn ownerType(c: mut Checker, p: Program, id: int) int {
  * @param span where it is named
  * @returns the type
  */
-pub fn resolveAlias(c: mut Checker, p: Program, id: int, args: &List<TypeExpr>, span: Span) int {
+pub fn resolveAlias(c: mut Checker, p: Program, id: int, args: List<TypeExpr>, span: Span) int {
     const item = itemOf(p, c.loc(id))
     return match item.kind {
         ItemKind.TypeAlias(typeParams, aliased) => aliasType(c, p, id, &typeParams, &aliased, args,
@@ -138,8 +138,8 @@ pub fn resolveAlias(c: mut Checker, p: Program, id: int, args: &List<TypeExpr>, 
     }
 }
 
-fn aliasType(c: mut Checker, p: Program, id: int, typeParams: &List<Symbol>,
-             aliased: &TypeExpr, args: &List<TypeExpr>, span: Span) int {
+fn aliasType(c: mut Checker, p: Program, id: int, typeParams: List<Symbol>,
+             aliased: &TypeExpr, args: List<TypeExpr>, span: Span) int {
     if args.len() != typeParams.len() {
         c.error("E0302", span, "wrong number of type arguments for `{c.text(c.def(id).name)}`: "
                 + "expected {typeParams.len()}, found {args.len()}")
@@ -420,7 +420,7 @@ fn arrayOfLength(c: mut Checker, item: int, len: int, span: Span) int {
     return c.types.intern(TyKind.Array, -1, item, [len])
 }
 
-fn namedType(c: mut Checker, p: Program, id: int, args: &List<TypeExpr>, span: Span) int {
+fn namedType(c: mut Checker, p: Program, id: int, args: List<TypeExpr>, span: Span) int {
     const kind = c.def(id).kind
     warnDeprecated(c.r, id, span)
     if args.len() > 0 && kind != DefKind.Struct && kind != DefKind.Enum &&
@@ -485,7 +485,7 @@ pub fn moduleType(c: mut Checker, m: int, name: Symbol, span: Span) int {
 }
 
 // `Name` or `module.Name`: its `DefId`, or 0.
-fn pathTarget(c: mut Checker, segments: &List<Symbol>, span: Span) int {
+fn pathTarget(c: mut Checker, segments: List<Symbol>, span: Span) int {
     const first = c.r.scope.module(segments[0])
     c.r.noteImportUse(segments[0])
     if segments.len() == 1 {
@@ -525,7 +525,7 @@ fn pathTarget(c: mut Checker, segments: &List<Symbol>, span: Span) int {
     return id
 }
 
-fn resolvePath(c: mut Checker, p: Program, segments: &List<Symbol>, args: &List<TypeExpr>,
+fn resolvePath(c: mut Checker, p: Program, segments: List<Symbol>, args: List<TypeExpr>,
                span: Span) int {
     if segments.len() == 1 {
         if const Option.Some(param) = typeParameter(c, segments[0]) {
