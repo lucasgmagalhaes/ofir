@@ -44,7 +44,7 @@ pub struct Checked {
  * @param probe the name inserted where a completion is asked for, or `""`
  * @returns the files, the diagnostics, the links and the completions
  */
-pub fn checkFile(path: str, overlays: &Map<str, str>, probe: str) Checked {
+pub fn checkFile(path: str, overlays: Map<str, str>, probe: str) Checked {
     let front = Front{map: SourceMap.new(), names: Interner.new(), diags: Diagnostics.new(),
                       overlays: overlays.clone(), locked: false, offline: false}
     const Option.Some(file) = front.load(path) else {
