@@ -518,7 +518,7 @@ fn movesStmt(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, s: mut State
                 s.moved[local] = false
                 killHolder(s, local)
                 if m.refLocal[local] {
-                    bindLoans(s, local, &carriedSince(m, mark))
+                    bindLoans(s, local, carriedSince(m, mark))
                 }
             }
         }
@@ -680,7 +680,7 @@ fn bindLoopVar(m: mut Moves, st: mut State, local: int, borrows: bool, last: int
     killHolder(st, local)
     if m.refLocal[local] || (borrows && !m.copyLocal[local]) {
         const loans = loansOf(&st, m.holderBase + last)
-        bindLoans(st, local, &loans)
+        bindLoans(st, local, loans)
     }
 }
 
@@ -705,7 +705,7 @@ fn loopLoans(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, st: mut Stat
                 }
                 loans.push(Loan{holder, part: m.lastPlace.clone(), mutable, span: e.span})
             }
-            bindLoans(st, holder, &loans)
+            bindLoans(st, holder, loans)
         }
     }
 }

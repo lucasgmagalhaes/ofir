@@ -442,7 +442,7 @@ fn assignPlace(m: mut Moves, c: mut Checker, e: &Expr, place: &Place, s: mut Sta
         killHolder(s, local)   // the old value's loans end with it
     }
     if m.refLocal[local] {
-        bindLoans(s, local, &m.binding)
+        bindLoans(s, local, m.binding)
     }
     s.initPart(&place.part)
 }
@@ -695,12 +695,12 @@ fn nameCall(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
                 fnCall(m, c, p, e, id, callee, false, args, s)
             } else {
                 const build = kind == DefKind.Struct || kind == DefKind.Variant
-                eachArg(m, c, p, args, &none, if build { Use.Move } else { Use.Read }, s)
+                eachArg(m, c, p, args, none, if build { Use.Move } else { Use.Read }, s)
             }
         }
         _ => {
             movesNode(m, c, p, callee, s, Use.Read)
-            eachArg(m, c, p, args, &none, Use.Read, s)
+            eachArg(m, c, p, args, none, Use.Read, s)
         }
     }
 }
@@ -718,12 +718,12 @@ fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args:
                 return
             }
             if isVariant(c, p, typeNameOf(c, base), callee) {
-                eachArg(m, c, p, args, &none, Use.Move, s)
+                eachArg(m, c, p, args, none, Use.Move, s)
                 return
             }
             if c.fieldCalls[c.module()].get(callee.id.0).isSome() {   // `button.onClick()`
                 movesNode(m, c, p, callee, s, Use.Read)
-                eachArg(m, c, p, args, &none, Use.Read, s)
+                eachArg(m, c, p, args, none, Use.Read, s)
                 return
             }
             const member = c.members[c.module()][callee.id.0]
@@ -732,12 +732,12 @@ fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args:
                 return
             }
             movesNode(m, c, p, base, s, Use.Read)   // the built-in methods read
-            eachArg(m, c, p, args, &none, Use.Read, s)
+            eachArg(m, c, p, args, none, Use.Read, s)
         }
         ExprKind.Ident(_) | ExprKind.Generic(_, _) => nameCall(m, c, p, e, callee, args, s)
         _ => {
             movesNode(m, c, p, callee, s, Use.Read)
-            eachArg(m, c, p, args, &none, Use.Read, s)
+            eachArg(m, c, p, args, none, Use.Read, s)
         }
     }
 }
@@ -810,7 +810,7 @@ fn refRoot(m: Moves, c: Checker, e: &Expr) int {
 
 fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
     match e.kind {
-        ExprKind.Interp(parts, _) => each(m, c, p, &parts, s, Use.Read)
+        ExprKind.Interp(parts, _) => each(m, c, p, parts, s, Use.Read)
         ExprKind.Unary(op, operand) => {
             if op == Op.Ref || op == Op.RefMut {   // a borrow
                 borrow(m, c, p, &*operand, s, op == Op.RefMut)
@@ -848,7 +848,7 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
                 }
             }
         }
-        ExprKind.Call(callee, args) => call(m, c, p, e, &*callee, &args, s)
+        ExprKind.Call(callee, args) => call(m, c, p, e, &*callee, args, s)
         ExprKind.Try(inner) => movesNode(m, c, p, &*inner, s, Use.Move)
         ExprKind.Struct(_, fields, base) => {
             for i in 0..fields.len() {
@@ -861,14 +861,14 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
                 movesNode(m, c, p, &*b, s, Use.Move)
             }
         }
-        ExprKind.Array(elems) | ExprKind.Tuple(elems) => each(m, c, p, &elems, s, Use.Move)
+        ExprKind.Array(elems) | ExprKind.Tuple(elems) => each(m, c, p, elems, s, Use.Move)
         ExprKind.Repeat(value, count) => {
             movesNode(m, c, p, &*value, s, Use.Read)
             movesNode(m, c, p, &*count, s, Use.Read)
         }
         ExprKind.Variant(_, args, _) => {
             const none: List<Use> = []
-            eachArg(m, c, p, &args, &none, Use.Move, s)
+            eachArg(m, c, p, args, none, Use.Move, s)
         }
         // The value of an `if`, a `match` or a block is a new value, which
         // its user consumes or drops: the last expression of each branch is
@@ -876,7 +876,7 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
         ExprKind.If(_, _, _, _) => movesIf(m, c, p, e, s, Use.Move)
         ExprKind.Match(_, _) => movesMatch(m, c, p, e, s, Use.Move)
         ExprKind.Block(block) | ExprKind.Unsafe(block) => movesBlock(m, c, p, &block, s, Use.Move)
-        ExprKind.Closure(params, _, body, isMove) => closure(m, c, p, e, &params, &*body, isMove, s)
+        ExprKind.Closure(params, _, body, isMove) => closure(m, c, p, e, params, &*body, isMove, s)
         _ => {}   // literals, names of types and functions, constants
     }
 }
