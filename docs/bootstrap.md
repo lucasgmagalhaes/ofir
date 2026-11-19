@@ -142,7 +142,8 @@ M4, the code in `compiler/` must be written in this subset.
   (derived equality for other types comes with interfaces in stage 1)
 - parameter modes: borrow (default), `mut` and `move`, for parameters and
   `self`; `for mut` loops; `[T]` and `str` parameters accepting slices
-- explicit references `&T`, `&mut T` as locals; slices `&[T]`, `&str`
+- explicit references `&T`, `&mut T` as locals, also passed to a `T`
+  parameter in borrow or `mut` mode; slices `&[T]`, `&str`
 - built-in generics: `List<T>`, `Map<K, V>`, `Option<T>`, `Result<T, E>`,
   `Box<T>`, and the `?` operator (both error types must be equal)
 - user-defined generic functions, structs and enums (monomorphized),
