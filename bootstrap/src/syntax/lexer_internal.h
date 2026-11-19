@@ -5,17 +5,6 @@
 
 #include "syntax/lexer.h"
 
-typedef struct {
-    Session *session;
-    const char *src;
-    uint32_t len;
-    uint32_t pos;
-    FileId file;
-    TokenList *out;
-    Vec(char) brackets;            // open `(`, `[` and `{`, innermost last
-    Vec(uint32_t) interpolations;  // brackets.len when each interpolation opened
-} Lexer;
-
 static inline char peek(const Lexer *lx, uint32_t offset) {
     uint32_t i = lx->pos + offset;
     return i < lx->len ? lx->src[i] : '\0';
