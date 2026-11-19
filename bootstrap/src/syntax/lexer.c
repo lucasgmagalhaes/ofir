@@ -3,6 +3,7 @@
 
 #include "syntax/lexer_internal.h"
 
+#include <stdint.h>
 #include <string.h>
 
 // Keywords are interned first in every session (see intern_keywords), so
@@ -38,6 +39,12 @@ Token *emit(Lexer *lx, TokenKind kind, uint32_t start) {
     Token token = {.kind = kind, .span = span_from(lx, start)};
     VEC_PUSH(*lx->out, token);
     return &VEC_LAST(*lx->out);
+}
+
+const StrView *token_text(Lexer *lx, StrView text) {
+    StrView *view = ARENA_NEW(&lx->session->arena, StrView);
+    *view = text;
+    return view;
 }
 
 // Newlines are tokens except directly inside `(...)` and `[...]` (spec 1.3).
@@ -111,8 +118,14 @@ static void doc_comment(Lexer *lx, uint32_t start) {
         text.ptr++;
         text.len--;
     }
+    if (lx->docs) {   // for the parser: `@module` text only (spec 12.5)
+        if (module) {
+            VEC_PUSH(*lx->docs, text);
+        }
+        return;
+    }
     Token *t = emit(lx, module ? TOK_MODULE_DOC : TOK_DOC_COMMENT, start);
-    t->as.text = text;
+    t->as.text = token_text(lx, text);
 }
 
 // Skips `/* ... */`; `/** ... */` is a documentation comment. Returns true
@@ -383,22 +396,45 @@ static void check_encoding(Lexer *lx) {
     }
 }
 
-void lex(Session *session, FileId file, TokenList *out) {
+void lexer_init(Lexer *lx, Session *session, FileId file, TokenList *out) {
     const SourceFile *source = source_file(&session->sources, file);
-    Lexer lx = {
+    *lx = (Lexer){
         .session = session,
         .src = source->text.ptr,
         .len = (uint32_t)source->text.len,
         .file = file,
         .out = out,
     };
-    check_encoding(&lx);
-    while (!at_end(&lx)) {
+    check_encoding(lx);
+}
+
+bool lex_step(Lexer *self, uint32_t bytes) {
+    if (self->done) {
+        return false;
+    }
+    Lexer lx = *self;   // a local copy, so that its fields stay in registers
+    uint32_t stop = bytes < lx.len - lx.pos ? lx.pos + bytes : lx.len;
+    while (lx.pos < stop) {
         if (!skip_trivia(&lx)) {
             token_at(&lx);
         }
     }
-    emit(&lx, TOK_EOF, lx.pos);
-    VEC_FREE(lx.brackets);
-    VEC_FREE(lx.interpolations);
+    if (at_end(&lx)) {
+        emit(&lx, TOK_EOF, lx.pos);
+        lx.done = true;
+    }
+    *self = lx;
+    return true;
+}
+
+void lexer_free(Lexer *lx) {
+    VEC_FREE(lx->brackets);
+    VEC_FREE(lx->interpolations);
+}
+
+void lex(Session *session, FileId file, TokenList *out) {
+    Lexer lx;
+    lexer_init(&lx, session, file, out);
+    lex_step(&lx, UINT32_MAX);
+    lexer_free(&lx);
 }

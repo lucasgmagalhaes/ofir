@@ -4,16 +4,43 @@
 #define OFIR_PARSER_INTERNAL_H
 
 #include "base/vec.h"
+#include "syntax/lexer.h"
 #include "syntax/parser.h"
 
 #include <string.h>
 
+// The tokens are lexed as the parser asks for them, into chunks that are
+// freed once the parser has moved past them (at top-level item boundaries,
+// where it holds no token pointer). A token pointer stays valid until then.
+#define TOKEN_CHUNK_BITS 10
+#define TOKEN_CHUNK ((size_t)1 << TOKEN_CHUNK_BITS)
+#define LEX_BYTES 4096        // source bytes lexed at a time
+
+typedef struct {
+    Lexer lexer;
+    TokenList staged;         // the lexer's output, before it moves to a chunk
+    Vec(Token *) chunks;      // chunk k holds tokens k * TOKEN_CHUNK onwards
+    size_t freed;             // chunks before this one are freed
+    size_t count;             // tokens so far, the last one TOK_EOF once lexed
+    size_t ready;             // tokens `token_index` reads directly: count, or 0 once failed
+    DocTexts docs;            // `//!` comments; `///` ones are dropped (spec 12.5)
+    bool failed;              // the lexer reported an error: the parse stops there
+} TokenStream;
+
+typedef struct {
+    const char *code;
+    Span span;
+    char *message;
+} SyntaxError;
+
 typedef struct {
     Session *session;
     FileId file;
-    const Token *tokens;
-    size_t count;
+    TokenStream *tokens;
     size_t pos;
+    // Reported once the file is parsed, and only if it lexed without errors
+    // (as if it had been lexed whole first).
+    Vec(SyntaxError) errors;
     bool no_struct_literal;   // in `if`, `match` and `for` headers (spec A.6)
     bool recovering;          // an error was reported; silent until resynchronized
     bool type_tests;          // in a `match` arm or `if const` pattern: `name: T` (spec 9.8)
@@ -25,10 +52,29 @@ typedef struct {
 } Parser;
 
 // ---- tokens (parser.c)
-const Token *peek_token(const Parser *p, size_t ahead);
-TokenKind peek(const Parser *p);
+const Token *token_pull(const Parser *p, size_t index);   // lexes up to `index`
+
+// The token at `index`, clamped to the EOF token.
+static inline const Token *token_index(const Parser *p, size_t index) {
+    const TokenStream *ts = p->tokens;
+    if (index < ts->ready) {
+        return &ts->chunks.data[index >> TOKEN_CHUNK_BITS][index & (TOKEN_CHUNK - 1)];
+    }
+    return token_pull(p, index);
+}
+static inline const Token *peek_token(const Parser *p, size_t ahead) {
+    return token_index(p, p->pos + ahead);
+}
+
+static inline TokenKind peek(const Parser *p) {
+    return peek_token(p, 0)->kind;
+}
+
+static inline bool at(const Parser *p, TokenKind kind) {
+    return peek(p) == kind;
+}
+
 TokenKind peek_at(const Parser *p, size_t ahead);
-bool at(const Parser *p, TokenKind kind);
 const Token *advance(Parser *p);
 bool accept(Parser *p, TokenKind kind);
 const Token *expect(Parser *p, TokenKind kind, const char *what);

@@ -2,6 +2,8 @@
 
 #include "syntax/parser_internal.h"
 
+#include <stdlib.h>
+
 static Attribute attribute(Parser *p) {
     Attribute a = {.span = advance(p)->span};   // @
     const Token *name = expect(p, TOK_IDENT, "an attribute name after `@`");
@@ -102,7 +104,7 @@ static void type_alias(Parser *p, Item *item) {
 // `extern "C" { fn ... }` or `extern "C" fn name(...) { body }`.
 static void extern_item(Parser *p, Item *item, ItemHeader header) {
     const Token *abi = expect(p, TOK_STR, "the ABI string, as in `extern \"C\"`");
-    StrView abi_text = abi ? abi->as.text : SV("C");
+    StrView abi_text = abi ? *abi->as.text : SV("C");
     if (accept(p, TOK_KW_FN)) {
         item->kind = ITEM_FN;
         item->as.fn = parse_fn(p, header, true);
@@ -186,10 +188,21 @@ static Item *item(Parser *p) {
     return it;
 }
 
+// Frees the chunks before the previous token (span_since reads it).
+static void release_tokens(Parser *p) {
+    TokenStream *ts = p->tokens;
+    size_t keep = (p->pos > 0 ? p->pos - 1 : 0) >> TOKEN_CHUNK_BITS;
+    for (; ts->freed < keep; ts->freed++) {
+        free(ts->chunks.data[ts->freed]);
+        ts->chunks.data[ts->freed] = NULL;
+    }
+}
+
 static void module_items(Parser *p, Module *module) {
     Vec(Item *) items = {0};
     skip_newlines(p);
     while (!at(p, TOK_EOF)) {
+        release_tokens(p);
         Item *it = item(p);
         if (it) {
             VEC_PUSH(items, it);
@@ -204,26 +217,28 @@ static void module_items(Parser *p, Module *module) {
     TO_LIST(p, items, module->items);
 }
 
-// Doc comments are not part of the grammar yet (spec 12.5): `///` tokens are
-// dropped, `//!` tokens become the module documentation. Compacts `tokens`
-// in place rather than copying them.
-static void filter_docs(Parser *p, TokenList *tokens, Module *module) {
-    Vec(StrView) docs = {0};
-    size_t kept = 0;
-    for (size_t i = 0; i < tokens->len; i++) {
-        Token t = tokens->data[i];
-        if (t.kind == TOK_MODULE_DOC) {
-            VEC_PUSH(docs, t.as.text);
-        } else if (t.kind != TOK_DOC_COMMENT) {
-            tokens->data[kept++] = t;
-        }
+static void free_tokens(TokenStream *ts) {
+    for (size_t i = ts->freed; i < ts->chunks.len; i++) {
+        free(ts->chunks.data[i]);
     }
-    tokens->len = kept;
-    TO_LIST(p, docs, module->docs);
+    VEC_FREE(ts->chunks);
+    VEC_FREE(ts->staged);
+    lexer_free(&ts->lexer);
 }
 
-Module *parse(Session *session, FileId file, TokenList *tokens) {
-    Parser p = {.session = session, .file = file};
+Module *parse(Session *session, FileId file) {
+    TokenStream tokens = {0};
+    uint32_t errors = session->diags.error_count;
+    lexer_init(&tokens.lexer, session, file, &tokens.staged);
+    tokens.lexer.docs = &tokens.docs;
+    if (session->diags.error_count != errors) {   // the encoding: lex for the other errors
+        while (lex_step(&tokens.lexer, LEX_BYTES)) {
+            tokens.staged.len = 0;
+        }
+        free_tokens(&tokens);
+        return NULL;
+    }
+    Parser p = {.session = session, .file = file, .tokens = &tokens};
     p.words.move = intern(&session->names, SV("move"));
     p.words.type = intern(&session->names, SV("type"));
     p.words.ref = intern(&session->names, SV("ref"));
@@ -232,9 +247,16 @@ Module *parse(Session *session, FileId file, TokenList *tokens) {
 
     Module *module = NEW(&p, Module);
     module->file = file;
-    filter_docs(&p, tokens, module);
-    p.tokens = tokens->data;
-    p.count = tokens->len;
     module_items(&p, module);
+    TO_LIST(&p, tokens.docs, module->docs);
+    if (tokens.failed) {
+        module = NULL;
+    }
+    for (size_t i = 0; module && i < p.errors.len; i++) {
+        SyntaxError *e = &p.errors.data[i];
+        diag_error(&session->diags, e->code, e->span, "%s", e->message);
+    }
+    VEC_FREE(p.errors);
+    free_tokens(&tokens);
     return module;
 }

@@ -181,7 +181,14 @@ Gen *llvm_begin(Sema *sema, FILE *file) {
     g->sema = sema;
     g->types = &sema->types;
     out_to_file(&g->out, file);
-    out_to_memory(&g->globals);
+    // A big program has megabytes of globals: a temporary file holds them
+    // rather than the heap.
+    g->spill = tmpfile();
+    if (g->spill) {
+        out_to_file(&g->globals, g->spill);
+    } else {
+        out_to_memory(&g->globals);
+    }
     out_to_memory(&g->type_defs);
     out_to_memory(&g->fn_text);
     FileId root = sema->program.items[0].module->file;
@@ -267,6 +274,21 @@ static void c_decls(Gen *g) {
     }
 }
 
+static void write_globals(Gen *g) {
+    if (!g->spill) {
+        out_write(&g->out, g->globals.buf, g->globals.len);
+        return;
+    }
+    out_flush(&g->globals);
+    rewind(g->spill);
+    size_t n;
+    while ((n = fread(g->globals.buf, 1, g->globals.cap, g->spill)) > 0) {
+        out_write(&g->out, g->globals.buf, n);
+    }
+    fclose(g->spill);
+    g->globals.file = NULL;
+}
+
 void llvm_end(Gen *g) {
     gen_mut_globals(g);
     out_str(&g->out, RUNTIME_DECLS);
@@ -274,7 +296,7 @@ void llvm_end(Gen *g) {
     gen_float_decls(g);
     c_decls(g);
     out_char(&g->out, '\n');
-    out_write(&g->out, g->globals.buf, g->globals.len);
+    write_globals(g);
     out_free(&g->type_defs);
     out_free(&g->fn_text);
     free(g->adt_types);

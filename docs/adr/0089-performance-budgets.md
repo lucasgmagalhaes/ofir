@@ -47,8 +47,9 @@ in `docs/design/performance.md` were written down but never checked.
 
 - A regression that the relative gate lets through in small steps is
   caught once it crosses a ceiling.
-- Compiler memory is 22.4× the source, over the 20× target; the budget
-  records that with a ceiling of 24× until the target is met.
+- Compiler memory was 22.4× the source, over the 20× target, with a
+  ceiling of 24×; streaming the tokens and spilling the LLVM globals
+  brought it to 17.8×, and the ceiling is now the 20× target.
 - The check takes about a minute: the cold self-compile and the programs
   under valgrind.
 - Instruction counts depend on clang's version, so a new CI clang may

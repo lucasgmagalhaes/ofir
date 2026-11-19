@@ -16,6 +16,7 @@ struct Gen {
     TypeTable *types;        // instances add the types of their fields
     Out out;
     Out globals;             // string literals and locations, written at the end
+    FILE *spill;             // where `globals` goes meanwhile; NULL: kept in memory
     uint32_t str_count, loc_count;
     uint64_t overflow_used[2][3][4];   // [signed][add, sub, mul][i8, i16, i32, i64]
     bool float_fn_used[FF_COUNT][2];   // [function][f32, f64]

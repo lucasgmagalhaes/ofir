@@ -76,7 +76,13 @@ Wall times are printed for information only, since shared runners are noisy.
 | Self-compile, debug build | < 5 s | 12.0 s cold, 1.5 s warm (§7) |
 | Generated code vs `clang -O2` C | within 10% | — |
 | Hello world binary (stripped) | < 50 KB | 31 KB with `--release` (§7) |
-| Compiler peak memory | < 20× the source size | 22.4× (check and LLVM, §7) |
+| Compiler peak memory | < 20× the source size | 17.8× (check 15.7×, LLVM 17.8×; §7) |
+
+Stage 0 keeps its peak memory low by holding few things whole: a token is
+24 bytes with its text behind a pointer, the parser lexes on demand and
+frees the tokens behind each top-level item, and the LLVM globals go to a
+temporary file until the functions are written. What remains is mostly
+the AST and, for LLVM, the AIR.
 
 ## 6. Build times
 
@@ -117,7 +123,7 @@ Performance workflow, next to the 3% gate of §4.
 
 | Budget | Measured | Ceiling | Gates |
 |--------|----------|---------|-------|
-| Compiler peak RSS per source byte (`check-100k`, `llvm-100k`) | 22.4× | 24× | yes |
+| Compiler peak RSS per source byte (`check-100k`, `llvm-100k`) | 17.8× | 20× | yes |
 | Self-compile, cold (empty `OFIR_HOME`) | 12.0 s | 30 s | no |
 | Self-compile, warm | 1.5 s | 5 s | yes |
 | Units compiled by the warm self-compile | 0 | 0 | yes |

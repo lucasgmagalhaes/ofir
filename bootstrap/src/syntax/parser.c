@@ -5,30 +5,59 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // ---------------------------------------------------------------------------
 // Tokens
 
-const Token *peek_token(const Parser *p, size_t ahead) {
-    size_t i = p->pos + ahead;
-    return &p->tokens[i < p->count ? i : p->count - 1];   // the last token is EOF
+// Moves the lexer's next tokens into the chunks. When the lexer reports an
+// error the rest of the file is lexed (for its errors) and the stream ends.
+static void pull(TokenStream *ts) {
+    Diagnostics *diags = &ts->lexer.session->diags;
+    uint32_t errors = diags->error_count;
+    ts->staged.len = 0;
+    lex_step(&ts->lexer, LEX_BYTES);
+    if (diags->error_count != errors && !ts->failed) {
+        ts->failed = true;
+        while (!ts->lexer.done) {   // keeps only the EOF token
+            ts->staged.len = 0;
+            lex_step(&ts->lexer, LEX_BYTES);
+        }
+    }
+    const Token *from = ts->staged.data;
+    size_t left = ts->staged.len;
+    while (left > 0) {
+        size_t offset = ts->count & (TOKEN_CHUNK - 1);
+        if (offset == 0) {
+            VEC_PUSH(ts->chunks, malloc(TOKEN_CHUNK * sizeof(Token)));
+        }
+        size_t n = TOKEN_CHUNK - offset < left ? TOKEN_CHUNK - offset : left;
+        memcpy(&ts->chunks.data[ts->count >> TOKEN_CHUNK_BITS][offset], from, n * sizeof(Token));
+        ts->count += n;
+        from += n;
+        left -= n;
+    }
+    ts->ready = ts->failed ? 0 : ts->count;
 }
 
-TokenKind peek(const Parser *p) {
-    return peek_token(p, 0)->kind;
+const Token *token_pull(const Parser *p, size_t index) {
+    TokenStream *ts = p->tokens;
+    while (index >= ts->count && !ts->lexer.done) {
+        pull(ts);
+    }
+    if (index >= ts->count || ts->failed) {
+        index = ts->count - 1;   // the last token is EOF
+    }
+    return &ts->chunks.data[index >> TOKEN_CHUNK_BITS][index & (TOKEN_CHUNK - 1)];
 }
 
 TokenKind peek_at(const Parser *p, size_t ahead) {
     return peek_token(p, ahead)->kind;
 }
 
-bool at(const Parser *p, TokenKind kind) {
-    return peek(p) == kind;
-}
-
 const Token *advance(Parser *p) {
     const Token *t = peek_token(p, 0);
-    if (p->pos < p->count - 1) {
+    if (t->kind != TOK_EOF) {
         p->pos++;
     }
     return t;
@@ -55,7 +84,7 @@ void skip_newlines(Parser *p) {
 }
 
 Span span_since(const Parser *p, Span start) {
-    const Token *previous = p->pos > 0 ? &p->tokens[p->pos - 1] : &p->tokens[0];
+    const Token *previous = token_index(p, p->pos > 0 ? p->pos - 1 : 0);
     uint32_t end = previous->span.end > start.start ? previous->span.end : start.end;
     return (Span){start.file, start.start, end};
 }
@@ -67,6 +96,11 @@ void *parser_alloc(Parser *p, size_t size) {
 // ---------------------------------------------------------------------------
 // Errors
 
+static void record_error(Parser *p, const char *code, Span span, const char *message) {
+    SyntaxError error = {code, span, arena_strndup(&p->session->arena, message, strlen(message))};
+    VEC_PUSH(p->errors, error);
+}
+
 void syntax_error(Parser *p, Span span, const char *format, ...) {
     if (p->recovering || p->too_deep) {
         return;   // one error per statement: the rest is usually a consequence
@@ -76,7 +110,7 @@ void syntax_error(Parser *p, Span span, const char *format, ...) {
     va_start(args, format);
     vsnprintf(message, sizeof message, format, args);
     va_end(args);
-    diag_error(&p->session->diags, "E0100", span, "%s", message);
+    record_error(p, "E0100", span, message);
     p->recovering = true;
 }
 
@@ -85,12 +119,15 @@ bool nest(Parser *p) {
         return true;
     }
     if (!p->too_deep) {
-        diag_error(&p->session->diags, "E0101", peek_token(p, 0)->span,
-                   "nesting too deep: more than %d levels", MAX_NESTING);
+        char message[64];
+        snprintf(message, sizeof message, "nesting too deep: more than %d levels", MAX_NESTING);
+        record_error(p, "E0101", peek_token(p, 0)->span, message);
         p->too_deep = true;
     }
     p->recovering = true;
-    p->pos = p->count - 1;   // the end of the file
+    while (peek(p) != TOK_EOF) {   // to the end of the file
+        p->pos++;
+    }
     return false;
 }
 
@@ -111,7 +148,7 @@ static Span error_span(const Parser *p, const Token *t) {
     if (t->kind != TOK_NEWLINE || p->pos == 0) {
         return t->span;
     }
-    Span after = p->tokens[p->pos - 1].span;
+    Span after = token_index(p, p->pos - 1)->span;
     after.start = after.end;
     return after;
 }

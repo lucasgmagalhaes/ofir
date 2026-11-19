@@ -39,23 +39,35 @@ static Next run_lexer(Pipeline *p, FileId file, TokenList *tokens, bool root) {
     return diags_has_errors(&session->diags) || done ? STOP : CONTINUE;
 }
 
-Module *parse_file(Pipeline *p, FileId file, bool root, Next *next) {
+// Lexes the whole file, for `--emit=tokens` and `--stop-after=lex`, and
+// after an error (the file is only checked for lexer errors then).
+static Module *lex_only(Pipeline *p, FileId file, bool root, Next *next) {
     TokenList tokens = {0};
-    *next = run_lexer(p, file, &tokens, root);
-    Module *module = NULL;
-    if (*next == CONTINUE) {
-        timer_start(p->timer);
-        module = parse(p->session, file, &tokens);
-        char detail[64];
-        snprintf(detail, sizeof detail, "%u items", module->items.len);
-        timer_report(p->timer, "parse", detail);
-        if (root && p->opts->emit == EMIT_AST) {
-            print_module(module, &p->session->names, stdout);
-        }
-        bool done = p->opts->emit == EMIT_AST || p->opts->stop_after == STOP_AFTER_PARSE;
-        *next = diags_has_errors(&p->session->diags) || done ? STOP : CONTINUE;
-    }
+    *next = run_lexer(p, file, &tokens, root);   // always STOP
     VEC_FREE(tokens);
+    return NULL;
+}
+
+// Lexes and parses together, so only the tokens of the current top-level
+// item are held (the lex phase is part of the parse time).
+Module *parse_file(Pipeline *p, FileId file, bool root, Next *next) {
+    Session *session = p->session;
+    bool lexing = p->opts->emit == EMIT_TOKENS || p->opts->stop_after == STOP_AFTER_LEX;
+    if (lexing || diags_has_errors(&session->diags)) {
+        return lex_only(p, file, root, next);
+    }
+    timer_start(p->timer);
+    Module *module = parse(session, file);
+    char detail[96];
+    const SourceFile *source = source_file(&session->sources, file);
+    snprintf(detail, sizeof detail, "%zu bytes, %u lines, %u items (lexed with the parse)",
+             source->text.len, source->line_count, module ? module->items.len : 0);
+    timer_report(p->timer, "parse", detail);
+    if (module && root && p->opts->emit == EMIT_AST) {
+        print_module(module, &session->names, stdout);
+    }
+    bool done = p->opts->emit == EMIT_AST || p->opts->stop_after == STOP_AFTER_PARSE;
+    *next = diags_has_errors(&session->diags) || done ? STOP : CONTINUE;
     return module;
 }
 

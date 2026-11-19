@@ -53,7 +53,9 @@ typedef struct {
         double float_value;     // TOK_FLOAT
         uint8_t byte_value;     // TOK_BYTE
         Symbol symbol;          // TOK_IDENT
-        StrView text;           // strings (escapes decoded) and doc comments
+        // strings (escapes decoded) and doc comments; a pointer keeps a token at
+        // 24 bytes (most tokens carry no text)
+        const StrView *text;
     } as;
 } Token;
 
