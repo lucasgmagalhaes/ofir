@@ -1,0 +1,21 @@
+{
+  "//": "Performance budgets (ADR 0089, docs/design/performance.md section 7).",
+  "//platform": "Measured on Linux x86_64 with clang 18; elsewhere the gates only report.",
+  "budgets": {
+    "compilerRssPerSourceByte": {"max": 24, "gate": true},
+    "selfCompileColdMs": {"max": 30000, "gate": false},
+    "selfCompileWarmMs": {"max": 5000, "gate": true},
+    "warmRebuildUnits": {"max": 0, "gate": true},
+    "helloStrippedBytes": {"max": 51200, "gate": true},
+    "helloStartupInstructions": {"max": 320000, "gate": true},
+    "helloStartupP90Ms": {"max": 5, "gate": false}
+  },
+  "programs": {
+    "binary_trees": {"maxInstructions": 18750000000, "gate": true},
+    "fib": {"maxInstructions": 430000000, "gate": true},
+    "map_count": {"maxInstructions": 172000000, "gate": true},
+    "nbody": {"maxInstructions": 3240000000, "gate": true},
+    "sort": {"maxInstructions": 415000000, "gate": true},
+    "strings": {"maxInstructions": 247000000, "gate": true}
+  }
+}
