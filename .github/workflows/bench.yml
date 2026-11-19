@@ -66,3 +66,30 @@ jobs:
         with:
           name: generated-code-results-${{ github.sha }}
           path: build/generated-code-results.json
+
+  budgets:
+    runs-on: ubuntu-24.04
+    env:
+      OFIR_CLANG: clang-18   # the ceilings were measured with clang 18 (ADR 0089)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the main Ubuntu mirror
+        run: |
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|' \
+            -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|' \
+            /etc/apt/sources.list.d/*.sources /etc/apt/sources.list || true
+          echo 'Acquire::Retries "5";' | sudo tee /etc/apt/apt.conf.d/80-retries
+
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+
+      - name: Check the performance budgets
+        # Instruction counts, sizes and memory gate; wall times report.
+        run: make check-budgets BUDGET_FLAGS=--require
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: budget-results-${{ github.sha }}
+          path: build/budget-results.json
