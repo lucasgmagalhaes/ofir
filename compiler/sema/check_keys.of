@@ -168,7 +168,7 @@ fn keyLike(c: Checker, ty: int) bool {
            kind == TyKind.Param
 }
 
-fn contains(names: &List<int>, name: int) bool {
+fn contains(names: List<int>, name: int) bool {
     for i in 0..names.len() {
         if names[i] == name {
             return true
@@ -417,7 +417,7 @@ pub fn isKeyParam(c: Checker, params: &Generics, pattern: int) bool {
  * @param args the arguments
  * @param span where
  */
-pub fn checkKeyBound(c: mut Checker, p: Program, params: &Generics, i: int, args: &List<int>,
+pub fn checkKeyBound(c: mut Checker, p: Program, params: &Generics, i: int, args: List<int>,
                      span: Span) {
     for j in 0..args.len() {
         ensureFields(c, p, args[j])

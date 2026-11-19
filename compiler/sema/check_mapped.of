@@ -185,7 +185,7 @@ fn template(c: mut Checker, p: Program, t: &TypeExpr, param: Symbol, keys: &Type
 fn aliasKeys(c: mut Checker, p: Program) {
     const preds = itemOf(p, c.loc(c.aliasDef)).bounds.clone()
     for i in 0..preds.len() {
-        const index = boundedParam(&preds[i].ty, &c.generics.owner, &[])
+        const index = boundedParam(&preds[i].ty, &c.generics.owner, [])
         if index < 0 {
             continue
         }
@@ -390,7 +390,7 @@ fn keep(c: mut Checker, p: Program, filter: &Option<Box<TypeExpr>>) int {
 
 // A new struct declaration for an instance, named by its alias and the types
 // in scope: `Partial<Point>`.
-fn mappedStruct(c: mut Checker, alias: int, span: Span, scope: &List<int>) int {
+fn mappedStruct(c: mut Checker, alias: int, span: Span, scope: List<int>) int {
     let name = c.text(c.def(alias).name).toOwned()
     if scope.len() > 0 {
         name.push("<")
@@ -445,7 +445,7 @@ pub fn checkAliasBounds(c: mut Checker, p: Program, id: int, span: Span) bool {
     let ok = true
     const preds = itemOf(p, c.loc(id)).bounds.clone()
     for i in 0..preds.len() {
-        const index = boundedParam(&preds[i].ty, &c.generics.owner, &[])
+        const index = boundedParam(&preds[i].ty, &c.generics.owner, [])
         if index < 0 || index >= c.generics.aliasArgs.len() {
             continue
         }
