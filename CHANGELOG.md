@@ -187,6 +187,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Stage 0 peaks at 17.8× the source size instead of 22.4×: tokens are
+  24 bytes, the parser lexes on demand and frees tokens as it goes, and
+  the LLVM globals are spilled to a temporary file. The memory budget is
+  now 20×.
 - `Any` is now the builtin `dyn` type `any` (spec 9.8, ADR 0039):
   `v: any`, `&any` and `Box<any>` replace `dyn Any`; `dyn any` is E0365.
 
