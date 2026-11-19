@@ -146,8 +146,13 @@ which drives it with a fake compiler (`make runner-selftest`).
 | `python3 tools/fuzz_frontend.py --count N` | mutated sources (cut, spliced, extra tokens) must get diagnostics, never a crash, hang or sanitizer report; `--minimize` shrinks a failure, and the seeds of `tests/fuzz/frontend` are replayed first |
 | `python3 tools/fuzz_programs.py --count N --stage1 build/stage1/ofir` | generated integer programs print what a Python oracle computes, or panic with its message, on both stages in dev and release (ADR 0086) |
 | `make check-fuzz` | both fuzzers with fixed seeds and small counts; part of `make test` |
+| `make check-tsan` | the programs that import `std.task` or `std.sync`, and the runtime, under ThreadSanitizer: expected output and no race report |
+| `make check-faults` | every program with failing allocations, reads, writes and opens, interrupted calls and short writes (`tools/fault/inject.c`, glibc only): a status or a panic, never a crash or a hang |
+| `make check-safety` | which of these checks this machine can run, and why not (ADR 0087) |
 
-CI runs `check-leaks` and `check-asan` on Linux.
+A check whose tool is missing prints `unavailable (reason), skipped`; with
+`SAFETY_FLAGS=--require` it fails instead. CI runs `check-leaks`,
+`check-asan`, `check-tsan` and `check-faults` on Linux with `--require`.
 
 ## 5. Rules
 
