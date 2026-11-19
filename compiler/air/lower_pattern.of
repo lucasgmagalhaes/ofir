@@ -278,12 +278,12 @@ pub fn lowerPattern(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Patter
             const below = compare(l, c, p, op, ty, placeOperand(place, OperandKind.Copy, ty), high)
             test(l, below, fail)
         }
-        PatternKind.Tuple(items) => lowerPatterns(l, c, p, &items, place, fail)
+        PatternKind.Tuple(items) => lowerPatterns(l, c, p, items, place, fail)
         PatternKind.TupleStruct(_, args) => {
             if isEnum(c, ty) {   // `Some(x)`
-                variantTest(l, c, p, pattern, place, ty, &args, fail)
+                variantTest(l, c, p, pattern, place, ty, args, fail)
             } else {
-                lowerPatterns(l, c, p, &args, place, fail)
+                lowerPatterns(l, c, p, args, place, fail)
             }
         }
         PatternKind.Struct(_, fields, _) => {
@@ -303,8 +303,8 @@ pub fn lowerPattern(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Patter
                 }
             }
         }
-        PatternKind.Variant(_, _, args, _) => variantTest(l, c, p, pattern, place, ty, &args, fail)
-        PatternKind.Or(alternatives) => orPattern(l, c, p, &alternatives, place, fail)
+        PatternKind.Variant(_, _, args, _) => variantTest(l, c, p, pattern, place, ty, args, fail)
+        PatternKind.Or(alternatives) => orPattern(l, c, p, alternatives, place, fail)
         PatternKind.TypeTest(_, _) => typeTest(l, c, p, pattern, place, ty, fail)
         PatternKind.At(_, _, inner) => {
             lowerPattern(l, c, p, &*inner, place, fail)   // binds nothing (E0502)
@@ -492,8 +492,8 @@ fn bindsOwned(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern) boo
         }
         PatternKind.TypeTest(_, _) => c.localAt(pattern.id.0) >= 0
         PatternKind.Variant(_, _, args, _) | PatternKind.TupleStruct(_, args) |
-        PatternKind.Tuple(args) | PatternKind.Or(args) => anyOwned(l, c, p, &args)
-        PatternKind.Struct(_, fields, _) => fieldsOwned(l, c, p, &fields)
+        PatternKind.Tuple(args) | PatternKind.Or(args) => anyOwned(l, c, p, args)
+        PatternKind.Struct(_, fields, _) => fieldsOwned(l, c, p, fields)
         _ => false
     }
 }
@@ -592,16 +592,16 @@ pub fn keepUnbound(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern
         return
     }
     match pattern.kind {
-        PatternKind.Variant(_, _, args, _) => keepVariant(l, c, p, pattern, &args, place)
+        PatternKind.Variant(_, _, args, _) => keepVariant(l, c, p, pattern, args, place)
         PatternKind.TupleStruct(_, args) => {
             if isEnum(c, ty) {
-                keepVariant(l, c, p, pattern, &args, place)
+                keepVariant(l, c, p, pattern, args, place)
             } else {
-                keepList(l, c, p, &args, place)
+                keepList(l, c, p, args, place)
             }
         }
-        PatternKind.Tuple(items) => keepList(l, c, p, &items, place)
-        PatternKind.Struct(_, fields, _) => keepFields(l, c, p, &fields, place, ty)
+        PatternKind.Tuple(items) => keepList(l, c, p, items, place)
+        PatternKind.Struct(_, fields, _) => keepFields(l, c, p, fields, place, ty)
         _ => {}
     }
 }
@@ -645,7 +645,7 @@ pub fn lowerMatch(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand 
     const dest = if asValue { newTemp(l, ty) } else { 0 }
     match e.kind {
         ExprKind.Match(scrutinee, arms) => {
-            const inPlace = matchesInPlace(l, c, &arms)
+            const inPlace = matchesInPlace(l, c, arms)
             const place = if inPlace {
                 lowerPlace(l, c, p, &*scrutinee)
             } else {
