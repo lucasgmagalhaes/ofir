@@ -95,7 +95,7 @@ pub struct Lint {
  * @param name a module name's first segment
  * @returns its index, or -1 (the root's own modules, or std)
  */
-pub fn packageNamed(packages: &List<Package>, name: str) int {
+pub fn packageNamed(packages: List<Package>, name: str) int {
     for i in 1..packages.len() {
         if packages[i].name == name {
             return i
@@ -112,7 +112,7 @@ pub fn packageNamed(packages: &List<Package>, name: str) int {
  * @param key the first segment of an import
  * @returns the package it names, or -1
  */
-pub fn dependencyOf(packages: &List<Package>, p: int, key: str) int {
+pub fn dependencyOf(packages: List<Package>, p: int, key: str) int {
     const deps = &packages[p].deps
     for i in 0..deps.len() {
         if deps[i].key == key {
@@ -170,7 +170,7 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
 
 // Reports each cycle of dependencies (E0916, ADR 0076), at the dependency
 // that closes it, walking the graph depth first from the root.
-fn checkCycles(packages: &List<Package>, diags: mut Diagnostics) {
+fn checkCycles(packages: List<Package>, diags: mut Diagnostics) {
     let state: List<int> = []   // 0 unseen, 1 on the path, 2 done
     for _ in 0..packages.len() {
         state.push(0)
@@ -179,7 +179,7 @@ fn checkCycles(packages: &List<Package>, diags: mut Diagnostics) {
     visit(packages, 0, state, path, diags)
 }
 
-fn visit(packages: &List<Package>, p: int, state: mut List<int>, path: mut List<int>,
+fn visit(packages: List<Package>, p: int, state: mut List<int>, path: mut List<int>,
          diags: mut Diagnostics) {
     state[p] = 1
     path.push(p)
@@ -198,7 +198,7 @@ fn visit(packages: &List<Package>, p: int, state: mut List<int>, path: mut List<
 }
 
 // The packages of a cycle, from `q` on the path back to `q`.
-fn cycleText(packages: &List<Package>, path: &List<int>, q: int) str {
+fn cycleText(packages: List<Package>, path: List<int>, q: int) str {
     let out = ""
     let on = false
     for i in 0..path.len() {
@@ -215,7 +215,7 @@ fn cycleText(packages: &List<Package>, path: &List<int>, q: int) str {
 
 // Reports that the lock would change under `--locked` (E0913), at the
 // root manifest's `dependencies`, with a note for each package that differs.
-fn staleLock(rootDir: str, packages: &List<Locked>, map: mut SourceMap, diags: mut Diagnostics) {
+fn staleLock(rootDir: str, packages: List<Locked>, map: mut SourceMap, diags: mut Diagnostics) {
     const path = "{rootDir}/ofir.json"
     let file = FileId(-1)
     for i in 0..map.len() {
@@ -585,7 +585,7 @@ fn readLints(doc: &JsonDoc, file: FileId, diags: mut Diagnostics) List<Lint> {
 }
 
 // Whether `key` can name a dependency of package `p` (E0910, E0915).
-fn validKey(packages: &List<Package>, p: int, key: str, at: Span, diags: mut Diagnostics) bool {
+fn validKey(packages: List<Package>, p: int, key: str, at: Span, diags: mut Diagnostics) bool {
     if !isModuleName(key) {
         diags.error("E0910", at, "`{key}` is not a valid package name")
         return false
@@ -761,7 +761,7 @@ fn pinnedDir(doc: &JsonDoc, file: FileId, member: int, url: str, r: &Resolution,
     return Option.None
 }
 
-fn isReported(reported: &List<str>, url: str) bool {
+fn isReported(reported: List<str>, url: str) bool {
     for i in 0..reported.len() {
         if reported[i] == url {
             return true
@@ -813,7 +813,7 @@ fn libraryRoot(dir: str, key: str, at: Span, map: mut SourceMap,
 }
 
 // `key`, or `key_2`, `key_3`... when another package has it.
-fn uniqueName(packages: &List<Package>, key: str) str {
+fn uniqueName(packages: List<Package>, key: str) str {
     let name = key.toOwned()
     let n = 2
     for packageNamed(packages, name) >= 0 || takenByRoot(packages, name) {
@@ -824,7 +824,7 @@ fn uniqueName(packages: &List<Package>, key: str) str {
 }
 
 // Whether the root project has a top-level module `name`, or it is std.
-fn takenByRoot(packages: &List<Package>, name: str) bool {
+fn takenByRoot(packages: List<Package>, name: str) bool {
     const src = &packages[0].srcDir
     return name == "std" || fs.exists("{src}/{name}.of") || fs.exists("{src}/{name}")
 }
