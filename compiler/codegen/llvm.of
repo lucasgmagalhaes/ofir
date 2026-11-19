@@ -2627,7 +2627,7 @@ fn symbolByte(b: u8) bool {
 }
 
 // The bodies whose names `text` refers to.
-fn references(text: str, names: &Map<str, int>, found: mut List<int>) {
+fn references(text: str, names: Map<str, int>, found: mut List<int>) {
     let i = 0
     for i < text.len() {
         if text[i] != b'@' {
@@ -2690,12 +2690,12 @@ fn draft(c: mut Checker, p: Program, bodies: List<AirBody>, module: int, s: mut 
             if s.owner[i] >= 0 {
                 s.declares[i] = g.declare.clone()
             }
-            references(g.out, &s.names, found)
+            references(g.out, s.names, found)
         }
         const mark = g.module.len()
         thunks(g, c, p)
         vtables(g, c, p)
-        references(g.module.sliceFrom(mark), &s.names, found)
+        references(g.module.sliceFrom(mark), s.names, found)
         for k in 0..found.len() {
             const j = found[k]
             if s.owner[j] < 0 && !inUnit[j] {
