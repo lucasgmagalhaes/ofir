@@ -260,6 +260,29 @@ println("{r.len()}")
 A function that returns a borrow receives its source by address, so that
 the borrow points into the caller's value.
 
+### References as arguments
+
+A parameter already borrows its argument, so a reference is passed to a
+parameter of the referenced type as it is: the compiler dereferences it.
+A `&T` or `&mut T` fits a borrowed parameter `x: T`, and only a `&mut T`
+fits a mutable one, `x: mut T` (E0315). A move parameter takes ownership,
+which a reference does not have (E0602). A parameter of type `&T` still
+needs a reference, written `&x`:
+
+```ofir
+fn total(xs: List<int>) int { ... }
+fn reset(xs: mut List<int>) { ... }
+
+let list = [1, 2, 3]
+const r = &list
+total(r)             // same as total(*r)
+const m = &mut list
+reset(m)             // same as reset(*m)
+```
+
+Write a parameter as `xs: List<T>`, not `xs: &List<T>`: both borrow, and
+the first takes the list itself as well as a reference to it.
+
 ### Views of part of a sequence
 
 `&xs[a..b]` is a `&[T]` over the elements `a` to `b - 1` of a list or
