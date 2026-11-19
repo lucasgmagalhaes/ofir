@@ -138,7 +138,7 @@ fn hasDefaults(decl: &FnDecl) bool {
 }
 
 // The parameter a named argument gives, or -1 (E0306).
-fn namedSlot(c: mut Checker, decl: &FnDecl, arg: &Arg, name: Symbol, given: &List<bool>) int {
+fn namedSlot(c: mut Checker, decl: &FnDecl, arg: &Arg, name: Symbol, given: List<bool>) int {
     const slot = paramNamed(decl, name)
     if slot < 0 {
         c.error("E0306", arg.value.span, "`{c.text(decl.name)}` has no parameter "
@@ -165,7 +165,7 @@ fn namedSlot(c: mut Checker, decl: &FnDecl, arg: &Arg, name: Symbol, given: &Lis
  * @param id the callee's `DefId`
  * @returns the parameter each argument gives, -1 for none
  */
-pub fn arrangeArgs(c: mut Checker, p: Program, callId: int, span: Span, args: &List<Arg>,
+pub fn arrangeArgs(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
                    id: int) List<int> {
     const decl = fnOf(p, c.loc(id))
     const count = decl.params.len()

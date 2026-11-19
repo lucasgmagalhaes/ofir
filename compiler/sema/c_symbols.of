@@ -14,8 +14,8 @@ import syntax.ast.FnDecl
 import syntax.ast.ItemKind
 
 // The string argument of the attribute `name`, if the list has it.
-fn stringArg(r: Resolver, attributes: &List<Attribute>, name: str) Option<str> {
-    const Option.Some(at) = findAttribute(r, *attributes, name) else {
+fn stringArg(r: Resolver, attributes: List<Attribute>, name: str) Option<str> {
+    const Option.Some(at) = findAttribute(r, attributes, name) else {
         return Option.None
     }
     if attributes[at].args.len() != 1 {
