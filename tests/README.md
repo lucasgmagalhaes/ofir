@@ -12,6 +12,7 @@
 | `fmt/` | `*.of` + `*.fmt`: `ofir fmt --stdout` output, which must format to itself (stage 1) |
 | `doc/` | `*.of` + `*.html`: `ofir doc --stdout` output (stage 1) |
 | `lsp/` | `*.of` + optional `*.lsp` (client messages) + `*.out`: `ofir lsp` messages (stage 1) |
+| `fuzz/` | regression seeds of `tools/fuzz_frontend.py`: malformed on purpose, must not crash (ADR 0086) |
 | `selfhost/` | stage 2 == stage 3 verification |
 
 Run everything with `make test`, or a subset with

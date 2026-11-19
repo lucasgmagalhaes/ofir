@@ -1,0 +1,7 @@
+enum E { A, B }
+fn main() {
+    const e = E.A
+    match e {
+        _ => match e { E.B => 0x },
+    }
+}

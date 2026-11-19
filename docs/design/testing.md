@@ -143,7 +143,9 @@ which drives it with a fake compiler (`make runner-selftest`).
 | `make test` | the stage 0 compiler itself runs under ASan and UBSan (debug build) for every suite, and `make test-std` runs the `@test` functions of std |
 | `make check-leaks` | every program of `tests/run` and `examples` under valgrind: no leak, no invalid access |
 | `make check-asan` | the same programs and `tests/panic`, with the generated code (clang `-fsanitize=address`) and the runtime (ASan + UBSan) instrumented, linked by gcc; outputs must still match |
-| `python3 tools/fuzz_frontend.py --count N` | mutated sources (cut, spliced, extra tokens) must get diagnostics, never a crash, hang or sanitizer report |
+| `python3 tools/fuzz_frontend.py --count N` | mutated sources (cut, spliced, extra tokens) must get diagnostics, never a crash, hang or sanitizer report; `--minimize` shrinks a failure, and the seeds of `tests/fuzz/frontend` are replayed first |
+| `python3 tools/fuzz_programs.py --count N --stage1 build/stage1/ofir` | generated integer programs print what a Python oracle computes, or panic with its message, on both stages in dev and release (ADR 0086) |
+| `make check-fuzz` | both fuzzers with fixed seeds and small counts; part of `make test` |
 
 CI runs `check-leaks` and `check-asan` on Linux.
 

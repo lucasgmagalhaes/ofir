@@ -8,6 +8,12 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Fuzzing, properties and differential testing (ADR 0086):
+  `tools/fuzz_programs.py` generates integer programs and checks their
+  output or panic against a Python oracle on both stages, in dev and
+  release; `tools/fuzz_frontend.py --minimize` shrinks crashing inputs,
+  and regression seeds live in `tests/fuzz/frontend`, `tests/run/fuzz` and
+  `tests/panic/fuzz`. `make check-fuzz` runs both as part of `make test`.
 - Conformance cases (ADR 0085): each row of the conformance matrix has a
   program that must compile and one that must be rejected, and stage 0
   rows a case stage 0 runs, or a gap that says why; feature interaction

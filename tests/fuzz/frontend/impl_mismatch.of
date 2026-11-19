@@ -1,0 +1,4 @@
+struct S { x: i32 }
+impl S {
+    fn g(&mut self) &str { return self }
+}

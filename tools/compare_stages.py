@@ -58,7 +58,13 @@ def executable(path: str) -> str:
 ONE_STAGE_MUTANT = re.compile(r'\w@\w|@export\("ofir_|[&:]\s*\.[A-Za-z_]')
 
 
+# The fuzzing seeds (ADR 0086): malformed inputs whose recovery may differ.
+FUZZ_SEEDS = ROOT / "tests" / "fuzz"
+
+
 def comparable(path: Path) -> bool:
+    if FUZZ_SEEDS in path.parents:
+        return False
     return not ONE_STAGE.search(path.read_text(errors="replace"))
 
 
