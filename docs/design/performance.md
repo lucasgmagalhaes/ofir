@@ -73,10 +73,10 @@ Wall times are printed for information only, since shared runners are noisy.
 |--------|--------|----------------------------|
 | Lexer throughput (stage 0, release) | ≥ 2M lines/s | ~2.1M lines/s |
 | Front end, lex → borrow check | ≥ 200k lines/s per core | — |
-| Self-compile, debug build | < 5 s | 16.9 s cold, 1.4 s warm (§6) |
+| Self-compile, debug build | < 5 s | 12.0 s cold, 1.5 s warm (§7) |
 | Generated code vs `clang -O2` C | within 10% | — |
-| Hello world binary (stripped) | < 50 KB | — |
-| Compiler peak memory | < 20× the source size | ~8.5× (lexer only) |
+| Hello world binary (stripped) | < 50 KB | 31 KB with `--release` (§7) |
+| Compiler peak memory | < 20× the source size | 22.4× (check and LLVM, §7) |
 
 ## 6. Build times
 
@@ -106,3 +106,36 @@ A warm build is now the front end: parsing, checking, lowering and codegen
 take about 1.2 s and run on every build. Caching their results is out of
 ADR 0033's scope, so it waits for a measured need; a release build stays a
 single unit so the optimizer sees the whole program.
+
+## 7. Budgets
+
+[ADR 0089](../adr/0089-performance-budgets.md): `make check-budgets`
+checks absolute ceilings from `bench/budgets.json`, measured on Linux
+x86_64 with clang 18. Deterministic metrics gate; wall times report,
+except the warm self-compile. CI runs it with `--require` in the
+Performance workflow, next to the 3% gate of §4.
+
+| Budget | Measured | Ceiling | Gates |
+|--------|----------|---------|-------|
+| Compiler peak RSS per source byte (`check-100k`, `llvm-100k`) | 22.4× | 24× | yes |
+| Self-compile, cold (empty `OFIR_HOME`) | 12.0 s | 30 s | no |
+| Self-compile, warm | 1.5 s | 5 s | yes |
+| Units compiled by the warm self-compile | 0 | 0 | yes |
+| `hello.of --release`, stripped | 31,456 B | 50 KB | yes |
+| `hello.of` startup instructions | 280k | 320k | yes |
+| `hello.of` startup wall time, p90 | 1.0 ms | 5 ms | no |
+
+The programs of §2, built by stage 1 with `--release` (wall time is the
+p50 of five runs, the tool also prints min, p90 and max):
+
+| Program | Instructions | Ceiling | Wall p50 |
+|---------|--------------|---------|----------|
+| binary_trees | 17.04 G | 18.75 G | 1.81 s |
+| fib | 388 M | 430 M | 25 ms |
+| map_count | 156 M | 172 M | 45 ms |
+| nbody | 2.95 G | 3.24 G | 231 ms |
+| sort | 377 M | 415 M | 69 ms |
+| strings | 224 M | 247 M | 17 ms |
+
+A change that lowers a measurement by much should lower its ceiling, so
+the budget keeps the gain.
