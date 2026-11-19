@@ -191,6 +191,9 @@ project uses [Semantic Versioning](https://semver.org/).
   field left out by `..`, the value matched in the `else` branch of an
   `if const` or of a `const ... else`) are dropped instead of leaked, also
   when the arm or branch is left by `return` or `break`.
+- A channel's last sender going while its receiver is being dropped no
+  longer frees the channel under the receiver (a use after free that
+  could corrupt the heap).
 
 ## [0.5.0] - 2026-11-06
 
