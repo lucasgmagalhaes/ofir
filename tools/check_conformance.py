@@ -28,6 +28,12 @@ a stage implements needs both kinds, or the gap `untested: no positive
 case` or `untested: no negative case`. A section stage 0 implements
 needs a case without `// requires: stage1`, or `untested: no stage 0
 case`. A gap that names a missing case is an error once the case exists.
+
+Interactions (ADR 0085): the `## Interactions` table has one row per
+combination of features, `| Name | N.M N.M ... | cases |`. Each section
+must exist, each case must start with `// sections:` and exactly those
+sections, and every `.of` file under the interaction directories must be
+a case of some row.
 """
 
 import re
@@ -42,6 +48,8 @@ CLASSES = ("subset:", "limit:", "planned:", "missing:", "untested:", "target:")
 HEADING_RE = re.compile(r"^## (\d+\.\d+) (.*?)\s*(\*\*\[planned\]\*\*)?\s*$")
 ROW_RE = re.compile(r"^\| (\d+\.\d+) ")
 PATH_RE = re.compile(r"`([^`]+)`")
+INTERACTION_DIRS = ("tests/run/interactions", "tests/compile_fail/interactions")
+SECTIONS_RE = re.compile(r"^// sections:(.*)$", re.MULTILINE)
 
 
 def spec_sections():
@@ -127,10 +135,62 @@ def check_row(line_no, cells, errors):
             errors.append(f"{where}: gap `{gap.strip()}` has no class {CLASSES}")
 
 
+def declared_sections(path):
+    text = (ROOT / path).read_text(encoding="utf-8", errors="replace")
+    match = SECTIONS_RE.search("\n".join(text.splitlines()[:5]))
+    return match.group(1).split() if match else None
+
+
+def check_interactions(lines, numbers, errors):
+    """Checks the `## Interactions` table; returns how many rows it has."""
+    listed = set()
+    rows = 0
+    inside = False
+    for no, line in enumerate(lines, 1):
+        if line.startswith("## "):
+            inside = line == "## Interactions"
+            continue
+        if not inside or not line.startswith("| ") or line.startswith("| Interaction "):
+            continue
+        rows += 1
+        where = f"{MATRIX.relative_to(ROOT)}:{no}"
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 3:
+            errors.append(f"{where}: {len(cells)} cells, not 3")
+            continue
+        name, sections, cases = cells
+        wanted = sections.split()
+        if len(wanted) < 2:
+            errors.append(f"{where}: {name}: an interaction needs two sections or more")
+        for section in wanted:
+            if section not in numbers:
+                errors.append(f"{where}: {name}: `{section}` is not a spec section")
+        paths = PATH_RE.findall(cases)
+        if not paths:
+            errors.append(f"{where}: {name}: no case")
+        for path in paths:
+            listed.add(path)
+            if not path.startswith(INTERACTION_DIRS) or not (ROOT / path).is_file():
+                errors.append(f"{where}: `{path}` is not a file under {INTERACTION_DIRS}")
+                continue
+            declared = declared_sections(path)
+            if declared is None:
+                errors.append(f"{where}: `{path}` has no `// sections:` line")
+            elif declared != wanted:
+                errors.append(f"{where}: `{path}` declares {' '.join(declared)}, not {sections}")
+    for folder in INTERACTION_DIRS:
+        for file in sorted((ROOT / folder).rglob("*.of")):
+            rel = file.relative_to(ROOT).as_posix()
+            if rel not in listed:
+                errors.append(f"conformance: `{rel}` is not in the Interactions table")
+    return rows
+
+
 def main():
     errors = []
     rows = []
-    for no, line in enumerate(MATRIX.read_text(encoding="utf-8").splitlines(), 1):
+    lines = MATRIX.read_text(encoding="utf-8").splitlines()
+    for no, line in enumerate(lines, 1):
         if not ROW_RE.match(line):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
@@ -149,11 +209,13 @@ def main():
             errors.append(f"conformance: row `{row}` is not a spec section")
         if not missing and not extra:
             errors.append("conformance: the rows are not in the order of the spec")
+    numbers = {section.split(" ")[0] for section in sections}
+    interactions = check_interactions(lines, numbers, errors)
     for error in errors:
         print(error)
     if errors:
         return 1
-    print(f"conformance: {len(rows)} sections checked")
+    print(f"conformance: {len(rows)} sections and {interactions} interactions checked")
     return 0
 
 
