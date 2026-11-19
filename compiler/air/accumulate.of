@@ -152,7 +152,7 @@ fn isCallOf(o: &Operand, c: int) bool {
     return o.kind == OperandKind.Copy && o.local == c && whole(o)
 }
 
-fn findSite(c: mut Checker, body: &AirBody, reads: &List<int>, b: int) Option<Site> {
+fn findSite(c: mut Checker, body: &AirBody, reads: List<int>, b: int) Option<Site> {
     const block = &body.blocks[b]
     const n = block.stmts.len()
     if n < 2 || block.term.kind != TermKind.Assert || block.term.panic != PanicKind.Overflow {
@@ -278,7 +278,7 @@ fn finish(l: &Loop, body: mut AirBody, block: int) {
 
 // The statements that set the parameters to the arguments and jump to the
 // old entry `head`.
-fn iterate(l: &Loop, body: mut AirBody, block: int, args: &List<Operand>, head: int) {
+fn iterate(l: &Loop, body: mut AirBody, block: int, args: List<Operand>, head: int) {
     let temps: List<int> = []
     for i in 0..args.len() {
         const t = temp(l, body, body.locals[i + 1].ty)

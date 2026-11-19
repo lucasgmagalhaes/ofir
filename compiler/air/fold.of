@@ -253,7 +253,7 @@ fn termOperands(t: &Terminator, out: mut List<Operand>) {
     }
 }
 
-fn countReads(reads: mut List<int>, operands: &List<Operand>, delta: int) {
+fn countReads(reads: mut List<int>, operands: List<Operand>, delta: int) {
     for i in 0..operands.len() {
         const o = &operands[i]
         if o.kind == OperandKind.Copy || o.kind == OperandKind.Addr {
@@ -262,7 +262,7 @@ fn countReads(reads: mut List<int>, operands: &List<Operand>, delta: int) {
     }
 }
 
-fn removable(body: &AirBody, s: &AirStmt, reads: &List<int>) bool {
+fn removable(body: &AirBody, s: &AirStmt, reads: List<int>) bool {
     if s.kind != StmtKind.Assign || s.destPath.fields.len() > 0 || s.destPath.deref {
         return false
     }
