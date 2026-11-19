@@ -65,7 +65,10 @@ Operand lower_coalesce(Lowerer *l, Expr *e) {
     emit_goto(l, join);
     switch_to(l, other);
     temp_scope_enter(l);   // evaluated on one path only
-    emit_assign(l, dest, (Rvalue){.kind = RV_USE, .a = lower_expr(l, e->as.binary.rhs)});
+    Operand fallback = lower_expr(l, e->as.binary.rhs);
+    if (fallback.kind != OPERAND_UNIT) {   // a fallback that diverges has no value
+        emit_assign(l, dest, (Rvalue){.kind = RV_USE, .a = fallback});
+    }
     temp_scope_leave(l);
     emit_goto(l, join);
     switch_to(l, join);
