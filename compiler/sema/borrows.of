@@ -337,7 +337,7 @@ pub fn useHolder(m: Moves, c: mut Checker, s: mut State, holder: int) {
     dropConflicts(s, holder)
     const by = holderName(m, c, holder)
     for i in 0..found.len() {
-        if !reportedAt(&found, i) {
+        if !reportedAt(found, i) {
             reportConflict(m, c, &found[i], by)
         }
     }

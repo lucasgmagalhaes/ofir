@@ -180,7 +180,7 @@ pub fn arrangeArgs(c: mut Checker, p: Program, callId: int, span: Span, args: Li
         match args[i].name {
             Option.Some(name) => {
                 named = true
-                slot = namedSlot(c, decl, &args[i], name, &given)
+                slot = namedSlot(c, decl, &args[i], name, given)
             }
             Option.None => {
                 if named {
