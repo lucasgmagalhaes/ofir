@@ -24,7 +24,7 @@ fn fromListAndIntoSorted() {
     assert(joined(&h.intoSorted()) == "1 3 4 7 9")
 }
 
-fn joined(xs: &List<int>) str {
+fn joined(xs: List<int>) str {
     let out = ""
     for i in 0..xs.len() {
         if i > 0 {
