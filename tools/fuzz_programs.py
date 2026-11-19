@@ -83,7 +83,9 @@ def evaluate(ty: str, e: tuple, env: dict) -> int:
     if kind == "call":
         if e[1] in ("min", "max"):
             return min(a, b) if e[1] == "min" else max(a, b)
-        return wrap(ty, a + b if e[1] == "wrappingAdd" else a - b if e[1] == "wrappingSub" else a * b)
+        if e[1] == "wrappingAdd":
+            return wrap(ty, a + b)
+        return wrap(ty, a - b if e[1] == "wrappingSub" else a * b)
     op = e[1]
     if op in ("/", "%"):
         return divide(ty, op, a, b)
