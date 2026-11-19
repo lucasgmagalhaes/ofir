@@ -118,8 +118,8 @@ def programs(compiler: str, env: dict, work: Path, runs: int, names: list) -> di
              "--release", "-o", str(exe)], env)
         wall = distribution([run([str(exe)], env)[0] for _ in range(runs)])
         count = run_bench.instructions([str(exe)])
-        results[name] = ({"value": count, "detail": {"wallMs": wall}} if count
-                         else dict(unavailable("valgrind is not installed"), detail={"wallMs": wall}))
+        result = {"value": count} if count else unavailable("valgrind is not installed")
+        results[name] = dict(result, detail={"wallMs": wall})
     return results
 
 
