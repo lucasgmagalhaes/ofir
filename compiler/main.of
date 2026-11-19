@@ -180,7 +180,7 @@ struct Options {
     record: str
 }
 
-fn parseOptions(args: &List<str>) Option<Options> {
+fn parseOptions(args: List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
                        stopAfter: "", release: false, profile: "", opt: 0, debugInfo: false,
                        trimPaths: false, coverage: false, deny: false, locked: false,
@@ -761,7 +761,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
 }
 
 // A static library: the objects of the units in an archive (ADR 0064).
-fn archive(opts: &Options, files: &List<str>, cached: &List<str>, lib: str) bool {
+fn archive(opts: &Options, files: List<str>, cached: List<str>, lib: str) bool {
     const clang = clangPath()
     let objects: List<str> = []
     let hits: List<int> = []
@@ -808,7 +808,7 @@ fn archiver() str {
     return "ar".toOwned()
 }
 
-fn removeFiles(files: &List<str>) {
+fn removeFiles(files: List<str>) {
     for i in 0..files.len() {
         const _ = fs.removeFile(files[i])
     }
@@ -925,8 +925,8 @@ fn runtimeLibrary() Option<str> {
 // `@link` libraries. The modules have no target triple: clang uses its
 // default target. `cached` is empty without the object cache, or holds
 // where the object of each unit is cached (ADR 0033).
-fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
-        libraries: List<str>, native: &List<str>) bool {
+fn link(opts: &Options, files: List<str>, cached: List<str>, exe: str,
+        libraries: List<str>, native: List<str>) bool {
     let phaseStart = timerStart(opts.timePasses)
     const Option.Some(host) = runtimeLibrary() else {
         const message = "cannot find the runtime library libofir_rt.a (set OFIR_RUNTIME)"
@@ -997,7 +997,7 @@ fn clangPath() str {
 }
 
 // Removes the objects that are not in the cache.
-fn removeObjects(objects: &List<str>, cached: &List<str>) {
+fn removeObjects(objects: List<str>, cached: List<str>) {
     for i in 0..objects.len() {
         if i >= cached.len() || objects[i] != cached[i] {
             const _ = fs.removeFile(objects[i])
@@ -1007,8 +1007,8 @@ fn removeObjects(objects: &List<str>, cached: &List<str>) {
 
 // The final clang call. With `quiet`, a failure prints nothing: the
 // caller tries again.
-fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, native: &List<str>,
-               runtime: str, libraries: &List<str>, exe: str, quiet: bool) bool {
+fn linkObjects(opts: &Options, clang: str, inputs: List<str>, native: List<str>,
+               runtime: str, libraries: List<str>, exe: str, quiet: bool) bool {
     let compiles = native.len() > 0
     for i in 0..inputs.len() {
         compiles = compiles || inputs[i].endsWith(".ll")
@@ -1100,7 +1100,7 @@ fn codegenFlags(opts: &Options) List<str> {
 // processes are waited for in the order they started, so their output
 // comes in the order of the units. After a failure no more are started,
 // and the running ones are waited for.
-fn compileUnits(opts: &Options, clang: str, files: &List<str>, cached: &List<str>, tag: str,
+fn compileUnits(opts: &Options, clang: str, files: List<str>, cached: List<str>, tag: str,
                 objects: mut List<str>, hits: mut List<int>) bool {
     const jobs = if opts.jobs > 0 { opts.jobs } else { os.cpuCount() }
     let running: List<os.Child> = []
@@ -1217,7 +1217,7 @@ fn parseCount(text: str) int {
 }
 
 // The arguments `lead`, then `arg`.
-fn withArg(lead: &List<str>, arg: move str) List<str> {
+fn withArg(lead: List<str>, arg: move str) List<str> {
     let args = lead.clone()
     args.push(arg)
     return args
@@ -1271,7 +1271,7 @@ fn waitTest(exe: str, child: move os.Child) int {
 // Each test runs in its own process. Up to `jobs` run together, while their
 // captured output is reported in declaration order. A `no_run` doc test was
 // only compiled.
-fn runTests(exe: str, lead: &List<str>, tests: &List<str>, testJobs: int) int {
+fn runTests(exe: str, lead: List<str>, tests: List<str>, testJobs: int) int {
     const cores = os.cpuCount()
     const jobs = if testJobs > 0 { testJobs } else if cores < 4 { cores } else { 4 }
     let pending: List<Option<os.Child>> = []
@@ -1315,7 +1315,7 @@ fn runTests(exe: str, lead: &List<str>, tests: &List<str>, testJobs: int) int {
 
 // `ofir bench` (spec 12.3): each benchmark in its own process, which prints
 // its time.
-fn runBenches(exe: str, lead: &List<str>, benches: &List<str>) int {
+fn runBenches(exe: str, lead: List<str>, benches: List<str>) int {
     let failed = 0
     for i in 0..benches.len() {
         print("bench {benches[i]} ... ")
