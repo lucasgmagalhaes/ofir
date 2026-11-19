@@ -1,0 +1,18 @@
+// Deadlines (spec 14.5) on their own, which stage 0 builds: a deadline
+// expires once its time passes, and `never` does not.
+
+import std.time
+import std.time.Deadline
+
+fn main() {
+    const d = Deadline.after(5 * time.MILLISECOND)
+    println("expired before: {d.expired()}")
+    time.sleep(d.remaining())
+    println("expired after: {d.expired()}")
+    println("remaining after: {d.remaining()}")
+    const forever = Deadline.never()
+    println("never expired: {forever.expired()}")
+    const start = time.now()
+    time.sleep(time.MILLISECOND)
+    println("clock moved: {time.now() > start}")
+}

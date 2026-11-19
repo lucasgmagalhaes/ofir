@@ -1,0 +1,5 @@
+expired before: false
+expired after: true
+remaining after: 0
+never expired: false
+clock moved: true
