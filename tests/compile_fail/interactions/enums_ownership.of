@@ -1,0 +1,27 @@
+// sections: 2.5 4.5 5.1
+// Enums, patterns and ownership: a `match` that moves a payload out
+// consumes the value it matched.
+
+struct Noisy {
+    name: str
+}
+
+enum Slot {
+    Empty
+    One(Noisy)
+}
+
+fn consume(s: move Slot) {
+    match s {
+        Slot.One(n) => println(n.name),
+        Slot.Empty => println("empty"),
+    }
+}
+
+fn reused(s: move Slot) {
+    consume(s)
+    consume(s)                   // error[E0600]: use of moved value `s`
+}
+
+fn main() {
+}
