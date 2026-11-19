@@ -64,7 +64,7 @@ fn infoWords(info: str) List<str> {
 }
 
 // Whether `words` contains `word`.
-fn hasWord(words: &List<str>, word: str) bool {
+fn hasWord(words: List<str>, word: str) bool {
     for i in 0..words.len() {
         if words[i] == word {
             return true
@@ -75,7 +75,7 @@ fn hasWord(words: &List<str>, word: str) bool {
 
 // The blocks of the comment that starts at line `first` (`lines` are its
 // lines), added to `out`.
-fn commentTests(lines: &List<str>, first: int, out: mut List<DocTest>) {
+fn commentTests(lines: List<str>, first: int, out: mut List<DocTest>) {
     let open = -1    // the index of the opening fence, -1 outside a block
     let run = true
     let ignored = false
@@ -115,7 +115,7 @@ fn commentTests(lines: &List<str>, first: int, out: mut List<DocTest>) {
  * @param tokens its tokens
  * @returns its ```` ```ofir ```` blocks, except those marked `ignore`
  */
-pub fn docTests(text: str, tokens: &List<Token>) List<DocTest> {
+pub fn docTests(text: str, tokens: List<Token>) List<DocTest> {
     let out: List<DocTest> = []
     let line = 1
     let pos = 0
