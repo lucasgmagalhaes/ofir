@@ -215,12 +215,12 @@ fn reexportsOf(r: mut Resolver, program: Program, m: int, seen: mut List<bool>) 
             continue
         }
         if const ItemKind.Import(path, alias) = item.kind {
-            const owner = if path.len() > 1 { findModule(r, &path, path.len() - 1) } else { -1 }
+            const owner = if path.len() > 1 { findModule(r, path, path.len() - 1) } else { -1 }
             if owner >= 0 {
                 reexportsOf(r, program, owner, seen)
             }
             enter(r, program, m)
-            bindImport(r, &path, alias ?? path[path.len() - 1], item.span, true)
+            bindImport(r, path, alias ?? path[path.len() - 1], item.span, true)
         }
     }
 }
