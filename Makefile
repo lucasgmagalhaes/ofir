@@ -8,7 +8,7 @@ PYTHON ?= python3
 SAFETY_FLAGS ?=
 BUDGET_FLAGS ?=
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan check-tsan check-faults check-safety seed check-seed dist bench bench-programs bench-compare check-budgets clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist bench bench-programs bench-compare check-budgets clean
 
 all: stage0 runtime
 
@@ -74,6 +74,10 @@ check-faults: stage1 runtime
 # `SAFETY_FLAGS=--require` makes an unavailable check fail instead of skip.
 check-safety:
 	$(PYTHON) tools/safety.py
+
+# The representative applications of apps/, in dev and release (ADR 0090).
+check-apps: stage1 runtime
+	$(STAGE_ENV) $(PYTHON) tools/check_apps.py --compiler $(BUILD)/stage1/ofir$(EXE)
 
 # Stage 1 (compiler/, built by stage 0) gives the same output as stage 0.
 compare-stages: stage1
@@ -195,7 +199,7 @@ test-cross: stage1
 	$(STAGE_ENV) $(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage1/ofir$(EXE) \
 	    --stage 1 --target $(TARGET) run
 
-test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format check-fmt-corpus test-std compare-stages check-fuzz test-stage1 verify
+test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format check-fmt-corpus test-std compare-stages check-fuzz test-stage1 check-apps verify
 	$(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
 
 # Performance (docs/design/performance.md)
