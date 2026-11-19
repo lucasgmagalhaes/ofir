@@ -56,7 +56,7 @@ fn fnLines(c: Checker, out: mut str, owner: str, decl: &FnDecl) {
     }
 }
 
-fn methodLines(c: Checker, p: Program, out: mut str, item: &Item, methods: &List<FnDecl>) {
+fn methodLines(c: Checker, p: Program, out: mut str, item: &Item, methods: List<FnDecl>) {
     const owner = c.text(item.name).toOwned()
     if !skippedTest(c, p, item) {
         for i in 0..methods.len() {

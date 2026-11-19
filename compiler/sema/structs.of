@@ -108,7 +108,7 @@ pub fn isCopy(c: Checker, p: Program, ty: int) bool {
     }
 }
 
-fn argsAreCopy(c: Checker, p: Program, args: &List<int>) bool {
+fn argsAreCopy(c: Checker, p: Program, args: List<int>) bool {
     for i in 0..args.len() {
         if !isCopy(c, p, args[i]) {
             return false
