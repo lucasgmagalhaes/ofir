@@ -1,0 +1,32 @@
+// `a ?? b`, `a && b` and `a || b` where `b` diverges (spec 7.6): the
+// right side has no value, so a scalar, a struct and a string all come
+// from `a`; `panic` and a function returning `!` both diverge (the
+// fallback that runs is in tests/panic/coalesce.of).
+
+struct Count {
+    file: str
+    n: int
+}
+
+fn fail(message: str) ! {
+    panic(message)
+}
+
+fn get(b: bool) Option<Count> {
+    if b {
+        return Option.Some(Count{file: "a.txt", n: 3})
+    }
+    return Option.None
+}
+
+fn main() {
+    const o: Option<int> = Option.Some(4)
+    const n = o ?? panic("no number")
+    const c = get(true) ?? fail("no count")
+    const s: Option<str> = Option.Some("text")
+    const t = s ?? fail("no text")
+    println("{n} {c.file} {c.n} {t}")
+    const yes = n > 0 || fail("not positive")
+    const no = n < 0 && fail("negative")
+    println("{yes} {no}")
+}
