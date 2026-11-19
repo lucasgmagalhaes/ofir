@@ -369,7 +369,7 @@ struct Printer {
         }
     }
 
-    fn bounds(mut self, preds: &List<WherePred>, names: Interner) {
+    fn bounds(mut self, preds: List<WherePred>, names: Interner) {
         for i in 0..preds.len() {
             const prefix = if preds[i].isConst { "const " } else { "" }
             let text = "bound {prefix}{typeText(&preds[i].ty, names)}:"
@@ -381,7 +381,7 @@ struct Printer {
         }
     }
 
-    fn asserts(mut self, list: &List<TypeExpr>, names: Interner) {
+    fn asserts(mut self, list: List<TypeExpr>, names: Interner) {
         if list.len() > 0 {
             self.line("asserts {typesText(list.clone(), names)}")
         }

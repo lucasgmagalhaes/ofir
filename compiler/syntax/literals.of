@@ -368,7 +368,7 @@ fn skipBlanks(cur: mut Cursor, src: str) {
 
 // The lines starting at `lines`, without the indentation `src[from..to]` of
 // the closing quotes; blank lines may be indented less.
-fn dedent(cur: Cursor, src: str, lines: &List<int>, from: int, to: int,
+fn dedent(cur: Cursor, src: str, lines: List<int>, from: int, to: int,
           diags: mut Diagnostics) str {
     const indent = src[from..to]
     let out = str.new()
