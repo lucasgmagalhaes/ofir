@@ -229,7 +229,10 @@ static Operand logical(Lowerer *l, Expr *e) {
                               .other = is_and ? join : rhs});
     switch_to(l, rhs);
     temp_scope_enter(l);   // evaluated on one path only
-    emit_assign(l, dest, (Rvalue){.kind = RV_USE, .a = lower_expr(l, e->as.binary.rhs)});
+    Operand right = lower_expr(l, e->as.binary.rhs);
+    if (right.kind != OPERAND_UNIT) {   // a right side that diverges has no value
+        emit_assign(l, dest, (Rvalue){.kind = RV_USE, .a = right});
+    }
     temp_scope_leave(l);
     emit_goto(l, join);
     switch_to(l, join);
