@@ -1,0 +1,9 @@
+// seek: searches the files of a directory tree for a text (OFIR-76).
+{
+  "name": "seek",
+  "version": "0.1.0",
+  "build": {
+    "kind": "exe",
+    "root": "main.of",
+  },
+}
