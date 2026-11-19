@@ -2,7 +2,7 @@
   "//": "Performance budgets (ADR 0089, docs/design/performance.md section 7).",
   "//platform": "Measured on Linux x86_64 with clang 18; elsewhere the gates only report.",
   "budgets": {
-    "compilerRssPerSourceByte": {"max": 24, "gate": true},
+    "compilerRssPerSourceByte": {"max": 20, "gate": true},
     "selfCompileColdMs": {"max": 30000, "gate": false},
     "selfCompileWarmMs": {"max": 5000, "gate": true},
     "warmRebuildUnits": {"max": 0, "gate": true},
