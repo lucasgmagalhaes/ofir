@@ -90,7 +90,7 @@ pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt,
     }
     const outer = l.body.targs
     let args = argsNow(l, c)
-    const keys = comptimeKeys(c, p, info, &args)
+    const keys = comptimeKeys(c, p, info, args)
     const variable = info.local + 1
     for args.len() <= info.param {
         args.push(UNIT)
@@ -118,7 +118,7 @@ pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt,
             l.body.locals.push(twin)
             renameIn(l, range, local, l.body.locals.len() - 1)
         }
-        substFrom(l, c, &args, range)
+        substFrom(l, c, args, range)
         l.body.targs = outer
     }
     l.body.locals[variable].ty = UNIT
@@ -213,25 +213,25 @@ pub fn comptimeMemberValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
         return Option.Some(opStr(c.text(Symbol(name)), STR))
     }
     if info.kind == COMPTIME_INDEX {
-        const index = comptimeIndex(c, p, info, &args)
+        const index = comptimeIndex(c, p, info, args)
         return Option.Some(opInt(index.wrappingCast<u64>(), I64))
     }
     if info.kind == COMPTIME_ATTRIBUTE {
-        return Option.Some(match comptimeAttribute(c, p, info, &args) {
+        return Option.Some(match comptimeAttribute(c, p, info, args) {
             Option.Some(value) => variantValue(l, c, p, ty, variantNamed(c, p, ty, "Some"),
                                                [opStr(value, STR)])
             Option.None => variantValue(l, c, p, ty, variantNamed(c, p, ty, "None"), [])
         })
     }
     if info.kind == COMPTIME_MATCHES {
-        return Option.Some(matchesValue(l, c, p, e, info, &args))
+        return Option.Some(matchesValue(l, c, p, e, info, args))
     }
     return Option.None
 }
 
 // `variant.matches(value)` in an instance: a test of the value's tag.
 fn matchesValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, info: ComptimeInfo,
-                args: &List<int>) Operand {
+                args: List<int>) Operand {
     const value = match e.kind {
         ExprKind.Call(_, callArgs) => callArgs[0].value.clone()
         _ => {

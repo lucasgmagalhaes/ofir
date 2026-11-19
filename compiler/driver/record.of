@@ -41,7 +41,7 @@ pub struct RecordInputs {
  * @param artifacts the files the build wrote
  * @returns the JSON document, ending in a newline
  */
-pub fn buildRecord(inputs: &RecordInputs, map: &SourceMap, artifacts: &List<str>) str {
+pub fn buildRecord(inputs: &RecordInputs, map: &SourceMap, artifacts: List<str>) str {
     let out = "\{\n"
     out.push("  \"ofir\": {jsonString(inputs.ofir)},\n")
     out.push("  \"clang\": {jsonString(clangVersion(inputs.clang))},\n")
@@ -100,7 +100,7 @@ fn fileHash(path: str) str {
         return ""
     }
     let h = Sha256.new()
-    h.update(&data)
+    h.update(data)
     return h.finish()
 }
 

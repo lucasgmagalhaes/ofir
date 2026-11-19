@@ -253,7 +253,7 @@ fn termOperands(t: &Terminator, out: mut List<Operand>) {
     }
 }
 
-fn countReads(reads: mut List<int>, operands: &List<Operand>, delta: int) {
+fn countReads(reads: mut List<int>, operands: List<Operand>, delta: int) {
     for i in 0..operands.len() {
         const o = &operands[i]
         if o.kind == OperandKind.Copy || o.kind == OperandKind.Addr {
@@ -262,7 +262,7 @@ fn countReads(reads: mut List<int>, operands: &List<Operand>, delta: int) {
     }
 }
 
-fn removable(body: &AirBody, s: &AirStmt, reads: &List<int>) bool {
+fn removable(body: &AirBody, s: &AirStmt, reads: List<int>) bool {
     if s.kind != StmtKind.Assign || s.destPath.fields.len() > 0 || s.destPath.deref {
         return false
     }
@@ -287,10 +287,10 @@ fn removeInBlock(body: &AirBody, block: mut AirBlock, reads: mut List<int>) bool
     let removed = false
     for old.len() > 0 {
         const s = old.pop().unwrap()
-        if removable(body, &s, &reads) {
+        if removable(body, &s, reads) {
             let operands: List<Operand> = []
             stmtOperands(&s, operands)
-            countReads(reads, &operands, -1)
+            countReads(reads, operands, -1)
             removed = true
         } else {
             kept.push(s)
@@ -311,7 +311,7 @@ fn removeDead(body: mut AirBody) {
             stmtOperands(&body.blocks[b].stmts[i], operands)
         }
         termOperands(&body.blocks[b].term, operands)
-        countReads(reads, &operands, 1)
+        countReads(reads, operands, 1)
     }
     let changed = true
     for changed {

@@ -18,7 +18,7 @@ const POLL_NANOS = 200000000
  * @param args the arguments of the process
  * @returns true if one of them is `--watch`
  */
-pub fn wantsWatch(args: &List<str>) bool {
+pub fn wantsWatch(args: List<str>) bool {
     for i in 2..args.len() {
         if args[i] == "--watch" {
             return true
@@ -35,7 +35,7 @@ pub fn wantsWatch(args: &List<str>) bool {
  * @param args the arguments of the process
  * @returns the exit status of the last run, when a run limit is set
  */
-pub fn watchCommand(args: &List<str>) int {
+pub fn watchCommand(args: List<str>) int {
     const Result.Ok(exe) = os.executablePath() else {
         eprintln("error[E0902]: cannot find the compiler executable")
         return 1
@@ -84,7 +84,7 @@ fn runLimit(text: str) int {
 }
 
 // The directory of the input file, or the current directory.
-fn watchRoot(args: &List<str>) str {
+fn watchRoot(args: List<str>) str {
     for i in 2..args.len() {
         const arg = args[i].clone()
         if arg.endsWith(".of") {

@@ -37,7 +37,7 @@ struct Header {
  * @param links the `@link` libraries, in order
  * @returns the text of `<name>.h`
  */
-pub fn cHeader(c: mut Checker, p: Program, name: str, links: &List<str>) str {
+pub fn cHeader(c: mut Checker, p: Program, name: str, links: List<str>) str {
     let h = Header{structs: "", done: [], missing: false}
     let decls = ""
     for m in 0..p.modules.len() {

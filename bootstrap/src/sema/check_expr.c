@@ -205,7 +205,12 @@ TypeId check_args(Checker *c, Expr *call, const Ty *signature) {
         if (args.items[i].name.id != 0) {
             unsupported(c, args.items[i].value->span, "named arguments are");
         }
-        coerce(c, args.items[i].value, i < sig.arg_count ? sig.args[i] : NO_TYPE);
+        TypeId param = i < sig.arg_count ? sig.args[i] : NO_TYPE;
+        TypeId found = check_expr(c, args.items[i].value, param);
+        if (!types_compatible(found, param) && !deref_arg(c, &args.items[i].value, param, false) &&
+                !coerce_to_slice(c, args.items[i].value, found, param)) {
+            require_type(c, args.items[i].value, found, param);
+        }
     }
     return sig.inner;
 }
@@ -385,6 +390,28 @@ TypeId coerce(Checker *c, Expr *e, TypeId expected) {
         require_type(c, e, found, expected);
     }
     return found;
+}
+
+// A `&T` or `&mut T` argument for a parameter of type `T` is dereferenced:
+// the parameter borrows it already (spec 5.6). In a generic call `param` may
+// hold type parameters, so only its head is compared: the same kind, and for
+// a struct or an enum the same declaration. A type parameter of the callee
+// takes the reference itself.
+bool deref_arg(Checker *c, Expr **arg, TypeId param, bool generic) {
+    const Ty *found = type_get(c->types, (*arg)->type);
+    if (found->kind != TY_REF || param.id == NO_TYPE.id) {
+        return false;
+    }
+    const Ty *inner = type_get(c->types, found->inner), *want = type_get(c->types, param);
+    bool fits = generic ? inner->kind == want->kind && want->kind != TY_REF &&
+                              want->kind != TY_PARAM &&
+                              (want->kind != TY_ADT || inner->data == want->data)
+                        : want->kind != TY_REF && types_compatible(found->inner, param);
+    if (!fits) {
+        return false;
+    }
+    deref_once(c, arg, (*arg)->type);
+    return true;
 }
 
 TypeId check_const(Checker *c, Def *def) {

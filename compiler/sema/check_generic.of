@@ -28,6 +28,8 @@ import sema.check.fnGenericsIn
 import sema.check.fnOf
 import sema.check.noGenerics
 import sema.check.typeGenericsOf
+import sema.check_box.adjustedType
+import sema.check_box.derefArg
 import sema.check_closure.coerceToSend
 import sema.check_dyn.boxesDyn
 import sema.check_dyn.coerceToDyn
@@ -123,7 +125,7 @@ pub fn inferNew(params: move Generics) Infer {
  * @param span where
  */
 pub fn inferExplicit(c: mut Checker, p: Program, inf: mut Infer, ofOwner: bool,
-                     list: &List<TypeExpr>, span: Span) {
+                     list: List<TypeExpr>, span: Span) {
     const first = if ofOwner { 0 } else { inf.params.owner.len() }
     const count = if ofOwner { inf.params.owner.len() } else { namedCount(c, &inf.params) }
     if list.len() != count {
@@ -378,7 +380,7 @@ pub fn inferFinish(c: mut Checker, inf: mut Infer, span: Span) {
 
 // The parameter each argument gives: by name and with defaults for a
 // function (`callee` its `DefId`), by position for a constructor (0).
-fn genericSlots(c: mut Checker, p: Program, callId: int, span: Span, args: &List<Arg>,
+fn genericSlots(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
                 count: int, callee: int) List<int> {
     if callee != 0 {
         return arrangeArgs(c, p, callId, span, args, callee)
@@ -428,8 +430,8 @@ fn arrayHint(c: mut Checker, inf: &Infer, param: int, arg: &Expr) int {
     return ERROR
 }
 
-pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, args: &List<Arg>,
-                        params: &List<int>, ret: int, inf: mut Infer, expected: int,
+pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
+                        params: List<int>, ret: int, inf: mut Infer, expected: int,
                         callee: int) int {
     const slots = genericSlots(c, p, callId, span, args, params.len(), callee)
     inferFrom(c, inf, ret, expected)
@@ -445,7 +447,12 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
             hint = arrayHint(c, &inf, param, arg)
         }
         const boxed = boxesDyn(c, hint)   // `Box.new(x)` infers the type of `x`
-        const found = checkExpr(c, p, arg, if boxed { ERROR } else { hint })
+        const checked = checkExpr(c, p, arg, if boxed { ERROR } else { hint })
+        const found = if derefArg(c, arg, checked, param, true) {
+            c.types.get(checked).inner
+        } else {
+            checked
+        }
         if keyParam {
             checkKeyArg(c, arg, found)
         }
@@ -459,7 +466,7 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
     for i in 0..args.len() {
         if slots[i] >= 0 {
             const wanted = inferApply(c, &inf, params[slots[i]])
-            const found = c.typeOf(args[i].value.id.0)
+            const found = adjustedType(c, &args[i].value)
             const widened = coerceToSlice(c, p, &args[i].value, found, wanted) ||
                             (!compatible(found, wanted)
                              && coerceToDyn(c, p, &args[i].value, found, wanted)) ||
@@ -668,7 +675,7 @@ fn boundName(bit: int) str {
  * @param args the arguments
  * @param span where
  */
-pub fn checkBounds(c: mut Checker, p: Program, params: &Generics, args: &List<int>,
+pub fn checkBounds(c: mut Checker, p: Program, params: &Generics, args: List<int>,
                    span: Span) {
     const owner = params.owner.len()
     for i in 0..params.bounds.len() {
@@ -716,7 +723,7 @@ fn constArgFits(c: mut Checker, params: &Generics, i: int, arg: int, span: Span)
 
 // E0332 for each interface bounding parameter `i` that `arg` does not satisfy.
 fn checkInterfaceBounds(c: mut Checker, p: Program, params: &Generics, i: int,
-                        args: &List<int>, span: Span) {
+                        args: List<int>, span: Span) {
     const owner = params.owner.len()
     const arg = args[i]
     const wanted = params.ifaces[i].clone()
@@ -743,5 +750,5 @@ fn checkInterfaceBounds(c: mut Checker, p: Program, params: &Generics, i: int,
  * @param span where
  */
 pub fn checkBoundArgs(c: mut Checker, p: Program, inf: &Infer, span: Span) {
-    checkBounds(c, p, &inf.params, &inf.args, span)
+    checkBounds(c, p, &inf.params, inf.args, span)
 }

@@ -41,7 +41,7 @@ import syntax.ast.TypeKind
  * @param expected the type the context expects, or `ERROR`
  * @returns its type: `move fn(A) R` or `fn(A) R`
  */
-pub fn checkClosure(c: mut Checker, p: Program, e: &Expr, params: &List<Param>,
+pub fn checkClosure(c: mut Checker, p: Program, e: &Expr, params: List<Param>,
                     ret: &Option<TypeExpr>, body: &Expr, isMove: bool, expected: int) int {
     if c.types.isCFn(expected) {   // C cannot pass an environment (spec 11.3)
         c.error("E0823", e.span, "a closure cannot be a value of type "
@@ -163,7 +163,7 @@ fn captures(c: Checker, closure: int, local: int) bool {
     }
 }
 
-fn contains(list: &List<int>, value: int) bool {
+fn contains(list: List<int>, value: int) bool {
     for i in 0..list.len() {
         if list[i] == value {
             return true
@@ -198,7 +198,7 @@ pub fn noteWrite(c: mut Checker, span: Span, local: int) {
             Option.Some(list) => list.clone()
             Option.None => []
         }
-        if !contains(&written, local) {
+        if !contains(written, local) {
             written.push(local)
         }
         c.capturesMut[m].insert(closure, written)

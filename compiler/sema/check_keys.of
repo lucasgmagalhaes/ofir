@@ -168,7 +168,7 @@ fn keyLike(c: Checker, ty: int) bool {
            kind == TyKind.Param
 }
 
-fn contains(names: &List<int>, name: int) bool {
+fn contains(names: List<int>, name: int) bool {
     for i in 0..names.len() {
         if names[i] == name {
             return true
@@ -370,7 +370,7 @@ pub fn keyLiteralType(c: mut Checker, e: &Expr) int {
  * @returns `expected`, or ERROR after an error
  */
 pub fn checkKeyLiteral(c: mut Checker, span: Span, name: Symbol, expected: int) int {
-    if contains(&c.types.keyNames(expected), name.0) {
+    if contains(c.types.keyNames(expected), name.0) {
         return expected
     }
     c.error("E0341", span, "the key type `{c.typeName(expected)}` has no key `.{c.text(name)}`")
@@ -417,7 +417,7 @@ pub fn isKeyParam(c: Checker, params: &Generics, pattern: int) bool {
  * @param args the arguments
  * @param span where
  */
-pub fn checkKeyBound(c: mut Checker, p: Program, params: &Generics, i: int, args: &List<int>,
+pub fn checkKeyBound(c: mut Checker, p: Program, params: &Generics, i: int, args: List<int>,
                      span: Span) {
     for j in 0..args.len() {
         ensureFields(c, p, args[j])
@@ -466,7 +466,7 @@ pub fn included(c: Checker, key: int, bound: int) bool {
     const names = c.types.keyNames(keys)
     const wanted = c.types.keyNames(bound)
     for i in 0..names.len() {
-        if !contains(&wanted, names[i]) {
+        if !contains(wanted, names[i]) {
             return false
         }
     }

@@ -580,7 +580,7 @@ pub struct TypeTable {
         }
         const result = self.intern(kind, data, inner, items)
         if kind == TyKind.Cond && !self.types[items[0]].hasParam {
-            return self.decideCond(data, &items)
+            return self.decideCond(data, items)
         }
         if kind == TyKind.Cond {
             return self.reduceCond(result)
@@ -611,11 +611,11 @@ pub struct TypeTable {
         if !self.unify(items[1], items[0], found) {
             return ty   // decided per instance
         }
-        return self.substInfer(items[2], &found)
+        return self.substInfer(items[2], found)
     }
 
     // The branch of a `Cond` whose condition `items[0]` has no parameter.
-    fn decideCond(mut self, isPattern: int, items: &List<int>) int {
+    fn decideCond(mut self, isPattern: int, items: List<int>) int {
         if isPattern == 0 {
             const kind = self.types[items[0]].kind
             const data = self.types[items[0]].data
@@ -631,7 +631,7 @@ pub struct TypeTable {
         if !self.unify(items[1], items[0], found) {
             return items[3]
         }
-        return self.substInfer(items[2], &found)
+        return self.substInfer(items[2], found)
     }
 
     /**
@@ -690,7 +690,7 @@ pub struct TypeTable {
     }
 
     // `ty` with each `infer` placeholder `INFER_BASE + i` replaced by `found[i]`.
-    fn substInfer(mut self, ty: int, found: &List<int>) int {
+    fn substInfer(mut self, ty: int, found: List<int>) int {
         if !self.types[ty].hasParam {
             return ty
         }
@@ -928,7 +928,7 @@ pub struct TypeTable {
             Option.Some(f) => if f.isTuple {
                 self.indexOf(name)
             } else {
-                position(&f.names, name)
+                position(f.names, name)
             }
             Option.None => -1
         }
@@ -987,7 +987,7 @@ pub struct TypeTable {
     }
 }
 
-fn position(names: &List<int>, name: int) int {
+fn position(names: List<int>, name: int) int {
     for i in 0..names.len() {
         if names[i] == name {
             return i

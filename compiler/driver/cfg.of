@@ -120,7 +120,7 @@ fn isCfg(names: Interner, a: &Attribute) bool {
     return a.args.len() == 1 && names.name(a.name) == "cfg"
 }
 
-fn hasCfg(names: Interner, attributes: &List<Attribute>) bool {
+fn hasCfg(names: Interner, attributes: List<Attribute>) bool {
     for i in 0..attributes.len() {
         if isCfg(names, &attributes[i]) {
             return true
@@ -132,7 +132,7 @@ fn hasCfg(names: Interner, attributes: &List<Attribute>) bool {
 // Whether a declaration stays: its `@cfg` holds, or it has none. An invalid
 // condition is reported, and the declaration stays.
 fn keeps(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
-         attributes: &List<Attribute>) bool {
+         attributes: List<Attribute>) bool {
     for i in 0..attributes.len() {
         const a = &attributes[i]
         if isCfg(names, a) {
@@ -150,17 +150,17 @@ fn keeps(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
 
 // The functions that stay, `None` if they all do.
 fn keptFns(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
-           fns: &List<FnDecl>) Option<List<FnDecl>> {
+           fns: List<FnDecl>) Option<List<FnDecl>> {
     let any = false
     for i in 0..fns.len() {
-        any = any || hasCfg(names, &fns[i].attributes)
+        any = any || hasCfg(names, fns[i].attributes)
     }
     if !any {
         return Option.None
     }
     let out: List<FnDecl> = []
     for i in 0..fns.len() {
-        if keeps(t, names, diags, &fns[i].attributes) {
+        if keeps(t, names, diags, fns[i].attributes) {
             out.push(fns[i].clone())
         }
     }
@@ -169,17 +169,17 @@ fn keptFns(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
 
 // The fields that stay, `None` if they all do.
 fn keptFields(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
-              fields: &List<FieldDecl>) Option<List<FieldDecl>> {
+              fields: List<FieldDecl>) Option<List<FieldDecl>> {
     let any = false
     for i in 0..fields.len() {
-        any = any || hasCfg(names, &fields[i].attributes)
+        any = any || hasCfg(names, fields[i].attributes)
     }
     if !any {
         return Option.None
     }
     let out: List<FieldDecl> = []
     for i in 0..fields.len() {
-        if keeps(t, names, diags, &fields[i].attributes) {
+        if keeps(t, names, diags, fields[i].attributes) {
             out.push(fields[i].clone())
         }
     }
@@ -191,8 +191,8 @@ fn keptMembers(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
                item: &Item) Option<ItemKind> {
     return match item.kind {
         ItemKind.Struct(isCopy, isRef, isTuple, typeParams, fields, methods) => {
-            const newFields = keptFields(t, names, diags, &fields)
-            const newMethods = keptFns(t, names, diags, &methods)
+            const newFields = keptFields(t, names, diags, fields)
+            const newMethods = keptFns(t, names, diags, methods)
             if newFields.isNone() && newMethods.isNone() {
                 return Option.None
             }
@@ -200,19 +200,19 @@ fn keptMembers(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
                                         newFields ?? fields.clone(), newMethods ?? methods.clone()))
         }
         ItemKind.Enum(isCopy, typeParams, variants, methods) => {
-            const Option.Some(kept) = keptFns(t, names, diags, &methods) else {
+            const Option.Some(kept) = keptFns(t, names, diags, methods) else {
                 return Option.None
             }
             Option.Some(ItemKind.Enum(isCopy, typeParams.clone(), variants.clone(), kept))
         }
         ItemKind.Interface(typeParams, embeds, methods) => {
-            const Option.Some(kept) = keptFns(t, names, diags, &methods) else {
+            const Option.Some(kept) = keptFns(t, names, diags, methods) else {
                 return Option.None
             }
             Option.Some(ItemKind.Interface(typeParams.clone(), embeds.clone(), kept))
         }
         ItemKind.Extern(abi, fns) => {
-            const Option.Some(kept) = keptFns(t, names, diags, &fns) else {
+            const Option.Some(kept) = keptFns(t, names, diags, fns) else {
                 return Option.None
             }
             Option.Some(ItemKind.Extern(abi.clone(), kept))
@@ -233,8 +233,8 @@ fn keptMembers(t: &CfgTarget, names: Interner, diags: mut Diagnostics,
 pub fn stripCfg(module: mut Module, t: &CfgTarget, names: Interner, diags: mut Diagnostics) {
     let i = 0
     for i < module.items.len() {
-        const stays = !hasCfg(names, &module.items[i].attributes) ||
-                      keeps(t, names, diags, &module.items[i].attributes)
+        const stays = !hasCfg(names, module.items[i].attributes) ||
+                      keeps(t, names, diags, module.items[i].attributes)
         if stays {
             i += 1
         } else {

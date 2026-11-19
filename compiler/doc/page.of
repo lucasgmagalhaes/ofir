@@ -93,7 +93,7 @@ fn commentText(src: str, start: int, end: int, module: bool) str {
  * @param tokens its tokens, with the comments
  * @returns them
  */
-pub fn comments(src: str, tokens: &List<Token>) Comments {
+pub fn comments(src: str, tokens: List<Token>) Comments {
     let out = Comments{before: Map.new(), module: ""}
     for t in 0..tokens.len() {
         const kind = tokens[t].kind
@@ -140,7 +140,7 @@ fn oneLine(text: str) str {
 }
 
 // Where a declaration's text starts after its attributes.
-fn afterAttributes(src: str, start: int, attributes: &List<Attribute>) int {
+fn afterAttributes(src: str, start: int, attributes: List<Attribute>) int {
     if attributes.len() == 0 {
         return start
     }
@@ -200,7 +200,7 @@ struct Page {
     }
 
     fn function(mut self, names: &Interner, decl: &FnDecl, owner: str) {
-        const start = afterAttributes(self.src, decl.span.start, &decl.attributes)
+        const start = afterAttributes(self.src, decl.span.start, decl.attributes)
         const end = match decl.body {
             Option.Some(body) => body.span.start
             Option.None => decl.span.end
@@ -211,7 +211,7 @@ struct Page {
         self.out.push("</section>\n")
     }
 
-    fn methods(mut self, names: &Interner, methods: &List<FnDecl>, owner: str, all: bool) {
+    fn methods(mut self, names: &Interner, methods: List<FnDecl>, owner: str, all: bool) {
         for i in 0..methods.len() {
             if all || methods[i].isPub {
                 self.function(names, &methods[i], owner)
@@ -223,7 +223,7 @@ struct Page {
         const Option.Some(name) = field.name else {
             return
         }
-        const start = afterAttributes(self.src, field.span.start, &field.attributes)
+        const start = afterAttributes(self.src, field.span.start, field.attributes)
         let anchor = owner.toOwned()
         anchor.push(names.name(name))
         self.entry(anchor, oneLine(self.src.slice(start, field.span.end)), field.span.start)
@@ -240,7 +240,7 @@ struct Page {
 
     fn item(mut self, names: &Interner, item: &Item) {
         const name = names.name(item.name).toOwned()
-        const start = afterAttributes(self.src, item.span.start, &item.attributes)
+        const start = afterAttributes(self.src, item.span.start, item.attributes)
         const owner = "{name}."
         match item.kind {
             ItemKind.Fn(decl) => self.function(names, &*decl, "")
@@ -251,7 +251,7 @@ struct Page {
                         self.field(names, &fields[i], owner)
                     }
                 }
-                self.methods(names, &methods, owner, self.all)
+                self.methods(names, methods, owner, self.all)
                 self.out.push("</section>\n")
             }
             ItemKind.Enum(_, _, variants, methods) => {
@@ -259,12 +259,12 @@ struct Page {
                 for i in 0..variants.len() {
                     self.variant(names, &variants[i], owner)
                 }
-                self.methods(names, &methods, owner, self.all)
+                self.methods(names, methods, owner, self.all)
                 self.out.push("</section>\n")
             }
             ItemKind.Interface(_, _, methods) => {
                 self.entry(name, header(self.src, start, item.span.end), item.span.start)
-                self.methods(names, &methods, owner, true)
+                self.methods(names, methods, owner, true)
                 self.out.push("</section>\n")
             }
             ItemKind.Const(_, _) | ItemKind.Global(_, _) | ItemKind.TypeAlias(_, _) => {
@@ -409,7 +409,7 @@ pub fn modulePage(name: str, src: str, module: &Module, names: &Interner,
  * @returns the HTML page that links to each module's page, with the first
  *          paragraph of its comment
  */
-pub fn indexPage(modules: &List<str>, docs: &List<str>, site: &Site) str {
+pub fn indexPage(modules: List<str>, docs: List<str>, site: &Site) str {
     const title = if site.label.len() > 0 { site.label.clone() } else { "Modules".toOwned() }
     let out = head(title, site)
     out.push("<h1>{escape(title)}</h1>\n<h2>Modules</h2>\n<dl>\n")

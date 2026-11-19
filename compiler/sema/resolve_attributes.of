@@ -232,7 +232,7 @@ fn argsMatch(r: Resolver, kind: int, a: &Attribute) bool {
     return n == 2 && isStr(&a.args[0]) && isStr(&a.args[1])
 }
 
-fn checkList(r: mut Resolver, attributes: &List<Attribute>, target: int, span: Span) {
+fn checkList(r: mut Resolver, attributes: List<Attribute>, target: int, span: Span) {
     for i in 0..attributes.len() {
         const a = &attributes[i]
         const name = r.text(a.name)
@@ -264,21 +264,21 @@ fn checkList(r: mut Resolver, attributes: &List<Attribute>, target: int, span: S
     }
 }
 
-fn checkFns(r: mut Resolver, fns: &List<FnDecl>, target: int) {
+fn checkFns(r: mut Resolver, fns: List<FnDecl>, target: int) {
     for i in 0..fns.len() {
-        checkList(r, &fns[i].attributes, target, fns[i].span)
+        checkList(r, fns[i].attributes, target, fns[i].span)
     }
 }
 
-fn checkFields(r: mut Resolver, fields: &List<FieldDecl>) {
+fn checkFields(r: mut Resolver, fields: List<FieldDecl>) {
     for i in 0..fields.len() {
-        checkList(r, &fields[i].attributes, ON_FIELD, fields[i].span)
+        checkList(r, fields[i].attributes, ON_FIELD, fields[i].span)
     }
 }
 
 // `@export` names a C symbol: only an `extern "C" fn` has one.
-fn checkNotExported(r: mut Resolver, attributes: &List<Attribute>) {
-    if const Option.Some(at) = findAttribute(r, *attributes, "export") {
+fn checkNotExported(r: mut Resolver, attributes: List<Attribute>) {
+    if const Option.Some(at) = findAttribute(r, attributes, "export") {
         r.error("E0808", attributes[at].span, "`@export` applies only to an `extern \"C\"` "
                 + "function")
     }
@@ -293,42 +293,42 @@ fn checkNotExported(r: mut Resolver, attributes: &List<Attribute>) {
 pub fn checkAttributes(r: mut Resolver, item: &Item) {
     match item.kind {
         ItemKind.Fn(decl) => {
-            checkList(r, &item.attributes, ON_FN, item.span)
+            checkList(r, item.attributes, ON_FN, item.span)
             if decl.abi.len() == 0 {
-                checkNotExported(r, &item.attributes)
+                checkNotExported(r, item.attributes)
             }
         }
         ItemKind.Struct(_, _, _, _, fields, methods) => {
-            checkList(r, &item.attributes, ON_STRUCT, item.span)
-            checkFields(r, &fields)
-            checkFns(r, &methods, ON_METHOD)
+            checkList(r, item.attributes, ON_STRUCT, item.span)
+            checkFields(r, fields)
+            checkFns(r, methods, ON_METHOD)
         }
         ItemKind.Enum(_, _, variants, methods) => {
-            checkList(r, &item.attributes, ON_ENUM, item.span)
+            checkList(r, item.attributes, ON_ENUM, item.span)
             for i in 0..variants.len() {
-                checkList(r, &variants[i].attributes, ON_VARIANT, variants[i].span)
+                checkList(r, variants[i].attributes, ON_VARIANT, variants[i].span)
             }
-            checkFns(r, &methods, ON_METHOD)
+            checkFns(r, methods, ON_METHOD)
         }
-        ItemKind.Const(_, _) => checkList(r, &item.attributes, ON_CONST, item.span)
-        ItemKind.Global(_, _) => checkList(r, &item.attributes, ON_GLOBAL, item.span)
-        ItemKind.TypeAlias(_, _) => checkList(r, &item.attributes, ON_ALIAS, item.span)
-        ItemKind.Import(_, _) => checkList(r, &item.attributes, ON_IMPORT, item.span)
+        ItemKind.Const(_, _) => checkList(r, item.attributes, ON_CONST, item.span)
+        ItemKind.Global(_, _) => checkList(r, item.attributes, ON_GLOBAL, item.span)
+        ItemKind.TypeAlias(_, _) => checkList(r, item.attributes, ON_ALIAS, item.span)
+        ItemKind.Import(_, _) => checkList(r, item.attributes, ON_IMPORT, item.span)
         ItemKind.Extern(_, fns) => {
-            checkList(r, &item.attributes, ON_EXTERN, item.span)
-            checkFns(r, &fns, ON_EXTERN_FN)
+            checkList(r, item.attributes, ON_EXTERN, item.span)
+            checkFns(r, fns, ON_EXTERN_FN)
         }
         ItemKind.Interface(_, _, methods) => {
-            checkList(r, &item.attributes, ON_INTERFACE, item.span)
-            checkFns(r, &methods, ON_METHOD)
+            checkList(r, item.attributes, ON_INTERFACE, item.span)
+            checkFns(r, methods, ON_METHOD)
         }
     }
 }
 
 // The message of `@deprecated("message")`, "" without one; `None` if the
 // list has no `@deprecated`.
-fn deprecation(r: Resolver, attributes: &List<Attribute>) Option<str> {
-    const Option.Some(at) = findAttribute(r, *attributes, "deprecated") else {
+fn deprecation(r: Resolver, attributes: List<Attribute>) Option<str> {
+    const Option.Some(at) = findAttribute(r, attributes, "deprecated") else {
         return Option.None
     }
     if attributes[at].args.len() == 0 {
@@ -344,13 +344,13 @@ fn deprecation(r: Resolver, attributes: &List<Attribute>) Option<str> {
 // extern block; of the item itself when `member` is negative.
 fn memberDeprecation(r: Resolver, item: &Item, member: int) Option<str> {
     if member < 0 {
-        return deprecation(r, &item.attributes)
+        return deprecation(r, item.attributes)
     }
     return match item.kind {
-        ItemKind.Extern(_, fns) => deprecation(r, &fns[member].attributes)
-        ItemKind.Struct(_, _, _, _, _, methods) => deprecation(r, &methods[member].attributes)
-        ItemKind.Enum(_, _, _, methods) => deprecation(r, &methods[member].attributes)
-        ItemKind.Interface(_, _, methods) => deprecation(r, &methods[member].attributes)
+        ItemKind.Extern(_, fns) => deprecation(r, fns[member].attributes)
+        ItemKind.Struct(_, _, _, _, _, methods) => deprecation(r, methods[member].attributes)
+        ItemKind.Enum(_, _, _, methods) => deprecation(r, methods[member].attributes)
+        ItemKind.Interface(_, _, methods) => deprecation(r, methods[member].attributes)
         _ => Option.None
     }
 }

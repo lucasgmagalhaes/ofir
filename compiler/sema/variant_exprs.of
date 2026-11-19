@@ -55,14 +55,14 @@ fn build(c: mut Checker, p: Program, at: &Expr, args: Option<&List<Arg>>, id: in
             params = types
         }
         const used = if args.isSome() && count > 0 { given } else { &none }
-        return checkGenericArgs(c, p, at.id.0, at.span, used, &params, selfType, inf,
+        return checkGenericArgs(c, p, at.id.0, at.span, used, params, selfType, inf,
                                 expected, 0)
     }
     const ty = c.types.adt(id, [])
     if args.isNone() || count == 0 {
         return ty
     }
-    return checkArgs(c, p, at.span, given, &types, ty)
+    return checkArgs(c, p, at.span, given, types, ty)
 }
 
 /**

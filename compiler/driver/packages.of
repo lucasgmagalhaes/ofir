@@ -95,7 +95,7 @@ pub struct Lint {
  * @param name a module name's first segment
  * @returns its index, or -1 (the root's own modules, or std)
  */
-pub fn packageNamed(packages: &List<Package>, name: str) int {
+pub fn packageNamed(packages: List<Package>, name: str) int {
     for i in 1..packages.len() {
         if packages[i].name == name {
             return i
@@ -112,7 +112,7 @@ pub fn packageNamed(packages: &List<Package>, name: str) int {
  * @param key the first segment of an import
  * @returns the package it names, or -1
  */
-pub fn dependencyOf(packages: &List<Package>, p: int, key: str) int {
+pub fn dependencyOf(packages: List<Package>, p: int, key: str) int {
     const deps = &packages[p].deps
     for i in 0..deps.len() {
         if deps[i].key == key {
@@ -147,7 +147,7 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
         packages[p].deps = deps
         p += 1
     }
-    checkCycles(&packages, diags)
+    checkCycles(packages, diags)
     if !diags.hasErrors() && (r.pins.len() > 0 || r.hadLock) {
         let locked: List<Locked> = []
         for i in 0..r.pins.len() {
@@ -158,10 +158,10 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
                                commit: pin.commit.clone(), checksum: pin.checksum.clone()})
         }
         if mode.locked {
-            if !lockMatches(r.lockDir, &locked, &r.indexes) {
-                staleLock(r.lockDir, &locked, map, diags)
+            if !lockMatches(r.lockDir, locked, r.indexes) {
+                staleLock(r.lockDir, locked, map, diags)
             }
-        } else if !writeLock(r.lockDir, &locked, &r.indexes) {
+        } else if !writeLock(r.lockDir, locked, r.indexes) {
             eprintln("warning: cannot write `{r.lockDir}/ofir.lock`")
         }
     }
@@ -170,7 +170,7 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
 
 // Reports each cycle of dependencies (E0916, ADR 0076), at the dependency
 // that closes it, walking the graph depth first from the root.
-fn checkCycles(packages: &List<Package>, diags: mut Diagnostics) {
+fn checkCycles(packages: List<Package>, diags: mut Diagnostics) {
     let state: List<int> = []   // 0 unseen, 1 on the path, 2 done
     for _ in 0..packages.len() {
         state.push(0)
@@ -179,7 +179,7 @@ fn checkCycles(packages: &List<Package>, diags: mut Diagnostics) {
     visit(packages, 0, state, path, diags)
 }
 
-fn visit(packages: &List<Package>, p: int, state: mut List<int>, path: mut List<int>,
+fn visit(packages: List<Package>, p: int, state: mut List<int>, path: mut List<int>,
          diags: mut Diagnostics) {
     state[p] = 1
     path.push(p)
@@ -188,7 +188,7 @@ fn visit(packages: &List<Package>, p: int, state: mut List<int>, path: mut List<
         const q = deps[i].package
         if state[q] == 1 {
             diags.error("E0916", deps[i].at, "the dependency `{deps[i].key}` makes a cycle")
-            diags.note("the packages depend on each other: {cycleText(packages, &path, q)}")
+            diags.note("the packages depend on each other: {cycleText(packages, path, q)}")
         } else if state[q] == 0 {
             visit(packages, q, state, path, diags)
         }
@@ -198,7 +198,7 @@ fn visit(packages: &List<Package>, p: int, state: mut List<int>, path: mut List<
 }
 
 // The packages of a cycle, from `q` on the path back to `q`.
-fn cycleText(packages: &List<Package>, path: &List<int>, q: int) str {
+fn cycleText(packages: List<Package>, path: List<int>, q: int) str {
     let out = ""
     let on = false
     for i in 0..path.len() {
@@ -215,7 +215,7 @@ fn cycleText(packages: &List<Package>, path: &List<int>, q: int) str {
 
 // Reports that the lock would change under `--locked` (E0913), at the
 // root manifest's `dependencies`, with a note for each package that differs.
-fn staleLock(rootDir: str, packages: &List<Locked>, map: mut SourceMap, diags: mut Diagnostics) {
+fn staleLock(rootDir: str, packages: List<Locked>, map: mut SourceMap, diags: mut Diagnostics) {
     const path = "{rootDir}/ofir.json"
     let file = FileId(-1)
     for i in 0..map.len() {
@@ -469,7 +469,7 @@ fn readList(packages: mut List<Package>, p: int, doc: &JsonDoc, file: FileId, li
         if forTarget(doc, file, member, mode, diags) {
             const target = dependencyTarget(packages, p, doc, file, member, r, reported, map,
                                             diags)
-            if target >= 0 && validKey(&packages, p, key, at, diags) {
+            if target >= 0 && validKey(packages, p, key, at, diags) {
                 out.push(Dependency{key, package: target, at})
             }
         }
@@ -585,7 +585,7 @@ fn readLints(doc: &JsonDoc, file: FileId, diags: mut Diagnostics) List<Lint> {
 }
 
 // Whether `key` can name a dependency of package `p` (E0910, E0915).
-fn validKey(packages: &List<Package>, p: int, key: str, at: Span, diags: mut Diagnostics) bool {
+fn validKey(packages: List<Package>, p: int, key: str, at: Span, diags: mut Diagnostics) bool {
     if !isModuleName(key) {
         diags.error("E0910", at, "`{key}` is not a valid package name")
         return false
@@ -635,7 +635,7 @@ fn dependencyTarget(packages: mut List<Package>, p: int, doc: &JsonDoc, file: Fi
                     diags: mut Diagnostics) int {
     const key = doc.nodes[member].key.clone()
     const at = spanOf(doc, file, member)
-    const o = overrideOf(&r.overrides, key)
+    const o = overrideOf(r.overrides, key)
     if o >= 0 {   // replaced in the whole graph (ADR 0077)
         const dir = r.overrides[o].dir.clone()
         if !fs.exists("{dir}/ofir.json") {
@@ -750,7 +750,7 @@ fn pinnedDir(doc: &JsonDoc, file: FileId, member: int, url: str, r: &Resolution,
         return Option.Some(r.pins[pin].dir.clone())
     }
     const f = failureOf(r, url)
-    if f >= 0 && !isReported(&reported, url) {
+    if f >= 0 && !isReported(reported, url) {
         reported.push(url.clone())
         const failure = &r.failures[f]
         diags.error(failure.code, spanOf(doc, file, member), failure.message.clone())
@@ -761,7 +761,7 @@ fn pinnedDir(doc: &JsonDoc, file: FileId, member: int, url: str, r: &Resolution,
     return Option.None
 }
 
-fn isReported(reported: &List<str>, url: str) bool {
+fn isReported(reported: List<str>, url: str) bool {
     for i in 0..reported.len() {
         if reported[i] == url {
             return true
@@ -783,7 +783,7 @@ fn packageAt(packages: mut List<Package>, dir: str, key: str, at: Span, map: mut
     }
     const slash = lastSlash(root)
     const srcDir = if slash > 0 { root.slice(0, slash).toOwned() } else { dir.clone() }
-    const name = uniqueName(&packages, key)
+    const name = uniqueName(packages, key)
     packages.push(Package{name, dir: dir.toOwned(), srcDir, rootFile: root, deps: [],
                           lints: [], native: []})
     return packages.len() - 1
@@ -813,7 +813,7 @@ fn libraryRoot(dir: str, key: str, at: Span, map: mut SourceMap,
 }
 
 // `key`, or `key_2`, `key_3`... when another package has it.
-fn uniqueName(packages: &List<Package>, key: str) str {
+fn uniqueName(packages: List<Package>, key: str) str {
     let name = key.toOwned()
     let n = 2
     for packageNamed(packages, name) >= 0 || takenByRoot(packages, name) {
@@ -824,7 +824,7 @@ fn uniqueName(packages: &List<Package>, key: str) str {
 }
 
 // Whether the root project has a top-level module `name`, or it is std.
-fn takenByRoot(packages: &List<Package>, name: str) bool {
+fn takenByRoot(packages: List<Package>, name: str) bool {
     const src = &packages[0].srcDir
     return name == "std" || fs.exists("{src}/{name}.of") || fs.exists("{src}/{name}")
 }

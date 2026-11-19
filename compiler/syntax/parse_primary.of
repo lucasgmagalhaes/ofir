@@ -423,7 +423,7 @@ fn keyIndex(p: mut Parser, base: move Expr) Expr {
 }
 
 // `field.get(value)` on the variable of a `comptime for` (spec 15.3).
-fn comptimeGet(p: Parser, callee: &Expr, args: &List<Arg>) bool {
+fn comptimeGet(p: Parser, callee: &Expr, args: List<Arg>) bool {
     if args.len() != 1 || args[0].name.isSome() {
         return false
     }
@@ -452,7 +452,7 @@ fn comptimeGet(p: Parser, callee: &Expr, args: &List<Arg>) bool {
 }
 
 // `field.get(value)` is `value[field]`: the field of `value` the key names.
-fn fieldGet(p: mut Parser, callee: &Expr, args: &List<Arg>, start: Span) Expr {
+fn fieldGet(p: mut Parser, callee: &Expr, args: List<Arg>, start: Span) Expr {
     const key = match callee.kind {
         ExprKind.Field(base, _, _) => base.clone()
         _ => Box.new(callee.clone())
@@ -467,8 +467,8 @@ fn postfixOnce(p: mut Parser, base: move Expr) (Expr, bool) {
         TokenKind.LParen => {
             p.advance()
             const args = parseCallArgs(p)
-            if comptimeGet(p, &base, &args) {
-                return (fieldGet(p, &base, &args, start), true)
+            if comptimeGet(p, &base, args) {
+                return (fieldGet(p, &base, args, start), true)
             }
             (newExpr(p, ExprKind.Call(Box.new(base), args), start), true)
         }

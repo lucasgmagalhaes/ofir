@@ -4,7 +4,7 @@ import base.intern.Symbol
 import std.testing.assert
 
 fn distance(a: str, b: str) int {
-    return editDistance(&bytesOf(a), &bytesOf(b))
+    return editDistance(bytesOf(a), bytesOf(b))
 }
 
 @test

@@ -369,7 +369,7 @@ struct Printer {
         }
     }
 
-    fn bounds(mut self, preds: &List<WherePred>, names: Interner) {
+    fn bounds(mut self, preds: List<WherePred>, names: Interner) {
         for i in 0..preds.len() {
             const prefix = if preds[i].isConst { "const " } else { "" }
             let text = "bound {prefix}{typeText(&preds[i].ty, names)}:"
@@ -381,7 +381,7 @@ struct Printer {
         }
     }
 
-    fn asserts(mut self, list: &List<TypeExpr>, names: Interner) {
+    fn asserts(mut self, list: List<TypeExpr>, names: Interner) {
         if list.len() > 0 {
             self.line("asserts {typesText(list.clone(), names)}")
         }
@@ -426,7 +426,7 @@ struct Printer {
         self.depth += 1
         self.attributes(f.attributes, names)
         self.symbols("type_params", f.typeParams, ", ", names)
-        self.bounds(&f.bounds, names)
+        self.bounds(f.bounds, names)
         if f.hasSelf {
             self.line("{modeText(f.selfMode)}self")
         }
@@ -500,8 +500,8 @@ struct Printer {
                 self.depth += 1
                 self.attributes(it.attributes, names)
                 self.symbols("type_params", typeParams, ", ", names)
-                self.bounds(&it.bounds, names)
-                self.asserts(&it.asserts, names)
+                self.bounds(it.bounds, names)
+                self.asserts(it.asserts, names)
                 self.fields(fields, names)
                 self.methods(methods, names)
                 self.depth -= 1
@@ -511,8 +511,8 @@ struct Printer {
                 self.depth += 1
                 self.attributes(it.attributes, names)
                 self.symbols("type_params", typeParams, ", ", names)
-                self.bounds(&it.bounds, names)
-                self.asserts(&it.asserts, names)
+                self.bounds(it.bounds, names)
+                self.asserts(it.asserts, names)
                 self.variants(variants, names)
                 self.methods(methods, names)
                 self.depth -= 1
@@ -549,7 +549,7 @@ struct Printer {
                     declared.push(typeParams[i])
                 }
                 self.symbols("type_params", declared, ", ", names)
-                self.bounds(&it.bounds, names)
+                self.bounds(it.bounds, names)
                 for i in 0..embeds.len() {
                     self.line("embed {typeText(&embeds[i], names)}")
                 }

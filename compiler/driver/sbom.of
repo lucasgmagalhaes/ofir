@@ -80,21 +80,21 @@ pub fn sbomCommand(args: List<str>, compiler: str) int {
         return 1
     }
     const r = resolve(dir, &mode)
-    const entries = entriesOf(&packages, &r)
+    const entries = entriesOf(packages, &r)
     const lock = fs.readToString("{r.lockDir}/ofir.lock").ok() ?? ""
     let h = Sha256.new()
     h.updateText(lock)
     const sum = h.finish()
     if format == "spdx" {
-        print(spdxJson(&entries, compiler, sum))
+        print(spdxJson(entries, compiler, sum))
     } else {
-        print(cycloneJson(&entries, compiler))
+        print(cycloneJson(entries, compiler))
     }
     return 0
 }
 
 // An entry for each package, the root first.
-fn entriesOf(packages: &List<Package>, r: &Resolution) List<Entry> {
+fn entriesOf(packages: List<Package>, r: &Resolution) List<Entry> {
     let out: List<Entry> = []
     for i in 0..packages.len() {
         const p = &packages[i]
@@ -136,7 +136,7 @@ fn entriesOf(packages: &List<Package>, r: &Resolution) List<Entry> {
         }
         for d in 0..p.deps.len() {
             const q = p.deps[d].package
-            if q >= 0 && !holds(&e.deps, q) {
+            if q >= 0 && !holds(e.deps, q) {
                 e.deps.push(q)
             }
         }
@@ -145,7 +145,7 @@ fn entriesOf(packages: &List<Package>, r: &Resolution) List<Entry> {
     return out
 }
 
-fn holds(list: &List<int>, n: int) bool {
+fn holds(list: List<int>, n: int) bool {
     for i in 0..list.len() {
         if list[i] == n {
             return true
@@ -155,7 +155,7 @@ fn holds(list: &List<int>, n: int) bool {
 }
 
 // The CycloneDX 1.5 document.
-fn cycloneJson(entries: &List<Entry>, compiler: str) str {
+fn cycloneJson(entries: List<Entry>, compiler: str) str {
     let out = "\{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.5\",\"version\":1"
     out.push(",\"metadata\":\{")
     const date = sourceDate()
@@ -216,7 +216,7 @@ fn cycloneComponent(e: &Entry) str {
 }
 
 // The SPDX 2.3 document; `lockSum` makes its namespace unique to the lock.
-fn spdxJson(entries: &List<Entry>, compiler: str, lockSum: str) str {
+fn spdxJson(entries: List<Entry>, compiler: str, lockSum: str) str {
     const root = &entries[0]
     const date = sourceDate()
     const created = if date.len() > 0 { date.clone() } else { "1970-01-01T00:00:00Z" }

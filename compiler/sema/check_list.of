@@ -106,7 +106,7 @@ pub fn requireCopy(c: mut Checker, p: Program, span: Span, ty: int, what: str) {
  * @param expected the type the context expects
  * @returns its type
  */
-pub fn checkListLiteral(c: mut Checker, p: Program, e: &Expr, items: &List<Expr>,
+pub fn checkListLiteral(c: mut Checker, p: Program, e: &Expr, items: List<Expr>,
                         expected: int) int {
     if c.types.kind(expected) == TyKind.Array {   // `[a, b]` as a `[T; N]` (spec 2.7)
         let elem = c.types.get(expected).inner

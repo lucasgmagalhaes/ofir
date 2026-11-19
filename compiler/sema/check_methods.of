@@ -239,7 +239,7 @@ fn typeArgsOf(e: &Expr) List<TypeExpr> {
     }
 }
 
-fn namedInstance(c: mut Checker, p: Program, id: int, list: &List<TypeExpr>, span: Span) int {
+fn namedInstance(c: mut Checker, p: Program, id: int, list: List<TypeExpr>, span: Span) int {
     if list.len() == 0 && itemTypeParams(itemOf(p, c.loc(id))).len() > 0 {
         return ERROR
     }
@@ -260,7 +260,7 @@ fn namedInstance(c: mut Checker, p: Program, id: int, list: &List<TypeExpr>, spa
  * @param callee the callee expression
  * @param args the arguments
  */
-pub fn checkMutArgs(c: mut Checker, p: Program, id: int, callId: int, args: &List<Arg>) {
+pub fn checkMutArgs(c: mut Checker, p: Program, id: int, callId: int, args: List<Arg>) {
     const decl = fnOf(p, c.loc(id))
     for i in 0..args.len() {
         const slot = argParam(c, callId, i)
@@ -271,15 +271,15 @@ pub fn checkMutArgs(c: mut Checker, p: Program, id: int, callId: int, args: &Lis
     }
 }
 
-fn skipArgs(c: mut Checker, p: Program, args: &List<Arg>) int {
+fn skipArgs(c: mut Checker, p: Program, args: List<Arg>) int {
     for i in 0..args.len() {
         checkExpr(c, p, &args[i].value, ERROR)
     }
     return ERROR
 }
 
-fn methodArgs(c: mut Checker, p: Program, call: &Expr, field: &Expr, explicit: &List<TypeExpr>,
-              args: &List<Arg>, id: int, selfType: int, expected: int) int {
+fn methodArgs(c: mut Checker, p: Program, call: &Expr, field: &Expr, explicit: List<TypeExpr>,
+              args: List<Arg>, id: int, selfType: int, expected: int) int {
     const sig = fnSignature(c, p, id)
     const generics = fnGenerics(c, p, id)
     if generics.owner.len() + generics.fnParams.len() == 0 {
@@ -312,7 +312,7 @@ fn methodArgs(c: mut Checker, p: Program, call: &Expr, field: &Expr, explicit: &
     }
     const params = c.types.get(sig).args.clone()
     const ret = c.types.get(sig).inner
-    return checkGenericArgs(c, p, call.id.0, call.span, args, &params, ret, inf, expected,
+    return checkGenericArgs(c, p, call.id.0, call.span, args, params, ret, inf, expected,
                             id)
 }
 
@@ -330,7 +330,7 @@ fn fnFieldOf(c: mut Checker, p: Program, owner: int, name: Symbol) int {
 
 // `x.f(...)` that calls the fn value in field `f` of `x` (spec 10.2).
 fn checkFieldCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, name: Symbol,
-                  args: &List<Arg>, selfType: int) int {
+                  args: List<Arg>, selfType: int) int {
     const ty = checkStructField(c, p, field, name, selfType)
     c.setType(field.id.0, ty)
     c.fieldCalls[c.module()].insert(field.id.0, 1)
@@ -358,7 +358,7 @@ fn checkFieldCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, name: S
  * @returns the result type
  */
 pub fn checkUserMethod(c: mut Checker, p: Program, call: &Expr, field: &Expr, base: &Expr,
-                       name: Symbol, explicit: &List<TypeExpr>, args: &List<Arg>, owner: int,
+                       name: Symbol, explicit: List<TypeExpr>, args: List<Arg>, owner: int,
                        viaType: bool, selfType: int, expected: int) int {
     const index = findMethod(c, p, owner, name)
     if index < 0 && !viaType && c.def(owner).kind != DefKind.Interface {
@@ -433,7 +433,7 @@ fn builtinIndex(c: Checker, ty: int, name: Symbol) int {
 }
 
 // The integer type argument of `x.wrappingCast<T>()`.
-fn typeArgument(c: mut Checker, p: Program, field: &Expr, explicit: &List<TypeExpr>,
+fn typeArgument(c: mut Checker, p: Program, field: &Expr, explicit: List<TypeExpr>,
                 wanted: bool) int {
     const count = if wanted { 1 } else { 0 }
     if explicit.len() != count {
@@ -453,22 +453,22 @@ fn typeArgument(c: mut Checker, p: Program, field: &Expr, explicit: &List<TypeEx
     return target
 }
 
-fn callBuiltin(c: mut Checker, p: Program, call: &Expr, field: &Expr, explicit: &List<TypeExpr>,
-               args: &List<Arg>, which: int, selfType: int) int {
+fn callBuiltin(c: mut Checker, p: Program, call: &Expr, field: &Expr, explicit: List<TypeExpr>,
+               args: List<Arg>, which: int, selfType: int) int {
     c.setMember(field.id.0, BUILTIN_BASE - which)
     if which == 3 {   // pointer arithmetic (spec 11.2)
         requireUnsafe(c, call.span, "offsetting a raw pointer")
     }
     const target = typeArgument(c, p, field, explicit, which < 3)
     if which == 3 {
-        return checkArgs(c, p, call.span, args, &[I64], selfType)
+        return checkArgs(c, p, call.span, args, [I64], selfType)
     }
     let ret = target
     if which == 2 {
         const option = c.r.langItems[2]
         ret = if option == 0 || target == ERROR { ERROR } else { c.types.adt(option, [target]) }
     }
-    return checkArgs(c, p, call.span, args, &[], ret)
+    return checkArgs(c, p, call.span, args, [], ret)
 }
 
 // Whether std declares the method `name` for the primitive `ty`.
@@ -477,7 +477,7 @@ fn hasLangMethod(c: Checker, p: Program, ty: int, name: Symbol) bool {
     return lang != 0 && hasMethod(c, p, lang, name)
 }
 
-fn noMethod(c: mut Checker, p: Program, field: &Expr, name: Symbol, args: &List<Arg>,
+fn noMethod(c: mut Checker, p: Program, field: &Expr, name: Symbol, args: List<Arg>,
             selfType: int) int {
     if selfType != ERROR {
         c.error("E0301", field.span, "no method `{c.text(name)}` on type `{c.typeName(selfType)}`")
@@ -518,30 +518,30 @@ pub fn primitiveName(c: Checker, e: &Expr) int {
  * @param expected the type the context expects
  * @returns the result type
  */
-pub fn checkMethodCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, args: &List<Arg>,
+pub fn checkMethodCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, args: List<Arg>,
                        expected: int) int {
     match field.kind {
         ExprKind.Field(baseBox, name, explicit) => {
             const base = &*baseBox
             const owner = typeNameOf(c, base)
             if owner != 0 {   // `Point.new()`, `Stack<int>.new()` or `Shape.Circle(1.0)`
-                const selfType = namedInstance(c, p, owner, &typeArgsOf(base), base.span)
+                const selfType = namedInstance(c, p, owner, typeArgsOf(base), base.span)
                 c.setType(base.id.0, selfType)
                 if c.def(owner).kind == DefKind.Enum {
                     if const Option.Some(ty) = checkQualifiedVariant(c, p, call, field, name,
-                                                                   Option.Some(args),
+                                                                   Option.Some(&args),
                                                              owner, selfType, expected) {
                         return ty
                     }
                 }
-                return checkUserMethod(c, p, call, field, base, name, &explicit, args, owner, true,
+                return checkUserMethod(c, p, call, field, base, name, explicit, args, owner, true,
                                        selfType, expected)
             }
             const primitive = primitiveName(c, base)
             if primitive >= 0 {   // an associated function: `str.new()`
                 c.setType(base.id.0, primitive)
                 if hasLangMethod(c, p, primitive, name) {
-                    return checkUserMethod(c, p, call, field, base, name, &explicit, args,
+                    return checkUserMethod(c, p, call, field, base, name, explicit, args,
                                            c.r.lang[primitive], true, primitive, expected)
                 }
                 return noMethod(c, p, field, name, args, primitive)
@@ -556,7 +556,7 @@ pub fn checkMethodCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, ar
                     c.error("E0329", field.span, "ambiguous call: {clash}")
                 }
                 if iface != 0 {
-                    return checkUserMethod(c, p, call, field, base, name, &explicit, args, iface,
+                    return checkUserMethod(c, p, call, field, base, name, explicit, args, iface,
                                            false, selfType, expected)
                 }
             }
@@ -570,32 +570,32 @@ pub fn checkMethodCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, ar
                     return skipArgs(c, p, args)
                 }
                 if iface != 0 {
-                    return checkUserMethod(c, p, call, field, base, name, &explicit, args, iface,
+                    return checkUserMethod(c, p, call, field, base, name, explicit, args, iface,
                                            false, selfType, expected)
                 }
                 return noMethod(c, p, field, name, args, selfType)
             }
             const sliceType = arraySliceReceiver(c, p, base, found, name)
             if sliceType >= 0 {   // `a.len()` on an array is `(&a[..]).len()`
-                return checkUserMethod(c, p, call, field, base, name, &explicit, args,
+                return checkUserMethod(c, p, call, field, base, name, explicit, args,
                                        c.r.langItems[4], false, sliceType, expected)
             }
             if c.types.kind(selfType) == TyKind.Adt {
                 const id = c.types.get(selfType).data
-                return checkUserMethod(c, p, call, field, base, name, &explicit, args, id, false,
+                return checkUserMethod(c, p, call, field, base, name, explicit, args, id, false,
                                        selfType, expected)
             }
             if hasLangMethod(c, p, selfType, name) {
                 const lang = c.r.lang[selfType]
-                return checkUserMethod(c, p, call, field, base, name, &explicit, args, lang,
+                return checkUserMethod(c, p, call, field, base, name, explicit, args, lang,
                                        false, selfType, expected)
             }
             const which = builtinIndex(c, selfType, name)
             if which >= 0 {
-                return callBuiltin(c, p, call, field, &explicit, args, which, selfType)
+                return callBuiltin(c, p, call, field, explicit, args, which, selfType)
             }
             if c.text(name) == "clone" {
-                return checkDerivedClone(c, p, call, field, &explicit, args, selfType)
+                return checkDerivedClone(c, p, call, field, explicit, args, selfType)
             }
             return noMethod(c, p, field, name, args, selfType)
         }
@@ -637,7 +637,7 @@ pub fn checkField(c: mut Checker, p: Program, e: &Expr, base: &Expr, name: Symbo
     }
     const owner = typeNameOf(c, base)
     if owner != 0 {   // `Shape.Empty`, `Opt<int>.None`
-        const selfType = namedInstance(c, p, owner, &typeArgsOf(base), base.span)
+        const selfType = namedInstance(c, p, owner, typeArgsOf(base), base.span)
         c.setType(base.id.0, selfType)
         if c.def(owner).kind == DefKind.Enum {
             if const Option.Some(ty) = checkQualifiedVariant(c, p, e, e, name, Option.None, owner,
@@ -838,7 +838,7 @@ fn notCloneable(c: mut Checker, span: Span, ty: int) {
 
 // `value.clone()` on a type without a `clone` method: the derived clone.
 fn checkDerivedClone(c: mut Checker, p: Program, call: &Expr, field: &Expr,
-                     explicit: &List<TypeExpr>, args: &List<Arg>, selfType: int) int {
+                     explicit: List<TypeExpr>, args: List<Arg>, selfType: int) int {
     if args.len() > 0 || explicit.len() > 0 {
         c.error("E0302", call.span, "`clone` takes no arguments".toOwned())
     }

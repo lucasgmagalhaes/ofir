@@ -87,10 +87,10 @@ pub fn isCopy(c: Checker, p: Program, ty: int) bool {
     return match t.kind {
         TyKind.Adt => {
             if t.data == c.r.langItems[2] || t.data == c.r.langItems[3] {
-                return argsAreCopy(c, p, &t.args)
+                return argsAreCopy(c, p, t.args)
             }
             if c.isUnion(t.data) {
-                return argsAreCopy(c, p, &t.args)   // its members
+                return argsAreCopy(c, p, t.args)   // its members
             }
             match itemOf(p, c.loc(t.data)).kind {
                 ItemKind.Struct(isCopyType, _, _, _, _, _) => isCopyType
@@ -98,7 +98,7 @@ pub fn isCopy(c: Checker, p: Program, ty: int) bool {
                 _ => false
             }
         }
-        TyKind.Tuple => argsAreCopy(c, p, &t.args)
+        TyKind.Tuple => argsAreCopy(c, p, t.args)
         TyKind.Array => isCopy(c, p, t.inner)
         TyKind.Param => paramBounds(c, ty) & BOUND_COPY != 0
         TyKind.Str | TyKind.Slice => false
@@ -108,7 +108,7 @@ pub fn isCopy(c: Checker, p: Program, ty: int) bool {
     }
 }
 
-fn argsAreCopy(c: Checker, p: Program, args: &List<int>) bool {
+fn argsAreCopy(c: Checker, p: Program, args: List<int>) bool {
     for i in 0..args.len() {
         if !isCopy(c, p, args[i]) {
             return false

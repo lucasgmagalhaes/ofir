@@ -524,7 +524,7 @@ pub fn checkMatch(c: mut Checker, p: Program, e: &Expr, expected: int, asValue: 
                     mismatchedBranches(c, arm.body.span, expected, result, found)
                 }
             }
-            checkExhaustive(c, p, e, &arms, ty)
+            checkExhaustive(c, p, e, arms, ty)
             return if asValue { result } else { unitUnlessNever(result) }
         }
         _ => {

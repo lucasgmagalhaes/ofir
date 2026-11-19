@@ -33,7 +33,7 @@ pub struct Sha256 {
      *
      * @param data the bytes
      */
-    pub fn update(mut self, data: &List<u8>) {
+    pub fn update(mut self, data: List<u8>) {
         if data.len() > 0 {
             self.feed(&data[0] as *u8, data.len())
         }
@@ -61,11 +61,11 @@ pub struct Sha256 {
             if self.pending.len() < 64 {
                 return
             }
-            compress(self.state, self.w, &self.k, &self.pending[0] as *u8)
+            compress(self.state, self.w, self.k, &self.pending[0] as *u8)
             self.pending.clear()
         }
         for i + 64 <= len {
-            compress(self.state, self.w, &self.k, unsafe { data.add(i) })
+            compress(self.state, self.w, self.k, unsafe { data.add(i) })
             i += 64
         }
         for i < len {
@@ -89,7 +89,7 @@ pub struct Sha256 {
             const shift = (7 - i) * 8
             tail.push(((bits >> shift) & 255) as u8)
         }
-        self.update(&tail)
+        self.update(tail)
         const digits = "0123456789abcdef"
         let out = str.new()
         for i in 0..8 {
@@ -117,7 +117,7 @@ pub fn sha256Hex(text: str) str {
 }
 
 // Hashes the block of 64 bytes at `block` into `state`; `w` holds 64 words.
-fn compress(state: mut List<u32>, w: mut List<u32>, k: &List<u32>, block: *u8) {
+fn compress(state: mut List<u32>, w: mut List<u32>, k: List<u32>, block: *u8) {
     for i in 0..16 {
         const b0 = unsafe { *block.add(i * 4) } as u32
         const b1 = unsafe { *block.add(i * 4 + 1) } as u32

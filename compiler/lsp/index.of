@@ -131,7 +131,7 @@ struct Server {
         const path = uriToPath(uri)
         self.docs.insert(path.clone(), text)
         self.uris.insert(path.clone(), uri.toOwned())
-        const checked = checkFile(path, &self.docs, "")
+        const checked = checkFile(path, self.docs, "")
         let items = ""
         for i in 0..checked.diags.len() {
             if i > 0 {
@@ -145,7 +145,7 @@ struct Server {
     // The location of the declaration of the name at a position, or `null`.
     fn definition(self, uri: str, line: int, character: int) str {
         const path = uriToPath(uri)
-        const checked = checkFile(path, &self.docs, "")
+        const checked = checkFile(path, self.docs, "")
         const best = linkAt(&checked, path, line, character)
         if best < 0 {
             return "null"
@@ -167,7 +167,7 @@ struct Server {
     // Hover in Markdown, or `null`.
     fn hover(self, uri: str, line: int, character: int) str {
         const path = uriToPath(uri)
-        const checked = checkFile(path, &self.docs, "")
+        const checked = checkFile(path, self.docs, "")
         const best = linkAt(&checked, path, line, character)
         if best < 0 {
             return "null"
@@ -202,7 +202,7 @@ struct Server {
     // duplicates.
     fn references(self, uri: str, line: int, character: int, withDecl: bool) List<Place> {
         const path = uriToPath(uri)
-        const checked = checkFile(path, &self.docs, "")
+        const checked = checkFile(path, self.docs, "")
         const best = linkAt(&checked, path, line, character)
         if best < 0 {
             return []
@@ -230,7 +230,7 @@ struct Server {
             }
         }
         for r in 0..roots.len() {
-            const other = checkFile(roots[r], &self.docs, "")
+            const other = checkFile(roots[r], self.docs, "")
             for i in 0..other.links.len() {
                 const l = &other.links[i]
                 const target = other.map.file(l.decl.file)
@@ -262,7 +262,7 @@ struct Server {
             return errorResponse(id, -32803, "there is no name to rename here")
         }
         const path = uriToPath(uri)
-        const checked = checkFile(path, &self.docs, "")
+        const checked = checkFile(path, self.docs, "")
         const best = linkAt(&checked, path, line, character)
         const declPath = checked.map.file(checked.links[best].decl.file).path.clone()
         if self.docs.get(declPath).isNone() || checked.links[best].decl.len() == 0 {
@@ -305,7 +305,7 @@ struct Server {
         probed.push(text.slice(offset, text.len()))
         let overlays = self.docs.clone()
         overlays.insert(path.clone(), probed)
-        const checked = checkFile(path, &overlays, PROBE)
+        const checked = checkFile(path, overlays, PROBE)
         let found: List<str> = []
         for i in 0..checked.completions.len() {
             const c = &checked.completions[i]

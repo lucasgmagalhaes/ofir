@@ -60,7 +60,7 @@ struct Section {
 }
 
 // The sections of the tags of `lines` from `from`.
-fn sections(lines: &List<str>, from: int) List<Section> {
+fn sections(lines: List<str>, from: int) List<Section> {
     let out: List<Section> = []
     let fenced = false
     for i in from..lines.len() {
@@ -81,7 +81,7 @@ fn sections(lines: &List<str>, from: int) List<Section> {
 
 // The index of the first line that starts with a tag, outside the fenced
 // blocks, or the number of lines.
-fn firstTag(lines: &List<str>) int {
+fn firstTag(lines: List<str>) int {
     let fenced = false
     for i in 0..lines.len() {
         if !fenced && isTag(lines[i]) {
@@ -95,7 +95,7 @@ fn firstTag(lines: &List<str>) int {
 }
 
 // The `<dl>` of the `@param` or `@typeParam` sections, under `heading`.
-fn named(all: &List<Section>, tag: str, heading: str, level: int) str {
+fn named(all: List<Section>, tag: str, heading: str, level: int) str {
     let out = ""
     for i in 0..all.len() {
         if all[i].tag != tag {
@@ -108,7 +108,7 @@ fn named(all: &List<Section>, tag: str, heading: str, level: int) str {
             out.push("<h{level}>{heading}</h{level}>\n<dl>\n")
         }
         out.push("<dt><code>{escape(parts.0)}</code></dt>\n")
-        out.push("<dd>{blocks(&lines, 0, lines.len())}</dd>\n")
+        out.push("<dd>{blocks(lines, 0, lines.len())}</dd>\n")
     }
     if out.len() > 0 {
         out.push("</dl>\n")
@@ -131,25 +131,25 @@ pub fn renderDoc(text: str, headingLevel: int) str {
     for part in text.split("\n") {
         lines.push(part.toOwned())
     }
-    const first = firstTag(&lines)
-    const all = sections(&lines, first)
+    const first = firstTag(lines)
+    const all = sections(lines, first)
     let out = ""
     for i in 0..all.len() {
         if all[i].tag == "deprecated" {
-            const body = blocks(&all[i].lines, 0, all[i].lines.len())
+            const body = blocks(all[i].lines, 0, all[i].lines.len())
             out.push("<div class=\"deprecated\"><strong>Deprecated.</strong>\n{body}</div>\n")
         }
     }
-    out.push(blocks(&lines, 0, first))
-    out.push(named(&all, "typeParam", "Type parameters", headingLevel))
-    out.push(named(&all, "param", "Parameters", headingLevel))
+    out.push(blocks(lines, 0, first))
+    out.push(named(all, "typeParam", "Type parameters", headingLevel))
+    out.push(named(all, "param", "Parameters", headingLevel))
     for i in 0..all.len() {
         const tag = all[i].tag.clone()
         if tag == "deprecated" || tag == "param" || tag == "typeParam" || tag == "module" {
             continue
         }
         out.push("<h{headingLevel}>{escape(title(tag))}</h{headingLevel}>\n")
-        out.push(blocks(&all[i].lines, 0, all[i].lines.len()))
+        out.push(blocks(all[i].lines, 0, all[i].lines.len()))
     }
     return out
 }

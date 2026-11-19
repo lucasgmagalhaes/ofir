@@ -137,7 +137,7 @@ pub struct Set<T: Eq + Hash> {
      * @returns true when this set is a subset of `other`
      * @complexity O(n) expected
      */
-    pub fn isSubset(self, other: &Set<T>) bool {
+    pub fn isSubset(self, other: Set<T>) bool {
         for x in self.map.keys() {
             if !other.map.contains(*x) {
                 return false

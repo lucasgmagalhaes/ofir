@@ -442,7 +442,7 @@ fn assignPlace(m: mut Moves, c: mut Checker, e: &Expr, place: &Place, s: mut Sta
         killHolder(s, local)   // the old value's loans end with it
     }
     if m.refLocal[local] {
-        bindLoans(s, local, &m.binding)
+        bindLoans(s, local, m.binding)
     }
     s.initPart(&place.part)
 }
@@ -555,7 +555,7 @@ fn shorthand(m: mut Moves, c: mut Checker, p: Program, init: &FieldInit, span: S
 // ---------------------------------------------------------------------------
 // Calls
 
-fn eachArg(m: mut Moves, c: mut Checker, p: Program, args: &List<Arg>, uses: &List<Use>,
+fn eachArg(m: mut Moves, c: mut Checker, p: Program, args: List<Arg>, uses: List<Use>,
            otherwise: Use, s: mut State) {
     for i in 0..args.len() {
         const use = if i < uses.len() { uses[i] } else { otherwise }
@@ -603,7 +603,7 @@ fn argument(m: mut Moves, c: mut Checker, p: Program, arg: &Expr, use: Use, para
 
 // The parameter a function returns a borrow from (spec 5.6): -1 for
 // `self`, -2 for none.
-fn borrowSource(c: Checker, p: Program, decl: &FnDecl, callId: int, args: &List<Arg>) int {
+fn borrowSource(c: Checker, p: Program, decl: &FnDecl, callId: int, args: List<Arg>) int {
     if decl.hasSelf && decl.selfMode != Mode.Move {
         return -1
     }
@@ -630,7 +630,7 @@ fn borrowSource(c: Checker, p: Program, decl: &FnDecl, callId: int, args: &List<
 // arguments are borrowed mutably; none of them may overlap another one
 // (E0700, E0701). A result that holds a reference borrows the source.
 fn fnCall(m: mut Moves, c: mut Checker, p: Program, e: &Expr, id: int, receiver: &Expr,
-          hasReceiver: bool, args: &List<Arg>, s: mut State) {
+          hasReceiver: bool, args: List<Arg>, s: mut State) {
     const decl = fnOf(p, c.loc(id))
     let places: List<ArgPlace> = []
     if hasReceiver && decl.hasSelf {
@@ -686,7 +686,7 @@ fn isVariant(c: mut Checker, p: Program, owner: int, field: &Expr) bool {
 
 // A call of a name: a function, a constructor or a variant.
 fn nameCall(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
-            args: &List<Arg>, s: mut State) {
+            args: List<Arg>, s: mut State) {
     const none: List<Use> = []
     match c.res(callee.id.0) {
         Res.Def(id) => {
@@ -695,19 +695,19 @@ fn nameCall(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
                 fnCall(m, c, p, e, id, callee, false, args, s)
             } else {
                 const build = kind == DefKind.Struct || kind == DefKind.Variant
-                eachArg(m, c, p, args, &none, if build { Use.Move } else { Use.Read }, s)
+                eachArg(m, c, p, args, none, if build { Use.Move } else { Use.Read }, s)
             }
         }
         _ => {
             movesNode(m, c, p, callee, s, Use.Read)
-            eachArg(m, c, p, args, &none, Use.Read, s)
+            eachArg(m, c, p, args, none, Use.Read, s)
         }
     }
 }
 
 // A call consumes the arguments of `move` parameters (and of constructors
 // and variants) and only reads the others.
-fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
+fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<Arg>,
         s: mut State) {
     const none: List<Use> = []
     match callee.kind {
@@ -718,12 +718,12 @@ fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args:
                 return
             }
             if isVariant(c, p, typeNameOf(c, base), callee) {
-                eachArg(m, c, p, args, &none, Use.Move, s)
+                eachArg(m, c, p, args, none, Use.Move, s)
                 return
             }
             if c.fieldCalls[c.module()].get(callee.id.0).isSome() {   // `button.onClick()`
                 movesNode(m, c, p, callee, s, Use.Read)
-                eachArg(m, c, p, args, &none, Use.Read, s)
+                eachArg(m, c, p, args, none, Use.Read, s)
                 return
             }
             const member = c.members[c.module()][callee.id.0]
@@ -732,19 +732,19 @@ fn call(m: mut Moves, c: mut Checker, p: Program, e: &Expr, callee: &Expr, args:
                 return
             }
             movesNode(m, c, p, base, s, Use.Read)   // the built-in methods read
-            eachArg(m, c, p, args, &none, Use.Read, s)
+            eachArg(m, c, p, args, none, Use.Read, s)
         }
         ExprKind.Ident(_) | ExprKind.Generic(_, _) => nameCall(m, c, p, e, callee, args, s)
         _ => {
             movesNode(m, c, p, callee, s, Use.Read)
-            eachArg(m, c, p, args, &none, Use.Read, s)
+            eachArg(m, c, p, args, none, Use.Read, s)
         }
     }
 }
 
 // ---------------------------------------------------------------------------
 
-fn each(m: mut Moves, c: mut Checker, p: Program, list: &List<Expr>, s: mut State, use: Use) {
+fn each(m: mut Moves, c: mut Checker, p: Program, list: List<Expr>, s: mut State, use: Use) {
     for i in 0..list.len() {
         movesNode(m, c, p, &list[i], s, use)
     }
@@ -810,7 +810,7 @@ fn refRoot(m: Moves, c: Checker, e: &Expr) int {
 
 fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
     match e.kind {
-        ExprKind.Interp(parts, _) => each(m, c, p, &parts, s, Use.Read)
+        ExprKind.Interp(parts, _) => each(m, c, p, parts, s, Use.Read)
         ExprKind.Unary(op, operand) => {
             if op == Op.Ref || op == Op.RefMut {   // a borrow
                 borrow(m, c, p, &*operand, s, op == Op.RefMut)
@@ -848,7 +848,7 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
                 }
             }
         }
-        ExprKind.Call(callee, args) => call(m, c, p, e, &*callee, &args, s)
+        ExprKind.Call(callee, args) => call(m, c, p, e, &*callee, args, s)
         ExprKind.Try(inner) => movesNode(m, c, p, &*inner, s, Use.Move)
         ExprKind.Struct(_, fields, base) => {
             for i in 0..fields.len() {
@@ -861,14 +861,14 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
                 movesNode(m, c, p, &*b, s, Use.Move)
             }
         }
-        ExprKind.Array(elems) | ExprKind.Tuple(elems) => each(m, c, p, &elems, s, Use.Move)
+        ExprKind.Array(elems) | ExprKind.Tuple(elems) => each(m, c, p, elems, s, Use.Move)
         ExprKind.Repeat(value, count) => {
             movesNode(m, c, p, &*value, s, Use.Read)
             movesNode(m, c, p, &*count, s, Use.Read)
         }
         ExprKind.Variant(_, args, _) => {
             const none: List<Use> = []
-            eachArg(m, c, p, &args, &none, Use.Move, s)
+            eachArg(m, c, p, args, none, Use.Move, s)
         }
         // The value of an `if`, a `match` or a block is a new value, which
         // its user consumes or drops: the last expression of each branch is
@@ -876,7 +876,7 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
         ExprKind.If(_, _, _, _) => movesIf(m, c, p, e, s, Use.Move)
         ExprKind.Match(_, _) => movesMatch(m, c, p, e, s, Use.Move)
         ExprKind.Block(block) | ExprKind.Unsafe(block) => movesBlock(m, c, p, &block, s, Use.Move)
-        ExprKind.Closure(params, _, body, isMove) => closure(m, c, p, e, &params, &*body, isMove, s)
+        ExprKind.Closure(params, _, body, isMove) => closure(m, c, p, e, params, &*body, isMove, s)
         _ => {}   // literals, names of types and functions, constants
     }
 }
@@ -884,7 +884,7 @@ fn walk(m: mut Moves, c: mut Checker, p: Program, e: &Expr, s: mut State) {
 // A closure (spec 10.3): a `move` closure moves or copies what it captures,
 // another borrows it, `&mut` if it modifies it, until its last use. Its
 // body is analyzed apart, the captured variables borrowed there.
-fn closure(m: mut Moves, c: mut Checker, p: Program, e: &Expr, params: &List<Param>,
+fn closure(m: mut Moves, c: mut Checker, p: Program, e: &Expr, params: List<Param>,
            body: &Expr, isMove: bool, s: mut State) {
     const captured = closureCaptures(c, e.id.0)
     let saved: List<bool> = []

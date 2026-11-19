@@ -26,7 +26,7 @@ import syntax.ast.ExprKind
 import syntax.ast.ItemKind
 
 // The dotted name of the first `count` segments of `path`.
-fn dotted(r: Resolver, path: &List<Symbol>, count: int) str {
+fn dotted(r: Resolver, path: List<Symbol>, count: int) str {
     let out = ""
     for i in 0..count {
         if i > 0 {
@@ -38,7 +38,7 @@ fn dotted(r: Resolver, path: &List<Symbol>, count: int) str {
 }
 
 // The module named by the first `count` segments of `path`, or -1.
-fn findModule(r: Resolver, path: &List<Symbol>, count: int) int {
+fn findModule(r: Resolver, path: List<Symbol>, count: int) int {
     const name = dotted(r, path, count)
     if name.len() >= 511 {   // as stage 0's buffer
         return -1
@@ -155,7 +155,7 @@ fn bind(r: mut Resolver, name: Symbol, id: int, span: Span) {
  * @param span the import
  * @param isPub a `pub import`, which counts as used
  */
-pub fn resolveImport(r: mut Resolver, program: Program, path: &List<Symbol>,
+pub fn resolveImport(r: mut Resolver, program: Program, path: List<Symbol>,
                      alias: Option<Symbol>, span: Span, isPub: bool) {
     const name = alias ?? path[path.len() - 1]
     r.imports.push(ImportUse{module: r.current, name, span, used: isPub})
@@ -165,7 +165,7 @@ pub fn resolveImport(r: mut Resolver, program: Program, path: &List<Symbol>,
     traceUse(r, "import", name, span, Res.Def(r.scope.module(name)))
 }
 
-fn bindImport(r: mut Resolver, path: &List<Symbol>, name: Symbol, span: Span, isPub: bool) {
+fn bindImport(r: mut Resolver, path: List<Symbol>, name: Symbol, span: Span, isPub: bool) {
     const module = findModule(r, path, path.len())
     if module >= 0 {   // a module
         let def = Def{kind: DefKind.Module, name, span, isPub, inPrelude: false, lang: false,
@@ -215,12 +215,12 @@ fn reexportsOf(r: mut Resolver, program: Program, m: int, seen: mut List<bool>) 
             continue
         }
         if const ItemKind.Import(path, alias) = item.kind {
-            const owner = if path.len() > 1 { findModule(r, &path, path.len() - 1) } else { -1 }
+            const owner = if path.len() > 1 { findModule(r, path, path.len() - 1) } else { -1 }
             if owner >= 0 {
                 reexportsOf(r, program, owner, seen)
             }
             enter(r, program, m)
-            bindImport(r, &path, alias ?? path[path.len() - 1], item.span, true)
+            bindImport(r, path, alias ?? path[path.len() - 1], item.span, true)
         }
     }
 }

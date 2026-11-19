@@ -352,7 +352,7 @@ copy struct Layout {
     align: int
 }
 
-fn fieldsLayout(g: mut Gen, c: mut Checker, p: Program, types: &List<int>) Layout {
+fn fieldsLayout(g: mut Gen, c: mut Checker, p: Program, types: List<int>) Layout {
     let size = 0
     let align = 1
     for i in 0..types.len() {
@@ -419,7 +419,7 @@ fn fieldSlots(g: mut Gen, c: mut Checker, p: Program, ty: int) List<int> {
 }
 
 // The field types of a struct in the order of its LLVM type.
-fn slotTypes(g: mut Gen, c: mut Checker, p: Program, ty: int, types: &List<int>) List<int> {
+fn slotTypes(g: mut Gen, c: mut Checker, p: Program, ty: int, types: List<int>) List<int> {
     const slots = fieldSlots(g, c, p, ty)
     let out = types.clone()
     for i in 0..types.len() {
@@ -439,7 +439,7 @@ fn isStruct(c: Checker, ty: int) bool {
 fn structLayout(g: mut Gen, c: mut Checker, p: Program, ty: int) Layout {
     const id = c.types.get(ty).data
     const declared = fieldTypes(c, p, ty, -1)
-    const types = slotTypes(g, c, p, ty, &declared)
+    const types = slotTypes(g, c, p, ty, declared)
     if isPacked(c, p, id) {
         let size = 0
         for i in 0..types.len() {
@@ -447,7 +447,7 @@ fn structLayout(g: mut Gen, c: mut Checker, p: Program, ty: int) Layout {
         }
         return Layout{size: size, align: 1}
     }
-    const l = fieldsLayout(g, c, p, &types)
+    const l = fieldsLayout(g, c, p, types)
     const align = alignAttr(c, p, id)
     if align <= l.align {
         return l
@@ -463,7 +463,7 @@ fn payloadUnit(g: mut Gen, c: mut Checker, p: Program, adt: int) int {
     let unit = 8
     for v in 0..variantsOf(c, id).variants.len() {
         const types = fieldTypes(c, p, adt, v)
-        const align = fieldsLayout(g, c, p, &types).align
+        const align = fieldsLayout(g, c, p, types).align
         unit = if align > unit { align } else { unit }
     }
     return unit
@@ -476,7 +476,7 @@ fn payloadWords(g: mut Gen, c: mut Checker, p: Program, adt: int) int {
     let largest = 0
     for v in 0..variantsOf(c, id).variants.len() {
         const types = fieldTypes(c, p, adt, v)
-        const l = fieldsLayout(g, c, p, &types)
+        const l = fieldsLayout(g, c, p, types)
         largest = if l.size > largest { l.size } else { largest }
     }
     const unit = payloadUnit(g, c, p, adt)
@@ -501,7 +501,7 @@ fn layout(g: mut Gen, c: mut Checker, p: Program, ty: int) Layout {
         TyKind.Fn => Layout{size: if c.types.isCFn(ty) { 8 } else { 16 }, align: 8}
         TyKind.Tuple => {
             const args = c.types.get(ty).args.clone()
-            fieldsLayout(g, c, p, &args)
+            fieldsLayout(g, c, p, args)
         }
         TyKind.Adt => adtLayout(g, c, p, ty)
         _ => Layout{size: 0, align: 1}
@@ -570,7 +570,7 @@ fn alignField(align: int) str {
 }
 
 // `packed` gives `<{ ... }>`; `align`, when above 0, adds `alignField`.
-fn define(g: mut Gen, c: mut Checker, p: Program, name: str, types: &List<int>, packed: bool,
+fn define(g: mut Gen, c: mut Checker, p: Program, name: str, types: List<int>, packed: bool,
           align: int) {
     for i in 0..types.len() {
         const _ = fieldType(g, c, p, types[i])   // the field types first: no interleaving
@@ -608,7 +608,7 @@ fn defineEnum(g: mut Gen, c: mut Checker, p: Program, adt: int, name: str) {
     for v in 0..variantsOf(c, id).variants.len() {
         const types = fieldTypes(c, p, adt, v)
         fields = fields || types.len() > 0
-        define(g, c, p, variantType(c, adt, v, g.units), &types, false, 0)
+        define(g, c, p, variantType(c, adt, v, g.units), types, false, 0)
     }
     const unit = payloadUnit(g, c, p, adt)
     const niche = nicheVariant(g, c, p, adt)
@@ -640,9 +640,9 @@ fn adtType(g: mut Gen, c: mut Checker, p: Program, ty: int) str {
     let types: List<int> = []
     if c.info[id].fields.isSome() {
         const declared = fieldTypes(c, p, ty, -1)
-        types = slotTypes(g, c, p, ty, &declared)
+        types = slotTypes(g, c, p, ty, declared)
     }
-    define(g, c, p, name.clone(), &types, isPacked(c, p, id), alignAttr(c, p, id))
+    define(g, c, p, name.clone(), types, isPacked(c, p, id), alignAttr(c, p, id))
     return name
 }
 
@@ -1524,7 +1524,7 @@ fn valueCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt
     const retType = c.types.get(s.args[0].ty).inner
     const ret = llvmType(g, c, p, retType)
     if c.types.isCFn(s.args[0].ty) {
-        cPointerCall(g, c, p, body, s, &values, retType)
+        cPointerCall(g, c, p, body, s, values, retType)
         return
     }
     const code = nextTemp(g)
@@ -1554,7 +1554,7 @@ fn valueCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt
 // A call through a C function pointer: the C calling convention, no
 // environment, and a `bool` result widened as C returns it.
 fn cPointerCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt,
-                values: &List<Value>, retType: int) {
+                values: List<Value>, retType: int) {
     const ret = llvmType(g, c, p, retType)
     const hasDest = s.hasDest && hasValue(c, retType)
     let result = ""
@@ -2073,7 +2073,7 @@ fn debugType(g: mut Gen, c: mut Checker, p: Program, ty: int) int {
     } else if kind == TyKind.Str {
         members = strMembers(g, n)
     }
-    g.di.structType(n, name, bits, &members)
+    g.di.structType(n, name, bits, members)
     return n
 }
 
@@ -2111,7 +2111,7 @@ fn debugMembers(g: mut Gen, c: mut Checker, p: Program, ty: int, scope: int) Lis
     const id = c.types.get(ty).data
     const declared = fieldTypes(c, p, ty, -1)
     const slots = fieldSlots(g, c, p, ty)
-    const types = slotTypes(g, c, p, ty, &declared)
+    const types = slotTypes(g, c, p, ty, declared)
     const packed = isPacked(c, p, id)
     let offsets: List<int> = []
     let at = 0
@@ -2142,7 +2142,7 @@ fn debugMembers(g: mut Gen, c: mut Checker, p: Program, ty: int, scope: int) Lis
 // With debug info, declares each named local of `body` to the debugger,
 // after the prologue stored the parameters: through its pointer when it is
 // held by reference, as a captured variable is.
-fn declareLocals(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, params: &List<int>) {
+fn declareLocals(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, params: List<int>) {
     let captured = List.filled(false, body.locals.len())
     if const Option.Some(info) = body.closure {
         for j in 0..info.captures.len() {
@@ -2345,7 +2345,7 @@ fn genBody(g: mut Gen, c: mut Checker, p: Program, body: &AirBody) {
         dropDyn(g)
     }
     if g.scope != 0 {
-        declareLocals(g, c, p, body, &params)
+        declareLocals(g, c, p, body, params)
     }
     g.out.push("  br label %bb0\n")
     if g.scope != 0 {
@@ -2530,7 +2530,7 @@ fn heapDecl(g: mut Gen, c: mut Checker, name: str, decl: str) {
  * @param trim `--trim-paths`: the debug info names logical paths
  * @returns the module's text
  */
-pub fn generate(c: mut Checker, p: Program, bodies: &List<AirBody>, debug: bool, trim: bool,
+pub fn generate(c: mut Checker, p: Program, bodies: List<AirBody>, debug: bool, trim: bool,
                 optimize: bool) str {
     let g = newGen()
     g.debug = debug
@@ -2627,7 +2627,7 @@ fn symbolByte(b: u8) bool {
 }
 
 // The bodies whose names `text` refers to.
-fn references(text: str, names: &Map<str, int>, found: mut List<int>) {
+fn references(text: str, names: Map<str, int>, found: mut List<int>) {
     let i = 0
     for i < text.len() {
         if text[i] != b'@' {
@@ -2655,7 +2655,7 @@ fn references(text: str, names: &Map<str, int>, found: mut List<int>) {
 
 // Generates the unit of `module`: its functions, then each instance or glue
 // they use, until no new one is used.
-fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut Shared,
+fn draft(c: mut Checker, p: Program, bodies: List<AirBody>, module: int, s: mut Shared,
          debug: bool, trim: bool, optimize: bool) Draft {
     let g = newGen()
     g.units = true
@@ -2690,12 +2690,12 @@ fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut
             if s.owner[i] >= 0 {
                 s.declares[i] = g.declare.clone()
             }
-            references(g.out, &s.names, found)
+            references(g.out, s.names, found)
         }
         const mark = g.module.len()
         thunks(g, c, p)
         vtables(g, c, p)
-        references(g.module.sliceFrom(mark), &s.names, found)
+        references(g.module.sliceFrom(mark), s.names, found)
         for k in 0..found.len() {
             const j = found[k]
             if s.owner[j] < 0 && !inUnit[j] {
@@ -2744,7 +2744,7 @@ fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut
  * @param optimize `--release`
  * @returns the units, by module
  */
-pub fn generateUnits(c: mut Checker, p: Program, bodies: &List<AirBody>, debug: bool,
+pub fn generateUnits(c: mut Checker, p: Program, bodies: List<AirBody>, debug: bool,
                      trim: bool, optimize: bool) List<Unit> {
     let s = Shared{names: Map.new(), owner: [], declares: [], exported: []}
     let owns = List.filled(false, p.modules.len())

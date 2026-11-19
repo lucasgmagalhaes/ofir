@@ -128,7 +128,7 @@ fn typeAlias(p: mut Parser) (Symbol, ItemKind) {
     let bounds: List<WherePred> = []
     const params = parseTypeParams(p, bounds)
     for i in 0..bounds.len() {
-        if !keyBounds(&bounds[i].bounds) {
+        if !keyBounds(bounds[i].bounds) {
             p.syntaxError(bounds[i].span, "a type alias cannot bound its type parameters".toOwned())
             break
         }
@@ -139,7 +139,7 @@ fn typeAlias(p: mut Parser) (Symbol, ItemKind) {
 }
 
 // Whether each bound is a key type: `keyof T`, `.x` or `A | B`.
-fn keyBounds(bounds: &List<TypeExpr>) bool {
+fn keyBounds(bounds: List<TypeExpr>) bool {
     for i in 0..bounds.len() {
         const isKey = match bounds[i].kind {
             TypeKind.KeyOf(_) |

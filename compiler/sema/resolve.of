@@ -624,7 +624,7 @@ fn namedSlot(r: mut Resolver, item: &Item, index: int) {
  * @param preds the bounds
  * @returns the names
  */
-pub fn constParamsOf(preds: &List<WherePred>) List<Symbol> {
+pub fn constParamsOf(preds: List<WherePred>) List<Symbol> {
     let names: List<Symbol> = []
     for i in 0..preds.len() {
         if preds[i].isConst {
@@ -641,7 +641,7 @@ fn resolveItem(r: mut Resolver, item: &Item) {
         ItemKind.Fn(decl) => resolveFn(r, &*decl)
         ItemKind.Struct(_, _, _, _, fields, methods) => {
             r.owner = Option.Some(item.name)
-            r.constParams = constParamsOf(&item.bounds)
+            r.constParams = constParamsOf(item.bounds)
             for i in 0..methods.len() {
                 resolveFn(r, &methods[i])
             }
@@ -655,7 +655,7 @@ fn resolveItem(r: mut Resolver, item: &Item) {
         }
         ItemKind.Enum(_, _, _, methods) | ItemKind.Interface(_, _, methods) => {
             r.owner = Option.Some(item.name)
-            r.constParams = constParamsOf(&item.bounds)
+            r.constParams = constParamsOf(item.bounds)
             for i in 0..methods.len() {
                 resolveFn(r, &methods[i])
             }
@@ -732,7 +732,7 @@ fn resolvePass(r: mut Resolver, program: Program, pass: int) {
             recordDeprecated(r, item, first)
         } else if pass == 1 {
             if const ItemKind.Import(path, alias) = item.kind {
-                resolveImport(r, program, &path, alias, item.span, item.isPub)
+                resolveImport(r, program, path, alias, item.span, item.isPub)
             }
         } else {
             resolveItem(r, item)

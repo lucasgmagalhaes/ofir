@@ -83,7 +83,7 @@ pub fn auditCommand(args: List<str>) int {
         }
         report.checked += 1
         const known = releases(index, pin.name) ?? []
-        if isYanked(&known, version) {
+        if isYanked(known, version) {
             report.say(Severity.Warning, "", "`{pin.name}` {pin.version} is yanked")
         }
         const text = fileAt(index, "advisories/{indexPath(pin.name)}") ?? ""
@@ -101,7 +101,7 @@ pub fn auditCommand(args: List<str>) int {
                 continue
             }
             if hit {
-                report.advisory(&doc, pin.name, version, &known, holds(&ignored, id))
+                report.advisory(&doc, pin.name, version, known, holds(ignored, id))
             }
         }
     }
@@ -130,7 +130,7 @@ struct Report {
     checked: int
 
     // Prints a match of the advisory `doc` with `name` at `version`.
-    fn advisory(mut self, doc: &JsonDoc, name: str, version: Version, known: &List<Release>,
+    fn advisory(mut self, doc: &JsonDoc, name: str, version: Version, known: List<Release>,
                 ignore: bool) {
         const id = doc.text(doc.field(0, "id"))
         let message = "`{name}` {version.text()} is affected by {id}"
@@ -198,7 +198,7 @@ fn ignoreList(dir: str) List<str> {
 
 // The lowest version above `v` that is published, not yanked and not
 // affected; empty if there is none.
-fn fixedIn(versions: str, v: Version, known: &List<Release>) str {
+fn fixedIn(versions: str, v: Version, known: List<Release>) str {
     let best = -1
     for i in 0..known.len() {
         const r = &known[i]
@@ -218,7 +218,7 @@ fn fixedIn(versions: str, v: Version, known: &List<Release>) str {
     return known[best].version.text()
 }
 
-fn isYanked(known: &List<Release>, v: Version) bool {
+fn isYanked(known: List<Release>, v: Version) bool {
     for i in 0..known.len() {
         if known[i].yanked && known[i].version.compare(v) == 0 {
             return true
@@ -227,7 +227,7 @@ fn isYanked(known: &List<Release>, v: Version) bool {
     return false
 }
 
-fn holds(list: &List<str>, text: str) bool {
+fn holds(list: List<str>, text: str) bool {
     for i in 0..list.len() {
         if list[i] == text {
             return true

@@ -637,7 +637,7 @@ fn localType(l: Lowerer, c: mut Checker, local: int) int {
     return concreteType(l, c, l.body.locals[local].ty)
 }
 
-fn samePath(a: &List<int>, b: &List<int>) bool {
+fn samePath(a: List<int>, b: List<int>) bool {
     if a.len() != b.len() {
         return false
     }
@@ -650,10 +650,10 @@ fn samePath(a: &List<int>, b: &List<int>) bool {
 }
 
 // The flag of a part moved out somewhere, or 0.
-fn partFlag(l: Lowerer, local: int, path: &List<int>) int {
+fn partFlag(l: Lowerer, local: int, path: List<int>) int {
     for i in 0..l.partFlags.len() {
         const part = &l.partFlags[i].part
-        if part.local == local && samePath(&part.fields, path) {
+        if part.local == local && samePath(part.fields, path) {
             return l.partFlags[i].flag
         }
     }
@@ -661,7 +661,7 @@ fn partFlag(l: Lowerer, local: int, path: &List<int>) int {
 }
 
 // Whether some moved part lies strictly inside `path`.
-fn partInside(l: Lowerer, local: int, path: &List<int>) bool {
+fn partInside(l: Lowerer, local: int, path: List<int>) bool {
     for i in 0..l.partFlags.len() {
         const part = &l.partFlags[i].part
         if part.local == local && part.fields.len() > path.len() {
@@ -701,7 +701,7 @@ fn subPlace(place: &Place, field: int) Place {
 
 // Drops what is left of a partially moved value: each field, except the
 // moved parts, whose flags decide.
-fn dropRest(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: &List<int>,
+fn dropRest(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: List<int>,
             place: &Place, ty: int) {
     const t = c.types.get(ty)
     const isTuple = t.kind == TyKind.Tuple
@@ -714,13 +714,13 @@ fn dropRest(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: &List<
         here.push(i)
         const field = if isTuple { c.types.get(ty).args[i] } else { structFieldType(c, p, ty, i) }
         const at = subPlace(place, i)
-        const flag = partFlag(l, local, &here)
+        const flag = partFlag(l, local, here)
         if flag != 0 {
             const next = ifSet(l, flag)
             emitDrop(l, c, p, &at, field)
             ifDone(l, next)
-        } else if partInside(l, local, &here) {
-            dropRest(l, c, p, local, &here, &at, field)
+        } else if partInside(l, local, here) {
+            dropRest(l, c, p, local, here, &at, field)
         } else {
             emitDrop(l, c, p, &at, field)
         }
@@ -733,8 +733,8 @@ fn dropIfSet(l: mut Lowerer, c: mut Checker, p: Program, local: int) {
     const place = Place{local: local, fields: [], deref: l.body.locals[local].byRef}
     const empty: List<int> = []
     const ty = localType(l, c, local)
-    if partInside(l, local, &empty) {
-        dropRest(l, c, p, local, &empty, &place, ty)
+    if partInside(l, local, empty) {
+        dropRest(l, c, p, local, empty, &place, ty)
     } else {
         emitDrop(l, c, p, &place, ty)
     }
@@ -790,7 +790,7 @@ fn setFlag(l: mut Lowerer, local: int, value: bool) {
 }
 
 // Whether no step of a path waits for a `comptime for` key.
-fn resolved(fields: &List<int>) bool {
+fn resolved(fields: List<int>) bool {
     for i in 0..fields.len() {
         if keyFieldType(fields[i]) >= 0 {
             return false
@@ -803,8 +803,8 @@ fn resolved(fields: &List<int>) bool {
 pub fn flagParts(l: mut Lowerer, c: mut Checker, local: int) {
     for i in 0..l.movedParts.len() {
         const ast = l.movedParts[i].clone()
-        const fields = concretePath(l, c, &ast.fields)
-        if ast.local + 1 == local && resolved(&fields) && partFlag(l, local, &fields) == 0 {
+        const fields = concretePath(l, c, ast.fields)
+        if ast.local + 1 == local && resolved(fields) && partFlag(l, local, fields) == 0 {
             const part = Part{local: local, fields: fields}
             const flag = newTemp(l, BOOL)
             l.partFlags.push(PartFlag{part: part, flag: flag})
@@ -884,8 +884,8 @@ pub fn assignDone(l: mut Lowerer, local: int) {
  * @param local the AIR local
  * @param path the fields
  */
-pub fn noteMoved(l: mut Lowerer, c: mut Checker, local: int, path: &List<int>) {
-    const flag = if path.len() > 0 { partFlag(l, local, &concretePath(l, c, path)) } else { 0 }
+pub fn noteMoved(l: mut Lowerer, c: mut Checker, local: int, path: List<int>) {
+    const flag = if path.len() > 0 { partFlag(l, local, concretePath(l, c, path)) } else { 0 }
     if flag != 0 {
         setFlagOf(l, flag, false)
     } else {
@@ -906,12 +906,12 @@ pub fn noteMoved(l: mut Lowerer, c: mut Checker, local: int, path: &List<int>) {
  * @param ty its type
  * @returns false if the part has no flag
  */
-pub fn assignPart(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: &List<int>,
+pub fn assignPart(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: List<int>,
                   place: &Place, ty: int) bool {
     if path.len() == 0 {
         return false
     }
-    const flag = partFlag(l, local, &concretePath(l, c, path))
+    const flag = partFlag(l, local, concretePath(l, c, path))
     if flag == 0 {
         return false
     }
@@ -1109,17 +1109,17 @@ fn reachGlue(l: mut Lowerer, glue: int, targs: int) {
     l.pending.push(Instance{def: 0, targs: targs, glue: glue})
 }
 
-fn substOperand(c: mut Checker, o: mut Operand, args: &List<int>) {
+fn substOperand(c: mut Checker, o: mut Operand, args: List<int>) {
     o.ty = substType(c, o.ty, args.clone())
     substPath(c, o.path, args)
 }
 
-fn substPath(c: mut Checker, path: mut FieldPath, args: &List<int>) {
+fn substPath(c: mut Checker, path: mut FieldPath, args: List<int>) {
     resolveKeys(c, path.fields, args)
 }
 
 // The fields of `value[key]` chosen for an instance (spec 16.2).
-fn resolveKeys(c: mut Checker, fields: mut List<int>, args: &List<int>) {
+fn resolveKeys(c: mut Checker, fields: mut List<int>, args: List<int>) {
     for i in 0..fields.len() {
         const index = keyFieldType(fields[i])
         if index >= 0 {
@@ -1133,11 +1133,11 @@ fn resolveKeys(c: mut Checker, fields: mut List<int>, args: &List<int>) {
 }
 
 // A path of this instance, with the fields of its `value[key]` steps.
-fn concretePath(l: Lowerer, c: mut Checker, path: &List<int>) List<int> {
+fn concretePath(l: Lowerer, c: mut Checker, path: List<int>) List<int> {
     let fields = path.clone()
     if !isGlue(l.body.def) && l.body.targs != UNIT {
         const args = c.types.get(l.body.targs).args.clone()
-        resolveKeys(c, fields, &args)
+        resolveKeys(c, fields, args)
     }
     return fields
 }
@@ -1145,7 +1145,7 @@ fn concretePath(l: Lowerer, c: mut Checker, path: &List<int>) List<int> {
 // The body of an instance of a generic function, with its type arguments.
 fn substBody(l: mut Lowerer, c: mut Checker) {
     const args = c.types.get(l.body.targs).args.clone()
-    substFrom(l, c, &args, AirRange{local: 0, block: 0, open: -1, stmt: 0})
+    substFrom(l, c, args, AirRange{local: 0, block: 0, open: -1, stmt: 0})
 }
 
 /** What a body gained since some point: locals, blocks and statements of the open block. */
@@ -1180,7 +1180,7 @@ pub fn airRangeNow(l: Lowerer) AirRange {
  * @param args the type arguments
  * @param range what to substitute
  */
-pub fn substFrom(l: mut Lowerer, c: mut Checker, args: &List<int>, range: AirRange) {
+pub fn substFrom(l: mut Lowerer, c: mut Checker, args: List<int>, range: AirRange) {
     for i in range.local..l.body.locals.len() {
         l.body.locals[i].ty = substType(c, l.body.locals[i].ty, args.clone())
     }
@@ -1192,7 +1192,7 @@ pub fn substFrom(l: mut Lowerer, c: mut Checker, args: &List<int>, range: AirRan
     }
 }
 
-fn substBlock(l: mut Lowerer, c: mut Checker, args: &List<int>, b: int, first: int) {
+fn substBlock(l: mut Lowerer, c: mut Checker, args: List<int>, b: int, first: int) {
     for i in first..l.body.blocks[b].stmts.len() {
         const s = &mut l.body.blocks[b].stmts[i]
         substPath(c, s.destPath, args)

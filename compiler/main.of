@@ -180,7 +180,7 @@ struct Options {
     record: str
 }
 
-fn parseOptions(args: &List<str>) Option<Options> {
+fn parseOptions(args: List<str>) Option<Options> {
     let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
                        stopAfter: "", release: false, profile: "", opt: 0, debugInfo: false,
                        trimPaths: false, coverage: false, deny: false, locked: false,
@@ -400,10 +400,10 @@ fn main() {
         printUsage()
         os.exit(2)
     }
-    if command != "metadata" && command != "bench" && wantsWatch(&args) {
-        os.exit(watchCommand(&args))
+    if command != "metadata" && command != "bench" && wantsWatch(args) {
+        os.exit(watchCommand(args))
     }
-    const Option.Some(opts) = parseOptions(&args) else {
+    const Option.Some(opts) = parseOptions(args) else {
         os.exit(2)
     }
     os.exit(build(opts))
@@ -606,7 +606,7 @@ fn writeRecord(opts: &Options, pipeline: &Pipeline, map: &SourceMap) bool {
                                 target: opts.target.clone(), profile: opts.profile.clone(),
                                 flags, input: opts.input.clone(),
                                 runtime: runtimeLibrary() ?? ""}
-    if fs.writeString(opts.record, buildRecord(&inputs, map, &artifacts)).isErr() {
+    if fs.writeString(opts.record, buildRecord(&inputs, map, artifacts)).isErr() {
         driverError(opts.format, "E0902", "cannot write `{opts.record}`")
         return false
     }
@@ -672,13 +672,13 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         const ll = "{exe}.ll"
         files.push(ll.clone())
         phaseStart = timerStart(opts.timePasses)
-        const text = generate(c, program, &l.out, opts.debugInfo, opts.trimPaths, opts.release)
+        const text = generate(c, program, l.out, opts.debugInfo, opts.trimPaths, opts.release)
         timerReport(opts.timePasses, "codegen", phaseStart)
         phaseStart = timerStart(opts.timePasses)
         const salt = if opts.noCache || opts.emit == "llvm" {
             "".toOwned()
         } else {
-            object_cache.cacheSalt(clangPath(), &codegenFlags(&opts))
+            object_cache.cacheSalt(clangPath(), codegenFlags(&opts))
         }
         if salt.len() > 0 {
             cached.push(object_cache.objectPath(salt, text))
@@ -690,7 +690,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         timerReport(opts.timePasses, "cache+write", phaseStart)
     } else {   // a module for each codegen unit (ADR 0033)
         phaseStart = timerStart(opts.timePasses)
-        const units = generateUnits(c, program, &l.out, opts.debugInfo, opts.trimPaths,
+        const units = generateUnits(c, program, l.out, opts.debugInfo, opts.trimPaths,
                                     opts.release)
         timerReport(opts.timePasses, "codegen", phaseStart)
         phaseStart = timerStart(opts.timePasses)
@@ -699,7 +699,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         const salt = if opts.noCache || opts.emit == "llvm" || units.len() < 2 {
             "".toOwned()
         } else {
-            object_cache.cacheSalt(clangPath(), &codegenFlags(&opts))
+            object_cache.cacheSalt(clangPath(), codegenFlags(&opts))
         }
         for k in 0..units.len() {
             const hashStart = timerStart(opts.timePasses)
@@ -714,7 +714,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
             const writeStart = timerStart(opts.timePasses)
             if fs.writeString(ll, coverageFiles(&opts, ll, units[k].text)).isErr() {
                 driverError(opts.format, "E0902", "cannot write `{ll}`")
-                removeFiles(&files)
+                removeFiles(files)
                 return false
             }
             if opts.timePasses {
@@ -728,7 +728,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         }
     }
     if c.r.diags.hasErrors() {   // the lowering reported errors
-        removeFiles(&files)
+        removeFiles(files)
         return true
     }
     if opts.emit == "llvm" {
@@ -737,19 +737,19 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
     const libraries = linkLibraries(c.r, program)
     if opts.lib == "static" && program.native.len() > 0 {
         driverError(opts.format, "E0918", "a static library cannot have `build.native` files yet")
-        removeFiles(&files)
+        removeFiles(files)
         return false
     }
     const linked = if opts.lib == "static" {
-        archive(&opts, &files, &cached, exe.clone())
+        archive(&opts, files, cached, exe.clone())
     } else {
-        link(&opts, &files, &cached, exe.clone(), libraries.clone(), &program.native)
+        link(&opts, files, cached, exe.clone(), libraries.clone(), program.native)
     }
-    removeFiles(&files)
+    removeFiles(files)
     if linked && opts.lib.len() > 0 {   // the library's header, next to it (ADR 0064)
         const name = inputBase(&opts)
         const header = "{directoryOf(exe)}{name}.h"
-        if fs.writeString(header, cHeader(c, program, name, &libraries)).isErr() {
+        if fs.writeString(header, cHeader(c, program, name, libraries)).isErr() {
             driverError(opts.format, "E0902", "cannot write `{header}`")
             return false
         }
@@ -761,7 +761,7 @@ fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
 }
 
 // A static library: the objects of the units in an archive (ADR 0064).
-fn archive(opts: &Options, files: &List<str>, cached: &List<str>, lib: str) bool {
+fn archive(opts: &Options, files: List<str>, cached: List<str>, lib: str) bool {
     const clang = clangPath()
     let objects: List<str> = []
     let hits: List<int> = []
@@ -780,7 +780,7 @@ fn archive(opts: &Options, files: &List<str>, cached: &List<str>, lib: str) bool
             Result.Err(_) => false
         }
     }
-    removeObjects(&objects, cached)
+    removeObjects(objects, cached)
     if !ok {
         driverError(opts.format, "E0902", "cannot archive the objects into `{lib}`")
     }
@@ -808,7 +808,7 @@ fn archiver() str {
     return "ar".toOwned()
 }
 
-fn removeFiles(files: &List<str>) {
+fn removeFiles(files: List<str>) {
     for i in 0..files.len() {
         const _ = fs.removeFile(files[i])
     }
@@ -925,8 +925,8 @@ fn runtimeLibrary() Option<str> {
 // `@link` libraries. The modules have no target triple: clang uses its
 // default target. `cached` is empty without the object cache, or holds
 // where the object of each unit is cached (ADR 0033).
-fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
-        libraries: List<str>, native: &List<str>) bool {
+fn link(opts: &Options, files: List<str>, cached: List<str>, exe: str,
+        libraries: List<str>, native: List<str>) bool {
     let phaseStart = timerStart(opts.timePasses)
     const Option.Some(host) = runtimeLibrary() else {
         const message = "cannot find the runtime library libofir_rt.a (set OFIR_RUNTIME)"
@@ -946,7 +946,7 @@ fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
         const tag = object_cache.tempTag(exe)
         if !compileUnits(opts, clang, files, cached, tag, objects, hits) {
             timerReport(opts.timePasses, "objects", phaseStart)
-            removeObjects(&objects, cached)
+            removeObjects(objects, cached)
             driverError(opts.format, "E0902", "clang failed to compile the generated code")
             return false
         }
@@ -954,7 +954,7 @@ fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
     timerReport(opts.timePasses, "objects", phaseStart)
     phaseStart = timerStart(opts.timePasses)
     let inputs = if objects.len() > 0 { objects.clone() } else { files.clone() }
-    let ok = linkObjects(opts, clang, &inputs, native, runtime, &libraries, exe,
+    let ok = linkObjects(opts, clang, inputs, native, runtime, libraries, exe,
                          hits.len() > 0)
     if !ok && hits.len() > 0 {   // a cached object may be bad: compile those units again
         let again: List<str> = []
@@ -965,19 +965,19 @@ fn link(opts: &Options, files: &List<str>, cached: &List<str>, exe: str,
         }
         const noCache: List<str> = []
         let none: List<int> = []
-        ok = compileUnits(opts, clang, &again, &noCache, "", fresh, none)
+        ok = compileUnits(opts, clang, again, noCache, "", fresh, none)
         for i in 0..hits.len() {
             if i < fresh.len() {
                 objects[hits[i]] = fresh[i].clone()
             }
         }
         if ok {
-            ok = linkObjects(opts, clang, &objects, native, runtime, &libraries, exe, false)
+            ok = linkObjects(opts, clang, objects, native, runtime, libraries, exe, false)
         }
-        removeFiles(&fresh)
+        removeFiles(fresh)
     }
     timerReport(opts.timePasses, "link", phaseStart)
-    removeObjects(&objects, cached)
+    removeObjects(objects, cached)
     if !ok {
         driverError(opts.format, "E0902", "clang failed to compile the generated code")
     } else if cached.len() > 0 && hits.len() < cached.len() {   // objects were added
@@ -997,7 +997,7 @@ fn clangPath() str {
 }
 
 // Removes the objects that are not in the cache.
-fn removeObjects(objects: &List<str>, cached: &List<str>) {
+fn removeObjects(objects: List<str>, cached: List<str>) {
     for i in 0..objects.len() {
         if i >= cached.len() || objects[i] != cached[i] {
             const _ = fs.removeFile(objects[i])
@@ -1007,8 +1007,8 @@ fn removeObjects(objects: &List<str>, cached: &List<str>) {
 
 // The final clang call. With `quiet`, a failure prints nothing: the
 // caller tries again.
-fn linkObjects(opts: &Options, clang: str, inputs: &List<str>, native: &List<str>,
-               runtime: str, libraries: &List<str>, exe: str, quiet: bool) bool {
+fn linkObjects(opts: &Options, clang: str, inputs: List<str>, native: List<str>,
+               runtime: str, libraries: List<str>, exe: str, quiet: bool) bool {
     let compiles = native.len() > 0
     for i in 0..inputs.len() {
         compiles = compiles || inputs[i].endsWith(".ll")
@@ -1100,7 +1100,7 @@ fn codegenFlags(opts: &Options) List<str> {
 // processes are waited for in the order they started, so their output
 // comes in the order of the units. After a failure no more are started,
 // and the running ones are waited for.
-fn compileUnits(opts: &Options, clang: str, files: &List<str>, cached: &List<str>, tag: str,
+fn compileUnits(opts: &Options, clang: str, files: List<str>, cached: List<str>, tag: str,
                 objects: mut List<str>, hits: mut List<int>) bool {
     const jobs = if opts.jobs > 0 { opts.jobs } else { os.cpuCount() }
     let running: List<os.Child> = []
@@ -1217,7 +1217,7 @@ fn parseCount(text: str) int {
 }
 
 // The arguments `lead`, then `arg`.
-fn withArg(lead: &List<str>, arg: move str) List<str> {
+fn withArg(lead: List<str>, arg: move str) List<str> {
     let args = lead.clone()
     args.push(arg)
     return args
@@ -1271,7 +1271,7 @@ fn waitTest(exe: str, child: move os.Child) int {
 // Each test runs in its own process. Up to `jobs` run together, while their
 // captured output is reported in declaration order. A `no_run` doc test was
 // only compiled.
-fn runTests(exe: str, lead: &List<str>, tests: &List<str>, testJobs: int) int {
+fn runTests(exe: str, lead: List<str>, tests: List<str>, testJobs: int) int {
     const cores = os.cpuCount()
     const jobs = if testJobs > 0 { testJobs } else if cores < 4 { cores } else { 4 }
     let pending: List<Option<os.Child>> = []
@@ -1315,7 +1315,7 @@ fn runTests(exe: str, lead: &List<str>, tests: &List<str>, testJobs: int) int {
 
 // `ofir bench` (spec 12.3): each benchmark in its own process, which prints
 // its time.
-fn runBenches(exe: str, lead: &List<str>, benches: &List<str>) int {
+fn runBenches(exe: str, lead: List<str>, benches: List<str>) int {
     let failed = 0
     for i in 0..benches.len() {
         print("bench {benches[i]} ... ")
@@ -1354,9 +1354,9 @@ fn finish(diags: Diagnostics, map: SourceMap, pipeline: &Pipeline) int {
     if pipeline.opts.command == "run" {
         status = runProgram(program, lead)
     } else if pipeline.opts.command == "test" {
-        status = runTests(program, &lead, &pipeline.tests, pipeline.opts.testJobs)
+        status = runTests(program, lead, pipeline.tests, pipeline.opts.testJobs)
     } else if pipeline.opts.command == "bench" {
-        status = runBenches(program, &lead, &pipeline.tests)
+        status = runBenches(program, lead, pipeline.tests)
     }
     if pipeline.opts.output.isNone() && pipeline.opts.command != "build" {
         const _ = fs.removeFile(pipeline.exe)

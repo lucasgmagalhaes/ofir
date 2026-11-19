@@ -75,7 +75,7 @@ pub fn docCommand(args: List<str>) int {
         }
     }
     const site = Site{label: packageLabel(), all}
-    return document(&sources, out, stdout, &site)
+    return document(sources, out, stdout, &site)
 }
 
 // The `name` and `version` of the manifest in the current directory.
@@ -96,7 +96,7 @@ fn packageLabel() str {
 
 // Writes or prints the page of each source, and the index and the search
 // index; the pages are linked once every declaration is known.
-fn document(sources: &List<Source>, out: str, stdout: bool, site: &Site) int {
+fn document(sources: List<Source>, out: str, stdout: bool, site: &Site) int {
     if !stdout && fs.createDirAll(out).isErr() {
         eprintln("error: cannot create `{out}`")
         return 2
@@ -126,7 +126,7 @@ fn document(sources: &List<Source>, out: str, stdout: bool, site: &Site) int {
     if stdout {
         return status
     }
-    if !write("{out}/index.html", indexPage(&modules, &summaries, site)) {
+    if !write("{out}/index.html", indexPage(modules, summaries, site)) {
         return 2
     }
     if !write("{out}/search.js", searchScript(search)) {
@@ -204,7 +204,7 @@ fn pageOf(source: &Source, site: &Site, modules: mut List<str>, summaries: mut L
     let names = Interner.new()
     let diags = Diagnostics.new()
     const tokens = tokenize(src, file, names, diags)
-    const docs = comments(src, &tokens)
+    const docs = comments(src, tokens)
     if diags.hasErrors() {
         eprint(diags.render(map, Format.Human))
         return Option.None

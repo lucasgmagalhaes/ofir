@@ -19,7 +19,7 @@ import std.os
  * @param flags the flags given to clang
  * @returns the text, or "" if `clang --version` fails (no cache then)
  */
-pub fn cacheSalt(clang: str, flags: &List<str>) str {
+pub fn cacheSalt(clang: str, flags: List<str>) str {
     const run = os.run(clang, ["--version"])
     if run.isErr() {
         return ""
@@ -84,7 +84,7 @@ pub fn useObject(path: str) bool {
     }
     const empty: List<u8> = []
     const bytes = fs.read(path).unwrapOr(empty)
-    if !isObject(&bytes) {
+    if !isObject(bytes) {
         const _ = fs.removeFile(path)
         return false
     }
@@ -92,7 +92,7 @@ pub fn useObject(path: str) bool {
     return true
 }
 
-fn isObject(bytes: &List<u8>) bool {
+fn isObject(bytes: List<u8>) bool {
     if bytes.len() < 4 {
         return false
     }

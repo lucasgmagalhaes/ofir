@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A reference `&T` or `&mut T` may be passed to a parameter of type `T`
+  in borrow mode, and `&mut T` to a `mut` parameter, with an implicit
+  dereference (ADR 0088); the compiler and std take lists, maps and sets
+  as `xs: List<T>` instead of `xs: &List<T>`.
 - Sanitizers, races and fault injection (ADR 0087): `make check-tsan` runs
   the concurrent programs under ThreadSanitizer, `make check-faults` runs
   every program with failing allocations and I/O, interrupted calls and

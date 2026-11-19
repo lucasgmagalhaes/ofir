@@ -35,7 +35,7 @@ fn bytesOf(text: str) List<u8> {
 
 // The insertions, deletions, substitutions and swaps of two adjacent bytes
 // that turn `a` into `b` (optimal string alignment).
-fn editDistance(a: &List<u8>, b: &List<u8>) int {
+fn editDistance(a: List<u8>, b: List<u8>) int {
     const width = b.len() + 1
     let d: List<int> = []
     for i in 0..a.len() + 1 {
@@ -97,7 +97,7 @@ pub struct Suggestion {
         if gap > limit {
             return
         }
-        const distance = editDistance(&self.name, &bytesOf(text))
+        const distance = editDistance(self.name, bytesOf(text))
         if distance == 0 || distance > limit {
             return
         }
@@ -182,7 +182,7 @@ pub fn suggestMember(r: mut Resolver, index: int, name: Symbol) {
  * @param names the struct's field names
  * @param name the unknown name
  */
-pub fn suggestField(r: mut Resolver, names: &List<Symbol>, name: Symbol) {
+pub fn suggestField(r: mut Resolver, names: List<Symbol>, name: Symbol) {
     let s = Suggestion.new(r.text(name))
     for i in 0..names.len() {
         s.offer(names[i], r.text(names[i]))

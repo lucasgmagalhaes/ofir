@@ -96,6 +96,7 @@ static inline bool types_compatible(TypeId found, TypeId expected) {
 // check_expr.c
 TypeId check_expr(Checker *c, Expr *e, TypeId expected);
 TypeId coerce(Checker *c, Expr *e, TypeId expected);
+bool deref_arg(Checker *c, Expr **arg, TypeId param, bool generic);   // `&T` for `T`
 // Reports E0300 unless `found`, the type of the checked `e`, fits `expected`.
 void require_type(Checker *c, const Expr *e, TypeId found, TypeId expected);
 TypeId check_const(Checker *c, Def *def);   // the type of a constant or global

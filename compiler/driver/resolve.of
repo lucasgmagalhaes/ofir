@@ -166,7 +166,7 @@ pub fn readOverrides(rootDir: str) List<Override> {
  * @param key a key of `dependencies`
  * @returns its index in `overrides`, or -1
  */
-pub fn overrideOf(overrides: &List<Override>, key: str) int {
+pub fn overrideOf(overrides: List<Override>, key: str) int {
     for i in 0..overrides.len() {
         if overrides[i].key == key {
             return i
@@ -222,7 +222,7 @@ fn trusts(trust: &Trust, need: &Need) bool {
         return true
     }
     if need.registry.len() > 0 {
-        return contains(&trust.registries, need.registry)
+        return contains(trust.registries, need.registry)
     }
     for i in 0..trust.git.len() {
         if need.url.startsWith(trust.git[i]) {
@@ -329,7 +329,7 @@ pub fn workspaceRoot(dir: str) str {
         }
         at = at.slice(0, slash).toOwned()
         const members = workspaceMembers(at)
-        if contains(&members, dir) {
+        if contains(members, dir) {
             return at
         }
     }
@@ -402,23 +402,23 @@ pub fn resolve(project: str, mode: &Mode) Resolution {
                               lockDir: rootDir.clone(), indexes: []}
         let urls: List<str> = []
         for i in 0..needs.len() {
-            if !contains(&urls, needs[i].url) {
+            if !contains(urls, needs[i].url) {
                 urls.push(needs[i].url.clone())
             }
         }
         for i in 0..urls.len() {
-            const first = firstNeed(&needs, urls[i])
+            const first = firstNeed(needs, urls[i])
             if !trusts(&trust, &needs[first]) {
                 next.failures.push(untrusted(&needs[first]))
                 continue
             }
-            choose(urls[i], &needs, &lock, &pinned, mode, repos, next)
+            choose(urls[i], needs, lock, pinned, mode, repos, next)
         }
         const stable = samePins(&r, &next)
         r = next
         if stable {
-            verify(r, &lock)
-            pinIndexes(r, &lock, &pinned, mode, repos)
+            verify(r, lock)
+            pinIndexes(r, lock, pinned, mode, repos)
             r.overrides = readOverrides(rootDir)
             return r
         }
@@ -460,7 +460,7 @@ fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
     let dirs = [rootDir.toOwned()]
     const members = workspaceMembers(rootDir)
     for i in 0..members.len() {
-        if !contains(&dirs, members[i]) {
+        if !contains(dirs, members[i]) {
             dirs.push(members[i].clone())
         }
     }
@@ -477,10 +477,10 @@ fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
         }
         const from = projectName(&doc, dir)
         const list = doc.field(0, "dependencies")
-        collectList(&doc, list, dir, from, index, r, &overrides, dirs, needs)
+        collectList(&doc, list, dir, from, index, r, overrides, dirs, needs)
         if d <= seeds {   // the root or a member, whose dev dependencies are locked too
             const dev = doc.field(0, "devDependencies")
-            collectList(&doc, dev, dir, from, index, r, &overrides, dirs, needs)
+            collectList(&doc, dev, dir, from, index, r, overrides, dirs, needs)
         }
     }
     return needs
@@ -489,7 +489,7 @@ fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
 // Adds the requirements of the dependencies `list` of the project in `dir`
 // to `needs`, and the directories they reach to `dirs`.
 fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Resolution,
-               overrides: &List<Override>, dirs: mut List<str>, needs: mut List<Need>) {
+               overrides: List<Override>, dirs: mut List<str>, needs: mut List<Need>) {
     if list < 0 || doc.nodes[list].kind != JsonKind.Object {
         return
     }
@@ -500,13 +500,13 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
         const version = registryVersion(doc, member)
         const o = overrideOf(overrides, key)
         if o >= 0 {   // replaced by a directory (ADR 0077)
-            if !contains(&dirs, overrides[o].dir) {
+            if !contains(dirs, overrides[o].dir) {
                 dirs.push(overrides[o].dir.clone())
             }
         } else if parseRequirement(version).isSome() {
             const url = registrySource(index, key)
             const p = pinOf(r, url)
-            if p >= 0 && !contains(&dirs, r.pins[p].dir) {
+            if p >= 0 && !contains(dirs, r.pins[p].dir) {
                 dirs.push(r.pins[p].dir.clone())
             }
             needs.push(Need{url, registry: index.toOwned(), key, version, rev: "",
@@ -521,7 +521,7 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
                     rev = doc.text(doc.field(member, "branch"))
                 }
                 const p = pinOf(r, url)
-                if p >= 0 && !contains(&dirs, r.pins[p].dir) {
+                if p >= 0 && !contains(dirs, r.pins[p].dir) {
                     dirs.push(r.pins[p].dir.clone())
                 }
                 needs.push(Need{url, registry: "", key,
@@ -529,7 +529,7 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
                                 from: from.clone()})
             } else if pathNode >= 0 && doc.nodes[pathNode].kind == JsonKind.String {
                 const path = gitUrl(doc.nodes[pathNode].text, dir)
-                if !contains(&dirs, path) {
+                if !contains(dirs, path) {
                     dirs.push(path)
                 }
             }
@@ -577,7 +577,7 @@ fn projectName(doc: &JsonDoc, dir: str) str {
 }
 
 // Chooses the commit of `url` for its requirements, into `out`.
-fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<IndexPin>, mode: &Mode,
+fn choose(url: str, needs: List<Need>, lock: List<Locked>, pinned: List<IndexPin>, mode: &Mode,
           repos: mut List<Repo>, out: mut Resolution) {
     let mine: List<int> = []
     for i in 0..needs.len() {
@@ -591,7 +591,7 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<Index
     if first.registry.len() > 0 {
         const index = first.registry.clone()
         const at = if mode.locked { pinnedCommit(pinned, index) } else { "" }
-        chooseRelease(url, index, name, needs, &mine, lock, updating, mode.offline, at, repos, out)
+        chooseRelease(url, index, name, needs, mine, lock, updating, mode.offline, at, repos, out)
         return
     }
     const r = fetched(url, updating, mode.offline, repos)
@@ -618,7 +618,7 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<Index
         }
     }
     if mixed {
-        conflict(url, name, needs, &mine, "the requirements on it differ", out)
+        conflict(url, name, needs, mine, "the requirements on it differ", out)
         return
     }
     if rev.len() > 0 {
@@ -628,7 +628,7 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<Index
         } else if const Option.Some(c) = commitOf(repos[r].dir, rev) {
             commit = c
         } else {
-            conflict(url, name, needs, &mine, "it has no revision `{rev}`", out)
+            conflict(url, name, needs, mine, "it has no revision `{rev}`", out)
             return
         }
         pin(url, name, "", rev, commit, &repos[r], out)
@@ -642,7 +642,7 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<Index
     }
     if locked >= 0 && lock[locked].rev.len() == 0 {
         if const Option.Some(v) = parseVersion(lock[locked].version) {
-            if acceptsAll(&reqs, v) {
+            if acceptsAll(reqs, v) {
                 const version = v.text()
                 const commit = lock[locked].commit.clone()
                 pin(url, name, version, "", commit, &repos[r], out)
@@ -650,14 +650,14 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<Index
             }
         }
     }
-    let best = highest(repos[r].dir, &reqs)
+    let best = highest(repos[r].dir, reqs)
     if best < 0 && !repos[r].fetched && !mode.offline {
         if refetch(repos[r]) {
-            best = highest(repos[r].dir, &reqs)
+            best = highest(repos[r].dir, reqs)
         }
     }
     if best < 0 {
-        conflict(url, name, needs, &mine, versionsNote(repos[r].dir), out)
+        conflict(url, name, needs, mine, versionsNote(repos[r].dir), out)
         return
     }
     const found = tags(repos[r].dir)
@@ -670,8 +670,8 @@ fn choose(url: str, needs: &List<Need>, lock: &List<Locked>, pinned: &List<Index
 // into `out`: the locked one while it fits, else the highest that is not
 // yanked. Its files must have the index's checksum (E0914). The index is
 // read at the commit `at` when it is given (`--locked`), else at its head.
-fn chooseRelease(url: str, index: str, name: str, needs: &List<Need>, mine: &List<int>,
-                 lock: &List<Locked>, updating: bool, offline: bool, at: str,
+fn chooseRelease(url: str, index: str, name: str, needs: List<Need>, mine: List<int>,
+                 lock: List<Locked>, updating: bool, offline: bool, at: str,
                  repos: mut List<Repo>, out: mut Resolution) {
     const r = fetched(index, updating, offline, repos)
     if repos[r].dir.len() == 0 {
@@ -708,13 +708,13 @@ fn chooseRelease(url: str, index: str, name: str, needs: &List<Need>, mine: &Lis
         }
     }
     let known = listed
-    let best = latestRelease(&known, &reqs, locked.clone())
+    let best = latestRelease(known, reqs, locked.clone())
     if best < 0 && !repos[r].fetched && !offline && refetch(repos[r]) {
         known = releasesAt(repos[r].dir, rev, name) ?? []
-        best = latestRelease(&known, &reqs, locked)
+        best = latestRelease(known, reqs, locked)
     }
     if best < 0 {
-        conflict(url, name, needs, mine, releasesNote(&known), out)
+        conflict(url, name, needs, mine, releasesNote(known), out)
         return
     }
     const version = known[best].version.text()
@@ -743,7 +743,7 @@ fn chooseRelease(url: str, index: str, name: str, needs: &List<Need>, mine: &Lis
 
 // The index of the release to use: `locked` while every requirement
 // accepts it, else the highest accepted that is not yanked; -1 if none.
-fn latestRelease(list: &List<Release>, reqs: &List<Requirement>, locked: str) int {
+fn latestRelease(list: List<Release>, reqs: List<Requirement>, locked: str) int {
     let best = -1
     for i in 0..list.len() {
         const v = list[i].version
@@ -761,7 +761,7 @@ fn latestRelease(list: &List<Release>, reqs: &List<Requirement>, locked: str) in
 }
 
 // The note listing the versions of a registry package that are not yanked.
-fn releasesNote(list: &List<Release>) str {
+fn releasesNote(list: List<Release>) str {
     let order: List<Version> = []
     for i in 0..list.len() {
         if list[i].yanked {
@@ -789,7 +789,7 @@ fn releasesNote(list: &List<Release>) str {
 
 // The index in the tags of `dir` of the highest version every requirement
 // accepts, or -1.
-fn highest(dir: str, reqs: &List<Requirement>) int {
+fn highest(dir: str, reqs: List<Requirement>) int {
     const found = tags(dir)
     let best = -1
     for i in 0..found.len() {
@@ -801,7 +801,7 @@ fn highest(dir: str, reqs: &List<Requirement>) int {
     return best
 }
 
-fn acceptsAll(reqs: &List<Requirement>, v: Version) bool {
+fn acceptsAll(reqs: List<Requirement>, v: Version) bool {
     for i in 0..reqs.len() {
         if !reqs[i].matches(v) {
             return false
@@ -836,7 +836,7 @@ fn versionsNote(dir: str) str {
 }
 
 // Records that no version of `url` fits (E0912).
-fn conflict(url: str, name: str, needs: &List<Need>, mine: &List<int>, why: str,
+fn conflict(url: str, name: str, needs: List<Need>, mine: List<int>, why: str,
             out: mut Resolution) {
     let notes: List<str> = []
     for k in 0..mine.len() {
@@ -872,7 +872,7 @@ fn pin(url: str, name: str, version: str, rev: str, commit: str, repo: &Repo,
 
 // Computes the checksum of each pin; a pin whose commit is locked with
 // another checksum becomes a failure (E0914).
-fn verify(r: mut Resolution, lock: &List<Locked>) {
+fn verify(r: mut Resolution, lock: List<Locked>) {
     let i = 0
     for i < r.pins.len() {
         const pin = &r.pins[i]
@@ -903,11 +903,11 @@ fn verify(r: mut Resolution, lock: &List<Locked>) {
 // precedes it means the history was rewritten: the index's pins become
 // failures (E0922), unless `--index-reset` was given. With `--locked`, an
 // index the lock has no commit for is not recorded.
-fn pinIndexes(r: mut Resolution, lock: &List<Locked>, pinned: &List<IndexPin>, mode: &Mode,
+fn pinIndexes(r: mut Resolution, lock: List<Locked>, pinned: List<IndexPin>, mode: &Mode,
               repos: mut List<Repo>) {
     let urls: List<str> = []
     for i in 0..r.pins.len() {
-        if r.pins[i].registry.len() > 0 && !contains(&urls, r.pins[i].registry) {
+        if r.pins[i].registry.len() > 0 && !contains(urls, r.pins[i].registry) {
             urls.push(r.pins[i].registry.clone())
         }
     }
@@ -961,7 +961,7 @@ fn rewritten(r: mut Resolution, index: str, old: str, head: str) {
 }
 
 // Whether the lock has `pin` at its version.
-fn lockedVersion(lock: &List<Locked>, pin: &Pin) bool {
+fn lockedVersion(lock: List<Locked>, pin: &Pin) bool {
     for i in 0..lock.len() {
         if sourceOf(&lock[i]) == pin.url && lock[i].version == pin.version {
             return true
@@ -971,7 +971,7 @@ fn lockedVersion(lock: &List<Locked>, pin: &Pin) bool {
 }
 
 // The commit of `index` in the lock; empty if it has none.
-fn pinnedCommit(pinned: &List<IndexPin>, index: str) str {
+fn pinnedCommit(pinned: List<IndexPin>, index: str) str {
     for i in 0..pinned.len() {
         if pinned[i].url == index {
             return pinned[i].commit.clone()
@@ -1014,7 +1014,7 @@ fn refetch(repo: mut Repo) bool {
 }
 
 // The first requirement on `url`.
-fn firstNeed(needs: &List<Need>, url: str) int {
+fn firstNeed(needs: List<Need>, url: str) int {
     for i in 0..needs.len() {
         if needs[i].url == url {
             return i
@@ -1023,7 +1023,7 @@ fn firstNeed(needs: &List<Need>, url: str) int {
     return 0
 }
 
-fn contains(list: &List<str>, text: str) bool {
+fn contains(list: List<str>, text: str) bool {
     for i in 0..list.len() {
         if list[i] == text {
             return true

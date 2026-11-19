@@ -14,8 +14,8 @@ import syntax.ast.FnDecl
 import syntax.ast.ItemKind
 
 // The string argument of the attribute `name`, if the list has it.
-fn stringArg(r: Resolver, attributes: &List<Attribute>, name: str) Option<str> {
-    const Option.Some(at) = findAttribute(r, *attributes, name) else {
+fn stringArg(r: Resolver, attributes: List<Attribute>, name: str) Option<str> {
+    const Option.Some(at) = findAttribute(r, attributes, name) else {
         return Option.None
     }
     if attributes[at].args.len() != 1 {
@@ -35,7 +35,7 @@ fn stringArg(r: Resolver, attributes: &List<Attribute>, name: str) Option<str> {
  * @returns the symbol
  */
 pub fn cSymbol(r: Resolver, decl: &FnDecl) str {
-    return stringArg(r, &decl.attributes, "export") ?? r.text(decl.name).toOwned()
+    return stringArg(r, decl.attributes, "export") ?? r.text(decl.name).toOwned()
 }
 
 // `main` and the `ofir_` prefix belong to the runtime (spec 11.4).
@@ -97,7 +97,7 @@ pub fn linkLibraries(r: Resolver, p: Program) List<str> {
             if !isExtern {
                 continue
             }
-            if const Option.Some(name) = stringArg(r, &items[i].attributes, "link") {
+            if const Option.Some(name) = stringArg(r, items[i].attributes, "link") {
                 let twice = false
                 for k in 0..names.len() {
                     twice = twice || names[k] == name

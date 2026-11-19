@@ -64,7 +64,7 @@ fn capture(r: mut Resolver, local: int) {
 
 // A closure: its parameters are locals of the enclosing function, numbered
 // after the locals before it; the outer locals it uses are its captures.
-fn resolveClosure(r: mut Resolver, e: &Expr, params: &List<Param>, body: &Expr) {
+fn resolveClosure(r: mut Resolver, e: &Expr, params: List<Param>, body: &Expr) {
     r.closureBases.push(r.locals.len())
     r.closureCaptures.push([])
     r.scope.enter()
@@ -180,7 +180,7 @@ fn declareShorthand(r: mut Resolver, id: int, name: Symbol, span: Span, reuse: b
 fn declarePattern(r: mut Resolver, p: &Pattern, reuse: bool) {
     if preludeVariant(r, p) != 0 {
         if const PatternKind.TupleStruct(_, args) = p.kind {
-            declarePatterns(r, &args, reuse)
+            declarePatterns(r, args, reuse)
         }
         return
     }
@@ -192,9 +192,9 @@ fn declarePattern(r: mut Resolver, p: &Pattern, reuse: bool) {
             resolveExpr(r, &*lo)
             resolveExpr(r, &*hi)
         }
-        PatternKind.Variant(_, _, args, _) => declarePatterns(r, &args, reuse)
-        PatternKind.Tuple(items) => declarePatterns(r, &items, reuse)
-        PatternKind.TupleStruct(_, args) => declarePatterns(r, &args, reuse)
+        PatternKind.Variant(_, _, args, _) => declarePatterns(r, args, reuse)
+        PatternKind.Tuple(items) => declarePatterns(r, items, reuse)
+        PatternKind.TupleStruct(_, args) => declarePatterns(r, args, reuse)
         PatternKind.Struct(_, fields, _) => {
             for i in 0..fields.len() {
                 if const Option.Some(inner) = fields[i].pattern {
@@ -222,7 +222,7 @@ fn declarePattern(r: mut Resolver, p: &Pattern, reuse: bool) {
     }
 }
 
-fn declarePatterns(r: mut Resolver, list: &List<Pattern>, reuse: bool) {
+fn declarePatterns(r: mut Resolver, list: List<Pattern>, reuse: bool) {
     for i in 0..list.len() {
         declarePattern(r, &list[i], reuse)
     }
@@ -231,13 +231,13 @@ fn declarePatterns(r: mut Resolver, list: &List<Pattern>, reuse: bool) {
 // ---------------------------------------------------------------------------
 // Expressions
 
-fn resolveExprs(r: mut Resolver, list: &List<Expr>) {
+fn resolveExprs(r: mut Resolver, list: List<Expr>) {
     for i in 0..list.len() {
         resolveExpr(r, &list[i])
     }
 }
 
-fn resolveArgs(r: mut Resolver, args: &List<Arg>) {
+fn resolveArgs(r: mut Resolver, args: List<Arg>) {
     for i in 0..args.len() {
         resolveExpr(r, &args[i].value)
     }
@@ -283,7 +283,7 @@ pub fn resolveExpr(r: mut Resolver, e: &Expr) {
         ExprKind.Int(_) | ExprKind.Float(_) | ExprKind.Byte(_) | ExprKind.Str(_) |
         ExprKind.ByteStr(_) | ExprKind.Bool(_) => {}
         ExprKind.SelfType => resolveSelfType(r, e)
-        ExprKind.Interp(parts, _) => resolveExprs(r, &parts)
+        ExprKind.Interp(parts, _) => resolveExprs(r, parts)
         ExprKind.Ident(name) => {
             const res = lookup(r, name, e.span)
             r.setRes(e.id.0, res)
@@ -305,7 +305,7 @@ pub fn resolveExpr(r: mut Resolver, e: &Expr) {
         }
         ExprKind.Call(callee, args) => {
             resolveExpr(r, &*callee)
-            resolveArgs(r, &args)
+            resolveArgs(r, args)
         }
         ExprKind.Index(base, index) => {
             resolveExpr(r, &*base)
@@ -330,13 +330,13 @@ pub fn resolveExpr(r: mut Resolver, e: &Expr) {
             }
             resolveOptional(r, &base)
         }
-        ExprKind.Array(elems) => resolveExprs(r, &elems)
-        ExprKind.Tuple(elems) => resolveExprs(r, &elems)
+        ExprKind.Array(elems) => resolveExprs(r, elems)
+        ExprKind.Tuple(elems) => resolveExprs(r, elems)
         ExprKind.Repeat(value, count) => {
             resolveExpr(r, &*value)
             resolveExpr(r, &*count)
         }
-        ExprKind.Variant(_, args, _) => resolveArgs(r, &args)
+        ExprKind.Variant(_, args, _) => resolveArgs(r, args)
         ExprKind.If(letPattern, cond, then, otherwise) => {
             resolveExpr(r, &*cond)
             r.scope.enter()   // `if const` bindings are visible in `then` only
@@ -363,7 +363,7 @@ pub fn resolveExpr(r: mut Resolver, e: &Expr) {
         ExprKind.Unsafe(block) => resolveBlock(r, &block)
         ExprKind.Comptime(inner) => resolveExpr(r, &*inner)
         ExprKind.Keys(_) => {}
-        ExprKind.Closure(params, _, body, _) => resolveClosure(r, e, &params, &*body)
+        ExprKind.Closure(params, _, body, _) => resolveClosure(r, e, params, &*body)
     }
 }
 
@@ -416,7 +416,7 @@ fn resolveStmt(r: mut Resolver, s: &Stmt) {
     }
 }
 
-fn resolveStmts(r: mut Resolver, stmts: &List<Stmt>) {
+fn resolveStmts(r: mut Resolver, stmts: List<Stmt>) {
     for i in 0..stmts.len() {
         resolveStmt(r, &stmts[i])
     }
@@ -424,7 +424,7 @@ fn resolveStmts(r: mut Resolver, stmts: &List<Stmt>) {
 
 fn resolveBlock(r: mut Resolver, block: &Block) {
     r.scope.enter()
-    resolveStmts(r, &block.stmts)
+    resolveStmts(r, block.stmts)
     r.scope.leave()
 }
 
@@ -456,7 +456,7 @@ pub fn resolveFn(r: mut Resolver, decl: &FnDecl) {
     r.scope.resetLocals()
     r.locals = []
     const outerConsts = r.constParams.len()
-    const consts = constParamsOf(&decl.bounds)
+    const consts = constParamsOf(decl.bounds)
     for i in 0..consts.len() {
         r.constParams.push(consts[i])
     }
@@ -472,7 +472,7 @@ pub fn resolveFn(r: mut Resolver, decl: &FnDecl) {
         r.setLocal(param.id.0, declareLocal(r, param.name, param.span, param.mode == Mode.Mut))
     }
     if const Option.Some(body) = decl.body {
-        resolveStmts(r, &body.stmts)   // the same scope as the parameters
+        resolveStmts(r, body.stmts)   // the same scope as the parameters
     }
     r.scope.leave()
     r.constParams.truncate(outerConsts)
