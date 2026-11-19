@@ -135,6 +135,9 @@ TypeId check_generic_args(Checker *c, Expr *call, const Ty *signature, Infer *in
         }
         TypeId param = i < sig.arg_count ? sig.args[i] : NO_TYPE;
         TypeId found = check_expr(c, arg, i < sig.arg_count ? infer_hint(c, inf, param) : NO_TYPE);
+        if (deref_arg(c, &args.items[i].value, param, true)) {
+            found = args.items[i].value->type;
+        }
         infer_from(c, inf, param, found);
     }
     infer_finish(c, inf, call->span);
