@@ -294,7 +294,7 @@ fn addDocTests(ld: mut Loader, front: mut Front, name: str, file: FileId) {
     }
 }
 
-fn dottedName(names: Interner, path: &List<Symbol>, count: int) str {
+fn dottedName(names: Interner, path: List<Symbol>, count: int) str {
     let out = ""
     for i in 0..count {
         if i > 0 {
@@ -309,7 +309,7 @@ fn dottedName(names: Interner, path: &List<Symbol>, count: int) str {
 // `path` itself unless its first segment is a dependency, or `p` is one.
 // Returns `None` when it is unchanged; reports an import of a package that
 // the root project does not declare.
-fn packagePath(ld: Loader, front: mut Front, p: int, path: &List<Symbol>,
+fn packagePath(ld: Loader, front: mut Front, p: int, path: List<Symbol>,
                span: Span) Option<List<Symbol>> {
     if p < 0 || ld.packages.len() == 1 {
         return Option.None
@@ -371,7 +371,7 @@ fn importsOf(ld: mut Loader, front: mut Front, m: int) List<List<Symbol>> {
 }
 
 // The module named by the path, then its parent.
-fn loadImport(ld: mut Loader, front: mut Front, path: &List<Symbol>) {
+fn loadImport(ld: mut Loader, front: mut Front, path: List<Symbol>) {
     let count = path.len()
     for count >= 1 && count + 1 >= path.len() {
         const name = dottedName(front.names, path, count)

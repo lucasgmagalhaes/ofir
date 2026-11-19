@@ -125,7 +125,7 @@ pub fn sourceOf(p: &Locked) str {
  * @param indexes the commits of the indexes, in any order
  * @returns the JSON, sorted by name, then repository; the indexes by URL
  */
-pub fn lockText(packages: &List<Locked>, indexes: &List<IndexPin>) str {
+pub fn lockText(packages: List<Locked>, indexes: List<IndexPin>) str {
     let order: List<int> = []
     for i in 0..packages.len() {
         let at = order.len()
@@ -187,7 +187,7 @@ pub fn lockText(packages: &List<Locked>, indexes: &List<IndexPin>) str {
  * @param indexes the commits of the indexes
  * @returns true if it would not change
  */
-pub fn lockMatches(dir: str, packages: &List<Locked>, indexes: &List<IndexPin>) bool {
+pub fn lockMatches(dir: str, packages: List<Locked>, indexes: List<IndexPin>) bool {
     if const Result.Ok(old) = fs.readToString("{dir}/ofir.lock") {
         return old == lockText(packages, indexes)
     }
@@ -202,7 +202,7 @@ pub fn lockMatches(dir: str, packages: &List<Locked>, indexes: &List<IndexPin>) 
  * @param indexes the commits of the indexes
  * @returns false if it could not be written
  */
-pub fn writeLock(dir: str, packages: &List<Locked>, indexes: &List<IndexPin>) bool {
+pub fn writeLock(dir: str, packages: List<Locked>, indexes: List<IndexPin>) bool {
     if lockMatches(dir, packages, indexes) {
         return true
     }
