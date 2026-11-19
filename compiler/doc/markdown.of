@@ -124,7 +124,7 @@ fn fenceClass(line: str) str {
 
 // The text of a fenced block from its lines, without the indentation of
 // its fence.
-fn codeLines(lines: &List<str>, from: int, to: int, indent: int) str {
+fn codeLines(lines: List<str>, from: int, to: int, indent: int) str {
     let out = ""
     for k in from..to {
         let start = 0
@@ -180,7 +180,7 @@ fn joined(text: str, more: str) str {
  * @param to the one after the last
  * @returns the paragraphs, lists and code blocks
  */
-pub fn blocks(lines: &List<str>, from: int, to: int) str {
+pub fn blocks(lines: List<str>, from: int, to: int) str {
     let out = ""
     let para = ""
     let items: List<str> = []

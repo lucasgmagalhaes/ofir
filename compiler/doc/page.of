@@ -93,7 +93,7 @@ fn commentText(src: str, start: int, end: int, module: bool) str {
  * @param tokens its tokens, with the comments
  * @returns them
  */
-pub fn comments(src: str, tokens: &List<Token>) Comments {
+pub fn comments(src: str, tokens: List<Token>) Comments {
     let out = Comments{before: Map.new(), module: ""}
     for t in 0..tokens.len() {
         const kind = tokens[t].kind
@@ -140,7 +140,7 @@ fn oneLine(text: str) str {
 }
 
 // Where a declaration's text starts after its attributes.
-fn afterAttributes(src: str, start: int, attributes: &List<Attribute>) int {
+fn afterAttributes(src: str, start: int, attributes: List<Attribute>) int {
     if attributes.len() == 0 {
         return start
     }
@@ -211,7 +211,7 @@ struct Page {
         self.out.push("</section>\n")
     }
 
-    fn methods(mut self, names: &Interner, methods: &List<FnDecl>, owner: str, all: bool) {
+    fn methods(mut self, names: &Interner, methods: List<FnDecl>, owner: str, all: bool) {
         for i in 0..methods.len() {
             if all || methods[i].isPub {
                 self.function(names, &methods[i], owner)
@@ -409,7 +409,7 @@ pub fn modulePage(name: str, src: str, module: &Module, names: &Interner,
  * @returns the HTML page that links to each module's page, with the first
  *          paragraph of its comment
  */
-pub fn indexPage(modules: &List<str>, docs: &List<str>, site: &Site) str {
+pub fn indexPage(modules: List<str>, docs: List<str>, site: &Site) str {
     const title = if site.label.len() > 0 { site.label.clone() } else { "Modules".toOwned() }
     let out = head(title, site)
     out.push("<h1>{escape(title)}</h1>\n<h2>Modules</h2>\n<dl>\n")

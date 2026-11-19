@@ -96,7 +96,7 @@ fn packageLabel() str {
 
 // Writes or prints the page of each source, and the index and the search
 // index; the pages are linked once every declaration is known.
-fn document(sources: &List<Source>, out: str, stdout: bool, site: &Site) int {
+fn document(sources: List<Source>, out: str, stdout: bool, site: &Site) int {
     if !stdout && fs.createDirAll(out).isErr() {
         eprintln("error: cannot create `{out}`")
         return 2
