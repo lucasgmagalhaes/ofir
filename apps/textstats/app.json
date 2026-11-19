@@ -1,0 +1,9 @@
+{
+  "root": "textstats.of",
+  "lib": "static",
+  "consumer": "main.c",
+  "cases": [
+    {"name": "stats", "args": ["testdata/fox.txt", "testdata/hello.txt"]},
+    {"name": "missing", "args": ["testdata/hello.txt", "no-such-file"], "status": 1}
+  ]
+}
