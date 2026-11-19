@@ -201,7 +201,7 @@ pub fn predicateHolds(c: mut Checker, p: Program, e: &Expr, name: str, ty: int) 
  * @param typeArgs its type arguments, as written
  * @returns `bool`
  */
-pub fn checkImplements(c: mut Checker, p: Program, e: &Expr, typeArgs: &List<TypeExpr>) int {
+pub fn checkImplements(c: mut Checker, p: Program, e: &Expr, typeArgs: List<TypeExpr>) int {
     if typeArgs.len() != 2 {
         c.error("E0302", e.span, "wrong number of type arguments: expected 2, found "
                 + "{typeArgs.len()}")
@@ -239,7 +239,7 @@ pub fn checkComptimeCond(c: mut Checker, p: Program, cond: &Expr) int {
     if !compileTime(c, p, cond) {
         return DEPENDS
     }
-    return comptimeValue(c, p, cond, &[])
+    return comptimeValue(c, p, cond, [])
 }
 
 // E0363 for the first part of a condition that is not known at compile time.
@@ -287,7 +287,7 @@ fn isConstant(c: Checker, e: &Expr) bool {
  * @param targs the instance's type arguments, or none in the checker
  * @returns 1 or 0, or `DEPENDS` when it names a parameter `targs` does not give
  */
-pub fn comptimeValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) int {
+pub fn comptimeValue(c: mut Checker, p: Program, e: &Expr, targs: List<int>) int {
     return match e.kind {
         ExprKind.Bool(true) => 1
         ExprKind.Bool(false) => 0
@@ -342,7 +342,7 @@ fn compare(op: Op, a: int, b: int) int {
     return if holds { 1 } else { 0 }
 }
 
-fn predicateValue(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) int {
+fn predicateValue(c: mut Checker, p: Program, e: &Expr, targs: List<int>) int {
     const args = callArgs(c, e)
     if args.len() == 0 {
         return 0   // after an error
@@ -401,7 +401,7 @@ pub fn narrowingOf(c: mut Checker, p: Program, e: &Expr) Narrowing {
     return n
 }
 
-fn common(a: &List<int>, b: &List<int>) List<int> {
+fn common(a: List<int>, b: List<int>) List<int> {
     let out: List<int> = []
     for i in 0..a.len() {
         for j in 0..b.len() {
@@ -494,7 +494,7 @@ pub fn ifNarrowing(c: mut Checker, p: Program, cond: &Expr) Option<Narrowing> {
  */
 pub fn knownCondition(c: mut Checker, p: Program, cond: &Expr) int {
     return match cond.kind {
-        ExprKind.Comptime(inner) => comptimeValue(c, p, &*inner, &[])
+        ExprKind.Comptime(inner) => comptimeValue(c, p, &*inner, [])
         _ => DEPENDS
     }
 }

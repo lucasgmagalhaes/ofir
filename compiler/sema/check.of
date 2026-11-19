@@ -210,7 +210,7 @@ pub fn boundBit(c: Checker, t: &TypeExpr) int {
  * @param fnParams the function's own
  * @returns its number: the type's first, then the function's
  */
-pub fn boundedParam(t: &TypeExpr, owner: &List<Symbol>, fnParams: &List<Symbol>) int {
+pub fn boundedParam(t: &TypeExpr, owner: List<Symbol>, fnParams: List<Symbol>) int {
     const name = match t.kind {
         TypeKind.Path(segments, args) => if segments.len() == 1 && args.len() == 0 {
             segments[0]
@@ -249,7 +249,7 @@ pub fn interfaceOf(c: Checker, t: &TypeExpr) int {
     }
 }
 
-fn interfaceAt(c: Checker, segments: &List<Symbol>) int {
+fn interfaceAt(c: Checker, segments: List<Symbol>) int {
     let id = c.r.scope.module(segments[0])
     if segments.len() == 2 && id != 0 && c.def(id).kind == DefKind.Module {
         id = memberOf(c.r, c.def(id).target, segments[1])
@@ -269,7 +269,7 @@ fn noIfaces(n: int) List<List<int>> {
 }
 
 // The bounds of `preds`, added to `g`, whose parameters are already set.
-fn addBounds(c: mut Checker, p: Program, preds: &List<WherePred>, g: mut Generics) {
+fn addBounds(c: mut Checker, p: Program, preds: List<WherePred>, g: mut Generics) {
     for i in 0..preds.len() {
         const index = boundedParam(&preds[i].ty, &g.owner, &g.fnParams)
         if index < 0 {
@@ -428,7 +428,7 @@ pub fn typeGenericsOf(c: mut Checker, p: Program, id: int) Generics {
 
 // The arguments an interface's own parameters stand for inside it: the
 // parameters themselves, after `Self`.
-fn ownArgs(c: mut Checker, owner: &List<Symbol>) int {
+fn ownArgs(c: mut Checker, owner: List<Symbol>) int {
     let params: List<int> = []
     for i in 1..owner.len() {
         params.push(c.types.param(i, owner[i].0))
@@ -798,7 +798,7 @@ pub struct Checker {
         return out
     }
 
-    fn appendList(self, out: mut str, args: &List<int>, qualified: bool) {
+    fn appendList(self, out: mut str, args: List<int>, qualified: bool) {
         for i in 0..args.len() {
             if i > 0 {
                 out.push(", ")
@@ -1307,7 +1307,7 @@ fn checkBody(c: mut Checker, p: Program, id: int, selfType: int, late: bool) {
 // ---------------------------------------------------------------------------
 // Items
 
-fn checkMethods(c: mut Checker, p: Program, index: int, methods: &List<FnDecl>) {
+fn checkMethods(c: mut Checker, p: Program, index: int, methods: List<FnDecl>) {
     const item = &p.modules[c.module()].module.items[index]
     const selfType = ownerTypeOf(c, p, c.module(), index)
     const outer = c.enterGenerics(typeGenerics(c, p, item))
@@ -1322,7 +1322,7 @@ fn checkMethods(c: mut Checker, p: Program, index: int, methods: &List<FnDecl>) 
 
 // `extern "C"` blocks cross the C boundary; `extern "intrinsic"` blocks,
 // reserved to std, declare operations the compiler generates.
-fn checkExtern(c: mut Checker, p: Program, item: &Item, abi: str, fns: &List<FnDecl>) {
+fn checkExtern(c: mut Checker, p: Program, item: &Item, abi: str, fns: List<FnDecl>) {
     if abi == "intrinsic" {
         if !c.r.moduleName.startsWith("std") {
             c.error("E0805", item.span,
@@ -1349,7 +1349,7 @@ fn checkExtern(c: mut Checker, p: Program, item: &Item, abi: str, fns: &List<FnD
  * @param p the program
  * @param preds the bounds
  */
-pub fn checkDeclBounds(c: mut Checker, p: Program, preds: &List<WherePred>) {
+pub fn checkDeclBounds(c: mut Checker, p: Program, preds: List<WherePred>) {
     for i in 0..preds.len() {
         const pred = &preds[i]
         if boundedParam(&pred.ty, &c.generics.owner, &c.generics.fnParams) < 0 {
@@ -1434,7 +1434,7 @@ fn checkItem(c: mut Checker, p: Program, index: int) {
 
 // An interface: embedding only interfaces, with its default methods checked
 // once, generically over `Self` and its parameters.
-fn checkInterface(c: mut Checker, p: Program, index: int, methods: &List<FnDecl>) {
+fn checkInterface(c: mut Checker, p: Program, index: int, methods: List<FnDecl>) {
     const item = &p.modules[c.module()].module.items[index]
     match item.kind {
         ItemKind.Interface(_, embeds, _) => {
@@ -1454,7 +1454,7 @@ fn checkInterface(c: mut Checker, p: Program, index: int, methods: &List<FnDecl>
 // E0327 for an interface embedded by one it embeds, E0328 for embedded
 // methods with conflicting signatures and E0329 for conflicting defaults
 // (spec 9.3, 9.4).
-fn checkEmbeds(c: mut Checker, p: Program, index: int, embeds: &List<TypeExpr>) {
+fn checkEmbeds(c: mut Checker, p: Program, index: int, embeds: List<TypeExpr>) {
     const me = c.itemDefs[c.module()][index]
     if me == 0 || embeds.len() == 0 {
         return
@@ -1494,7 +1494,7 @@ fn checkEmbeds(c: mut Checker, p: Program, index: int, embeds: &List<TypeExpr>) 
 
 // E0333 for each type named where only interfaces go, E0302 for each
 // interface given the wrong number of type arguments.
-fn notInterfaces(c: mut Checker, p: Program, list: &List<TypeExpr>) {
+fn notInterfaces(c: mut Checker, p: Program, list: List<TypeExpr>) {
     for i in 0..list.len() {
         const iface = interfaceOf(c, &list[i])
         if iface == 0 {
