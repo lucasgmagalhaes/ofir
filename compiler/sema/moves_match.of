@@ -70,10 +70,10 @@ pub fn bindsByMove(c: Checker, p: Program, pattern: &Pattern) bool {
     return match pattern.kind {
         PatternKind.Binding(_, _) | PatternKind.At(_, _, _) => c.localAt(pattern.id.0) >= 0 &&
                           !isCopy(c, p, c.typeOf(pattern.id.0))
-        PatternKind.Variant(_, _, args, _) => anyByMove(c, p, &args)
-        PatternKind.Tuple(items) => anyByMove(c, p, &items)
-        PatternKind.TupleStruct(_, args) => anyByMove(c, p, &args)
-        PatternKind.Or(alternatives) => anyByMove(c, p, &alternatives)
+        PatternKind.Variant(_, _, args, _) => anyByMove(c, p, args)
+        PatternKind.Tuple(items) => anyByMove(c, p, items)
+        PatternKind.TupleStruct(_, args) => anyByMove(c, p, args)
+        PatternKind.Or(alternatives) => anyByMove(c, p, alternatives)
         PatternKind.Struct(_, fields, _) => {
             for i in 0..fields.len() {
                 if fieldBindsByMove(c, p, &fields[i]) {
@@ -100,7 +100,7 @@ pub fn initLocal(m: mut Moves, local: int, s: mut State, borrowed: bool) {
         m.borrowed[local] = borrowed
         killHolder(s, local)
         if m.refLocal[local] || (borrowed && !m.copyLocal[local]) {
-            bindLoans(s, local, &m.binding)
+            bindLoans(s, local, m.binding)
         }
     }
 }
@@ -126,10 +126,10 @@ pub fn patternLocals(c: Checker, pattern: &Pattern, out: mut List<int>) {
                 out.push(local)
             }
         }
-        PatternKind.Variant(_, _, args, _) => listLocals(c, &args, out)
-        PatternKind.Tuple(items) => listLocals(c, &items, out)
-        PatternKind.TupleStruct(_, args) => listLocals(c, &args, out)
-        PatternKind.Or(alternatives) => listLocals(c, &alternatives, out)
+        PatternKind.Variant(_, _, args, _) => listLocals(c, args, out)
+        PatternKind.Tuple(items) => listLocals(c, items, out)
+        PatternKind.TupleStruct(_, args) => listLocals(c, args, out)
+        PatternKind.Or(alternatives) => listLocals(c, alternatives, out)
         PatternKind.Struct(_, fields, _) => {
             for i in 0..fields.len() {
                 match fields[i].pattern {
@@ -168,10 +168,10 @@ pub fn patternInit(m: mut Moves, c: Checker, pattern: &Pattern, s: mut State, bo
         PatternKind.Binding(_, _) | PatternKind.TypeTest(_, _) | PatternKind.At(_, _, _) => {
             initLocal(m, c.localAt(pattern.id.0), s, borrowed)
         }
-        PatternKind.Variant(_, _, args, _) => initList(m, c, &args, s, borrowed)
-        PatternKind.Tuple(items) => initList(m, c, &items, s, borrowed)
-        PatternKind.TupleStruct(_, args) => initList(m, c, &args, s, borrowed)
-        PatternKind.Or(alternatives) => initList(m, c, &alternatives, s, borrowed)
+        PatternKind.Variant(_, _, args, _) => initList(m, c, args, s, borrowed)
+        PatternKind.Tuple(items) => initList(m, c, items, s, borrowed)
+        PatternKind.TupleStruct(_, args) => initList(m, c, args, s, borrowed)
+        PatternKind.Or(alternatives) => initList(m, c, alternatives, s, borrowed)
         PatternKind.Struct(_, fields, _) => {
             for i in 0..fields.len() {
                 match fields[i].pattern {
