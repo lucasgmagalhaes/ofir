@@ -1,0 +1,8 @@
+// Keywords (spec 1.5) cannot name a function or a binding.
+
+fn match() {             // error[E0100]: expected a function name, found `match`
+}
+
+fn main() {
+    const fn = 1         // error[E0100]: expected a pattern, found `fn`
+}
