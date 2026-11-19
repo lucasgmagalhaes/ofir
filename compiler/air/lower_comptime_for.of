@@ -231,7 +231,7 @@ pub fn comptimeMemberValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
 
 // `variant.matches(value)` in an instance: a test of the value's tag.
 fn matchesValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, info: ComptimeInfo,
-                args: &List<int>) Operand {
+                args: List<int>) Operand {
     const value = match e.kind {
         ExprKind.Call(_, callArgs) => callArgs[0].value.clone()
         _ => {
