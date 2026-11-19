@@ -358,7 +358,7 @@ fn transform(body: mut AirBody, site: &Site) {
     body.push(slow, call)
     body.push(slow, add)
     body.terminate(slow, check)
-    iterate(&l, body, fast, &args, head)
+    iterate(&l, body, fast, args, head)
     body.at = saved
 }
 
@@ -398,7 +398,7 @@ pub fn accumulate(c: mut Checker, body: mut AirBody) {
     let found: Option<Site> = Option.None
     let sites = 0
     for b in 0..body.blocks.len() {
-        const site = findSite(c, &body, &reads, b)
+        const site = findSite(c, &body, reads, b)
         if site.isSome() {
             found = site
             sites = sites + 1

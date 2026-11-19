@@ -653,7 +653,7 @@ fn samePath(a: List<int>, b: List<int>) bool {
 fn partFlag(l: Lowerer, local: int, path: List<int>) int {
     for i in 0..l.partFlags.len() {
         const part = &l.partFlags[i].part
-        if part.local == local && samePath(&part.fields, path) {
+        if part.local == local && samePath(part.fields, path) {
             return l.partFlags[i].flag
         }
     }
@@ -714,13 +714,13 @@ fn dropRest(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: List<i
         here.push(i)
         const field = if isTuple { c.types.get(ty).args[i] } else { structFieldType(c, p, ty, i) }
         const at = subPlace(place, i)
-        const flag = partFlag(l, local, &here)
+        const flag = partFlag(l, local, here)
         if flag != 0 {
             const next = ifSet(l, flag)
             emitDrop(l, c, p, &at, field)
             ifDone(l, next)
-        } else if partInside(l, local, &here) {
-            dropRest(l, c, p, local, &here, &at, field)
+        } else if partInside(l, local, here) {
+            dropRest(l, c, p, local, here, &at, field)
         } else {
             emitDrop(l, c, p, &at, field)
         }
@@ -733,8 +733,8 @@ fn dropIfSet(l: mut Lowerer, c: mut Checker, p: Program, local: int) {
     const place = Place{local: local, fields: [], deref: l.body.locals[local].byRef}
     const empty: List<int> = []
     const ty = localType(l, c, local)
-    if partInside(l, local, &empty) {
-        dropRest(l, c, p, local, &empty, &place, ty)
+    if partInside(l, local, empty) {
+        dropRest(l, c, p, local, empty, &place, ty)
     } else {
         emitDrop(l, c, p, &place, ty)
     }
@@ -803,8 +803,8 @@ fn resolved(fields: List<int>) bool {
 pub fn flagParts(l: mut Lowerer, c: mut Checker, local: int) {
     for i in 0..l.movedParts.len() {
         const ast = l.movedParts[i].clone()
-        const fields = concretePath(l, c, &ast.fields)
-        if ast.local + 1 == local && resolved(&fields) && partFlag(l, local, &fields) == 0 {
+        const fields = concretePath(l, c, ast.fields)
+        if ast.local + 1 == local && resolved(fields) && partFlag(l, local, fields) == 0 {
             const part = Part{local: local, fields: fields}
             const flag = newTemp(l, BOOL)
             l.partFlags.push(PartFlag{part: part, flag: flag})
@@ -885,7 +885,7 @@ pub fn assignDone(l: mut Lowerer, local: int) {
  * @param path the fields
  */
 pub fn noteMoved(l: mut Lowerer, c: mut Checker, local: int, path: List<int>) {
-    const flag = if path.len() > 0 { partFlag(l, local, &concretePath(l, c, path)) } else { 0 }
+    const flag = if path.len() > 0 { partFlag(l, local, concretePath(l, c, path)) } else { 0 }
     if flag != 0 {
         setFlagOf(l, flag, false)
     } else {
@@ -911,7 +911,7 @@ pub fn assignPart(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: 
     if path.len() == 0 {
         return false
     }
-    const flag = partFlag(l, local, &concretePath(l, c, path))
+    const flag = partFlag(l, local, concretePath(l, c, path))
     if flag == 0 {
         return false
     }
@@ -1137,7 +1137,7 @@ fn concretePath(l: Lowerer, c: mut Checker, path: List<int>) List<int> {
     let fields = path.clone()
     if !isGlue(l.body.def) && l.body.targs != UNIT {
         const args = c.types.get(l.body.targs).args.clone()
-        resolveKeys(c, fields, &args)
+        resolveKeys(c, fields, args)
     }
     return fields
 }
@@ -1145,7 +1145,7 @@ fn concretePath(l: Lowerer, c: mut Checker, path: List<int>) List<int> {
 // The body of an instance of a generic function, with its type arguments.
 fn substBody(l: mut Lowerer, c: mut Checker) {
     const args = c.types.get(l.body.targs).args.clone()
-    substFrom(l, c, &args, AirRange{local: 0, block: 0, open: -1, stmt: 0})
+    substFrom(l, c, args, AirRange{local: 0, block: 0, open: -1, stmt: 0})
 }
 
 /** What a body gained since some point: locals, blocks and statements of the open block. */
