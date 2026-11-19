@@ -99,6 +99,7 @@ starts with the same word as the record's status line.
 | [0086](0086-fuzzing-and-differential-testing.md) | Fuzzing, properties and differential testing | Proposed |
 | [0087](0087-sanitizers-leaks-races-and-faults.md) | Sanitizers, leaks, races and fault injection | Proposed |
 | [0088](0088-references-as-arguments.md) | References as arguments to borrowed parameters | Accepted |
+| [0089](0089-performance-budgets.md) | Performance budgets | Proposed |
 
 ## Template
 
