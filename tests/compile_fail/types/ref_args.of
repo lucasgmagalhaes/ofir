@@ -1,0 +1,35 @@
+// A reference passed to a parameter of the referenced type is dereferenced
+// (spec 5.6): a `mut` parameter needs a `&mut T`, a `move` parameter takes
+// ownership, which a reference lacks, and a `&T` parameter needs `&x`.
+
+fn reset(xs: mut List<int>) {
+    xs.push(0)
+}
+
+fn keep(xs: move List<int>) int {
+    return xs.len()
+}
+
+fn viaRef(xs: &List<int>) int {
+    return xs.len()
+}
+
+fn shared(xs: List<int>) {
+    const r = &xs
+    reset(r)                    // error[E0315]: this value cannot be modified: it is reached through a `&T`, not a `&mut T`
+}
+
+fn moved(xs: List<int>) int {
+    const r = &xs
+    return keep(r)              // error[E0602]: cannot move out of a reference: use `remove`, `swapRemove`, `mem.replace` or `.clone()`
+}
+
+fn owned(xs: List<int>) int {
+    return viaRef(xs)           // error[E0300]: mismatched types: expected &List<int>, found List<int>
+}
+
+fn main() {
+    shared([1])
+    println("{moved([1])}")
+    println("{owned([1])}")
+}
