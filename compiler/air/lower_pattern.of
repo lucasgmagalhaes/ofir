@@ -175,7 +175,7 @@ pub fn widenUnion(l: mut Lowerer, c: mut Checker, p: Program, value: move Operan
  * @returns the value
  */
 pub fn buildVariant(l: mut Lowerer, c: mut Checker, p: Program, ty: int, index: int,
-                    args: &List<Arg>) Operand {
+                    args: List<Arg>) Operand {
     const id = c.types.get(ty).data
     enumVariants(c, p, id)
     let count = variantsOf(c, id).variants[index].types.len()
@@ -217,7 +217,7 @@ fn compare(l: mut Lowerer, c: mut Checker, p: Program, op: Op, ty: int, a: move 
     return lowerBinaryOp(l, c, op, ty, a, b, noSpan())
 }
 
-fn orPattern(l: mut Lowerer, c: mut Checker, p: Program, alternatives: &List<Pattern>,
+fn orPattern(l: mut Lowerer, c: mut Checker, p: Program, alternatives: List<Pattern>,
              place: &Place, fail: int) {
     const ok = l.body.newBlock()
     const count = alternatives.len()
@@ -259,7 +259,7 @@ pub fn lowerPattern(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Patter
         PatternKind.Wildcard => {}
         PatternKind.Binding(_, _) => {
             if c.localAt(pattern.id.0) < 0 && isEnum(c, ty) {   // `None`: a unit variant
-                variantTest(l, c, p, pattern, place, ty, &[], fail)
+                variantTest(l, c, p, pattern, place, ty, [], fail)
             } else {
                 bind(l, c, c.localAt(pattern.id.0), place, ty)
             }
@@ -466,7 +466,7 @@ pub fn isVariant(l: mut Lowerer, c: mut Checker, p: Program, place: &Place, ty: 
 }
 
 fn variantTest(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern, place: &Place,
-               ty: int, args: &List<Pattern>, fail: int) {
+               ty: int, args: List<Pattern>, fail: int) {
     const index = c.members[c.module()][pattern.id.0]
     const tag = tagOf(place)
     const is = compare(l, c, p, Op.Eq, I32, tag, discriminant(c, p, ty, index))
@@ -476,7 +476,7 @@ fn variantTest(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern, pl
 }
 
 // Sub-patterns of positional fields.
-fn lowerPatterns(l: mut Lowerer, c: mut Checker, p: Program, list: &List<Pattern>,
+fn lowerPatterns(l: mut Lowerer, c: mut Checker, p: Program, list: List<Pattern>,
                  base: &Place, fail: int) {
     for i in 0..list.len() {
         lowerPattern(l, c, p, &list[i], &placeChild(base, i), fail)
@@ -498,7 +498,7 @@ fn bindsOwned(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern) boo
     }
 }
 
-fn fieldsOwned(l: mut Lowerer, c: mut Checker, p: Program, fields: &List<FieldPattern>) bool {
+fn fieldsOwned(l: mut Lowerer, c: mut Checker, p: Program, fields: List<FieldPattern>) bool {
     for i in 0..fields.len() {
         const owned = match fields[i].pattern {
             Option.Some(inner) => bindsOwned(l, c, p, &inner)
@@ -514,7 +514,7 @@ fn fieldsOwned(l: mut Lowerer, c: mut Checker, p: Program, fields: &List<FieldPa
     return false
 }
 
-fn anyOwned(l: mut Lowerer, c: mut Checker, p: Program, list: &List<Pattern>) bool {
+fn anyOwned(l: mut Lowerer, c: mut Checker, p: Program, list: List<Pattern>) bool {
     for i in 0..list.len() {
         if bindsOwned(l, c, p, &list[i]) {
             return true
@@ -544,13 +544,13 @@ pub fn keepPlace(l: mut Lowerer, c: mut Checker, p: Program, place: &Place, ty: 
     l.temps.push(Temp{local: local, ty: ty})
 }
 
-fn keepList(l: mut Lowerer, c: mut Checker, p: Program, list: &List<Pattern>, base: &Place) {
+fn keepList(l: mut Lowerer, c: mut Checker, p: Program, list: List<Pattern>, base: &Place) {
     for i in 0..list.len() {
         keepUnbound(l, c, p, &list[i], &placeChild(base, i))
     }
 }
 
-fn keepFields(l: mut Lowerer, c: mut Checker, p: Program, fields: &List<FieldPattern>,
+fn keepFields(l: mut Lowerer, c: mut Checker, p: Program, fields: List<FieldPattern>,
               place: &Place, ty: int) {
     const id = c.types.get(ty).data
     structFields(c, p, id)
@@ -607,7 +607,7 @@ pub fn keepUnbound(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern
 }
 
 fn keepVariant(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern,
-               args: &List<Pattern>, place: &Place) {
+               args: List<Pattern>, place: &Place) {
     const index = c.members[c.module()][pattern.id.0]
     keepList(l, c, p, args, &placeChild(place, VARIANT_STEP + index))
 }
@@ -621,7 +621,7 @@ fn armValue(l: mut Lowerer, c: mut Checker, p: Program, body: &Expr, asValue: bo
 
 // Whether an arm binds a local that holds an address: the scrutinee, a
 // borrowed place, is then matched where it is.
-fn matchesInPlace(l: Lowerer, c: Checker, arms: &List<MatchArm>) bool {
+fn matchesInPlace(l: Lowerer, c: Checker, arms: List<MatchArm>) bool {
     for i in 0..arms.len() {
         if bindsAddress(l, c, &arms[i].pattern) {
             return true
