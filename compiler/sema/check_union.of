@@ -145,7 +145,7 @@ fn overlap(c: Checker, a: int, b: int) bool {
 
 // The union of `members`: an instance of the generic enum of the unions of
 // as many members, made once, with one variant per member.
-fn unionOf(c: mut Checker, members: &List<int>, span: Span) int {
+fn unionOf(c: mut Checker, members: List<int>, span: Span) int {
     const count = members.len()
     if const Option.Some(known) = c.unions.get(count) {
         return c.types.adt(*known, members.clone())

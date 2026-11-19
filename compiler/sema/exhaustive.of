@@ -143,7 +143,7 @@ fn index(recorded: int) int {
     return if recorded < 0 { 0 } else { recorded }
 }
 
-fn toPats(c: mut Checker, p: Program, list: &List<Pattern>) List<Pat> {
+fn toPats(c: mut Checker, p: Program, list: List<Pattern>) List<Pat> {
     let out: List<Pat> = []
     for i in 0..list.len() {
         out.push(toPat(c, p, &list[i]))
@@ -218,7 +218,7 @@ fn pushRow(m: mut List<List<Pat>>, row: move List<Pat>) {
 }
 
 // The row for a constructor of arity `n`: the head's fields, then the rest.
-fn specializeRow(row: &List<Pat>, n: int) List<Pat> {
+fn specializeRow(row: List<Pat>, n: int) List<Pat> {
     let out: List<Pat> = []
     for i in 0..n {
         out.push(fieldOf(&row[0], i))
@@ -229,7 +229,7 @@ fn specializeRow(row: &List<Pat>, n: int) List<Pat> {
     return out
 }
 
-fn specialize(m: &List<List<Pat>>, ctor: int, n: int) List<List<Pat>> {
+fn specialize(m: List<List<Pat>>, ctor: int, n: int) List<List<Pat>> {
     let out: List<List<Pat>> = []
     for r in 0..m.len() {
         const h = head(&m[r][0])
@@ -241,7 +241,7 @@ fn specialize(m: &List<List<Pat>>, ctor: int, n: int) List<List<Pat>> {
 }
 
 // The rows whose head is a wildcard, without it.
-fn defaultRows(m: &List<List<Pat>>) List<List<Pat>> {
+fn defaultRows(m: List<List<Pat>>) List<List<Pat>> {
     let out: List<List<Pat>> = []
     for r in 0..m.len() {
         if head(&m[r][0]) == WILD {
@@ -259,7 +259,7 @@ fn wildcards(n: int) List<str> {
     return out
 }
 
-fn tail(row: &List<Pat>, from: int) List<Pat> {
+fn tail(row: List<Pat>, from: int) List<Pat> {
     let out: List<Pat> = []
     for i in from..row.len() {
         out.push(row[i].clone())
@@ -267,7 +267,7 @@ fn tail(row: &List<Pat>, from: int) List<Pat> {
     return out
 }
 
-fn tailInts(list: &List<int>, from: int) List<int> {
+fn tailInts(list: List<int>, from: int) List<int> {
     let out: List<int> = []
     for i in from..list.len() {
         out.push(list[i])
@@ -278,7 +278,7 @@ fn tailInts(list: &List<int>, from: int) List<int> {
 // ---------------------------------------------------------------------------
 // Witnesses: the text of a value that no row matches, one entry per column.
 
-fn ctorText(c: Checker, ty: int, ctor: int, fields: &List<str>, count: int) str {
+fn ctorText(c: Checker, ty: int, ctor: int, fields: List<str>, count: int) str {
     const t = c.types.get(ty)
     let text = ""
     let n = count
@@ -318,7 +318,7 @@ fn ctorText(c: Checker, ty: int, ctor: int, fields: &List<str>, count: int) str 
 }
 
 // `q` with the constructor `ctor` at its head: its fields join the columns.
-fn usefulCtor(c: mut Checker, p: Program, m: &List<List<Pat>>, q: &List<Pat>, types: &List<int>,
+fn usefulCtor(c: mut Checker, p: Program, m: List<List<Pat>>, q: List<Pat>, types: List<int>,
               ctor: int) Option<List<str>> {
     const n = arity(c, types[0], ctor)
     let sub: List<int> = []
@@ -339,8 +339,8 @@ fn usefulCtor(c: mut Checker, p: Program, m: &List<List<Pat>>, q: &List<Pat>, ty
 }
 
 // `q` with a wildcard at its head.
-fn usefulWild(c: mut Checker, p: Program, m: &List<List<Pat>>, q: &List<Pat>,
-              types: &List<int>) Option<List<str>> {
+fn usefulWild(c: mut Checker, p: Program, m: List<List<Pat>>, q: List<Pat>,
+              types: List<int>) Option<List<str>> {
     const count = ctorCount(c, types[0])
     let present = List.filled(false, count + 1)
     let seen = 0
@@ -380,8 +380,8 @@ fn usefulWild(c: mut Checker, p: Program, m: &List<List<Pat>>, q: &List<Pat>,
 }
 
 // A witness that `q` is useful after `m`.
-fn useful(c: mut Checker, p: Program, m: &List<List<Pat>>, q: &List<Pat>,
-          types: &List<int>) Option<List<str>> {
+fn useful(c: mut Checker, p: Program, m: List<List<Pat>>, q: List<Pat>,
+          types: List<int>) Option<List<str>> {
     if q.len() == 0 {
         return if m.len() == 0 { Option.Some([]) } else { Option.None }
     }
@@ -423,7 +423,7 @@ fn useful(c: mut Checker, p: Program, m: &List<List<Pat>>, q: &List<Pat>,
  * @param arms its arms
  * @param ty the type of the matched value
  */
-pub fn checkExhaustive(c: mut Checker, p: Program, e: &Expr, arms: &List<MatchArm>, ty: int) {
+pub fn checkExhaustive(c: mut Checker, p: Program, e: &Expr, arms: List<MatchArm>, ty: int) {
     if ty == ERROR {
         return
     }

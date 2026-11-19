@@ -154,7 +154,7 @@ fn intLiteral(c: mut Checker, e: &Expr, value: u64, expected: int, negative: boo
     return ty
 }
 
-fn interpolation(c: mut Checker, p: Program, parts: &List<Expr>, specs: &List<str>) int {
+fn interpolation(c: mut Checker, p: Program, parts: List<Expr>, specs: List<str>) int {
     for i in 0..parts.len() {
         const found = checkExpr(c, p, &parts[i], ERROR)
         const ty = autoDeref(c, p, &parts[i], found)   // `"{r}"` shows `*r`
@@ -502,7 +502,7 @@ fn cast(c: mut Checker, p: Program, e: &Expr, value: &Expr, to: &TypeExpr) int {
  * @param ret the result type
  * @returns the result type
  */
-pub fn checkArgs(c: mut Checker, p: Program, span: Span, args: &List<Arg>, params: &List<int>,
+pub fn checkArgs(c: mut Checker, p: Program, span: Span, args: List<Arg>, params: List<int>,
                  ret: int) int {
     if args.len() != params.len() {
         c.error("E0302", span, "wrong number of arguments: expected {params.len()}, "
@@ -529,7 +529,7 @@ pub fn checkArgs(c: mut Checker, p: Program, span: Span, args: &List<Arg>, param
  * @param id the callee's `DefId`
  * @returns the result type
  */
-pub fn checkCallArgs(c: mut Checker, p: Program, call: &Expr, args: &List<Arg>, id: int) int {
+pub fn checkCallArgs(c: mut Checker, p: Program, call: &Expr, args: List<Arg>, id: int) int {
     const sig = fnSignature(c, p, id)
     const params = c.types.get(sig).args.clone()
     const slots = arrangeArgs(c, p, call.id.0, call.span, args, id)
@@ -549,21 +549,21 @@ pub fn checkCallArgs(c: mut Checker, p: Program, call: &Expr, args: &List<Arg>, 
  * @param sig a `fn` type
  * @returns the result type
  */
-pub fn checkArgsOf(c: mut Checker, p: Program, span: Span, args: &List<Arg>, sig: int) int {
+pub fn checkArgsOf(c: mut Checker, p: Program, span: Span, args: List<Arg>, sig: int) int {
     const params = c.types.get(sig).args.clone()
     const ret = c.types.get(sig).inner
     return checkArgs(c, p, span, args, &params, ret)
 }
 
 // print(str), println(str) and panic(str) !; `assert` is in std.testing.
-fn builtinCall(c: mut Checker, p: Program, span: Span, args: &List<Arg>, builtin: int) int {
+fn builtinCall(c: mut Checker, p: Program, span: Span, args: List<Arg>, builtin: int) int {
     const param = STR
     const ret = if builtin == 2 { NEVER } else { UNIT }
     return checkArgs(c, p, span, args, &[param], ret)
 }
 
-fn checkFnCall(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>, id: int,
-               explicit: &List<TypeExpr>, expected: int) int {
+fn checkFnCall(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<Arg>, id: int,
+               explicit: List<TypeExpr>, expected: int) int {
     if isUnsafeFn(c, p, id) {
         requireUnsafe(c, e.span, "calling an `unsafe` or `extern` function")
     }
@@ -590,7 +590,7 @@ fn checkFnCall(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<
     return ret
 }
 
-fn notAFunction(c: mut Checker, p: Program, callee: &Expr, args: &List<Arg>, ty: int) int {
+fn notAFunction(c: mut Checker, p: Program, callee: &Expr, args: List<Arg>, ty: int) int {
     if ty != ERROR {
         c.error("E0311", callee.span, "expression of type `{c.typeName(ty)}` is not a function")
     }
@@ -604,7 +604,7 @@ fn noTypes() List<TypeExpr> {
     return []
 }
 
-fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
+fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<Arg>,
         expected: int) int {
     const isField = match callee.kind {
         ExprKind.Field(_, _, _) => !isModuleMember(c, callee)
@@ -649,7 +649,7 @@ fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
     }
     if kind == DefKind.Variant && explicit.len() == 0 {   // `Some(x)`
         c.setType(callee.id.0, UNIT)
-        return checkPreludeVariant(c, p, e, id, Option.Some(args), expected)
+        return checkPreludeVariant(c, p, e, id, Option.Some(&args), expected)
     }
     if kind == DefKind.Fn {
         c.setType(callee.id.0, fnSignature(c, p, id))
@@ -663,7 +663,7 @@ fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: &List<Arg>,
 // ---------------------------------------------------------------------------
 
 // `(a, b)`: each element takes the matching element of the expected type.
-fn tuple(c: mut Checker, p: Program, elems: &List<Expr>, expected: int) int {
+fn tuple(c: mut Checker, p: Program, elems: List<Expr>, expected: int) int {
     const hint = c.types.get(expected)
     const hinted = hint.kind == TyKind.Tuple && hint.args.len() == elems.len()
     const hints = hint.args.clone()
@@ -778,7 +778,7 @@ fn weakensPointer(c: Checker, found: int, expected: int) bool {
            f.inner == x.inner
 }
 
-fn sameTypes(a: &List<int>, b: &List<int>) bool {
+fn sameTypes(a: List<int>, b: List<int>) bool {
     if a.len() != b.len() {
         return false
     }
