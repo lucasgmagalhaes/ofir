@@ -580,7 +580,7 @@ pub struct TypeTable {
         }
         const result = self.intern(kind, data, inner, items)
         if kind == TyKind.Cond && !self.types[items[0]].hasParam {
-            return self.decideCond(data, &items)
+            return self.decideCond(data, items)
         }
         if kind == TyKind.Cond {
             return self.reduceCond(result)
@@ -611,7 +611,7 @@ pub struct TypeTable {
         if !self.unify(items[1], items[0], found) {
             return ty   // decided per instance
         }
-        return self.substInfer(items[2], &found)
+        return self.substInfer(items[2], found)
     }
 
     // The branch of a `Cond` whose condition `items[0]` has no parameter.
@@ -631,7 +631,7 @@ pub struct TypeTable {
         if !self.unify(items[1], items[0], found) {
             return items[3]
         }
-        return self.substInfer(items[2], &found)
+        return self.substInfer(items[2], found)
     }
 
     /**
@@ -928,7 +928,7 @@ pub struct TypeTable {
             Option.Some(f) => if f.isTuple {
                 self.indexOf(name)
             } else {
-                position(&f.names, name)
+                position(f.names, name)
             }
             Option.None => -1
         }

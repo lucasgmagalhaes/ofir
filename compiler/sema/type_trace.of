@@ -141,11 +141,11 @@ pub fn traceTypes(c: mut Checker, p: Program) str {
             }
             ItemKind.Struct(_, _, _, _, _, methods) => {
                 structLine(c, out, i, item)
-                methodLines(c, p, out, item, &methods)
+                methodLines(c, p, out, item, methods)
             }
             ItemKind.Enum(_, _, _, methods) => {
                 enumLine(c, out, i, item)
-                methodLines(c, p, out, item, &methods)
+                methodLines(c, p, out, item, methods)
             }
             ItemKind.Const(_, _) => constLine(c, out, i, item, true)
             ItemKind.Global(_, _) => constLine(c, out, i, item, false)
