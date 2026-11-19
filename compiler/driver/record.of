@@ -100,7 +100,7 @@ fn fileHash(path: str) str {
         return ""
     }
     let h = Sha256.new()
-    h.update(&data)
+    h.update(data)
     return h.finish()
 }
 

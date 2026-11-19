@@ -147,7 +147,7 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
         packages[p].deps = deps
         p += 1
     }
-    checkCycles(&packages, diags)
+    checkCycles(packages, diags)
     if !diags.hasErrors() && (r.pins.len() > 0 || r.hadLock) {
         let locked: List<Locked> = []
         for i in 0..r.pins.len() {
@@ -158,10 +158,10 @@ pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut Sourc
                                commit: pin.commit.clone(), checksum: pin.checksum.clone()})
         }
         if mode.locked {
-            if !lockMatches(r.lockDir, &locked, &r.indexes) {
-                staleLock(r.lockDir, &locked, map, diags)
+            if !lockMatches(r.lockDir, locked, r.indexes) {
+                staleLock(r.lockDir, locked, map, diags)
             }
-        } else if !writeLock(r.lockDir, &locked, &r.indexes) {
+        } else if !writeLock(r.lockDir, locked, r.indexes) {
             eprintln("warning: cannot write `{r.lockDir}/ofir.lock`")
         }
     }
@@ -188,7 +188,7 @@ fn visit(packages: List<Package>, p: int, state: mut List<int>, path: mut List<i
         const q = deps[i].package
         if state[q] == 1 {
             diags.error("E0916", deps[i].at, "the dependency `{deps[i].key}` makes a cycle")
-            diags.note("the packages depend on each other: {cycleText(packages, &path, q)}")
+            diags.note("the packages depend on each other: {cycleText(packages, path, q)}")
         } else if state[q] == 0 {
             visit(packages, q, state, path, diags)
         }
@@ -469,7 +469,7 @@ fn readList(packages: mut List<Package>, p: int, doc: &JsonDoc, file: FileId, li
         if forTarget(doc, file, member, mode, diags) {
             const target = dependencyTarget(packages, p, doc, file, member, r, reported, map,
                                             diags)
-            if target >= 0 && validKey(&packages, p, key, at, diags) {
+            if target >= 0 && validKey(packages, p, key, at, diags) {
                 out.push(Dependency{key, package: target, at})
             }
         }
@@ -635,7 +635,7 @@ fn dependencyTarget(packages: mut List<Package>, p: int, doc: &JsonDoc, file: Fi
                     diags: mut Diagnostics) int {
     const key = doc.nodes[member].key.clone()
     const at = spanOf(doc, file, member)
-    const o = overrideOf(&r.overrides, key)
+    const o = overrideOf(r.overrides, key)
     if o >= 0 {   // replaced in the whole graph (ADR 0077)
         const dir = r.overrides[o].dir.clone()
         if !fs.exists("{dir}/ofir.json") {
@@ -750,7 +750,7 @@ fn pinnedDir(doc: &JsonDoc, file: FileId, member: int, url: str, r: &Resolution,
         return Option.Some(r.pins[pin].dir.clone())
     }
     const f = failureOf(r, url)
-    if f >= 0 && !isReported(&reported, url) {
+    if f >= 0 && !isReported(reported, url) {
         reported.push(url.clone())
         const failure = &r.failures[f]
         diags.error(failure.code, spanOf(doc, file, member), failure.message.clone())
@@ -783,7 +783,7 @@ fn packageAt(packages: mut List<Package>, dir: str, key: str, at: Span, map: mut
     }
     const slash = lastSlash(root)
     const srcDir = if slash > 0 { root.slice(0, slash).toOwned() } else { dir.clone() }
-    const name = uniqueName(&packages, key)
+    const name = uniqueName(packages, key)
     packages.push(Package{name, dir: dir.toOwned(), srcDir, rootFile: root, deps: [],
                           lints: [], native: []})
     return packages.len() - 1

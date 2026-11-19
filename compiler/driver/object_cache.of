@@ -84,7 +84,7 @@ pub fn useObject(path: str) bool {
     }
     const empty: List<u8> = []
     const bytes = fs.read(path).unwrapOr(empty)
-    if !isObject(&bytes) {
+    if !isObject(bytes) {
         const _ = fs.removeFile(path)
         return false
     }
