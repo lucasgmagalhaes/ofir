@@ -1,0 +1,16 @@
+// Option and Result helpers (spec 6.4) keep the types of their payloads.
+
+fn fallback(o: Option<int>) int {
+    return o.unwrapOr("zero")            // error[E0300]: expected int, found str
+}
+
+fn wrongError(r: Result<int, str>) Result<int, int> {
+    return r                             // error[E0300]: expected Result<int, int>
+}
+
+fn noHelper(o: Option<int>) int {
+    return o.unwrapOrZero()              // error[E0301]: no method `unwrapOrZero` on type `Option`
+}
+
+fn main() {
+}
