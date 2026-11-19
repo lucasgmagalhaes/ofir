@@ -311,7 +311,7 @@ pub fn comptimeMember(c: mut Checker, e: &Expr, base: &Expr, name: Symbol) int {
  * @returns its type, or -1 when the callee is not a member of such a variable
  */
 pub fn comptimeMethod(c: mut Checker, p: Program, e: &Expr, callee: &Expr,
-                      args: &List<Arg>) int {
+                      args: List<Arg>) int {
     const parts = match callee.kind {
         ExprKind.Field(base, method, _) => (loopOf(c, &*base), method, base.id.0)
         _ => {
@@ -357,7 +357,7 @@ fn lastMember(info: ComptimeInfo) str {
 // `variant.matches(value)`: whether `value`, of the enum or a reference to
 // it, is that variant; a `bool` known at run time.
 fn comptimeMatches(c: mut Checker, p: Program, e: &Expr, info: ComptimeInfo,
-                   args: &List<Arg>) int {
+                   args: List<Arg>) int {
     if args.len() != 1 || args[0].name.isSome() {
         c.error("E0302", e.span, "`variant.matches` takes one value".toOwned())
         return ERROR
@@ -395,7 +395,7 @@ pub fn jumpLeavesComptime(c: Checker) bool {
  * @returns the keys' symbols, or none while they depend on a parameter
  */
 pub fn comptimeKeys(c: mut Checker, p: Program, info: ComptimeInfo,
-                    targs: &List<int>) List<int> {
+                    targs: List<int>) List<int> {
     if info.variants {
         return variantNames(c, p, info, targs)
     }
@@ -431,7 +431,7 @@ pub fn comptimeKeys(c: mut Checker, p: Program, info: ComptimeInfo,
 
 // The names of the variants a loop goes over in an instance, in declaration
 // order, or none while they depend on a parameter.
-fn variantNames(c: mut Checker, p: Program, info: ComptimeInfo, targs: &List<int>) List<int> {
+fn variantNames(c: mut Checker, p: Program, info: ComptimeInfo, targs: List<int>) List<int> {
     let names: List<int> = []
     const base = substType(c, info.base, targs.clone())
     if c.types.get(base).hasParam {
@@ -455,7 +455,7 @@ fn variantNames(c: mut Checker, p: Program, info: ComptimeInfo, targs: &List<int
  * @param targs the instance's type arguments, which give the key
  * @returns the position, or -1 while it depends on a parameter
  */
-pub fn comptimeIndex(c: mut Checker, p: Program, info: ComptimeInfo, targs: &List<int>) int {
+pub fn comptimeIndex(c: mut Checker, p: Program, info: ComptimeInfo, targs: List<int>) int {
     if info.param >= targs.len() {
         return -1
     }
@@ -500,7 +500,7 @@ pub fn isComptimeInt(c: Checker, e: &Expr) bool {
  * @param targs the instance's type arguments
  * @returns the value, or -1 while it depends on a parameter
  */
-pub fn comptimeInt(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) int {
+pub fn comptimeInt(c: mut Checker, p: Program, e: &Expr, targs: List<int>) int {
     match e.kind {
         ExprKind.Int(value) => {
             return value.wrappingCast<i64>()
@@ -527,7 +527,7 @@ pub fn comptimeInt(c: mut Checker, p: Program, e: &Expr, targs: &List<int>) int 
  * @returns the value, if the field has that tag
  */
 pub fn comptimeAttribute(c: mut Checker, p: Program, info: ComptimeInfo,
-                         targs: &List<int>) Option<str> {
+                         targs: List<int>) Option<str> {
     if info.param >= targs.len() || info.base == 0 {
         return Option.None
     }
@@ -553,7 +553,7 @@ pub fn comptimeAttribute(c: mut Checker, p: Program, info: ComptimeInfo,
 }
 
 // The value of `@tag(want, value)` in a list of attributes.
-fn tagValue(c: Checker, attributes: &List<Attribute>, want: str) Option<str> {
+fn tagValue(c: Checker, attributes: List<Attribute>, want: str) Option<str> {
     for i in 0..attributes.len() {
         const a = &attributes[i]
         if c.text(a.name) == "tag" && a.args.len() == 2 {

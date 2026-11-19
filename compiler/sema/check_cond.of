@@ -83,7 +83,7 @@ pub fn condType(c: mut Checker, p: Program, test: &TypeExpr, then: &TypeExpr,
 }
 
 // `X` with each name `infer` binds in scope.
-fn thenType(c: mut Checker, p: Program, names: &List<Symbol>, binds: &List<int>,
+fn thenType(c: mut Checker, p: Program, names: List<Symbol>, binds: List<int>,
             then: &TypeExpr) int {
     for i in 0..names.len() {
         c.typeVars.push(names[i])
@@ -99,8 +99,8 @@ fn thenType(c: mut Checker, p: Program, names: &List<Symbol>, binds: &List<int>,
 
 // A conditional type whose condition `parts` has a type parameter: both
 // branches, with the `infer` names as placeholders in `X`.
-fn deferredCond(c: mut Checker, p: Program, test: &TypeExpr, parts: &List<int>,
-                names: &List<Symbol>, then: &TypeExpr, otherwise: &TypeExpr) int {
+fn deferredCond(c: mut Checker, p: Program, test: &TypeExpr, parts: List<int>,
+                names: List<Symbol>, then: &TypeExpr, otherwise: &TypeExpr) int {
     if names.len() > 0 && hasInfer(c, parts[0]) {
         return c.unsupported(test.span, "conditional types on an `infer` name are")
     }
