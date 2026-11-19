@@ -492,7 +492,7 @@ fn lowerView(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, depth: int) O
         let path: List<int> = []
         const local = placePath(c, e, path)
         if local >= 0 {
-            noteMoved(l, c, local, &path)
+            noteMoved(l, c, local, path)
         }
     }
     l.forward = forwarded
@@ -514,14 +514,14 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Byte(value) => opInt(value as u64, ty)
         ExprKind.Bool(value) => opBool(value, BOOL)
         ExprKind.Str(value) | ExprKind.ByteStr(value) => opStr(value, ty)
-        ExprKind.Interp(parts, specs) => interpolation(l, c, p, &parts, &specs)
+        ExprKind.Interp(parts, specs) => interpolation(l, c, p, parts, specs)
         ExprKind.Ident(_) | ExprKind.SelfValue => name(l, c, p, e, ty)
         ExprKind.Unary(op, operand) => unary(l, c, p, e, op, &*operand, ty)
         ExprKind.Binary(op, lhs, rhs) => binary(l, c, p, e, op, &*lhs, &*rhs)
         ExprKind.Cast(value, _) => castExpr(l, c, p, &*value, ty, e.span)
         ExprKind.Call(callee, args) => match comptimeMemberValue(l, c, p, e, ty) {
             Option.Some(value) => value
-            Option.None => call(l, c, p, e, &*callee, &args)
+            Option.None => call(l, c, p, e, &*callee, args)
         }
         ExprKind.If(_, _, _, _) => lowerIf(l, c, p, e)
         ExprKind.Comptime(inner) => comptimeExpr(l, c, p, e, &*inner)
@@ -539,26 +539,26 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
                 builtinConst(c, ty, member)
             } else {   // `Shape.Empty`
                 const none: List<Arg> = []
-                buildVariant(l, c, p, ty, c.members[c.module()][e.id.0], &none)
+                buildVariant(l, c, p, ty, c.members[c.module()][e.id.0], none)
             }
         }
         ExprKind.TupleField(_, _) => placeOperand(&lowerPlaceAt(l, c, p, e, 0), OperandKind.Copy,
                                                   ty)
-        ExprKind.Struct(_, fields, base) => structLiteral(l, c, p, e, &fields, base, ty)
+        ExprKind.Struct(_, fields, base) => structLiteral(l, c, p, e, fields, base, ty)
         ExprKind.Tuple(elems) => {
             if elems.len() == 0 {
                 unit()   // `()`
             } else {
-                aggregateOf(l, c, p, &elems, ty)
+                aggregateOf(l, c, p, elems, ty)
             }
         }
         ExprKind.Variant(_, args, _) => if c.types.kind(ty) == TyKind.Key {
             opUnit(ty)   // a key has no value (spec 16.2)
         } else {
-            buildVariant(l, c, p, ty, c.members[c.module()][e.id.0], &args)
+            buildVariant(l, c, p, ty, c.members[c.module()][e.id.0], args)
         }
-        ExprKind.Array(elems) => if isArray(c, ty) { arrayLiteral(l, c, p, &elems, ty) } else {
-            listLiteral(l, c, p, &elems, ty)
+        ExprKind.Array(elems) => if isArray(c, ty) { arrayLiteral(l, c, p, elems, ty) } else {
+            listLiteral(l, c, p, elems, ty)
         }
         ExprKind.Repeat(value, count) => if isArray(c, ty) {
             arrayRepeat(l, c, p, &*value, ty)
@@ -568,7 +568,7 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Try(inner) => lowerTry(l, c, p, &*inner, ty)
         ExprKind.Match(_, _) => lowerMatch(l, c, p, e)
         ExprKind.Index(base, index) => lowerIndex(l, c, p, e, &*base, &*index)
-        ExprKind.Closure(params, _, body, isMove) => lowerClosure(l, c, p, e, &params, &*body,
+        ExprKind.Closure(params, _, body, isMove) => lowerClosure(l, c, p, e, params, &*body,
                                                                   isMove, ty)
         _ => {
             l.fail("this expression")
@@ -606,7 +606,7 @@ fn name(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, ty: int) Operand {
     }
     if kind == DefKind.Variant {   // `None`
         const none: List<Arg> = []
-        return buildVariant(l, c, p, ty, c.def(id).member, &none)
+        return buildVariant(l, c, p, ty, c.def(id).member, none)
     }
     if kind == DefKind.Fn {   // a function value with no environment
         let rv = rvalue(RvalueKind.FnValue, Op.Add, unit(), unit())
@@ -673,7 +673,7 @@ fn nameCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
         for i in 0..args.len() {
             values.push(args[i].value.clone())
         }
-        return aggregateOf(l, c, p, &values, c.typeOf(e.id.0))
+        return aggregateOf(l, c, p, values, c.typeOf(e.id.0))
     }
     if kind == DefKind.Variant {   // `Some(x)`
         return buildVariant(l, c, p, c.typeOf(e.id.0), c.def(id).member, args)
@@ -1475,7 +1475,7 @@ fn fieldDefault(l: mut Lowerer, c: mut Checker, p: Program, id: int, f: int) Ope
     if isMappedStruct(c, p, id) {   // a `?:` field of a mapped type: `None`
         const ty = fieldsOf(c, id).types[f]
         const none: List<Arg> = []
-        return buildVariant(l, c, p, ty, variantNamed(c, p, ty, "None"), &none)
+        return buildVariant(l, c, p, ty, variantNamed(c, p, ty, "None"), none)
     }
     const decl = fieldDeclAt(p, c.loc(id), f)
     const previous = c.enter(c.def(id).module)
@@ -2199,7 +2199,7 @@ fn metaConstant(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         return opStr(c.typeName(concreteType(l, c, callTypeArg(c, e))), STR)
     }
     const targs = instanceArgs(l, c)
-    return opBool(comptimeValue(c, p, e, &targs) == 1, BOOL)
+    return opBool(comptimeValue(c, p, e, targs) == 1, BOOL)
 }
 
 // The branch of a `comptime if` the instance keeps: 1 `then`, 0 `else`, or
@@ -2209,7 +2209,7 @@ fn comptimeBranch(l: Lowerer, c: mut Checker, p: Program, e: &Expr) int {
         ExprKind.If(_, cond, _, _) => match cond.kind {
             ExprKind.Comptime(inner) => {
                 const targs = instanceArgs(l, c)
-                comptimeValue(c, p, &*inner, &targs)
+                comptimeValue(c, p, &*inner, targs)
             }
             _ => -1
         }
@@ -2823,7 +2823,7 @@ fn pushInterpolation(l: mut Lowerer, c: mut Checker, p: Program, base: &Expr, id
         return false
     }
     return match args[0].value.kind {
-        ExprKind.Interp(parts, specs) => pushParts(l, c, p, base, &parts, &specs)
+        ExprKind.Interp(parts, specs) => pushParts(l, c, p, base, parts, specs)
         _ => false
     }
 }
@@ -2966,8 +2966,8 @@ fn hasSpec(specs: List<str>) bool {
 fn lowerPrint(l: mut Lowerer, c: mut Checker, p: Program, arg: &Expr, newline: bool) {
     match arg.kind {
         ExprKind.Interp(parts, specs) => {
-            if hasSpec(&specs) || formatsPart(l, c, p, &parts) {
-                const text = interpolation(l, c, p, &parts, &specs)
+            if hasSpec(specs) || formatsPart(l, c, p, parts) {
+                const text = interpolation(l, c, p, parts, specs)
                 emitRuntime(l, RuntimeFn.PrintStr, [opAddr(text.local, STR)], -1)
                 emitDrop(l, c, p, &localPlace(text.local), STR)
                 if newline {
@@ -3110,7 +3110,7 @@ fn dropOldValue(l: mut Lowerer, c: mut Checker, p: Program, target: &Expr, place
     const settled = opCopy(toLocal(l, value), vty)
     let path: List<int> = []
     const local = placePath(c, target, path)
-    if local >= 0 && assignPart(l, c, p, local, &path, place, ty) {
+    if local >= 0 && assignPart(l, c, p, local, path, place, ty) {
         return settled   // a part with its own drop flag
     }
     if (flagsOf(c, target) & MOVES) != 0 {

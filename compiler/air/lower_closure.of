@@ -77,7 +77,7 @@ pub fn lowerClosure(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, params
         const local = captures[i]
         const captureType = l.body.locals[local].ty
         types.push(if isMove { captureType } else {
-            c.types.ptr(captureType, contains(&written, captured[i]))
+            c.types.ptr(captureType, contains(written, captured[i]))
         })
     }
     const envType = if captures.len() > 0 { c.types.tuple(types.clone()) } else { 0 }
@@ -99,7 +99,7 @@ pub fn lowerClosure(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, params
                 items.push(placeOperand(&place, OperandKind.Copy, types[i]))
                 if !isCopy(c, p, types[i]) {   // moved into the closure
                     const path: List<int> = []
-                    noteMoved(l, c, local, &path)
+                    noteMoved(l, c, local, path)
                 }
             }
         }
