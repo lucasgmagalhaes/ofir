@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Conformance cases (ADR 0085): each row of the conformance matrix has a
+  program that must compile and one that must be rejected, and stage 0
+  rows a case stage 0 runs, or a gap that says why; feature interaction
+  cases in `tests/run/interactions/` and `tests/compile_fail/interactions/`,
+  listed in the matrix and checked by `tools/check_conformance.py`.
 - Release candidates (ADR 0084): the Release workflow tags
   `v<version>-rc.N` as a pre-release, and promotes the last candidate only
   when the seed and archives hash the same; patch releases come from
