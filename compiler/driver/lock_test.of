@@ -14,7 +14,7 @@ fn lockTextIsSortedByName() {
                              commit: "c1", checksum: "s1"},
                       Locked{name: "a", git: "/a", registry: "", version: "", rev: "main",
                              commit: "c2", checksum: ""}]
-    const text = lockText(&packages, &[])
+    const text = lockText(packages, [])
     assert(text.find("\"a\"").expect("a") < text.find("\"b\"").expect("b"))
     assert(text.contains("\"rev\": \"main\", \"commit\": \"c2\"\}"))
     assert(text.contains("\"commit\": \"c1\", \"checksum\": \"s1\"\}"))
@@ -24,7 +24,7 @@ fn lockTextIsSortedByName() {
 fn registryPackagesHaveNoCommit() {
     const packages = [Locked{name: "json", git: "", registry: "/index", version: "1.2.0", rev: "",
                              commit: "", checksum: "s"}]
-    const text = lockText(&packages, &[])
+    const text = lockText(packages, [])
     const entry = "\"name\": \"json\", \"registry\": \"/index\", \"version\": \"1.2.0\""
     assert(text.contains("{entry}, \"checksum\": \"s\"\}"))
     assert(sourceOf(&packages[0]) == "/index#json")
@@ -35,8 +35,8 @@ fn indexesFollowThePackages() {
     const packages = [Locked{name: "json", git: "", registry: "/index", version: "1.2.0", rev: "",
                              commit: "", checksum: "s"}]
     const indexes = [IndexPin{url: "/z", commit: "c2"}, IndexPin{url: "/index", commit: "c1"}]
-    const text = lockText(&packages, &indexes)
+    const text = lockText(packages, indexes)
     assert(text.contains("\"indexes\": [\n    \{\"url\": \"/index\", \"commit\": \"c1\"\},"))
     assert(text.endsWith("\"commit\": \"c2\"\}\n  ]\n\}\n"))
-    assert(!lockText(&packages, &[]).contains("indexes"))
+    assert(!lockText(packages, []).contains("indexes"))
 }

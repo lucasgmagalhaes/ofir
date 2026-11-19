@@ -240,7 +240,7 @@ fn addTree(h: mut Sha256, dir: str, rel: str) {
         } else {
             const data = fs.read(entries[i].path.clone()).ok() ?? []
             h.updateText("{sub}\0{data.len()}\0")
-            h.update(&data)
+            h.update(data)
         }
     }
 }
