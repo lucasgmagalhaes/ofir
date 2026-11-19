@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Performance budgets (ADR 0089): `make check-budgets` checks compiler
+  memory, warm self-compile, hello world size and startup, and the
+  instructions of the generated programs against `bench/budgets.json`,
+  and reports cold builds and runtime distributions; CI runs it next to
+  the 3% benchmark gate.
 - A reference `&T` or `&mut T` may be passed to a parameter of type `T`
   in borrow mode, and `&mut T` to a `mut` parameter, with an implicit
   dereference (ADR 0088); the compiler and std take lists, maps and sets

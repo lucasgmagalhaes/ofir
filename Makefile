@@ -6,8 +6,9 @@ BUILD  ?= build
 include tools/platform.mk
 PYTHON ?= python3
 SAFETY_FLAGS ?=
+BUDGET_FLAGS ?=
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan check-tsan check-faults check-safety seed check-seed dist bench bench-programs bench-compare clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan check-tsan check-faults check-safety seed check-seed dist bench bench-programs bench-compare check-budgets clean
 
 all: stage0 runtime
 
@@ -207,6 +208,13 @@ bench-programs: runtime
 	$(MAKE) -C bootstrap release BUILD=$(abspath $(BUILD))/release
 	$(STAGE_ENV) $(PYTHON) bench/run_programs.py --compiler $(BUILD)/release/ofir \
 	    --runs $(BENCH_PROGRAM_RUNS) --json $(BUILD)/generated-code-results.json
+
+# Compiler memory, self-compile, startup and runtime budgets (ADR 0089).
+check-budgets: stage1 runtime
+	$(MAKE) -C bootstrap release BUILD=$(abspath $(BUILD))/release
+	$(STAGE_ENV) $(PYTHON) tools/perf_budgets.py --compiler $(BUILD)/stage1/ofir$(EXE) \
+	    --release-compiler $(BUILD)/release/ofir$(EXE) --json $(BUILD)/budget-results.json \
+	    $(BUDGET_FLAGS)
 
 BASE ?= origin/main
 bench-compare:
