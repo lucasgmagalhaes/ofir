@@ -94,7 +94,7 @@ pub fn sbomCommand(args: List<str>, compiler: str) int {
 }
 
 // An entry for each package, the root first.
-fn entriesOf(packages: &List<Package>, r: &Resolution) List<Entry> {
+fn entriesOf(packages: List<Package>, r: &Resolution) List<Entry> {
     let out: List<Entry> = []
     for i in 0..packages.len() {
         const p = &packages[i]
@@ -145,7 +145,7 @@ fn entriesOf(packages: &List<Package>, r: &Resolution) List<Entry> {
     return out
 }
 
-fn holds(list: &List<int>, n: int) bool {
+fn holds(list: List<int>, n: int) bool {
     for i in 0..list.len() {
         if list[i] == n {
             return true
@@ -155,7 +155,7 @@ fn holds(list: &List<int>, n: int) bool {
 }
 
 // The CycloneDX 1.5 document.
-fn cycloneJson(entries: &List<Entry>, compiler: str) str {
+fn cycloneJson(entries: List<Entry>, compiler: str) str {
     let out = "\{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.5\",\"version\":1"
     out.push(",\"metadata\":\{")
     const date = sourceDate()
@@ -216,7 +216,7 @@ fn cycloneComponent(e: &Entry) str {
 }
 
 // The SPDX 2.3 document; `lockSum` makes its namespace unique to the lock.
-fn spdxJson(entries: &List<Entry>, compiler: str, lockSum: str) str {
+fn spdxJson(entries: List<Entry>, compiler: str, lockSum: str) str {
     const root = &entries[0]
     const date = sourceDate()
     const created = if date.len() > 0 { date.clone() } else { "1970-01-01T00:00:00Z" }

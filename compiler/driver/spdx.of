@@ -128,7 +128,7 @@ fn isOperator(word: str) bool {
 }
 
 // What is wrong with the license `word`, or an empty string.
-fn license(ids: &List<str>, word: str) str {
+fn license(ids: List<str>, word: str) str {
     if word.startsWith("LicenseRef-") || word.startsWith("DocumentRef-") {
         return idChars(word, "license")
     }
@@ -137,7 +137,7 @@ fn license(ids: &List<str>, word: str) str {
 }
 
 // What is wrong with the identifier `id` of the list `ids`, or an empty string.
-fn known(ids: &List<str>, id: str, what: str) str {
+fn known(ids: List<str>, id: str, what: str) str {
     for i in 0..ids.len() {
         if ids[i] == id {
             return ""
