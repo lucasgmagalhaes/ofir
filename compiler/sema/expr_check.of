@@ -13,6 +13,7 @@ import sema.check.fnOf
 import sema.check.itemOf
 import sema.check.noGenerics
 import sema.check_box.autoDeref
+import sema.check_box.derefArg
 import sema.check_closure.checkClosure
 import sema.check_comptime.BOUND_FLOAT
 import sema.check_comptime.BOUND_INT
@@ -512,7 +513,7 @@ pub fn checkArgs(c: mut Checker, p: Program, span: Span, args: &List<Arg>, param
             c.error("E0306", args[i].value.span, "this callee has no named parameters: pass "
                     + "the argument by position")
         }
-        coerce(c, p, &args[i].value, if i < params.len() { params[i] } else { ERROR })
+        coerceArg(c, p, &args[i].value, if i < params.len() { params[i] } else { ERROR })
     }
     return ret
 }
@@ -533,7 +534,7 @@ pub fn checkCallArgs(c: mut Checker, p: Program, call: &Expr, args: &List<Arg>, 
     const params = c.types.get(sig).args.clone()
     const slots = arrangeArgs(c, p, call.id.0, call.span, args, id)
     for i in 0..args.len() {
-        coerce(c, p, &args[i].value, if slots[i] >= 0 { params[slots[i]] } else { ERROR })
+        coerceArg(c, p, &args[i].value, if slots[i] >= 0 { params[slots[i]] } else { ERROR })
     }
     return c.types.get(sig).inner
 }
@@ -838,6 +839,25 @@ pub fn coerce(c: mut Checker, p: Program, e: &Expr, expected: int) int {
         requireType(c, e, found, expected)
     }
     return found
+}
+
+/**
+ * Checks an argument against its parameter's type, as `coerce` does, and
+ * also accepts a reference to a value of that type (spec 5.6).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the argument
+ * @param param the parameter's type
+ */
+fn coerceArg(c: mut Checker, p: Program, e: &Expr, param: int) {
+    const hint = if boxesDyn(c, param) { ERROR } else { param }
+    const found = checkExpr(c, p, e, hint)
+    if !compatible(found, param) && !derefArg(c, e, found, param, false) &&
+       !coerceToSlice(c, p, e, found, param) && !coerceToDyn(c, p, e, found, param) &&
+       !coerceToUnion(c, e, found, param) {
+        requireType(c, e, found, param)
+    }
 }
 
 // `comptime e`: an initializer whose value the interpreter computes.

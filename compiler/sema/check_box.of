@@ -11,10 +11,12 @@
 
 import sema.check.Checker
 import sema.check_methods.hasMethod
+import sema.check_types.compatible
 import sema.program.Program
 import sema.structs.structFieldType
 import sema.structs.structFields
 import base.intern.Symbol
+import sema.types.ERROR
 import sema.types.TyKind
 import syntax.ast.Expr
 
@@ -94,6 +96,40 @@ pub fn autoDeref(c: mut Checker, p: Program, e: &Expr, ty: int) int {
     }
     record(c, e, steps, current)
     return current
+}
+
+/**
+ * Dereferences an argument `e` of type `&T` or `&mut T` for a parameter of
+ * type `T`: the parameter borrows it already (spec 5.6). In a generic call
+ * `param` may hold type parameters, so only its head is compared: the same
+ * kind, and for a struct or an enum the same declaration. A type parameter
+ * of the callee takes the reference itself.
+ *
+ * @param c the checker
+ * @param e the argument
+ * @param found its type
+ * @param param the parameter's type
+ * @param generic whether `param` belongs to a generic callee
+ * @returns whether `e` is dereferenced
+ */
+pub fn derefArg(c: mut Checker, e: &Expr, found: int, param: int, generic: bool) bool {
+    if c.types.kind(found) != TyKind.Ref || param == ERROR {
+        return false
+    }
+    const inner = c.types.get(found).inner
+    const want = c.types.get(param)
+    const fits = if generic {
+        c.types.kind(inner) == want.kind && want.kind != TyKind.Ref &&
+        want.kind != TyKind.Param &&
+        (want.kind != TyKind.Adt || c.types.get(inner).data == want.data)
+    } else {
+        want.kind != TyKind.Ref && compatible(inner, param)
+    }
+    if !fits {
+        return false
+    }
+    record(c, e, [found], inner)
+    return true
 }
 
 /**

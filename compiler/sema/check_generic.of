@@ -28,6 +28,8 @@ import sema.check.fnGenericsIn
 import sema.check.fnOf
 import sema.check.noGenerics
 import sema.check.typeGenericsOf
+import sema.check_box.adjustedType
+import sema.check_box.derefArg
 import sema.check_closure.coerceToSend
 import sema.check_dyn.boxesDyn
 import sema.check_dyn.coerceToDyn
@@ -445,7 +447,12 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
             hint = arrayHint(c, &inf, param, arg)
         }
         const boxed = boxesDyn(c, hint)   // `Box.new(x)` infers the type of `x`
-        const found = checkExpr(c, p, arg, if boxed { ERROR } else { hint })
+        const checked = checkExpr(c, p, arg, if boxed { ERROR } else { hint })
+        const found = if derefArg(c, arg, checked, param, true) {
+            c.types.get(checked).inner
+        } else {
+            checked
+        }
         if keyParam {
             checkKeyArg(c, arg, found)
         }
@@ -459,7 +466,7 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
     for i in 0..args.len() {
         if slots[i] >= 0 {
             const wanted = inferApply(c, &inf, params[slots[i]])
-            const found = c.typeOf(args[i].value.id.0)
+            const found = adjustedType(c, &args[i].value)
             const widened = coerceToSlice(c, p, &args[i].value, found, wanted) ||
                             (!compatible(found, wanted)
                              && coerceToDyn(c, p, &args[i].value, found, wanted)) ||
