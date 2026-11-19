@@ -352,7 +352,7 @@ copy struct Layout {
     align: int
 }
 
-fn fieldsLayout(g: mut Gen, c: mut Checker, p: Program, types: &List<int>) Layout {
+fn fieldsLayout(g: mut Gen, c: mut Checker, p: Program, types: List<int>) Layout {
     let size = 0
     let align = 1
     for i in 0..types.len() {
@@ -419,7 +419,7 @@ fn fieldSlots(g: mut Gen, c: mut Checker, p: Program, ty: int) List<int> {
 }
 
 // The field types of a struct in the order of its LLVM type.
-fn slotTypes(g: mut Gen, c: mut Checker, p: Program, ty: int, types: &List<int>) List<int> {
+fn slotTypes(g: mut Gen, c: mut Checker, p: Program, ty: int, types: List<int>) List<int> {
     const slots = fieldSlots(g, c, p, ty)
     let out = types.clone()
     for i in 0..types.len() {
@@ -570,7 +570,7 @@ fn alignField(align: int) str {
 }
 
 // `packed` gives `<{ ... }>`; `align`, when above 0, adds `alignField`.
-fn define(g: mut Gen, c: mut Checker, p: Program, name: str, types: &List<int>, packed: bool,
+fn define(g: mut Gen, c: mut Checker, p: Program, name: str, types: List<int>, packed: bool,
           align: int) {
     for i in 0..types.len() {
         const _ = fieldType(g, c, p, types[i])   // the field types first: no interleaving
@@ -1554,7 +1554,7 @@ fn valueCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt
 // A call through a C function pointer: the C calling convention, no
 // environment, and a `bool` result widened as C returns it.
 fn cPointerCall(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, s: &AirStmt,
-                values: &List<Value>, retType: int) {
+                values: List<Value>, retType: int) {
     const ret = llvmType(g, c, p, retType)
     const hasDest = s.hasDest && hasValue(c, retType)
     let result = ""
@@ -2142,7 +2142,7 @@ fn debugMembers(g: mut Gen, c: mut Checker, p: Program, ty: int, scope: int) Lis
 // With debug info, declares each named local of `body` to the debugger,
 // after the prologue stored the parameters: through its pointer when it is
 // held by reference, as a captured variable is.
-fn declareLocals(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, params: &List<int>) {
+fn declareLocals(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, params: List<int>) {
     let captured = List.filled(false, body.locals.len())
     if const Option.Some(info) = body.closure {
         for j in 0..info.captures.len() {
@@ -2530,7 +2530,7 @@ fn heapDecl(g: mut Gen, c: mut Checker, name: str, decl: str) {
  * @param trim `--trim-paths`: the debug info names logical paths
  * @returns the module's text
  */
-pub fn generate(c: mut Checker, p: Program, bodies: &List<AirBody>, debug: bool, trim: bool,
+pub fn generate(c: mut Checker, p: Program, bodies: List<AirBody>, debug: bool, trim: bool,
                 optimize: bool) str {
     let g = newGen()
     g.debug = debug
@@ -2655,7 +2655,7 @@ fn references(text: str, names: &Map<str, int>, found: mut List<int>) {
 
 // Generates the unit of `module`: its functions, then each instance or glue
 // they use, until no new one is used.
-fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut Shared,
+fn draft(c: mut Checker, p: Program, bodies: List<AirBody>, module: int, s: mut Shared,
          debug: bool, trim: bool, optimize: bool) Draft {
     let g = newGen()
     g.units = true
@@ -2744,7 +2744,7 @@ fn draft(c: mut Checker, p: Program, bodies: &List<AirBody>, module: int, s: mut
  * @param optimize `--release`
  * @returns the units, by module
  */
-pub fn generateUnits(c: mut Checker, p: Program, bodies: &List<AirBody>, debug: bool,
+pub fn generateUnits(c: mut Checker, p: Program, bodies: List<AirBody>, debug: bool,
                      trim: bool, optimize: bool) List<Unit> {
     let s = Shared{names: Map.new(), owner: [], declares: [], exported: []}
     let owns = List.filled(false, p.modules.len())

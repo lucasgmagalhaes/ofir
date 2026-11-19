@@ -181,7 +181,7 @@ pub struct DebugInfo {
      * @param bits its size in bits
      * @param members the nodes of its members
      */
-    pub fn structType(mut self, n: int, name: str, bits: int, members: &List<int>) {
+    pub fn structType(mut self, n: int, name: str, bits: int, members: List<int>) {
         const elements = self.next()
         self.nodes.push("!{n} = !DICompositeType(tag: DW_TAG_structure_type, name: \"{name}\", ")
         self.nodes.push("size: {bits}, elements: !{elements})\n!{elements} = !\{")
