@@ -232,7 +232,7 @@ fn argsMatch(r: Resolver, kind: int, a: &Attribute) bool {
     return n == 2 && isStr(&a.args[0]) && isStr(&a.args[1])
 }
 
-fn checkList(r: mut Resolver, attributes: &List<Attribute>, target: int, span: Span) {
+fn checkList(r: mut Resolver, attributes: List<Attribute>, target: int, span: Span) {
     for i in 0..attributes.len() {
         const a = &attributes[i]
         const name = r.text(a.name)
@@ -264,21 +264,21 @@ fn checkList(r: mut Resolver, attributes: &List<Attribute>, target: int, span: S
     }
 }
 
-fn checkFns(r: mut Resolver, fns: &List<FnDecl>, target: int) {
+fn checkFns(r: mut Resolver, fns: List<FnDecl>, target: int) {
     for i in 0..fns.len() {
         checkList(r, &fns[i].attributes, target, fns[i].span)
     }
 }
 
-fn checkFields(r: mut Resolver, fields: &List<FieldDecl>) {
+fn checkFields(r: mut Resolver, fields: List<FieldDecl>) {
     for i in 0..fields.len() {
         checkList(r, &fields[i].attributes, ON_FIELD, fields[i].span)
     }
 }
 
 // `@export` names a C symbol: only an `extern "C" fn` has one.
-fn checkNotExported(r: mut Resolver, attributes: &List<Attribute>) {
-    if const Option.Some(at) = findAttribute(r, *attributes, "export") {
+fn checkNotExported(r: mut Resolver, attributes: List<Attribute>) {
+    if const Option.Some(at) = findAttribute(r, attributes, "export") {
         r.error("E0808", attributes[at].span, "`@export` applies only to an `extern \"C\"` "
                 + "function")
     }
@@ -327,8 +327,8 @@ pub fn checkAttributes(r: mut Resolver, item: &Item) {
 
 // The message of `@deprecated("message")`, "" without one; `None` if the
 // list has no `@deprecated`.
-fn deprecation(r: Resolver, attributes: &List<Attribute>) Option<str> {
-    const Option.Some(at) = findAttribute(r, *attributes, "deprecated") else {
+fn deprecation(r: Resolver, attributes: List<Attribute>) Option<str> {
+    const Option.Some(at) = findAttribute(r, attributes, "deprecated") else {
         return Option.None
     }
     if attributes[at].args.len() == 0 {
