@@ -64,7 +64,7 @@ fn capture(r: mut Resolver, local: int) {
 
 // A closure: its parameters are locals of the enclosing function, numbered
 // after the locals before it; the outer locals it uses are its captures.
-fn resolveClosure(r: mut Resolver, e: &Expr, params: &List<Param>, body: &Expr) {
+fn resolveClosure(r: mut Resolver, e: &Expr, params: List<Param>, body: &Expr) {
     r.closureBases.push(r.locals.len())
     r.closureCaptures.push([])
     r.scope.enter()
@@ -222,7 +222,7 @@ fn declarePattern(r: mut Resolver, p: &Pattern, reuse: bool) {
     }
 }
 
-fn declarePatterns(r: mut Resolver, list: &List<Pattern>, reuse: bool) {
+fn declarePatterns(r: mut Resolver, list: List<Pattern>, reuse: bool) {
     for i in 0..list.len() {
         declarePattern(r, &list[i], reuse)
     }
@@ -231,13 +231,13 @@ fn declarePatterns(r: mut Resolver, list: &List<Pattern>, reuse: bool) {
 // ---------------------------------------------------------------------------
 // Expressions
 
-fn resolveExprs(r: mut Resolver, list: &List<Expr>) {
+fn resolveExprs(r: mut Resolver, list: List<Expr>) {
     for i in 0..list.len() {
         resolveExpr(r, &list[i])
     }
 }
 
-fn resolveArgs(r: mut Resolver, args: &List<Arg>) {
+fn resolveArgs(r: mut Resolver, args: List<Arg>) {
     for i in 0..args.len() {
         resolveExpr(r, &args[i].value)
     }
@@ -416,7 +416,7 @@ fn resolveStmt(r: mut Resolver, s: &Stmt) {
     }
 }
 
-fn resolveStmts(r: mut Resolver, stmts: &List<Stmt>) {
+fn resolveStmts(r: mut Resolver, stmts: List<Stmt>) {
     for i in 0..stmts.len() {
         resolveStmt(r, &stmts[i])
     }

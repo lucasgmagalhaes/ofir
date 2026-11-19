@@ -176,7 +176,7 @@ pub fn checkTupleField(c: mut Checker, p: Program, e: &Expr, baseExpr: &Expr, in
  * @returns the struct type
  */
 pub fn checkConstructor(c: mut Checker, p: Program, call: &Expr, id: int,
-                        explicit: &List<TypeExpr>, args: &List<Arg>, expected: int) int {
+                        explicit: List<TypeExpr>, args: List<Arg>, expected: int) int {
     const known = structFields(c, p, id)
     const ty = ownerType(c, p, id)
     if !known || !fieldsOf(c, id).isTuple {
@@ -202,7 +202,7 @@ pub fn checkConstructor(c: mut Checker, p: Program, call: &Expr, id: int,
 
 // The field values; with `inf`, a generic struct's parameters are bound from
 // their types, which `requireFields` checks after.
-fn checkLiteralFields(c: mut Checker, p: Program, id: int, fields: &List<FieldInit>,
+fn checkLiteralFields(c: mut Checker, p: Program, id: int, fields: List<FieldInit>,
                       given: mut List<bool>, inf: mut Infer, generic: bool) {
     const types = fieldsOf(c, id).types.clone()
     for i in 0..fields.len() {
