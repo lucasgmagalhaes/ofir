@@ -615,7 +615,7 @@ pub struct TypeTable {
     }
 
     // The branch of a `Cond` whose condition `items[0]` has no parameter.
-    fn decideCond(mut self, isPattern: int, items: &List<int>) int {
+    fn decideCond(mut self, isPattern: int, items: List<int>) int {
         if isPattern == 0 {
             const kind = self.types[items[0]].kind
             const data = self.types[items[0]].data
@@ -690,7 +690,7 @@ pub struct TypeTable {
     }
 
     // `ty` with each `infer` placeholder `INFER_BASE + i` replaced by `found[i]`.
-    fn substInfer(mut self, ty: int, found: &List<int>) int {
+    fn substInfer(mut self, ty: int, found: List<int>) int {
         if !self.types[ty].hasParam {
             return ty
         }
@@ -987,7 +987,7 @@ pub struct TypeTable {
     }
 }
 
-fn position(names: &List<int>, name: int) int {
+fn position(names: List<int>, name: int) int {
     for i in 0..names.len() {
         if names[i] == name {
             return i
