@@ -1,0 +1,74 @@
+// sections: 4.4 4.7 6.1 6.2
+// Errors in loops: `?` leaves the loop and the function, `break` and
+// `continue` pass over results, and a loop collects into a `Result`.
+
+fn parse(s: str) Result<int, str> {
+    if s == "" {
+        return Result.Err("empty")
+    }
+    let n = 0
+    for c in s.bytes() {
+        if c < 48 || c > 57 {
+            return Result.Err("bad digit in {s}")
+        }
+        n = n * 10 + (c - 48) as int
+    }
+    return Result.Ok(n)
+}
+
+fn sum(items: List<str>) Result<int, str> {
+    let total = 0
+    for s in items {
+        total += parse(s)?
+    }
+    return Result.Ok(total)
+}
+
+fn firstBig(items: List<str>) Option<int> {
+    for s in items {
+        match parse(s) {
+            Result.Ok(n) => {
+                if n > 10 {
+                    return Option.Some(n)
+                }
+            }
+            Result.Err(_) => {
+                continue
+            }
+        }
+    }
+    return Option.None
+}
+
+fn show(r: Result<int, str>) str {
+    return match r {
+        Result.Ok(n) => "ok {n}",
+        Result.Err(e) => "err {e}",
+    }
+}
+
+fn showBig(o: Option<int>) str {
+    return match o {
+        Option.Some(n) => "some {n}",
+        Option.None => "none",
+    }
+}
+
+fn main() {
+    println(show(sum(["1", "2", "30"])))
+    println(show(sum(["1", "x2", "30"])))
+    println(show(sum(["1", "", "30"])))
+    println(showBig(firstBig(["a", "5", "b", "42", "7"])))
+    println(showBig(firstBig(["a", "5"])))
+    let errors = 0
+    for s in ["4", "?", "", "8"] {
+        if parse(s).isErr() {
+            errors += 1
+            continue
+        }
+        if errors == 2 {
+            break
+        }
+    }
+    println("errors {errors}")
+}
