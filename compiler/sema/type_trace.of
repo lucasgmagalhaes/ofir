@@ -6,7 +6,7 @@
  * 4.6).
  */
 
-import air.air_print.formatG
+import base.float_text.formatG
 import sema.check.Checker
 import sema.check.skippedTest
 import sema.const_eval.ConstKind
