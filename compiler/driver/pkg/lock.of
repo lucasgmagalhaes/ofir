@@ -105,7 +105,7 @@ pub fn readLock(dir: str) List<Locked> {
 }
 
 /**
- * Where a locked package comes from, as `driver.resolve` names it: its
+ * Where a locked package comes from, as `driver.pkg.resolve` names it: its
  * repository, or `<index>#<name>` for the registry.
  *
  * @param p the package

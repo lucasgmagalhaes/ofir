@@ -1,4 +1,4 @@
-// The tests of `driver.lock`.
+// The tests of `driver.pkg.lock`.
 
 import std.testing.assert
 

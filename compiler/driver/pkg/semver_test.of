@@ -1,4 +1,4 @@
-// The tests of `driver.semver`.
+// The tests of `driver.pkg.semver`.
 
 import std.testing.assert
 

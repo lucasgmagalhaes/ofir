@@ -17,17 +17,17 @@ import diag.Diagnostics
 import diag.Format
 import diag.Severity
 import diag.jsonNoSource
-import driver.git.fileAt
-import driver.git.repository
-import driver.packages.readPackages
-import driver.registry.Release
-import driver.registry.indexPath
-import driver.registry.releases
-import driver.resolve.Mode
-import driver.resolve.resolve
-import driver.semver.Version
-import driver.semver.parseVersion
-import driver.semver.satisfies
+import driver.pkg.git.fileAt
+import driver.pkg.git.repository
+import driver.pkg.packages.readPackages
+import driver.pkg.registry.Release
+import driver.pkg.registry.indexPath
+import driver.pkg.registry.releases
+import driver.pkg.resolve.Mode
+import driver.pkg.resolve.resolve
+import driver.pkg.semver.Version
+import driver.pkg.semver.parseVersion
+import driver.pkg.semver.satisfies
 import std.fs
 
 /**

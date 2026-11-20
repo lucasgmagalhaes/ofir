@@ -9,9 +9,9 @@ import base.json.parseJsonc
 import base.span.SourceMap
 import base.span.Span
 import diag.Diagnostics
-import driver.semver.Version
-import driver.semver.parseVersion
-import driver.semver.satisfies
+import driver.pkg.semver.Version
+import driver.pkg.semver.parseVersion
+import driver.pkg.semver.satisfies
 import driver.version.VERSION
 import std.fs
 import std.os

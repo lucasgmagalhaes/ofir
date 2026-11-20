@@ -11,7 +11,7 @@
  * file are reported by the resolver (E0204).
  *
  * The first segment of an import may name a dependency of the module's
- * project (ADR 0032, `driver.packages`): its modules are named with the
+ * project (ADR 0032, `driver.pkg.packages`): its modules are named with the
  * package's prefix, and the imports of a dependency's modules are
  * rewritten to the program's names (`import parser` in the package `json`
  * is `json.parser`).
@@ -28,11 +28,11 @@ import diag.Diagnostics
 import driver.cfg.CfgTarget
 import driver.cfg.stripCfg
 import driver.doctest.docTests
-import driver.packages.Package
-import driver.packages.dependencyOf
-import driver.packages.packageNamed
-import driver.packages.readPackages
-import driver.resolve.Mode
+import driver.pkg.packages.Package
+import driver.pkg.packages.dependencyOf
+import driver.pkg.packages.packageNamed
+import driver.pkg.packages.readPackages
+import driver.pkg.resolve.Mode
 import sema.program.Program
 import sema.program.ProgramModule
 import sema.program.newProgram

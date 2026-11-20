@@ -12,10 +12,10 @@
 import base.span.SourceMap
 import diag.Diagnostics
 import diag.Format
-import driver.lock.readLock
-import driver.packages.readPackages
-import driver.resolve.Mode
-import driver.resolve.workspaceRoot
+import driver.pkg.lock.readLock
+import driver.pkg.packages.readPackages
+import driver.pkg.resolve.Mode
+import driver.pkg.resolve.workspaceRoot
 import std.fs
 
 /**

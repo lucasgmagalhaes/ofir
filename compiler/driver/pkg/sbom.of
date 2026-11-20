@@ -12,11 +12,11 @@ import base.sha256.Sha256
 import base.span.SourceMap
 import diag.Diagnostics
 import diag.Format
-import driver.packages.Package
-import driver.packages.readPackages
-import driver.resolve.Mode
-import driver.resolve.Resolution
-import driver.resolve.resolve
+import driver.pkg.packages.Package
+import driver.pkg.packages.readPackages
+import driver.pkg.resolve.Mode
+import driver.pkg.resolve.Resolution
+import driver.pkg.resolve.resolve
 import std.fs
 import std.os
 import std.time.date.DateTime

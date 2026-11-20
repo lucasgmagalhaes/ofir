@@ -8,7 +8,7 @@
 
 import base.sha256.Sha256
 import base.sha256.sha256Hex
-import driver.git.ofirHome
+import driver.pkg.git.ofirHome
 import std.fs
 import std.os
 

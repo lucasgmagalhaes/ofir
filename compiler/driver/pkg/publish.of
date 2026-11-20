@@ -9,11 +9,11 @@
 import base.json.jsonString
 import base.json.parseJson
 import base.json.parseJsonc
-import driver.lock.checksum
-import driver.registry.indexPath
-import driver.resolve.registryVersion
-import driver.semver.parseVersion
-import driver.spdx.checkLicense
+import driver.pkg.lock.checksum
+import driver.pkg.registry.indexPath
+import driver.pkg.resolve.registryVersion
+import driver.pkg.semver.parseVersion
+import driver.pkg.spdx.checkLicense
 import std.fs
 import std.os
 
@@ -23,7 +23,7 @@ struct Packaged {
     version: str
     // The `.tar.gz` of its files.
     archive: str
-    // The checksum of its files (`driver.lock.checksum`).
+    // The checksum of its files (`driver.pkg.lock.checksum`).
     sum: str
     // Its registry dependencies, as a JSON object.
     deps: str

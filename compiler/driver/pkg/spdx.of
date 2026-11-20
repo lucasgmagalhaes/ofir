@@ -6,8 +6,8 @@
  * case; a license may end with `+` (that version or a later one).
  */
 
-import driver.spdx_list.exceptionIds
-import driver.spdx_list.licenseIds
+import driver.pkg.spdx_list.exceptionIds
+import driver.pkg.spdx_list.licenseIds
 
 /**
  * Checks a license expression.
