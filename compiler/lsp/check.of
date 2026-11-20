@@ -19,8 +19,8 @@ import sema.resolve.trace.Completion
 import sema.resolve.trace.Link
 import std.mem
 import std.os
-import syntax.lexer.tokenize
-import syntax.parser.parse
+import syntax.lex.lexer.tokenize
+import syntax.parse.parser.parse
 
 /**
  * What checking a file found.

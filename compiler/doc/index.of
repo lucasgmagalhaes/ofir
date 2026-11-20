@@ -18,8 +18,8 @@ import doc.page.comments
 import doc.page.indexPage
 import doc.page.modulePage
 import std.fs
-import syntax.lexer.tokenize
-import syntax.parser.parse
+import syntax.lex.lexer.tokenize
+import syntax.parse.parser.parse
 
 // A file to document and the name of its module.
 struct Source {

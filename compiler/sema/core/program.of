@@ -5,15 +5,15 @@
 
 import base.intern.Symbol
 import diag.index.noSpan
-import syntax.ast.Item
-import syntax.ast.ItemKind
-import syntax.ast.Module
+import syntax.ast.ast.Item
+import syntax.ast.ast.ItemKind
+import syntax.ast.ast.Module
 
 /**
  * A module of the program.
  */
 pub struct ProgramModule {
-    /** Its dotted name: `syntax.parser`, `std.core`; the root's is named
+    /** Its dotted name: `syntax.parse.parser`, `std.core`; the root's is named
      * after its file (spec 7.1). */
     pub name: str
     /** Its tree. */

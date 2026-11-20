@@ -6,9 +6,9 @@
 
 import base.intern.Interner
 import base.span.SourceFile
-import syntax.token.Token
-import syntax.token.TokenKind
-import syntax.token.TokenValue
+import syntax.lex.token.Token
+import syntax.lex.token.TokenKind
+import syntax.lex.token.TokenValue
 
 /**
  * The tokens of a file, one per line, as stage 0's `--emit=tokens` prints

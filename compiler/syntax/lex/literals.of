@@ -4,14 +4,14 @@
  */
 
 import diag.Diagnostics
-import syntax.cursor.Cursor
-import syntax.cursor.cut
-import syntax.cursor.digitValue
-import syntax.cursor.isDigit
-import syntax.cursor.isLetter
-import syntax.token.Token
-import syntax.token.TokenKind
-import syntax.token.TokenValue
+import syntax.lex.cursor.Cursor
+import syntax.lex.cursor.cut
+import syntax.lex.cursor.digitValue
+import syntax.lex.cursor.isDigit
+import syntax.lex.cursor.isLetter
+import syntax.lex.token.Token
+import syntax.lex.token.TokenKind
+import syntax.lex.token.TokenValue
 
 // ---------------------------------------------------------------------------
 // Numbers

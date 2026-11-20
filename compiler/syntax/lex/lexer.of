@@ -5,26 +5,26 @@
  * Written in the bootstrap subset (docs/bootstrap.md). It started as the
  * paper prototype of roadmap task 0.8 and is not compiled yet; findings are
  * recorded in docs/design/prototype-review.md. Literals are scanned in
- * `syntax.literals`, positions are tracked by `syntax.cursor`.
+ * `syntax.lex.literals`, positions are tracked by `syntax.lex.cursor`.
  */
 
 import base.intern.Interner
 import base.span.FileId
 import base.span.Span
 import diag.Diagnostics
-import syntax.cursor.Cursor
-import syntax.cursor.cut
-import syntax.cursor.isDigit
-import syntax.cursor.isLetter
-import syntax.literals.scanByteLiteral
-import syntax.literals.scanByteString
-import syntax.literals.scanMultiline
-import syntax.literals.scanNumber
-import syntax.literals.scanRawString
-import syntax.literals.scanStringPart
-import syntax.token.Token
-import syntax.token.TokenKind
-import syntax.token.TokenValue
+import syntax.lex.cursor.Cursor
+import syntax.lex.cursor.cut
+import syntax.lex.cursor.isDigit
+import syntax.lex.cursor.isLetter
+import syntax.lex.literals.scanByteLiteral
+import syntax.lex.literals.scanByteString
+import syntax.lex.literals.scanMultiline
+import syntax.lex.literals.scanNumber
+import syntax.lex.literals.scanRawString
+import syntax.lex.literals.scanStringPart
+import syntax.lex.token.Token
+import syntax.lex.token.TokenKind
+import syntax.lex.token.TokenValue
 
 pub fn tokenize(src: str, file: FileId, names: mut Interner, diags: mut Diagnostics) List<Token> {
     checkEncoding(src, file, diags)

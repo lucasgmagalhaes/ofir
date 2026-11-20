@@ -5,21 +5,21 @@
  */
 
 import base.span.Span
-import syntax.ast.Block
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.MatchArm
-import syntax.ast.Pattern
-import syntax.ast.Stmt
-import syntax.parse_exprs.newExpr
-import syntax.parse_exprs.parseExpr
-import syntax.parse_exprs.parseExprNoStruct
-import syntax.parse_patterns.parseTestPattern
-import syntax.parse_primary.parsePostfix
-import syntax.parse_primary.parsePrimary
-import syntax.parse_stmts.parseStmt
-import syntax.parser.Parser
-import syntax.token.TokenKind
+import syntax.ast.ast.Block
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.MatchArm
+import syntax.ast.ast.Pattern
+import syntax.ast.ast.Stmt
+import syntax.lex.token.TokenKind
+import syntax.parse.parse_exprs.newExpr
+import syntax.parse.parse_exprs.parseExpr
+import syntax.parse.parse_exprs.parseExprNoStruct
+import syntax.parse.parse_patterns.parseTestPattern
+import syntax.parse.parse_primary.parsePostfix
+import syntax.parse.parse_primary.parsePrimary
+import syntax.parse.parse_stmts.parseStmt
+import syntax.parse.parser.Parser
 
 /**
  * A block: `{ statements }`.

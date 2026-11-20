@@ -40,13 +40,13 @@ import sema.core.types.BOOL
 import sema.core.types.ERROR
 import sema.core.types.NEVER
 import sema.core.types.UNIT
-import syntax.ast.Block
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.ForKind
-import syntax.ast.Op
-import syntax.ast.Stmt
-import syntax.ast.StmtKind
+import syntax.ast.ast.Block
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.ForKind
+import syntax.ast.ast.Op
+import syntax.ast.ast.Stmt
+import syntax.ast.ast.StmtKind
 
 fn unitUnlessNever(ty: int) int {
     return if ty == NEVER { ty } else { UNIT }

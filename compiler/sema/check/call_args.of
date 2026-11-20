@@ -15,11 +15,11 @@ import sema.core.def.DefKind
 import sema.core.def.Res
 import sema.core.program.Program
 import sema.core.types.ERROR
-import syntax.ast.Arg
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.FnDecl
 import base.intern.Symbol
+import syntax.ast.ast.Arg
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.FnDecl
 
 // Whether `e` names a constant.
 fn isConst(c: Checker, e: &Expr) bool {

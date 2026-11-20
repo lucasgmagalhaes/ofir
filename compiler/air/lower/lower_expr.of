@@ -148,24 +148,24 @@ import sema.core.types.UNIT
 import sema.core.types.F64
 import sema.resolve.resolve.findAttribute
 import sema.resolve.resolve.moduleInStd
-import syntax.ast.FieldInit
 import base.span.Span
 import diag.noSpan
-import syntax.ast.Arg
-import syntax.ast.Block
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.ForKind
-import syntax.ast.ItemKind
-import syntax.ast.Op
-import syntax.ast.Pattern
-import syntax.ast.PatternKind
-import syntax.ast.Stmt
-import syntax.ast.StmtKind
-import syntax.format_spec.FormatSpec
-import syntax.format_spec.paddingBits
-import syntax.format_spec.parseFormatSpec
-import syntax.format_spec.radixBits
+import syntax.ast.ast.FieldInit
+import syntax.ast.ast.Arg
+import syntax.ast.ast.Block
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.ForKind
+import syntax.ast.ast.ItemKind
+import syntax.ast.ast.Op
+import syntax.ast.ast.Pattern
+import syntax.ast.ast.PatternKind
+import syntax.ast.ast.Stmt
+import syntax.ast.ast.StmtKind
+import syntax.lex.format_spec.FormatSpec
+import syntax.lex.format_spec.paddingBits
+import syntax.lex.format_spec.parseFormatSpec
+import syntax.lex.format_spec.radixBits
 
 /**
  * Whether a type has values: false for (), ! and the error type.

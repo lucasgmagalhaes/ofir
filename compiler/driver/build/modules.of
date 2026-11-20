@@ -39,10 +39,10 @@ import sema.core.program.newProgram
 import std.fs
 import std.mem
 import std.os
-import syntax.ast.ItemKind
-import syntax.ast.Module
-import syntax.lexer.tokenize
-import syntax.parser.parseFrom
+import syntax.ast.ast.ItemKind
+import syntax.ast.ast.Module
+import syntax.lex.lexer.tokenize
+import syntax.parse.parser.parseFrom
 
 /**
  * The tables of a compilation: files, names and diagnostics.
@@ -101,7 +101,7 @@ pub struct Front {
     }
 
     /**
-     * Parses a file as a doc test (`syntax.parse_items.docTestItems`).
+     * Parses a file as a doc test (`syntax.parse.parse_items.docTestItems`).
      *
      * @param file a file of the source map, made by `driver.build.doctest.docTests`
      * @returns its tree

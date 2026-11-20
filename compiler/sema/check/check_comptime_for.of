@@ -47,14 +47,14 @@ import sema.core.types.I64
 import sema.core.types.STR
 import sema.core.types.TyKind
 import sema.core.types.UNIT
-import syntax.ast.Arg
-import syntax.ast.Attribute
-import syntax.ast.Block
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.Stmt
-import syntax.ast.TypeExpr
-import syntax.ast.TypeKind
+import syntax.ast.ast.Arg
+import syntax.ast.ast.Attribute
+import syntax.ast.ast.Block
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.Stmt
+import syntax.ast.ast.TypeExpr
+import syntax.ast.ast.TypeKind
 
 /**
  * The key of a node of the current module in `Checker.comptimeInfo`.

@@ -67,10 +67,10 @@ import sema.resolve.resolve.resolveProgram
 import std.fs
 import std.mem
 import std.os
-import syntax.ast_print.printModule
-import syntax.lexer.tokenize
-import syntax.parser.parse
-import syntax.token_print.printTokens
+import syntax.ast.ast_print.printModule
+import syntax.lex.lexer.tokenize
+import syntax.lex.token_print.printTokens
+import syntax.parse.parser.parse
 
 extern "C" {
     fn ofir_now_ns() i64

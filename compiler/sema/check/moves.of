@@ -49,15 +49,15 @@ import sema.check.moves_match.patternLocals
 import sema.check.structs.isCopy
 import sema.core.program.Program
 import sema.core.types.keyFieldType
-import syntax.ast.Block
-import syntax.ast.ExprKind
-import syntax.ast.ForKind
-import syntax.ast.Mode
-import syntax.ast.Op
-import syntax.ast.PatternKind
-import syntax.ast.Stmt
-import syntax.ast.StmtKind
 import std.mem
+import syntax.ast.ast.Block
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.ForKind
+import syntax.ast.ast.Mode
+import syntax.ast.ast.Op
+import syntax.ast.ast.PatternKind
+import syntax.ast.ast.Stmt
+import syntax.ast.ast.StmtKind
 
 /** A part of a local: `p.a.b` is local p with the path of fields [a, b]. */
 pub struct Part {

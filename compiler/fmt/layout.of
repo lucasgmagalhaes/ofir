@@ -20,7 +20,7 @@
 
 import fmt.units.Unit
 import fmt.units.UnitKind
-import syntax.token.TokenKind
+import syntax.lex.token.TokenKind
 
 const INDENT: int = 4
 

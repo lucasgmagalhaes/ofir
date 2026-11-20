@@ -24,8 +24,8 @@ import sema.core.types.ERROR
 import sema.core.types.KeyFields
 import sema.core.types.TyKind
 import std.mem
-import syntax.ast.ItemKind
-import syntax.ast.TypeExpr
+import syntax.ast.ast.ItemKind
+import syntax.ast.ast.TypeExpr
 
 /**
  * A mapped type alias over its own parameters, expanded for each instance

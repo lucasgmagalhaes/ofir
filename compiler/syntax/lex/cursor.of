@@ -5,9 +5,9 @@
 
 import base.span.FileId
 import base.span.Span
-import syntax.token.Token
-import syntax.token.TokenKind
-import syntax.token.TokenValue
+import syntax.lex.token.Token
+import syntax.lex.token.TokenKind
+import syntax.lex.token.TokenValue
 
 // The source is not stored: a struct cannot hold a reference in the bootstrap
 // subset (no `ref struct`), so every method borrows it as a parameter.

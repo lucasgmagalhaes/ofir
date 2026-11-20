@@ -1,10 +1,10 @@
-// The tests of `syntax.lexer` (spec 12.2).
+// The tests of `syntax.lex.lexer` (spec 12.2).
 
 import base.intern.Interner
 import base.span.FileId
 import diag.Diagnostics
 import std.testing.assert
-import syntax.token.TokenKind
+import syntax.lex.token.TokenKind
 
 fn expectKinds(src: str, expected: [TokenKind]) {
     let names = Interner.new()

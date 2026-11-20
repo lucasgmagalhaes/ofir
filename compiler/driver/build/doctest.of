@@ -4,11 +4,11 @@
  * comment is compiled and run by `ofir test`. The block becomes a file of
  * its own, its code at the lines and columns it has in the comment, so
  * that diagnostics point into the comment; the line of the opening fence
- * holds the function that runs it (`syntax.parse_items.docTestItems`).
+ * holds the function that runs it (`syntax.parse.parse_items.docTestItems`).
  */
 
-import syntax.token.Token
-import syntax.token.TokenKind
+import syntax.lex.token.Token
+import syntax.lex.token.TokenKind
 
 /**
  * One block of a documentation comment.
