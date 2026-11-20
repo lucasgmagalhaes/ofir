@@ -45,8 +45,7 @@ row, which must be done before this one starts. The API rows (6.11 to
 | 6.32f | G1 | @lucasgmagalhaes | - | next |
 | 6.32g | G1 | @lucasgmagalhaes | 6.32c | queued |
 | 6.32h | G1 | @lucasgmagalhaes | 6.32g | queued |
-| 6.33d | G0 | @lucasgmagalhaes | - | next |
-| 6.33e | G0 | @lucasgmagalhaes | - | queued |
+| 6.33e | G0 | @lucasgmagalhaes | - | next |
 | 6.33f | G0 | @lucasgmagalhaes | - | queued |
 | 6.33g | G0 | @lucasgmagalhaes | - | queued |
 | 6.33h | G0 | @lucasgmagalhaes | 6.33d, 6.33e, 6.33f, 6.33g | queued |
@@ -79,7 +78,6 @@ listed. Each pull request is a few small commits (`CONTRIBUTING.md`).
 | 6.32b | Stage 1 suppresses cascades and takes `--error-limit=N` | M |
 | 6.32b | Stage 0 the same; compile-fail expectations updated | M |
 | 6.32f | `ofir check --fmt` warns about the files `ofir fmt` would change, both stages | S |
-| 6.33d | Stage 0 checker guards, accumulator patterns and lowering gaps (190 lines) | M |
 
 ## Rejected and deferred
 
