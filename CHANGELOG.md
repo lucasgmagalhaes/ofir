@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Glob imports (ADR 0098): `import a.b.*` brings every public member of
+  the module, after the named imports and only into names they leave
+  free; a name two globs bring is E0207 when used, `pub` or `as` on a
+  glob is E0208, and an unused glob is W0002. Stage 1 only.
 - The Ofir Book (ADR 0095): `docs/book/` teaches installation, the
   basics, ownership, errors, projects and tests; `tools/check_book.py`
   runs every program of it and checks its output or diagnostic, with
