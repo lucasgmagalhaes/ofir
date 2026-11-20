@@ -40,6 +40,34 @@ import parser.ast as ast
   `parser.lexer` reachable. Using it without an import or a re-export is
   E0200, with a help that names both fixes.
 
+### Glob imports
+
+`import path.*` imports every public member of the module `path` at once:
+
+```ofir
+import geo.shapes.*
+
+fn main() {
+    println(area(Circle{radius: 1.0}))   // `geo.shapes.area`, `geo.shapes.Circle`
+}
+```
+
+- The members are the module's public declarations and its re-exports
+  (7.3); private declarations, the module's plain imports and its
+  submodules are not imported.
+- A glob binds below the module's own declarations and its imports by
+  name, and above the prelude (7.4): `fn area()` in the importing module,
+  or `import other.area`, takes the name, and the glob leaves it alone.
+- Two globs that bring the same name for different declarations make the
+  name ambiguous: using it is E0207, and importing it by name settles it.
+  A name that is not used is not an error.
+- A glob counts as used when the module uses one of the names it binds;
+  otherwise it is an unused import (W0002).
+- `path` must name a module (E0204); a glob takes no `as` and cannot be
+  `pub` (E0208).
+- Glob imports are a stage 1 extension (docs/bootstrap.md): stage 0 and
+  `compiler/` do not use them.
+
 ### Initialization
 
 A module runs no code when a program starts. A module-level `const` or

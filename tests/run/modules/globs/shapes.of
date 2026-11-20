@@ -1,0 +1,26 @@
+// requires: stage1
+pub struct Circle {
+    pub radius: int
+}
+
+pub enum Kind {
+    Flat
+    Curved
+}
+
+pub fn area(c: Circle) int {
+    return 3 * c.radius * c.radius
+}
+
+pub fn unit() int {
+    return 100
+}
+
+// Both globs bring it, but it is not used: not an error.
+pub fn shared() int {
+    return hidden()
+}
+
+fn hidden() int {
+    return 0
+}

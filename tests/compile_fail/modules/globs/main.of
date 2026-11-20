@@ -1,0 +1,11 @@
+// requires: stage1
+// Glob imports that do not resolve (spec 7.2).
+import a.*
+import b.*
+import missing.*   // error[E0204]: cannot find module `missing`
+pub import a.*     // error[E0208]: a glob import cannot be `pub`
+
+fn main() {
+    println(only())
+    println(name())   // error[E0207]: `name` is ambiguous
+}

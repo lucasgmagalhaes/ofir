@@ -1,0 +1,3 @@
+// requires: stage1
+pub fn f() {
+}

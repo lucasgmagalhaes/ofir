@@ -325,7 +325,9 @@ fn namedValue(c: mut Checker, p: Program, name: Symbol, span: Span) int {
                     + "integer constant or a const parameter (spec 8.7)")
             return ERROR
         } else {
-            c.error("E0200", span, "cannot find `{c.text(name)}` in this scope")
+            if !c.r.ambiguity(name, span) {
+                c.error("E0200", span, "cannot find `{c.text(name)}` in this scope")
+            }
             return ERROR
         }
     }
@@ -494,6 +496,9 @@ fn pathTarget(c: mut Checker, segments: List<Symbol>, span: Span) int {
         }
         return first
     }
+    if first == 0 && c.r.ambiguity(segments[0], span) {
+        return 0
+    }
     if first == 0 {   // `nowhere.Name`
         c.error("E0200", span, "cannot find `{c.text(segments[0])}` in this scope")
         suggestName(c.r, segments[0], SuggestScope.Item)
@@ -541,6 +546,9 @@ fn resolvePath(c: mut Checker, p: Program, segments: List<Symbol>, args: List<Ty
     }
     if id == 0 {
         const name = segments[segments.len() - 1]
+        if c.r.ambiguity(name, span) {
+            return ERROR
+        }
         c.error("E0200", span, "cannot find type `{c.text(name)}` in this scope")
         const text = c.text(name)
         if text == "i128" || text == "u128" {   // deferred (ADR 0047)
