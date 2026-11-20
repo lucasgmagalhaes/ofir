@@ -596,8 +596,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
    then the query commands (6.32c, 6.32d) before edits, contracts and effects.
 5. Quality assurance (6.33, ADR 0103): raise each area to 100% of its
    reachable lines, stage 0 first (6.33d, done), then stage 1 (6.33e),
-   triaging what is uncovered as a test, dead code or a bug; fuzzing, generated programs and mutation testing
-   hunt the bugs the tests miss.
+   triaging what is uncovered as a test, dead code or a bug; fuzzing,
+   generated programs and mutation testing hunt the bugs the tests miss.
 6. Reconcile language states (LANG-01) and decide stability, editions, pointer
    provenance and atomic semantics (LANG-02–08) before implementing dependent
    features; use measured workloads for LANG-16, LANG-19 and LANG-20.
