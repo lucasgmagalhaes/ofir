@@ -47,6 +47,7 @@ The [website](site/README.md) has a landing page and a short getting-started gui
 | [Language completeness](docs/design/language-completeness.md) | language-wide capabilities, evidence, priorities and release gates |
 | [API ecosystem plan](docs/design/api-ecosystem.md) | service capabilities, gaps, dependencies and delivery gates |
 | [Risks](docs/risks.md) | risk register and mitigations |
+| [Maintaining](docs/maintaining.md) | triage, review, releases, security reports and continuity |
 
 ## Goals
 
