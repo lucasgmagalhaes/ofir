@@ -10,14 +10,14 @@
  * with `tar` into `$OFIR_HOME/cache/src`.
  */
 
+import base.json.parseJson
+import base.json.parseJsonc
 import driver.git.fileAt
 import driver.git.fileAtRev
 import driver.git.hashHex
 import driver.git.ofirHome
 import driver.semver.Version
 import driver.semver.parseVersion
-import lsp.json.parseJson
-import lsp.json.parseJsonc
 import std.fs
 import std.os
 

@@ -6,6 +6,7 @@
  * output, byte for byte: the only date is `SOURCE_DATE_EPOCH`'s.
  */
 
+import base.json.parseJsonc
 import base.span.SourceMap
 import diag.Diagnostics
 import diag.Format
@@ -16,7 +17,6 @@ import driver.resolve.Mode
 import driver.resolve.Resolution
 import driver.resolve.resolve
 import driver.sha256.Sha256
-import lsp.json.parseJsonc
 import std.fs
 import std.os
 import std.time.date.DateTime

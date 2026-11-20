@@ -9,10 +9,10 @@
  * resolution read (ADR 0081).
  */
 
+import base.json.JsonKind
+import base.json.parseJsonc
 import diag.jsonString
 import driver.sha256.Sha256
-import lsp.json.JsonKind
-import lsp.json.parseJsonc
 import std.fs
 
 /**

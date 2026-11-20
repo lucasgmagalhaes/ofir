@@ -9,6 +9,9 @@
  * advisory; a yanked version in the lock is a warning.
  */
 
+import base.json.JsonDoc
+import base.json.parseJson
+import base.json.parseJsonc
 import base.span.SourceMap
 import diag.Diagnostics
 import diag.Format
@@ -25,9 +28,6 @@ import driver.resolve.resolve
 import driver.semver.Version
 import driver.semver.parseVersion
 import driver.semver.satisfies
-import lsp.json.JsonDoc
-import lsp.json.parseJson
-import lsp.json.parseJsonc
 import std.fs
 
 /**

@@ -4,11 +4,11 @@
  * the root manifest's `profiles` names or changes.
  */
 
+import base.json.JsonDoc
+import base.json.JsonKind
+import base.json.parseJsonc
 import driver.modules.projectDir
 import driver.resolve.workspaceRoot
-import lsp.json.JsonDoc
-import lsp.json.JsonKind
-import lsp.json.parseJsonc
 import std.fs
 
 /** How a profile builds. */

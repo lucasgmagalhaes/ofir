@@ -1,4 +1,4 @@
-// The tests of `lsp.json`.
+// The tests of `base.json`.
 
 import std.testing.assert
 

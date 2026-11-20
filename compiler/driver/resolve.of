@@ -8,6 +8,9 @@
  * updated.
  */
 
+import base.json.JsonDoc
+import base.json.JsonKind
+import base.json.parseJsonc
 import driver.git.checkout
 import driver.git.commitOf
 import driver.git.hasCommit
@@ -30,9 +33,6 @@ import driver.semver.Requirement
 import driver.semver.Version
 import driver.semver.parseRequirement
 import driver.semver.parseVersion
-import lsp.json.JsonDoc
-import lsp.json.JsonKind
-import lsp.json.parseJsonc
 import std.fs
 
 /**
