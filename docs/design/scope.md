@@ -79,7 +79,7 @@ listed. Each pull request is a few small commits (`CONTRIBUTING.md`).
 | 6.32b | Stage 1 suppresses cascades and takes `--error-limit=N` | M |
 | 6.32b | Stage 0 the same; compile-fail expectations updated | M |
 | 6.32f | `ofir check --fmt` warns about the files `ofir fmt` would change, both stages | S |
-| 6.33d | Stage 0 checker, AIR and codegen gaps (296 lines) covered or excluded | M |
+| 6.33d | Stage 0 checker guards, accumulator patterns and lowering gaps (190 lines) | M |
 
 ## Rejected and deferred
 
