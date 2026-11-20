@@ -1,0 +1,9 @@
+// requires: stage1
+// A glob import is used when the module uses a name it binds (spec 7.2).
+import types.*
+import unused.*   // warning[W0002]: unused import `unused.*`
+
+fn main() {
+    const p = Pair{a: 1, b: 2}   // only a type of `types`
+    println("{p.a}")
+}

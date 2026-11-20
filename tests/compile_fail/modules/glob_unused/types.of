@@ -1,0 +1,5 @@
+// requires: stage1
+pub struct Pair {
+    pub a: int
+    pub b: int
+}
