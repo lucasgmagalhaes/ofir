@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The Ofir Book (ADR 0095): `docs/book/` teaches installation, the
+  basics, ownership, errors, projects and tests; `tools/check_book.py`
+  runs every program of it and checks its output or diagnostic, with
+  stage 1 and with the installed release.
 - Service ecosystem records (ADR 0094): the API plan gives each of its 54
   records a state with its evidence and lists its gates in a table;
   `tools/check_api_plan.py`, in `make check-docs`, checks the roadmap
