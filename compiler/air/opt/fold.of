@@ -4,18 +4,18 @@
 // and locals whose address is taken are never tracked: a call or a closure
 // could write them.
 
-import air.ir.air.AirBlock
-import air.ir.air.AirBody
-import air.ir.air.AirStmt
-import air.ir.air.Operand
-import air.ir.air.OperandKind
-import air.ir.air.PanicKind
-import air.ir.air.Rvalue
-import air.ir.air.RvalueKind
-import air.ir.air.StmtKind
-import air.ir.air.TermKind
-import air.ir.air.Terminator
-import air.ir.air.jump
+import air.ir.AirBlock
+import air.ir.AirBody
+import air.ir.AirStmt
+import air.ir.Operand
+import air.ir.OperandKind
+import air.ir.PanicKind
+import air.ir.Rvalue
+import air.ir.RvalueKind
+import air.ir.StmtKind
+import air.ir.TermKind
+import air.ir.Terminator
+import air.ir.jump
 import sema.check.check.Checker
 import sema.core.types.TyKind
 import diag.noSpan

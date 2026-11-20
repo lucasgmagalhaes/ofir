@@ -8,16 +8,16 @@
  * it, then a tuple of the captured values.
  */
 
-import air.ir.air.AirBody
-import air.ir.air.ClosureBody
-import air.ir.air.Operand
-import air.ir.air.OperandKind
-import air.ir.air.RvalueKind
-import air.ir.air.TermKind
-import air.ir.air.opCopy
-import air.ir.air.opUnit
-import air.ir.air.rvalue
-import air.ir.air.terminator
+import air.ir.AirBody
+import air.ir.ClosureBody
+import air.ir.Operand
+import air.ir.OperandKind
+import air.ir.RvalueKind
+import air.ir.TermKind
+import air.ir.opCopy
+import air.ir.opUnit
+import air.ir.rvalue
+import air.ir.terminator
 import air.lower.lower.Lowerer
 import air.lower.lower.Place
 import air.lower.lower.dropScopeEnter

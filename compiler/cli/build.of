@@ -5,7 +5,7 @@
  */
 
 import air.interp.interp.evalComptimes
-import air.ir.air.AirBody
+import air.ir.AirBody
 import air.ir.air_print.AirPrinter
 import air.ir.validate.validateBody
 import air.lower.lower.lowerProgram

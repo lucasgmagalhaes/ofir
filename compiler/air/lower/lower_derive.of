@@ -9,24 +9,24 @@
  * enums their variants (by tag), then the fields of the variant.
  */
 
-import air.ir.air.AirBody
-import air.ir.air.GLUE_CMP
-import air.ir.air.GLUE_DEBUG
-import air.ir.air.GLUE_EQ
-import air.ir.air.GLUE_HASH
-import air.ir.air.Operand
-import air.ir.air.OperandKind
-import air.ir.air.Rvalue
-import air.ir.air.RvalueKind
-import air.ir.air.TermKind
-import air.ir.air.VARIANT_STEP
-import air.ir.air.branch
-import air.ir.air.opBool
-import air.ir.air.opCopy
-import air.ir.air.opInt
-import air.ir.air.rvUse
-import air.ir.air.rvalue
-import air.ir.air.terminator
+import air.ir.AirBody
+import air.ir.GLUE_CMP
+import air.ir.GLUE_DEBUG
+import air.ir.GLUE_EQ
+import air.ir.GLUE_HASH
+import air.ir.Operand
+import air.ir.OperandKind
+import air.ir.Rvalue
+import air.ir.RvalueKind
+import air.ir.TermKind
+import air.ir.VARIANT_STEP
+import air.ir.branch
+import air.ir.opBool
+import air.ir.opCopy
+import air.ir.opInt
+import air.ir.rvUse
+import air.ir.rvalue
+import air.ir.terminator
 import air.lower.lower.Place
 import air.lower.lower.Lowerer
 import air.lower.lower.emitAssign
