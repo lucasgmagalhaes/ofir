@@ -97,10 +97,15 @@ def check_people(errors):
                 errors.append(f"{row[0]} is held by {holder}, who is not a maintainer")
 
 
+# The secrets the workflows may read; each other than GITHUB_TOKEN has a
+# row in docs/maintaining.md#access.
+SECRETS = {"GITHUB_TOKEN", "CODECOV_TOKEN"}
+
+
 def check_secrets(errors):
     for path in sorted((GITHUB / "workflows").glob("*.yml")):
         for name in sorted(set(re.findall(r"secrets\.(\w+)", path.read_text()))):
-            if name != "GITHUB_TOKEN":
+            if name not in SECRETS:
                 errors.append(f"{path.name} reads secrets.{name}; list it in "
                               "docs/maintaining.md#access and in this check")
 
