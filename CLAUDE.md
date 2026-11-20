@@ -14,8 +14,8 @@ with clang.
 - `std/`, `runtime/`, `tests/`, `tools/`, `docs/` (spec, ADRs, roadmap).
 - Manifest: `ofir.json` (JSONC, camelCase keys; ADR 0026).
 - Work follows `docs/roadmap.md`; phase 5 and 6.22 to 6.27 are done (6.27 is
-  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63), 6.29a-h (OFIR-64 to 71), 6.30a-g (OFIR-72 to 78), 6.31a (OFIR-79), 6.31b (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82), 6.31f (OFIR-83), 6.31g (OFIR-84), 6.31h (OFIR-85), 6.31i (OFIR-86) and 6.32a are done; next:
-  the order of `docs/design/scope.md` (6.32b, then 6.32f).
+  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63), 6.29a-h (OFIR-64 to 71), 6.30a-g (OFIR-72 to 78), 6.31a (OFIR-79), 6.31b (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82), 6.31f (OFIR-83), 6.31g (OFIR-84), 6.31h (OFIR-85), 6.31i (OFIR-86), 6.32a and 6.33a-c are done; next:
+  the order of `docs/design/scope.md` (6.32b, then 6.32f and 6.33d).
 
 ## Working rules
 
@@ -47,6 +47,8 @@ tools/quiet.sh test-shard-1     # its first half (test-shard-2: the second)
 tools/quiet.sh compare-stages   # stage 1 output == stage 0 output
 tools/quiet.sh test-stage1      # all tests with stage 1 as the compiler
 tools/quiet.sh verify           # stage 2 and stage 3 emit the same .ll
+tools/quiet.sh coverage         # coverage reports, build/coverage/*.xml
+make coverage-check             # floors (tools/coverage_floors.json)
 python3 tests/runner/run_tests.py <filter>   # a subset of the tests
 build/stage0/ofir build|run|test <file.of> [--emit=tokens|ast|names|types|air|llvm]
 ```
