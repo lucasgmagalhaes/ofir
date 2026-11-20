@@ -266,6 +266,9 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- An assignment evaluates its right side before the place (spec 4.2,
+  ADR 0080 rule 9): `list[i] = f()` with `f` growing `list` no longer
+  writes into freed memory, on both stages.
 - Stage 1 no longer panics on a token or a line next to invalid UTF-8; it
   reports E0001 and E0008 as stage 0 does.
 - The test runners give every test an empty standard input and kill its
