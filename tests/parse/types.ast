@@ -12,4 +12,5 @@ module
     param j: Option<Map<str, int>>?
     param k: *u8
     param l: std.io.File
+    param m: List<move fn() int>
     body
