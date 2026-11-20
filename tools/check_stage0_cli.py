@@ -6,7 +6,8 @@ errors (ADR 0103, roadmap 6.33d).
 - an unknown option, a missing input and a second input;
 - an input that does not exist or is a directory, a module path that is a
   directory, an empty `_test.of` and a project file named `.of`;
-- an `OFIR_STD` that does not exist, for a program that imports nothing;
+- an `OFIR_STD` that does not exist, for a program that imports nothing,
+  and the slice and optional types it then rejects;
 - the options `--stop-after=lex|parse|check`, `--message-format=human` and
   `--time-passes`;
 - a build without `-o`, named after the input in the current directory;
@@ -28,6 +29,15 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+NO_STD = """type Count = int
+
+fn f(_a: &[int], _b: int?, _c: Count, _d: Count) {
+}
+
+fn main() {
+}
+"""
 
 PROGRAM = """fn main() {
     const small = 1.0e-5
@@ -93,6 +103,12 @@ def main():
                  stream="stdout")
         c.expect("no std directory", ["build", src, "--stop-after=check"], 0,
                  env=dict(env, OFIR_STD=str(tmp / "no-std")))
+        no_std = tmp / "no_std.of"
+        no_std.write_text(NO_STD)
+        for name, text in (("slice", "slices without the standard library"),
+                           ("option", "optional types (`T?`) without std")):
+            c.expect(f"no std, {name}", ["build", str(no_std), "--stop-after=check"], 1, text,
+                     env=dict(env, OFIR_STD=str(tmp / "no-std")))
         for stage in ("lex", "parse", "check"):
             c.expect(f"--stop-after={stage}", ["build", src, f"--stop-after={stage}",
                                               "--message-format=human"], 0)
