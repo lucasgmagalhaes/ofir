@@ -13,3 +13,7 @@ fn third() {
 fn fourth() {
     const d = b'ab'                    // error[E0004]: invalid byte literal
 }
+
+fn fifth() {
+    const e = "open: \u{41 x"          // error[E0004]: invalid unicode escape
+}
