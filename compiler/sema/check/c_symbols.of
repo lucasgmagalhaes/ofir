@@ -6,8 +6,8 @@
 
 import sema.check.Checker
 import sema.core.program.Program
-import sema.resolve.resolve.Resolver
-import sema.resolve.resolve.findAttribute
+import sema.resolve.Resolver
+import sema.resolve.findAttribute
 import syntax.ast.Attribute
 import syntax.ast.ExprKind
 import syntax.ast.FnDecl

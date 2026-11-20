@@ -12,10 +12,10 @@ import sema.core.def.Def
 import sema.core.def.DefKind
 import sema.core.def.Res
 import sema.core.program.Program
-import sema.resolve.resolve.ImportUse
-import sema.resolve.resolve.ReExport
-import sema.resolve.resolve.enter
-import sema.resolve.resolve.Resolver
+import sema.resolve.ImportUse
+import sema.resolve.ReExport
+import sema.resolve.enter
+import sema.resolve.Resolver
 import sema.resolve.resolve_attributes.warnDeprecated
 import sema.resolve.complete.completeMember
 import sema.resolve.complete.probing

@@ -57,7 +57,7 @@ import sema.check.checkProgram
 import sema.check.type_trace.traceTypes
 import sema.core.program.Program
 import sema.resolve.interface_params.desugarInterfaceParams
-import sema.resolve.resolve.resolveProgram
+import sema.resolve.resolveProgram
 import std.fs
 import std.mem
 import std.os

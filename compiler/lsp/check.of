@@ -14,7 +14,7 @@ import driver.build.modules.Front
 import driver.build.modules.loadProgram
 import sema.check.checkProgram
 import sema.resolve.interface_params.desugarInterfaceParams
-import sema.resolve.resolve.resolveProgram
+import sema.resolve.resolveProgram
 import sema.resolve.trace.Completion
 import sema.resolve.trace.Link
 import std.mem

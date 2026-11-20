@@ -12,8 +12,8 @@ import base.span.Span
 import sema.core.def.DefKind
 import sema.core.def.Local
 import sema.core.def.Res
-import sema.resolve.resolve.Resolver
-import sema.resolve.resolve.constParamsOf
+import sema.resolve.Resolver
+import sema.resolve.constParamsOf
 import sema.resolve.resolve_attributes.warnDeprecated
 import sema.resolve.resolve_import.resolveQualified
 import sema.resolve.trace.traceAt

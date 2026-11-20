@@ -146,8 +146,8 @@ import sema.core.types.STR
 import sema.core.types.U64
 import sema.core.types.UNIT
 import sema.core.types.F64
-import sema.resolve.resolve.findAttribute
-import sema.resolve.resolve.moduleInStd
+import sema.resolve.findAttribute
+import sema.resolve.moduleInStd
 import base.span.Span
 import diag.noSpan
 import syntax.ast.FieldInit

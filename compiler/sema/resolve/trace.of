@@ -14,7 +14,7 @@ import base.span.Span
 import sema.core.def.DefKind
 import sema.core.def.Res
 import sema.core.def.kindName
-import sema.resolve.resolve.Resolver
+import sema.resolve.Resolver
 
 /**
  * A use of a name of the root module and the declaration it stands for.

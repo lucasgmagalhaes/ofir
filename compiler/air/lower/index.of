@@ -89,8 +89,8 @@ import sema.core.program.Program
 import sema.core.types.BOOL
 import sema.core.types.FN_OWNED
 import sema.core.types.UNIT
-import sema.resolve.resolve.findAttribute
-import sema.resolve.resolve.moduleInStd
+import sema.resolve.findAttribute
+import sema.resolve.moduleInStd
 import std.mem
 import syntax.ast.FnDecl
 import syntax.ast.ItemKind

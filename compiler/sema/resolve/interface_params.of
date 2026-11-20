@@ -13,7 +13,7 @@
 import base.intern.Symbol
 import sema.core.def.DefKind
 import sema.core.program.Program
-import sema.resolve.resolve.Resolver
+import sema.resolve.Resolver
 import syntax.ast.FnDecl
 import syntax.ast.Item
 import syntax.ast.ItemKind
