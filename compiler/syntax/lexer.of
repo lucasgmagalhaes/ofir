@@ -13,6 +13,7 @@ import base.span.FileId
 import base.span.Span
 import diag.Diagnostics
 import syntax.cursor.Cursor
+import syntax.cursor.cut
 import syntax.cursor.isDigit
 import syntax.cursor.isLetter
 import syntax.literals.scanByteLiteral
@@ -249,7 +250,7 @@ struct Lexer {
         for !self.cur.atEnd(src) && (isLetter(src[self.cur.pos]) || isDigit(src[self.cur.pos])) {
             self.cur.pos += 1
         }
-        const text = src[start..self.cur.pos]
+        const text = cut(src, start, self.cur.pos)
         if const Option.Some(kind) = self.keywords.get(text) {
             return self.cur.token(*kind, start)
         }
@@ -362,7 +363,7 @@ struct Lexer {
         if end >= src.len() || src[end] != b'}' {
             return false
         }
-        const text = src.slice(self.cur.pos, end).toOwned()
+        const text = cut(src, self.cur.pos, end).toOwned()
         self.cur.pos = end
         self.out.push(self.cur.tokenWith(TokenKind.FormatSpec, start, TokenValue.Str(text)))
         return true
@@ -421,7 +422,7 @@ fn trimmed(src: str, start: int, end: int) str {
     for hi > lo && (src[hi - 1] == b' ' || src[hi - 1] == b'\r') {
         hi -= 1
     }
-    return src.slice(lo, hi)
+    return cut(src, lo, hi)
 }
 
 fn keywordTable() Map<str, TokenKind> {

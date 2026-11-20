@@ -266,6 +266,27 @@ pub fn gitUrl(given: str, base: str) str {
 }
 
 /**
+ * Whether a URL holds a credential (E0925, ADR 0092): a user part with a
+ * password, or any user part of an `http` or `https` URL, which is how a
+ * token is given. Paths and `git@host:repo` hold none.
+ *
+ * @param url a git URL or an index
+ * @returns whether it must be rejected
+ */
+pub fn hasCredential(url: str) bool {
+    const Option.Some(parts) = url.splitOnce("://") else {
+        return false
+    }
+    const (scheme, rest) = parts
+    const end = rest.find("/") ?? rest.len()
+    const authority = rest.slice(0, end)
+    const Option.Some(at) = authority.find("@") else {
+        return false
+    }
+    return authority.slice(0, at).contains(":") || scheme == "http" || scheme == "https"
+}
+
+/**
  * Whether a path in a manifest is absolute: it starts with a separator,
  * or with a drive and a separator (`C:/`, `C:\`).
  *
@@ -503,7 +524,7 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
             if !contains(dirs, overrides[o].dir) {
                 dirs.push(overrides[o].dir.clone())
             }
-        } else if parseRequirement(version).isSome() {
+        } else if parseRequirement(version).isSome() && !hasCredential(index) {
             const url = registrySource(index, key)
             const p = pinOf(r, url)
             if p >= 0 && !contains(dirs, r.pins[p].dir) {
@@ -514,7 +535,8 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
         } else if doc.nodes[member].kind == JsonKind.Object {
             const gitNode = doc.field(member, "git")
             const pathNode = doc.field(member, "path")
-            if gitNode >= 0 && doc.nodes[gitNode].kind == JsonKind.String {
+            const git = gitNode >= 0 && doc.nodes[gitNode].kind == JsonKind.String
+            if git && !hasCredential(doc.nodes[gitNode].text) {
                 const url = gitUrl(doc.nodes[gitNode].text, dir)
                 let rev = doc.text(doc.field(member, "rev"))
                 if rev.len() == 0 {
@@ -527,7 +549,7 @@ fn collectList(doc: &JsonDoc, list: int, dir: str, from: str, index: str, r: &Re
                 needs.push(Need{url, registry: "", key,
                                 version: doc.text(doc.field(member, "version")), rev,
                                 from: from.clone()})
-            } else if pathNode >= 0 && doc.nodes[pathNode].kind == JsonKind.String {
+            } else if !git && pathNode >= 0 && doc.nodes[pathNode].kind == JsonKind.String {
                 const path = gitUrl(doc.nodes[pathNode].text, dir)
                 if !contains(dirs, path) {
                     dirs.push(path)

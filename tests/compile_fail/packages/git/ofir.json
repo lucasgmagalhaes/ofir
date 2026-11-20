@@ -11,5 +11,7 @@
     "both": {"git": "deps/missing.git", "version": "^1", "rev": "main"},   // error[E0910]: the dependency `both` needs one of `version`, `rev` and `branch`
     "neither": {"git": "deps/missing.git"},   // error[E0910]: the dependency `neither` needs one of `version`, `rev` and `branch`
     "number": {"git": 3, "version": "^1"},   // error[E0910]: `git` must be a string
+    "secret": {"git": "https://bot:tok@example.com/x", "version": "^1"},   // error[E0925]: the git URL of `secret` holds a credential
+    "token": {"git": "https://tok@example.com/y", "version": "^1"},   // error[E0925]: the git URL of `token` holds a credential
   },
 }

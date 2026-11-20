@@ -2,11 +2,12 @@
 """Checks the object cache of stage 1 (roadmap 6.6e, ADR 0033).
 
 Builds a program of several modules in a fresh `$OFIR_HOME` and checks
-that: the first build fills the cache; a second build reuses every
-object and the program still runs; a cached object that is not an object
-file is replaced; a cached object that breaks the link is recovered
-from; `--no-cache` leaves the cache alone; `OFIR_CACHE_LIMIT` bounds it;
-and a release build, one unit, is cached as one object.
+that: the first build fills the cache, each object with its SHA-256 in
+`<hash>.sum`; a second build reuses every object and the program still
+runs; a cached object that is not an object file, that does not hash to
+its sum or that has no sum is replaced (ADR 0092); a cached object that
+breaks the link is recovered from; `--no-cache` leaves the cache alone;
+`OFIR_CACHE_LIMIT` bounds it; and a release build, one unit, is cached as one object.
 
 Then it edits a copy of the program and checks that the cache key, the
 unit's text, follows the dependencies: an edit that changes no code
@@ -17,6 +18,7 @@ change compiles its module and the module that uses the type.
 """
 
 import argparse
+import hashlib
 import os
 import shutil
 import subprocess
@@ -35,6 +37,10 @@ EXPECTED = (ROOT / "tests" / "run" / "modules" / "app" / "main.out").read_text()
 def objects(home: Path) -> dict[Path, bytes]:
     """The cached objects and their contents."""
     return {p: p.read_bytes() for p in sorted((home / "cache" / "objects").glob("*/*.o"))}
+
+
+def sum_of(obj: Path) -> Path:
+    return obj.with_suffix(".sum")
 
 
 def build(compiler: str, env: dict[str, str], exe: Path, *flags: str) -> str:
@@ -109,6 +115,8 @@ def main() -> None:
         check(len(first) == 1 if ONE_UNIT else len(first) > 1,
               "the first build caches an object per unit")
         check(not list(home.glob("cache/objects/*/*.tmp")), "no temporary object is left")
+        check(all(sum_of(p).read_text() == hashlib.sha256(data).hexdigest()
+                  for p, data in first.items()), "each object has its SHA-256 in its .sum")
 
         report = build(compiler, env, exe, "--time-passes")
         check(objects(home) == first, "a second build reuses every object")
@@ -122,7 +130,21 @@ def main() -> None:
         build(compiler, env, exe)
         check(objects(home)[bad] == first[bad], "an object that is not one is compiled again")
 
-        bad.write_bytes(b"\x7fELF" + b"\0" * 60)
+        flipped = bytearray(first[bad])
+        flipped[-1] ^= 0xFF
+        bad.write_bytes(bytes(flipped))
+        build(compiler, env, exe)
+        check(objects(home)[bad] == first[bad], "an object that does not hash to its sum is "
+              "compiled again")
+
+        sum_of(bad).unlink()
+        build(compiler, env, exe)
+        check(objects(home)[bad] == first[bad] and sum_of(bad).exists(),
+              "an object without a sum is compiled again")
+
+        fake = b"\x7fELF" + b"\0" * 60
+        bad.write_bytes(fake)
+        sum_of(bad).write_text(hashlib.sha256(fake).hexdigest())
         build(compiler, env, exe)
         check(True, "a link that fails with cached objects is retried without them")
 

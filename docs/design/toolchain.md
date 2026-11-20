@@ -376,6 +376,16 @@ the index's head. When an index is fetched again, a head that does not
 descend from the locked commit means its history was rewritten: E0922,
 until `ofir update --index-reset` accepts it. With `--locked`, the
 releases are read at the locked commit (`tools/check_trust.py`).
+
+A fetched package stays inside its checkout (ADR 0092): a `path`
+dependency, the `build.root` or a `build.native` file of a git or
+registry package that resolves, after symbolic links, outside the
+directory it was checked out into is E0924. Local packages, workspace
+members and overrides are the user's own and have no such bound. A git
+URL with a password (`https://user:secret@host/...`), an `http` or
+`https` URL with any user part, or such an `OFIR_REGISTRY`, is E0925
+before anything is fetched or locked: credentials belong to git's
+credential helpers and SSH keys (`tools/check_build_security.py`).
 The modules of a package are found from the directory of its
 `build.root` (default `src/index.of`), which is the module named like the
 package; a package imports its own modules by their names in it, as a
@@ -760,7 +770,9 @@ once a build passes the limit, the objects used least recently are
 deleted until it holds half. A cached object that is not an ELF, Mach-O
 or COFF object is deleted and compiled again; if the link fails with
 cached objects, their units are compiled again and the link is retried
-once.
+once. Next to each `<hash>.o` is `<hash>.sum`, its SHA-256: an object
+is used only when it hashes to its sum, otherwise both files are deleted
+and the unit is compiled again (ADR 0092, `tools/check_object_cache.py`).
 
 The compiler finds:
 

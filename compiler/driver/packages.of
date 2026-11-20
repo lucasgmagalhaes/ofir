@@ -34,6 +34,7 @@ import driver.resolve.Resolution
 import driver.resolve.failureOf
 import driver.resolve.overrideOf
 import driver.resolve.gitUrl
+import driver.resolve.hasCredential
 import driver.resolve.isAbsolutePath
 import driver.resolve.pinOf
 import driver.resolve.registrySource
@@ -75,6 +76,11 @@ pub struct Package {
     pub lints: List<Lint>
     /** The C files of its manifest's `build.native`, as paths (ADR 0078). */
     pub native: List<str>
+    /**
+     * The checkout of the git or registry pin it was reached from, which
+     * bounds its paths (E0924, ADR 0092); empty for a local package.
+     */
+    pub checkout: str
 }
 
 /**
@@ -135,7 +141,8 @@ pub fn dependencyOf(packages: List<Package>, p: int, key: str) int {
 pub fn readPackages(rootDir: str, hasManifest: bool, mode: &Mode, map: mut SourceMap,
                     diags: mut Diagnostics) List<Package> {
     let packages = [Package{name: "", dir: rootDir.toOwned(), srcDir: rootDir.toOwned(),
-                            rootFile: "", deps: [], lints: [], native: []}]
+                            rootFile: "", deps: [], lints: [], native: [],
+                            checkout: ""}]
     if !hasManifest || !checkToolchain(rootDir, map, diags) {
         return packages
     }
@@ -394,7 +401,8 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
     const (doc, file) = manifest
     const lints = readLints(&doc, file, diags)
     packages[p].lints = lints
-    const native = readNative(&doc, file, dir, diags)
+    const checkout = packages[p].checkout.clone()
+    const native = readNative(&doc, file, dir, checkout, diags)
     packages[p].native = native
     const list = doc.field(0, "dependencies")
     readList(packages, p, &doc, file, list, "dependencies", r, mode, reported, map, diags, out)
@@ -423,8 +431,10 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
 }
 
 // The C files of `build.native`, relative to the manifest's `dir`; each
-// must exist (E0918, ADR 0078).
-fn readNative(doc: &JsonDoc, file: FileId, dir: str, diags: mut Diagnostics) List<str> {
+// must exist (E0918, ADR 0078) and be inside `checkout` when it is not
+// empty (E0924, ADR 0092).
+fn readNative(doc: &JsonDoc, file: FileId, dir: str, checkout: str,
+              diags: mut Diagnostics) List<str> {
     let out: List<str> = []
     const list = doc.at(["build", "native"])
     if list < 0 {
@@ -442,6 +452,10 @@ fn readNative(doc: &JsonDoc, file: FileId, dir: str, diags: mut Diagnostics) Lis
             diags.error("E0918", spanOf(doc, file, item), "a native file must be a `.c` path")
         } else if !fs.exists(path) {
             diags.error("E0918", spanOf(doc, file, item), "cannot find the native file `{path}`")
+        } else if !confined(path, checkout) {
+            diags.error("E0924", spanOf(doc, file, item),
+                        "the native file `{name}` is outside the checkout of a fetched package")
+            diags.note("`{path}` is not inside `{checkout}`")
         } else {
             out.push(path)
         }
@@ -643,13 +657,13 @@ fn dependencyTarget(packages: mut List<Package>, p: int, doc: &JsonDoc, file: Fi
             diags.note("`{dir}` has no `ofir.json`")
             return -1
         }
-        return packageAt(packages, dir, key, at, map, diags)
+        return packageAt(packages, dir, key, at, "", map, diags)
     }
     if registryVersion(doc, member).len() > 0 {
         const Option.Some(dir) = registryTarget(doc, file, member, r, reported, diags) else {
             return -1
         }
-        return packageAt(packages, dir, key, at, map, diags)
+        return packageAt(packages, dir, key, at, canonical(dir), map, diags)
     }
     if doc.nodes[member].kind != JsonKind.Object {
         diags.error("E0910", at, "the dependency `{key}` must be a version or an object")
@@ -664,7 +678,7 @@ fn dependencyTarget(packages: mut List<Package>, p: int, doc: &JsonDoc, file: Fi
             diags.error("E0911", at, "the dependency `{key}` has no `ofir.json`")
             return -1
         }
-        return packageAt(packages, dir, key, at, map, diags)
+        return packageAt(packages, dir, key, at, canonical(dir), map, diags)
     }
     const pathNode = doc.field(member, "path")
     if pathNode < 0 || doc.nodes[pathNode].kind != JsonKind.String {
@@ -679,12 +693,19 @@ fn dependencyTarget(packages: mut List<Package>, p: int, doc: &JsonDoc, file: Fi
         diags.note("no directory `{given}` next to `ofir.json`")
         return -1
     }
+    const checkout = packages[p].checkout.clone()
+    if !confined(dir, checkout) {
+        diags.error("E0924", spanOf(doc, file, pathNode),
+                    "the dependency `{key}` is outside the checkout of a fetched package")
+        diags.note("`{dir}` is not inside `{checkout}`")
+        return -1
+    }
     if !fs.exists("{dir}/ofir.json") {
         diags.error("E0911", spanOf(doc, file, pathNode), "cannot find the dependency `{key}`")
         diags.note("`{given}` has no `ofir.json`")
         return -1
     }
-    return packageAt(packages, dir, key, at, map, diags)
+    return packageAt(packages, dir, key, at, checkout, map, diags)
 }
 
 // The checkout that the git dependency `member` was resolved to.
@@ -694,6 +715,12 @@ fn gitTarget(doc: &JsonDoc, file: FileId, member: int, base: str, r: &Resolution
     const gitNode = doc.field(member, "git")
     if doc.nodes[gitNode].kind != JsonKind.String {
         diags.error("E0910", spanOf(doc, file, gitNode), "`git` must be a string")
+        return Option.None
+    }
+    if hasCredential(doc.nodes[gitNode].text) {
+        const span = spanOf(doc, file, gitNode)
+        diags.error("E0925", span, "the git URL of `{key}` holds a credential")
+        diags.help("remove it from the URL: git gets it from a credential helper or an SSH key")
         return Option.None
     }
     let given = 0
@@ -739,6 +766,14 @@ fn registryTarget(doc: &JsonDoc, file: FileId, member: int, r: &Resolution,
         diags.note("a requirement is `^1.2.3`, `~1.2.3`, `=1.2.3`, `>=1.2.3` or `*`")
         return Option.None
     }
+    if hasCredential(defaultIndex()) {
+        if !isReported(reported, "OFIR_REGISTRY") {
+            reported.push("OFIR_REGISTRY".toOwned())
+            diags.error("E0925", spanOf(doc, file, member), "`OFIR_REGISTRY` holds a credential")
+            diags.help("remove it from the URL and let git supply it: a credential helper")
+        }
+        return Option.None
+    }
     return pinnedDir(doc, file, member, registrySource(defaultIndex(), key), r, reported, diags)
 }
 
@@ -771,26 +806,26 @@ fn isReported(reported: List<str>, url: str) bool {
 }
 
 // The package in the directory `dir`, read if it is new, or -1.
-fn packageAt(packages: mut List<Package>, dir: str, key: str, at: Span, map: mut SourceMap,
-             diags: mut Diagnostics) int {
+fn packageAt(packages: mut List<Package>, dir: str, key: str, at: Span, checkout: str,
+             map: mut SourceMap, diags: mut Diagnostics) int {
     for i in 1..packages.len() {
         if packages[i].dir == dir {
             return i
         }
     }
-    const Option.Some(root) = libraryRoot(dir, key, at, map, diags) else {
+    const Option.Some(root) = libraryRoot(dir, key, at, checkout, map, diags) else {
         return -1
     }
     const slash = lastSlash(root)
     const srcDir = if slash > 0 { root.slice(0, slash).toOwned() } else { dir.clone() }
     const name = uniqueName(packages, key)
     packages.push(Package{name, dir: dir.toOwned(), srcDir, rootFile: root, deps: [],
-                          lints: [], native: []})
+                          lints: [], native: [], checkout: checkout.toOwned()})
     return packages.len() - 1
 }
 
 // The `build.root` file of the library in `dir`.
-fn libraryRoot(dir: str, key: str, at: Span, map: mut SourceMap,
+fn libraryRoot(dir: str, key: str, at: Span, checkout: str, map: mut SourceMap,
                diags: mut Diagnostics) Option<str> {
     const Option.Some(manifest) = readManifest(dir, false, map, diags) else {
         return Option.None
@@ -809,7 +844,28 @@ fn libraryRoot(dir: str, key: str, at: Span, map: mut SourceMap,
         diags.note("no `{root}` in `{dir}`")
         return Option.None
     }
+    if !confined(file, checkout) {
+        diags.error("E0924", at,
+                    "the root file of `{key}` is outside the checkout of a fetched package")
+        diags.note("`{file}` is not inside `{checkout}`")
+        return Option.None
+    }
     return Option.Some(file)
+}
+
+// Whether `path`, after symbolic links, is `checkout` or inside it; always
+// when `checkout` is empty (E0924, ADR 0092).
+fn confined(path: str, checkout: str) bool {
+    if checkout.len() == 0 {
+        return true
+    }
+    const real = canonical(path)
+    return real == checkout || real.startsWith("{checkout}/") || real.startsWith("{checkout}\\")
+}
+
+// `path` with its symbolic links resolved, or itself when it does not exist.
+fn canonical(path: str) str {
+    return fs.canonicalize(path.toOwned()).ok() ?? path.toOwned()
 }
 
 // `key`, or `key_2`, `key_3`... when another package has it.

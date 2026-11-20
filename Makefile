@@ -9,7 +9,7 @@ SAFETY_FLAGS ?=
 BUDGET_FLAGS ?=
 
 .PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-shard-1 \
-	test-shard-2 test-stage0 test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-layers check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist bench bench-programs bench-compare check-budgets clean
+	test-shard-2 test-stage0 test-std test-stage1 compare-stages check-fuzz check-build-security check-format check-fmt-corpus check-codes check-sizes check-layers check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist bench bench-programs bench-compare check-budgets clean
 
 all: stage0 runtime
 
@@ -94,6 +94,12 @@ check-fuzz: stage1
 	$(STAGE_ENV) $(PYTHON) tools/fuzz_frontend.py --compiler $(BUILD)/stage1/ofir$(EXE) --count 100 --seed 2
 	$(STAGE_ENV) $(PYTHON) tools/fuzz_programs.py --compiler $(BUILD)/stage0/ofir$(EXE) \
 	    --stage1 $(BUILD)/stage1/ofir$(EXE) --count 20 --seed 1
+
+# Build security (ADR 0092): budgets for hostile source, paths with shell
+# metacharacters, no shell in the tools, and fetched packages kept in their checkout.
+check-build-security: stage1
+	$(STAGE_ENV) $(PYTHON) tools/check_build_security.py --stage0 $(BUILD)/stage0/ofir \
+	    --compiler $(BUILD)/stage1/ofir
 
 # Stage 1, built once by stage 0 and reused until its inputs change.
 STAGE1_SOURCES := $(shell find compiler std -name '*.of' ! -name '*_test.of' -type f)
@@ -207,7 +213,7 @@ test-cross: stage1
 # (ADR 0091); `test` is defined as both, so a shard can neither add a check
 # that `make test` lacks nor drop one.
 TEST_SHARD_1 = unit runner-selftest check-codes check-sizes check-layers check-docs check-format \
-	check-fmt-corpus test-std compare-stages check-fuzz
+	check-fmt-corpus test-std compare-stages check-fuzz check-build-security
 TEST_SHARD_2 = test-stage1 check-apps verify test-stage0
 
 test: stage0 runtime $(TEST_SHARD_1) $(TEST_SHARD_2)

@@ -5,6 +5,7 @@
 
 import diag.Diagnostics
 import syntax.cursor.Cursor
+import syntax.cursor.cut
 import syntax.cursor.digitValue
 import syntax.cursor.isDigit
 import syntax.cursor.isLetter
@@ -90,7 +91,7 @@ fn floatRest(cur: mut Cursor, src: str, start: int, diags: mut Diagnostics) Toke
         }
         skipDigits(cur, src)
     }
-    const text = src[start..cur.pos].replace("_", "")
+    const text = cut(src, start, cur.pos).replace("_", "")
     const Result.Ok(v) = float.parse(text) else {
         diags.error("E0005", cur.spanFrom(start), "invalid float literal")
         return cur.tokenWith(TokenKind.Float, start, TokenValue.Float(0.0))
@@ -162,7 +163,7 @@ fn copyRun(cur: mut Cursor, src: str, text: mut str) {
     for !cur.atEnd(src) && !isStringSpecial(src[cur.pos]) {
         cur.pos += 1
     }
-    text.push(src[run..cur.pos])
+    text.push(cut(src, run, cur.pos))
 }
 
 fn isStringSpecial(c: u8) bool {
@@ -311,7 +312,7 @@ pub fn scanRawString(cur: mut Cursor, src: str, diags: mut Diagnostics) Token {
     for !cur.atEnd(src) && src[cur.pos] != b'"' && src[cur.pos] != b'\n' {
         cur.pos += 1
     }
-    const text = src[from..cur.pos].toOwned()
+    const text = cut(src, from, cur.pos).toOwned()
     if !cur.eat(src, b'"') {   // from the quote, as stage 0 reports `r` then a string
         diags.error("E0002", cur.spanFrom(start + 1), "unterminated string literal")
     }
@@ -370,7 +371,7 @@ fn skipBlanks(cur: mut Cursor, src: str) {
 // the closing quotes; blank lines may be indented less.
 fn dedent(cur: Cursor, src: str, lines: List<int>, from: int, to: int,
           diags: mut Diagnostics) str {
-    const indent = src[from..to]
+    const indent = cut(src, from, to)
     let out = str.new()
     for i in 0..lines.len() {
         let end = lines[i]
@@ -430,7 +431,7 @@ pub fn scanByteString(cur: mut Cursor, src: str, diags: mut Diagnostics) Token {
                 src[cur.pos] != b'\n' {
                 cur.pos += 1
             }
-            text.push(src[run..cur.pos])
+            text.push(cut(src, run, cur.pos))
             continue
         }
         const escape = cur.pos

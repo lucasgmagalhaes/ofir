@@ -1096,10 +1096,10 @@ fn codegenFlags(opts: &Options) List<str> {
 // Compiles each unit to its object, with at most `-j N` clang processes
 // running, and pushes the objects to `objects`. A unit whose object is in
 // the cache is not compiled, and its index goes to `hits`; another is
-// compiled to a temporary name in the cache and renamed into place. The
-// processes are waited for in the order they started, so their output
-// comes in the order of the units. After a failure no more are started,
-// and the running ones are waited for.
+// compiled to a temporary name in the cache and renamed into place after
+// its checksum (ADR 0092). The processes are waited for in the order they
+// started, so their output comes in the order of the units. After a
+// failure no more are started, and the running ones are waited for.
 fn compileUnits(opts: &Options, clang: str, files: List<str>, cached: List<str>, tag: str,
                 objects: mut List<str>, hits: mut List<int>) bool {
     const jobs = if opts.jobs > 0 { opts.jobs } else { os.cpuCount() }
@@ -1143,7 +1143,8 @@ fn compileUnits(opts: &Options, clang: str, files: List<str>, cached: List<str>,
             if !finishClang(opts, clang, child, false) {
                 ok = false
             } else if k < cached.len() {   // into the cache; the temporary name if that fails
-                if fs.rename(objects[k], cached[k]).isOk() {
+                const summed = object_cache.writeSum(objects[k], cached[k], tag)
+                if summed && fs.rename(objects[k], cached[k]).isOk() {
                     objects[k] = cached[k].clone()
                 }
             }

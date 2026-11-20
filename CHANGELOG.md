@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Build and hosted-tool security (ADR 0092): a fetched package whose
+  path dependency, root or native file leaves its checkout is E0924; a
+  URL holding a credential is E0925; each cached object has a SHA-256
+  sum and is compiled again when it does not match; `make
+  check-build-security` bounds both stages on hostile source.
 - Reliable, fast CI (ADR 0091): `make test` runs as two parallel shards
   per platform and LLVM, superseded pull request runs are cancelled,
   jobs have time limits and a failed job keeps its logs for 14 days. The
@@ -221,6 +226,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Stage 1 no longer panics on a token or a line next to invalid UTF-8; it
+  reports E0001 and E0008 as stage 0 does.
 - The test runners give every test an empty standard input and kill its
   whole process group past a time limit: the `std/io` module example
   waited forever for input when run from a terminal.

@@ -200,6 +200,8 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0921 | a source is not trusted | stage 1 |
 | E0922 | an index's history was rewritten | stage 1 |
 | E0923 | the project needs another toolchain | stage 1 |
+| E0924 | a fetched package reaches outside its checkout | stage 1 |
+| E0925 | a URL holds a credential | stage 1 |
 
 ### Warnings
 
