@@ -12,5 +12,4 @@ module
     param j: Option<Map<str, int>>?
     param k: *u8
     param l: std.io.File
-    param m: dyn Debug
     body
