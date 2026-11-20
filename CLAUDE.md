@@ -14,8 +14,8 @@ with clang.
 - `std/`, `runtime/`, `tests/`, `tools/`, `docs/` (spec, ADRs, roadmap).
 - Manifest: `ofir.json` (JSONC, camelCase keys; ADR 0026).
 - Work follows `docs/roadmap.md`; phase 5 and 6.22 to 6.27 are done (6.27 is
-  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63), 6.29a-h (OFIR-64 to 71), 6.30a-g (OFIR-72 to 78), 6.31a (OFIR-79), 6.31b (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82), 6.31f (OFIR-83), 6.31g (OFIR-84), 6.31h (OFIR-85) and 6.31i (OFIR-86) are done; next: the
-  order of `docs/design/scope.md` (6.32a, then 6.32b).
+  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63), 6.29a-h (OFIR-64 to 71), 6.30a-g (OFIR-72 to 78), 6.31a (OFIR-79), 6.31b (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82), 6.31f (OFIR-83), 6.31g (OFIR-84), 6.31h (OFIR-85), 6.31i (OFIR-86) and 6.32a are done; next:
+  the order of `docs/design/scope.md` (6.32b, then 6.32f).
 
 ## Working rules
 
@@ -58,8 +58,6 @@ build/stage0/ofir build|run|test <file.of> [--emit=tokens|ast|names|types|air|ll
 - `const X = ref.field else { ... }` is E0602: use `match`.
 - `self` is a keyword outside methods: do not use it as a binding name.
 - `u64 as i64` is range checked: use `.wrappingCast<i64>()`.
-- `list[i] = f()` where `f` grows `list` writes into freed memory: compute
-  `f()` into a local first.
 - Lines are at most 100 columns; no single-line block bodies
   (`tools/check_format.py`).
 
