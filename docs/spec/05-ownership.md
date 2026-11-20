@@ -457,4 +457,5 @@ println("{a.owners()} {*b.get()}")   // 2 5
 ```
 
 Stage 1 only: stage 0 cannot clone a generic struct through its `clone`
-method. Arena allocators are **[planned]**.
+method. `std.arena` provides typed `Arena<T>` and checked `Id<T>` handles
+([ADR 0049](../adr/0049-arenas-not-allocator-parameters.md)).

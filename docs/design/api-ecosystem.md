@@ -5,7 +5,8 @@ This is the service-specific subplan of the
 runtime, library and tooling prerequisites are tracked there without duplicating
 implementation tasks. General-purpose readiness also requires non-service workloads.
 
-Status: **proposed backlog**, surveyed against `4b1da75` on 2026-11-04.
+Status: **proposed backlog**, initial survey against `4b1da75` on 2026-11-04;
+API-50–54 added as operational follow-ups on 2026-11-19.
 This is an implementation plan, not a normative standard-library API.
 Module/package names below describe intended homes; none is promised as an
 existing import. Every API task below is **pending**, including extensions
@@ -211,6 +212,20 @@ Logging a request ID alone does not complete metrics or distributed tracing.
 | API-47 | P1 / tooling+P | Publish reproducible framework/driver packages: lockfiles, native-library discovery/linking, licenses, dependency provenance/SBOM and an update/advisory policy. A clean machine can build from the documented toolchain. | 6.5; provider ADRs |
 | API-48 | P1 / P+docs | Deployment lifecycle: separate liveness/readiness/startup checks, graceful drain, bounded shutdown, config/secret injection, non-root/container examples and reverse-proxy trust policy. Rolling restart and database outage scenarios are exercised. | API-07, API-08, API-11, API-19, API-32, API-42, API-43 |
 | API-49 | P0 local / P1 production / example | Reference CRUD service with validation, JSON, filesystem upload, migrations, SQLite locally and PostgreSQL in integration, timestamps, structured logs and documented API. Production variant adds TLS, authz, metrics/traces and shutdown tests; measure it as a whole. | Completion gates below |
+
+### Operational follow-ups — roadmap 6.21a
+
+These tasks add acceptance evidence for production claims. They can be
+implemented independently after the named foundations and do not expand API-F
+or API-L. Select which are required for a particular API-P deployment.
+
+| ID | Priority / home | Deliverable and completion criterion | Dependencies |
+|----|-----------------|--------------------------------------|--------------|
+| API-50 | P1 / tooling+P | Run published client versions against a changed service. Classify wire-format, schema and behavioral breaks; publish a compatibility report and migration path for intentional breaks. | API-24, API-25, API-45, API-49 |
+| API-51 | P1 / tooling+P | Restore a production-shaped backup into a clean environment, apply migrations, verify data integrity and record recovery time. Exercise partial and corrupt backups without modifying the source database. | API-29, API-31, API-33, API-49 |
+| API-52 | P1 / P+docs | Define and test retention/deletion across database, cache, object storage and logs for the reference workload. Verify expiration, deletion propagation and documented exceptions without exposing private data in traces. | API-29, API-36, API-38 when used, API-42, API-49 |
+| API-53 | P1 / P | Rotate database and TLS credentials while requests are in flight. Renew pooled connections and certificates without leaking secrets or dropping accepted requests; record rollback behavior. | API-07, API-11, API-31, API-32, API-48 |
+| API-54 | P1 / P+tooling | Test tenant isolation under load and injected database/cache/trace failures. A tenant cannot read another's data or consume its quotas; logs and traces retain correct tenant context. | API-27, API-28, API-32, API-36 when used, API-44, API-46 |
 
 JSON follows [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html); timestamps
 use [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html), and UUID formats

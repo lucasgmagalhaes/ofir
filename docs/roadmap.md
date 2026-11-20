@@ -283,7 +283,7 @@ closed. These gaps remain:
 | 6.7a6 | Module-level `const X = comptime f()`, of any `comptime` value (E0801 where its value is needed during checking); **done** | S |
 | 6.7a7 | Compile-time heap allocation (`List`, `Map`) inside `comptime` code; **done** | S |
 | 6.7a8 | Faster `comptime` interpreter: the checker and program are passed by reference, not copied on each call (about 6x faster); **done** | S |
-| 6.7b | `comptime for` over keys (spec 16.6) and the standard aliases in `std.core` (16.7), moved from 5.19: it needs 6.7a, mapped and conditional types over type parameters, and type operators that stage 0 can load in `std.core`; done when `merge(base, patch)` is written in Ofir | M |
+| 6.7b | `comptime for` over keys (spec 16.6) and the standard aliases in `std.core` (16.7), moved from 5.19: it needs 6.7a, mapped and conditional types over type parameters, and type operators that stage 0 can load in `std.core`; **done**: `merge(base, patch)` runs with a local alias (6.7b1), and the standard aliases load (6.7b2–3) | M |
 | 6.7b1 | Mapped types over type parameters: `Partial<T>` in a generic signature, `patch[key]` in `comptime for key in keyof T`, inference from an instance; `merge(base, patch)` (spec 16.6) runs with a local alias; **done** | M |
 | 6.7b2 | The standard aliases in `std.core` (spec 16.7): stage 0 loads type operator aliases as opaque (E0901 on use); in an alias body, the using module's private fields are keys too; **done** | S |
 | 6.7b3 | Filters, `Pick`/`Omit` and conditional types over type parameters (`Pick<T, K>`, `Unwrap<T>` in a generic signature); **done** | M |
@@ -294,17 +294,17 @@ closed. These gaps remain:
 | 6.8d | Installing and using Ofir on Windows in the docs (`docs/design/toolchain.md`, README); **done** | S |
 | 6.9 | Scheduled CI job for the auditable bootstrap path: `tools/bootstrap_chain.sh`, weekly; the link from the last release to the current sources waits for the next release; **done** | S |
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |
-| 6.32 | Asserts and `Bencher` in `std.testing`, imported instead of in the prelude (ADR 0036), in the steps below; **done** | M |
-| 6.32a | Design: ADR 0036, spec 7.5, 12.2 and 12.3; **done** | S |
-| 6.32b | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import; **done**: `tests/compile_fail/names/assert_import` | M |
-| 6.32c | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert`; **done** | M |
-| 6.32d | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure; **done**: `tests/run/testing/assert_eq`, `tests/panic/assert_eq` | S |
-| 6.32e | `Bencher` moves to `std.testing`; `ofir bench` no longer adds it to the prelude; **done**: `tests/ofir_bench/sample` imports it | S |
+| 6.7c | Asserts and `Bencher` in `std.testing`, imported instead of in the prelude (ADR 0036), in the steps below; **done** | M |
+| 6.7c1 | Design: ADR 0036, spec 7.5, 12.2 and 12.3; **done** | S |
+| 6.7c2 | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import; **done**: `tests/compile_fail/names/assert_import` | M |
+| 6.7c3 | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert`; **done** | M |
+| 6.7c4 | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure; **done**: `tests/run/testing/assert_eq`, `tests/panic/assert_eq` | S |
+| 6.7c5 | `Bencher` moves to `std.testing`; `ofir bench` no longer adds it to the prelude; **done**: `tests/ofir_bench/sample` imports it | S |
 
 ### API and service ecosystem (proposed)
 
 The [API ecosystem plan](design/api-ecosystem.md) inventories the current
-implementation and defines **49 pending deliverables**, API-01 through API-49,
+implementation and defines **54 pending deliverables**, API-01 through API-54,
 with priorities, dependencies, library/package placement and completion tests.
 The following epics extend phase 6; they are proposed work, not implemented
 features or additional commitments for language version 1.0.
@@ -322,6 +322,7 @@ features or additional commitments for language version 1.0.
 | 6.19 | Structured logs, metrics and distributed traces | API-42 to API-44 | Correlation, redaction, cardinality and bounded exporters tested |
 | 6.20 | API test tools, protocol conformance, fault/load tests and portability | API-45 to API-46 | Reproducible latency/resource results and supported-OS matrix |
 | 6.21 | Package delivery, deployment lifecycle and reference CRUD service | API-47 to API-49 | Clean-machine build plus local and production-example gates |
+| 6.21a | Service compatibility, recovery, data lifecycle, secret rotation and tenant isolation | API-50 to API-54 | Versioned-client, restore and failure-injection evidence |
 
 Recommended progression: **API-F** foundations, **API-L** local REST + SQLite,
 **API-P** production candidate + PostgreSQL/TLS/auth/observability, then **API-X**
@@ -430,7 +431,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.30d | Performance budgets (ADR 0089): `make check-budgets` checks absolute ceilings in `bench/budgets.json` for compiler memory per source byte, warm self-compile and its unit count, the stripped hello world size and startup instructions, and the instructions of the generated programs; cold builds, startup and runtime distributions are reported, and the 3% gate stays | OFIR-75 | **done** |
 | 6.30e | Representative applications (ADR 0090): `apps/` holds a CLI and filesystem utility (`seek`), a C consumer of an Ofir static library (`textstats`) and a concurrent program (`wordfreq`); `make check-apps` builds each with stage 1 in dev and release and checks the output and exit status of every case, as part of `make test`; the compiler stays the largest application and the API service waits for API-49 | OFIR-76 | **done** |
 | 6.30f | Reliable, fast CI (ADR 0091): the test runners give each test an empty stdin and kill its process group past a time limit; a test that fails once and then passes is reported as flaky (log, warning and job summary), never skipped; `make test` is `make test-shard-1` and `make test-shard-2`, which CI runs as parallel jobs on every platform and LLVM; superseded pull request runs are cancelled, jobs have time limits and failed jobs keep `build/logs` for 14 days; CI caches no build output | OFIR-77 | **done** |
-| 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
+| 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | **in progress**: 6.30a–f done; build/hosted-tool security (OFIR-78) remains |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
 | 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | |
@@ -441,6 +442,83 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.32f | `ofir check --fmt`: the files `ofir fmt` would change, as warnings | ADR 0080 | |
 | 6.32g | Contracts: `@requires` and `@ensures` (spec 12.1), `result`, no effects in a condition, checked in debug and test, a profile setting for release; shown by `sig`, `outline` and `ofir doc`; new codes | ADR 0080 | |
 | 6.32h | Effects `io`, `alloc` and `unsafe` over the call graph, per instantiation, every effect through function and interface values; `@effects(...)` bound with a new code; bounds on the public functions of `std` | ADR 0080 | |
+
+### Next language decisions (proposed)
+
+These 20 records are decision and verification tasks, not a new release promise.
+Existing completed work in 6.22–6.30 remains the baseline. Change language
+semantics in `docs/spec` first, record substantial choices in an ADR, and add
+stage parity and negative cases where applicable. Select a release subset only
+after the evidence is available.
+
+| ID | Next step | Completion evidence |
+|----|-----------|---------------------|
+| LANG-01 | Reconcile `feature-states.md`, the conformance matrix and this roadmap against compiler behavior (6.22a/g). | Every disputed feature has one state and a cited test or explicit gap. |
+| LANG-02 | Define the exact 1.0 stability boundary for syntax, semantics, diagnostics, ABI and `std` (ADR 0037). | ADR lists protected contracts, permitted breaks and migration policy. |
+| LANG-03 | Decide whether editions are needed before 1.0 and what they isolate. | ADR specifies defaults, package interaction and upgrade rules, or rejects editions with evidence. |
+| LANG-04 | If editions are accepted, validate manifests and mixed-edition imports. | Unknown edition has a diagnostic; cross-edition fixtures build or fail as specified. |
+| LANG-05 | Resolve pointer provenance and integer/pointer conversions left open by spec 11.6. | Spec and ADR define allowed operations and validity obligations. |
+| LANG-06 | Test the provenance rules on both stages and supported targets. | Positive and negative FFI, aliasing and round-trip fixtures match the rule. |
+| LANG-07 | Resolve weaker atomic orderings and racy reads left open by spec 11.6. | Spec states orderings, data-race behavior and invalid combinations. |
+| LANG-08 | Audit atomic intrinsics and `std.mem.atomic` against that contract (6.24a). | Compile-fail and concurrent tests cover each ordering and operation. |
+| LANG-09 | Choose causal error-chain and context conventions for `std` (API-06). | ADR fixes storage, display, redaction and source propagation. |
+| LANG-10 | Add context operations under those conventions. | API tests preserve original error identity and contextual data. |
+| LANG-11 | Verify error propagation through module and service boundaries. | Cross-module fixtures keep causes and redact sensitive context. |
+| LANG-12 | Decide the layout and constraints of `dyn` for generic interfaces (6.23b). | ADR and spec settle object safety, vtables and ownership, or explicitly defer. |
+| LANG-13 | Implement generic-interface `dyn` only after LANG-12 accepts it. | Both stages or a documented stage boundary pass dispatch and rejection fixtures. |
+| LANG-14 | Define and implement `dyn` upcasts (6.23b). | Ambiguous/diamond cases and owned/borrowed conversions have parity tests. |
+| LANG-15 | Support by-value `@repr(C)` aggregates (6.24j). | C round trips verify arguments, returns, padding and target ABI. |
+| LANG-16 | Evaluate compact enum layout (6.24j). | Layout is specified, parity holds and `make bench-compare` stays within 3%. |
+| LANG-17 | Diagnose common syntax imported from other languages. | Targeted compile-fail cases provide actionable guidance without cascades (6.32b). |
+| LANG-18 | Provide a compact compiler-produced language reference. | Versioned output links syntax and examples to spec sections and diagnostics. |
+| LANG-19 | Measure representative agent coding tasks before and after 6.32. | Record success rate, diagnostic churn and context size on a reproducible corpus. |
+| LANG-20 | Decide `i128`/`u128` from a concrete workload (ADR 0047). | Benchmark and ABI evidence support implementation or continued deferral. |
+
+### Low-level public API follow-ups (proposed)
+
+The [API ecosystem plan](design/api-ecosystem.md) owns service API-01–54.
+The 35 LL records below make its low-level prerequisites and acceptance tests
+explicit. References to 6.24 and 6.30 extend completed foundations; they do
+not reopen those tasks. Group implementation by dependency, beginning with
+memory/ABI, then I/O and OS handles, then networking and concurrency.
+
+| ID | Next step | Completion evidence / existing owner |
+|----|-----------|--------------------------------------|
+| LL-01 | Specify pointer provenance for unsafe memory and FFI. | LANG-05/06; spec 11.6 and cross-target fixtures. |
+| LL-02 | Reconcile atomic orderings with current intrinsics. | LANG-07/08; operation/order matrix and race tests. |
+| LL-03 | Complete array and `@repr(C)` globals in both stages. | 6.24a; initialization, linkage and C fixtures. |
+| LL-04 | Pass `@repr(C)` aggregates by value. | LANG-15; C arguments and returns on each supported ABI. |
+| LL-05 | Define an owned wrapper for foreign pointer, length and release function. | Drop-once, null/length and callback failure tests. |
+| LL-06 | Distinguish owned, borrowed and C-filled byte buffers. | No double-free or stale view across resize and FFI calls. |
+| LL-07 | Publish size, alignment and layout verification per target. | Extend 6.24j fixtures with target matrix and nested aggregates. |
+| LL-08 | Revisit fallible allocation only for a measured workload. | ADR 0048/0049 decision and failure-path tests; no implicit allocator parameters. |
+| LL-09 | Preserve native OS error code, category and context. | API-06; I/O failures round trip without losing errno/Win32 code. |
+| LL-10 | Define `Reader`/`Writer` and partial-operation contracts. | API-01; short reads/writes, EOF and interruption tested. |
+| LL-11 | Add an owned `fs.File` handle. | API-02; close/drop, seek and error paths tested. |
+| LL-12 | Specify open flags, create/truncate/append and permissions. | API-02; platform-specific behavior documented and tested. |
+| LL-13 | Add `readExact`, `writeAll` and bounded copy. | API-01; partial progress, EOF and cancellation cases. |
+| LL-14 | Add buffered readers and writers. | API-01; flush, drop and bounded-memory behavior tested. |
+| LL-15 | Expose stdout/stderr as writer handles. | API-01; redirection, flush and closed-pipe errors tested. |
+| LL-16 | Add temporary files and atomic replacement. | API-02; cleanup and crash-safe replacement policy tested. |
+| LL-17 | Expose metadata and permissions. | API-02; timestamps, file kinds and unsupported features explicit. |
+| LL-18 | Define directory streaming and symlink containment. | API-02; traversal, cycles and path escape tested. |
+| LL-19 | Add a process builder for arguments, environment and cwd. | Handle lifetime, quoting and environment inheritance tested. |
+| LL-20 | Support child stdin/stdout/stderr pipes. | Large output and closed-pipe cases avoid temp-file capture. |
+| LL-21 | Define child wait, timeout, kill and reap semantics. | No zombie or leaked handles after cancel/timeout. |
+| LL-22 | Expose typed `Duration`/`Instant` and injectable clocks. | API-03; timeout logic survives wall-clock changes. |
+| LL-23 | Handle signals and graceful shutdown. | API-08; bounded drain and repeated-signal policy tested. |
+| LL-24 | Expose OS cryptographic entropy with fallible errors. | API-09; failure and deterministic-test-provider cases. |
+| LL-25 | Define IPv4/IPv6 address and endpoint types. | API-10; parse, format and scope cases tested. |
+| LL-26 | Add DNS resolution with bounds and cancellation. | API-10; timeout, multi-address and resolver-failure tests. |
+| LL-27 | Add TCP listener/stream with half-close and deadlines. | API-10; partial operations and backpressure tested. |
+| LL-28 | Add UDP and local sockets where supported. | API-10; datagram boundaries and platform matrix tested. |
+| LL-29 | Apply deadlines/cancellation consistently to blocking I/O. | API-01/08/10; blocked operations release resources promptly. |
+| LL-30 | Provide a bounded worker pool for blocking service work. | API-12; queue saturation and shutdown tests. |
+| LL-31 | Specify cancellation between tasks and blocked OS calls. | API-08/12; no false promise of forced thread termination. |
+| LL-32 | Maintain an OS/architecture capability matrix. | API-46; Linux, macOS and Windows support claims verified. |
+| LL-33 | Extend fault injection to new handle, socket and process APIs. | Build on completed 6.30c; failures clean up all resources. |
+| LL-34 | Extend sanitizer and concurrency stress cases to new APIs. | Build on completed 6.30c; no race, leak or double close. |
+| LL-35 | Set resource budgets for new streams, sockets and workers. | Build on completed 6.30d; file descriptors, memory and queues stay bounded. |
 
 Keep stage 0 minimal. GUI, scientific computing, mobile, embedded, WebAssembly,
 alternative backends and async require separate workload and maintenance
@@ -460,17 +538,21 @@ boundaries; coverage epics must be split into small implementation PRs.
 
 These do not block Phases 0–4 and will be settled with an ADR when needed:
 
-1. Lazy iterator chains (`list.iter().map(f).filter(g)`) versus eager
-   `List.map`/`filter` only (before task 5.8).
+1. ~~Lazy iterator chains versus eager iteration.~~ Settled (ADR 0040): std
+   uses loops and `List.drain()`; user types may provide adapters.
 2. ~~More patterns: strings, `name @ pattern` bindings.~~ Settled (ADR 0043);
    slice patterns (`[first, ..rest]`) wait for a use case (ADR 0045).
 3. ~~Labeled `break`/`continue` (task 6.7).~~ Settled: `name: for`, as in Go and Zig.
 4. Error handling conventions: error context and cause chains in `std`.
 5. 128-bit integers.
 6. The M:N scheduler for lightweight tasks (ADR 0027): task stacks, non-blocking I/O, blocking C calls.
-7. Packages: registry hosting, versioning, `pub import` re-exports.
-8. Custom allocators and arenas in `std`.
-9. Advanced FFI: callbacks from C, variadic C functions, `union`.
+7. ~~Registry, versioning and `pub import` re-exports.~~ Settled by 6.23m,
+   6.5 and 6.29d (ADRs 0046 and 0079); an official hosted index is separate
+   ecosystem work.
+8. ~~Custom allocators and arenas in `std`.~~ `std.arena` is available;
+   allocator parameters were rejected until a workload needs them (ADR 0049).
+9. ~~Callbacks from C.~~ Implemented (6.27a, ADR 0063); variadic C calls and
+   `union` types remain unsupported and need a workload and ADR.
 10. ~~Stability policy~~ Settled before 1.0 (ADR 0037); the 1.0 promise and editions stay open.
 11. Final project name and repository rename (risk R9).
 
@@ -488,5 +570,11 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
    Select optional adapters and domain ecosystems by concrete demand and ownership.
 4. Code written by agents (6.32, ADR 0080): start with 6.32a and 6.32b,
    then the query commands (6.32c, 6.32d) before edits, contracts and effects.
+5. Reconcile language states (LANG-01) and decide stability, editions, pointer
+   provenance and atomic semantics (LANG-02–08) before implementing dependent
+   features; use measured workloads for LANG-16, LANG-19 and LANG-20.
+6. Implement the low-level API in dependency order: memory/ABI (LL-01–09),
+   streams/files/processes/time (LL-10–24), then networking, workers and
+   portability (LL-25–35). Add API-50–54 to production readiness reviews.
 
 See also the [risk register](risks.md).
