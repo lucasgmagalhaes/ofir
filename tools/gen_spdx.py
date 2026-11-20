@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes compiler/driver/spdx_list.of from the SPDX license list.
+"""Writes compiler/driver/pkg/spdx_list.of from the SPDX license list.
 
 The list is data embedded in the compiler (ADR 0081) and updated by hand:
 download `json/licenses.json` and `json/exceptions.json` of a release of
@@ -13,7 +13,7 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUT = ROOT / "compiler" / "driver" / "spdx_list.of"
+OUT = ROOT / "compiler" / "driver" / "pkg" / "spdx_list.of"
 
 
 def items(ids, indent):

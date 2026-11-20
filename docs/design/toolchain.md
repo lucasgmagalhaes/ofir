@@ -328,7 +328,7 @@ A manifest's `license` is an SPDX license expression (ADR 0081):
 identifiers of the SPDX license list, written as the list writes them,
 combined with `AND`, `OR`, `WITH` an exception and parentheses, a `+`
 after a license, or `LicenseRef-<id>`; anything else is E0910. The list
-is embedded in the compiler (`compiler/driver/spdx_list.of`, written by
+is embedded in the compiler (`compiler/driver/pkg/spdx_list.of`, written by
 `tools/gen_spdx.py`). A package without a `license` cannot be published
 (E0919), and its index line records it as `"license"`.
 
