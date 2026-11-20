@@ -15,6 +15,14 @@ struct Box<T> {
     v: T,
 }
 
+const N: int = 3
+
+fn q(_a: [int; N]) {   // error[E0901]: array lengths other than integer literals are not supported yet
+}
+
+fn r(_a: &mut [int]) {   // error[E0901]: mutable slices `&mut [T]` are not supported yet
+}
+
 enum Shape {
     Dot,
 }
