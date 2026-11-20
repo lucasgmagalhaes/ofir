@@ -91,13 +91,13 @@ import sema.core.types.FN_OWNED
 import sema.core.types.UNIT
 import sema.resolve.resolve.findAttribute
 import sema.resolve.resolve.moduleInStd
-import syntax.ast.FnDecl
-import syntax.ast.ItemKind
 import std.mem
-import syntax.ast.Mode
-import syntax.ast.Op
-import syntax.ast.Pattern
-import syntax.ast.TypeKind
+import syntax.ast.ast.FnDecl
+import syntax.ast.ast.ItemKind
+import syntax.ast.ast.Mode
+import syntax.ast.ast.Op
+import syntax.ast.ast.Pattern
+import syntax.ast.ast.TypeKind
 
 /** Where `break` and `continue` go in a loop. */
 pub copy struct LoopTarget {

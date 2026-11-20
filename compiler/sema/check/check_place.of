@@ -16,9 +16,9 @@ import sema.core.program.Program
 import sema.core.types.ERROR
 import sema.core.types.STR
 import sema.core.types.TyKind
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.Op
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.Op
 
 /**
  * The root of a place: the variable of `p.pos.x`, an explicit `*p`, or a

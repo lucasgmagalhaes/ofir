@@ -8,10 +8,10 @@ import sema.check.check.Checker
 import sema.core.program.Program
 import sema.resolve.resolve.Resolver
 import sema.resolve.resolve.findAttribute
-import syntax.ast.Attribute
-import syntax.ast.ExprKind
-import syntax.ast.FnDecl
-import syntax.ast.ItemKind
+import syntax.ast.ast.Attribute
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.FnDecl
+import syntax.ast.ast.ItemKind
 
 // The string argument of the attribute `name`, if the list has it.
 fn stringArg(r: Resolver, attributes: List<Attribute>, name: str) Option<str> {

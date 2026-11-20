@@ -12,9 +12,9 @@ import sema.check.check.skippedTest
 import sema.check.const_eval.ConstKind
 import sema.check.const_eval.ConstValue
 import sema.core.program.Program
-import syntax.ast.FnDecl
-import syntax.ast.Item
-import syntax.ast.ItemKind
+import syntax.ast.ast.FnDecl
+import syntax.ast.ast.Item
+import syntax.ast.ast.ItemKind
 
 fn valueText(c: Checker, v: &ConstValue) str {
     return match v.kind {

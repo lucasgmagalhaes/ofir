@@ -5,22 +5,22 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.Block
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.ForKind
-import syntax.ast.Op
-import syntax.ast.Stmt
-import syntax.ast.StmtKind
-import syntax.ast.TypeExpr
-import syntax.parse_control.parseBlock
-import syntax.parse_exprs.newExpr
-import syntax.parse_exprs.parseExpr
-import syntax.parse_exprs.parseExprNoStruct
-import syntax.parse_patterns.parsePattern
-import syntax.parse_types.parseType
-import syntax.parser.Parser
-import syntax.token.TokenKind
+import syntax.ast.ast.Block
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.ForKind
+import syntax.ast.ast.Op
+import syntax.ast.ast.Stmt
+import syntax.ast.ast.StmtKind
+import syntax.ast.ast.TypeExpr
+import syntax.lex.token.TokenKind
+import syntax.parse.parse_control.parseBlock
+import syntax.parse.parse_exprs.newExpr
+import syntax.parse.parse_exprs.parseExpr
+import syntax.parse.parse_exprs.parseExprNoStruct
+import syntax.parse.parse_patterns.parsePattern
+import syntax.parse.parse_types.parseType
+import syntax.parse.parser.Parser
 
 fn newStmt(p: mut Parser, kind: move StmtKind, start: Span) Stmt {
     return Stmt{id: p.newId(), kind, span: p.spanSince(start), label: Option.None}

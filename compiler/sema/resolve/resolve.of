@@ -27,15 +27,15 @@ import sema.resolve.resolve_import.bindReexports
 import sema.resolve.resolve_import.importPrelude
 import sema.resolve.resolve_import.resolveImport
 import sema.resolve.trace.Trace
-import syntax.ast.Attribute
-import syntax.ast.ExprKind
-import syntax.ast.FnDecl
-import syntax.ast.Item
-import syntax.ast.ItemKind
-import syntax.ast.Mode
-import syntax.ast.TypeExpr
-import syntax.ast.TypeKind
-import syntax.ast.WherePred
+import syntax.ast.ast.Attribute
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.FnDecl
+import syntax.ast.ast.Item
+import syntax.ast.ast.ItemKind
+import syntax.ast.ast.Mode
+import syntax.ast.ast.TypeExpr
+import syntax.ast.ast.TypeKind
+import syntax.ast.ast.WherePred
 
 /**
  * What the resolver found in one module, by `NodeId`.

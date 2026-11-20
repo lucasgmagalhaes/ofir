@@ -2,18 +2,18 @@
  * @module
  * Operator expressions: precedence climbing over the table of spec 4.8
  * (stage 0: bootstrap/src/syntax/parse_exprs.c). Primary and postfix
- * expressions are in `syntax.parse_primary`.
+ * expressions are in `syntax.parse.parse_primary`.
  */
 
 import base.span.Span
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.Op
-import syntax.parse_primary.parsePostfix
-import syntax.parse_primary.parsePrimary
-import syntax.parse_types.parseSimpleType
-import syntax.parser.Parser
-import syntax.token.TokenKind
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.Op
+import syntax.lex.token.TokenKind
+import syntax.parse.parse_primary.parsePostfix
+import syntax.parse.parse_primary.parsePrimary
+import syntax.parse.parse_types.parseSimpleType
+import syntax.parse.parser.Parser
 
 /**
  * An expression node from `start` to the previous token.

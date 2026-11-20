@@ -19,9 +19,9 @@ import fmt.blocks.brokenBlocks
 import fmt.layout.layout
 import fmt.units.units
 import std.fs
-import syntax.lexer.tokenize
-import syntax.parser.parse
-import syntax.token.TokenKind
+import syntax.lex.lexer.tokenize
+import syntax.lex.token.TokenKind
+import syntax.parse.parser.parse
 
 /**
  * The formatted text of a file.

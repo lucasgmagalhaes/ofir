@@ -630,7 +630,7 @@ fn isModuleName(key: str) bool {
     return !isKeyword(key)
 }
 
-// The reserved keywords (`syntax.lexer`).
+// The reserved keywords (`syntax.lex.lexer`).
 fn isKeyword(word: str) bool {
     const words = ["as", "break", "const", "continue", "copy", "dyn", "else", "enum", "extern",
                    "false", "fn", "for", "if", "import", "in", "interface", "let", "match", "mut",

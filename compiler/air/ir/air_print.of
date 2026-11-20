@@ -25,7 +25,7 @@ import air.ir.air.runtimeName
 import base.float_text.formatG
 import sema.check.check.Checker
 import sema.core.types.UNIT
-import syntax.ast.Op
+import syntax.ast.ast.Op
 
 fn opName(op: Op) str {
     return match op {

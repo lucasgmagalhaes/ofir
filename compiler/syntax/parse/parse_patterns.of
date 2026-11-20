@@ -5,14 +5,14 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.FieldPattern
-import syntax.ast.Pattern
-import syntax.ast.PatternKind
-import syntax.parse_primary.atLiteral
-import syntax.parse_primary.parseLiteral
-import syntax.parse_types.parseSimpleType
-import syntax.parser.Parser
-import syntax.token.TokenKind
+import syntax.ast.ast.FieldPattern
+import syntax.ast.ast.Pattern
+import syntax.ast.ast.PatternKind
+import syntax.lex.token.TokenKind
+import syntax.parse.parse_primary.atLiteral
+import syntax.parse.parse_primary.parseLiteral
+import syntax.parse.parse_types.parseSimpleType
+import syntax.parse.parser.Parser
 
 fn newPattern(p: mut Parser, kind: move PatternKind, start: Span) Pattern {
     return Pattern{id: p.newId(), kind, span: p.spanSince(start)}

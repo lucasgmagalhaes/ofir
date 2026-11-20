@@ -34,6 +34,8 @@ LAYERS.update({
 INNER = {
     "driver/pkg": ["driver.pkg.", "driver.version"],
     "driver/build": ["driver.pkg.", "driver.build.", "driver.version"],
+    "syntax/lex": ["syntax.lex."],
+    "syntax/ast": ["syntax.lex.", "syntax.ast."],
     "sema/core": ["sema.core."],
     "sema/resolve": ["sema.core.", "sema.resolve."],
     "air/ir": ["air.ir."],

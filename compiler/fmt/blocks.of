@@ -11,7 +11,7 @@
 
 import fmt.units.Unit
 import fmt.units.UnitKind
-import syntax.token.TokenKind
+import syntax.lex.token.TokenKind
 
 /**
  * The units that must start a line because they open or close the body of

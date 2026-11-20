@@ -6,17 +6,17 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.Mode
-import syntax.ast.Op
-import syntax.ast.TypeExpr
-import syntax.ast.TypeKind
-import syntax.ast.WherePred
-import syntax.parse_exprs.parseExpr
-import syntax.parser.Parser
-import syntax.parser.symbolOf
-import syntax.parser.textOf
-import syntax.token.TokenKind
-import syntax.token.TokenValue
+import syntax.ast.ast.Mode
+import syntax.ast.ast.Op
+import syntax.ast.ast.TypeExpr
+import syntax.ast.ast.TypeKind
+import syntax.ast.ast.WherePred
+import syntax.lex.token.TokenKind
+import syntax.lex.token.TokenValue
+import syntax.parse.parse_exprs.parseExpr
+import syntax.parse.parser.Parser
+import syntax.parse.parser.symbolOf
+import syntax.parse.parser.textOf
 
 fn newType(p: Parser, kind: move TypeKind, start: Span) TypeExpr {
     return TypeExpr{kind, span: p.spanSince(start)}

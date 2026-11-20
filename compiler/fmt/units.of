@@ -8,8 +8,8 @@
  * formatter reads the line breaks from the source instead.
  */
 
-import syntax.token.Token
-import syntax.token.TokenKind
+import syntax.lex.token.Token
+import syntax.lex.token.TokenKind
 
 /** What a unit is. */
 pub copy enum UnitKind {

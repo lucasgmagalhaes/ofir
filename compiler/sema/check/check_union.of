@@ -14,7 +14,7 @@ import sema.core.def.Def
 import sema.core.def.DefKind
 import sema.core.types.ERROR
 import sema.core.types.TyKind
-import syntax.ast.Expr
+import syntax.ast.ast.Expr
 
 /**
  * `A | B` between types other than keys: the union of their members.

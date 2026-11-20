@@ -29,6 +29,9 @@ in this list, and `make check-layers` enforces it.
 | `base/` | spans, interning, index vectors, number text, JSON, SHA-256 | — |
 | `diag/` | diagnostics | `base` |
 | `syntax/` | the lexer, the parser and the AST | `base`, `diag` |
+| `syntax/lex/` | tokens, the lexer, literals and format specifiers | `syntax/lex` |
+| `syntax/ast/` | the AST and its printers | `syntax/lex` |
+| `syntax/parse/` | the parser | `syntax/lex`, `syntax/ast` |
 | `sema/` | the resolver, the type checker and the move analysis | the above |
 | `sema/core/` | definitions, the program, scopes and types | `sema/core` |
 | `sema/resolve/` | name resolution, completion and suggestions | `sema/core` |

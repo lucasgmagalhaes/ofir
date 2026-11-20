@@ -2,33 +2,33 @@
  * @module
  * Primary and postfix expressions: literals, names, aggregates, calls,
  * indexing and field access (stage 0: bootstrap/src/syntax/parse_primary.c).
- * Control flow expressions are in `syntax.parse_control`.
+ * Control flow expressions are in `syntax.parse.parse_control`.
  */
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.Arg
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.FieldInit
-import syntax.ast.Mode
-import syntax.ast.Op
-import syntax.ast.Param
-import syntax.ast.TypeExpr
-import syntax.ast.TypeKind
-import syntax.cursor.cut
-import syntax.parse_control.parseControl
-import syntax.parse_exprs.newExpr
-import syntax.parse_exprs.parseExpr
-import syntax.parse_types.parseMode
-import syntax.parse_types.parseType
-import syntax.parse_types.parseTypeArgs
-import syntax.parser.Parser
-import syntax.parser.symbolOf
-import syntax.parser.textOf
-import syntax.token.TokenKind
-import syntax.token.TokenValue
-import syntax.token.TokenValue
+import syntax.ast.ast.Arg
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.FieldInit
+import syntax.ast.ast.Mode
+import syntax.ast.ast.Op
+import syntax.ast.ast.Param
+import syntax.ast.ast.TypeExpr
+import syntax.ast.ast.TypeKind
+import syntax.lex.cursor.cut
+import syntax.lex.token.TokenKind
+import syntax.lex.token.TokenValue
+import syntax.lex.token.TokenValue
+import syntax.parse.parse_control.parseControl
+import syntax.parse.parse_exprs.newExpr
+import syntax.parse.parse_exprs.parseExpr
+import syntax.parse.parse_types.parseMode
+import syntax.parse.parse_types.parseType
+import syntax.parse.parse_types.parseTypeArgs
+import syntax.parse.parser.Parser
+import syntax.parse.parser.symbolOf
+import syntax.parse.parser.textOf
 
 // ---------------------------------------------------------------------------
 // Literals

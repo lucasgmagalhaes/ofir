@@ -6,29 +6,29 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.Attribute
-import syntax.ast.Block
-import syntax.ast.Expr
-import syntax.ast.ExprKind
-import syntax.ast.FnDecl
-import syntax.ast.Item
-import syntax.ast.ItemKind
-import syntax.ast.Stmt
-import syntax.ast.TypeExpr
-import syntax.ast.TypeKind
-import syntax.ast.WherePred
-import syntax.parse_decls.parseEnum
-import syntax.parse_decls.parseFn
-import syntax.parse_decls.parseInterface
-import syntax.parse_decls.parseStruct
-import syntax.parse_exprs.parseExpr
-import syntax.parse_stmts.parseStmt
-import syntax.parse_types.parseType
-import syntax.parse_types.parseTypeParams
-import syntax.parser.Parser
-import syntax.parser.textOf
+import syntax.ast.ast.Attribute
+import syntax.ast.ast.Block
+import syntax.ast.ast.Expr
+import syntax.ast.ast.ExprKind
+import syntax.ast.ast.FnDecl
+import syntax.ast.ast.Item
+import syntax.ast.ast.ItemKind
+import syntax.ast.ast.Stmt
+import syntax.ast.ast.TypeExpr
+import syntax.ast.ast.TypeKind
+import syntax.ast.ast.WherePred
+import syntax.lex.token.TokenKind
 import std.mem
-import syntax.token.TokenKind
+import syntax.parse.parse_decls.parseEnum
+import syntax.parse.parse_decls.parseFn
+import syntax.parse.parse_decls.parseInterface
+import syntax.parse.parse_decls.parseStruct
+import syntax.parse.parse_exprs.parseExpr
+import syntax.parse.parse_stmts.parseStmt
+import syntax.parse.parse_types.parseType
+import syntax.parse.parse_types.parseTypeParams
+import syntax.parse.parser.Parser
+import syntax.parse.parser.textOf
 
 /**
  * The attributes and the `pub` before a declaration.
