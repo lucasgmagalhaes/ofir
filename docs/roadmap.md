@@ -568,8 +568,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Follow the order of [scope and capacity](design/scope.md): 6.24a, then
-   6.32a and 6.32b. Every OFIR record (OFIR-01 to OFIR-86) has a decision;
+1. Follow the order of [scope and capacity](design/scope.md): 6.32a, then
+   6.32b; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
    6.31c holds the rest of OFIR-80.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
