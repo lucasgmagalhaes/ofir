@@ -63,7 +63,7 @@ static bool module_file(Loader *ld, StrView name, char out[PATH_SIZE]) {
     static const char *const FORMS[] = {"%s/%s.of", "%s/%s/index.of"};
     for (size_t i = 0; i < ARRAY_LEN(FORMS); i++) {
         int n = snprintf(out, PATH_SIZE, FORMS[i], dir, relative);
-        if (n > 0 && n < PATH_SIZE && access(out, R_OK) == 0) {
+        if (n > 0 && n < PATH_SIZE && source_is_file(out)) {
             return true;
         }
     }

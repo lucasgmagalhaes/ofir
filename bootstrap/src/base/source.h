@@ -48,6 +48,9 @@ FileId source_map_add(SourceMap *map, StrView path, StrView text);
 // Reads a file from disk. Returns false and leaves *out untouched on error.
 bool source_map_load(SourceMap *map, const char *path, FileId *out);
 
+// Whether `path` names a regular file that can be read (not a directory).
+bool source_is_file(const char *path);
+
 const SourceFile *source_file(const SourceMap *map, FileId id);
 
 // Sets the logical path of a file (copied into the arena).
