@@ -130,7 +130,7 @@ static int compare(Eval *ev, ConstValue a, ConstValue b) {
         return order ? order : (a.s.len > b.s.len) - (a.s.len < b.s.len);
     }
     }
-    return 0;
+    return 0;   // GCOVR_EXCL_LINE: the switch covers every value kind
 }
 
 static bool comparison(Eval *ev, Op op, ConstValue a, ConstValue b, ConstValue *out) {
