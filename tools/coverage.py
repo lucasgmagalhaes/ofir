@@ -18,7 +18,13 @@ gcovr then writes a Cobertura report per stage, which CI uploads to
 Codecov with the flags `stage0`, `stage1`, `runtime` and `std` (codecov.yml), and a JSON
 summary. Needs gcc, gcovr, `llvm-cov` and clang's profile runtime.
 
+`--check` reads those reports and fails when a directory's line coverage
+is below its floor in `tools/coverage_floors.json`, or when an exclusion
+marker gives no reason; `--update-floors` raises the floors to the
+current coverage. Neither measures: run them after a measurement.
+
     python3 tools/coverage.py [--only stage0|stage1|programs] [--out build/coverage]
+    python3 tools/coverage.py --check | --update-floors [--out build/coverage]
 """
 
 import argparse
@@ -28,6 +34,7 @@ import re
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -174,11 +181,115 @@ def report(name, gcovr, cwd, prefix, out):
             f"branches {data['branch_percent']}%")
 
 
+FLOORS = ROOT / "tools" / "coverage_floors.json"
+REPORTS = ("stage0", "stage1", "runtime", "std")
+# A file is counted in the directory one level under its root; a file in
+# the root itself is counted in the root.
+ROOTS = ("bootstrap/src/", "compiler/", "runtime/src/", "std/")
+MARKER = re.compile(r"GCOVR_EXCL_(LINE|START|BR_LINE|BR_START)\b(.*)")
+SOURCES = ("bootstrap/src", "compiler", "runtime/src", "std")
+# The machines that measure differ in compiler versions, which count a few
+# lines differently; a floor is missed only by more than this.
+TOLERANCE = 0.5
+
+
+def directory(filename):
+    for root in ROOTS:
+        if filename.startswith(root):
+            rest = filename[len(root):]
+            return root + rest.split("/", 1)[0] if "/" in rest else root.rstrip("/")
+    return None
+
+
+def measured(out):
+    """Line coverage per directory: {report: {directory: (covered, total)}}."""
+    result = {}
+    for name in REPORTS:
+        xml = out / f"{name}.xml"
+        if not xml.exists():
+            sys.exit(f"coverage: {xml} is missing; run `make coverage` first")
+        dirs = {}
+        for cls in ET.parse(xml).iter("class"):
+            group = directory(cls.get("filename"))
+            lines = cls.find("lines")
+            if group is None or lines is None:
+                continue
+            covered, total = dirs.get(group, (0, 0))
+            for line in lines.iter("line"):
+                total += 1
+                covered += int(line.get("hits", "0")) > 0
+            dirs[group] = (covered, total)
+        result[name] = dirs
+    return result
+
+
+def percent(covered, total):
+    # Rounded down, so that a floor written from it is never above it.
+    return int(1000 * covered / total) / 10 if total else 100.0
+
+
+def exclusions():
+    """Each exclusion marker says why: `GCOVR_EXCL_LINE: <reason>`."""
+    errors = []
+    for top in SOURCES:
+        for path in sorted((ROOT / top).rglob("*")):
+            if path.suffix not in (".c", ".h", ".of") or not path.is_file():
+                continue
+            for number, text in enumerate(path.read_text(errors="replace").splitlines(), 1):
+                match = MARKER.search(text)
+                if match and not re.match(r":\s*\S", match.group(2)):
+                    rel = path.relative_to(ROOT)
+                    errors.append(f"{rel}:{number}: GCOVR_EXCL_{match.group(1)} gives no reason")
+    return errors
+
+
+def check(out):
+    floors = json.loads(FLOORS.read_text())
+    errors = exclusions()
+    raised = []
+    for name, dirs in measured(out).items():
+        for group, (covered, total) in sorted(dirs.items()):
+            now = percent(covered, total)
+            floor = floors.get(name, {}).get(group)
+            if floor is None:
+                errors.append(f"{name} {group}: no floor (run --update-floors)")
+            elif now < floor - TOLERANCE:
+                errors.append(f"{name} {group}: lines {now}% is below the floor {floor}%")
+            elif now > floor + TOLERANCE:
+                raised.append(f"{name} {group}: {floor}% -> {now}%")
+    if raised:
+        print("coverage: floors that can be raised (--update-floors):")
+        print("\n".join(f"  {line}" for line in raised))
+    for error in errors:
+        print(f"coverage: {error}")
+    print(f"coverage: {len(errors)} errors")
+    return 1 if errors else 0
+
+
+def update_floors(out):
+    """The floors become the current coverage, but never go down."""
+    floors = json.loads(FLOORS.read_text()) if FLOORS.exists() else {}
+    for name, dirs in measured(out).items():
+        old = floors.get(name, {})
+        floors[name] = {group: max(old.get(group, 0.0), percent(*counts))
+                        for group, counts in sorted(dirs.items())}
+    FLOORS.write_text(json.dumps(floors, indent=2) + "\n")
+    print(f"coverage: wrote {FLOORS.relative_to(ROOT)}")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", choices=["stage0", "stage1", "programs"])
     parser.add_argument("--out", type=Path, default=BUILD / "coverage")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="check the floors and exclusions")
+    mode.add_argument("--update-floors", action="store_true", help="raise the floors")
     opts = parser.parse_args()
+    if opts.check:
+        sys.exit(check(opts.out.resolve()))
+    if opts.update_floors:
+        sys.exit(update_floors(opts.out.resolve()))
     if shutil.which("gcovr") is None:
         sys.exit("coverage: gcovr not found (pip install gcovr)")
     run(["make", "-s", "stage1", "runtime"])
