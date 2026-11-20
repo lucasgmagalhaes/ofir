@@ -1,0 +1,9 @@
+// Unit values compare equal (spec 2.2): `()` has a single value.
+
+fn unit() {
+}
+
+fn main() {
+    const u = unit()
+    println("{u == ()} {u != ()} {() == u}")
+}
