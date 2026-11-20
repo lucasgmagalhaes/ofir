@@ -145,7 +145,8 @@ which drives it with a fake compiler (`make runner-selftest`).
 | `make check-asan` | the same programs and `tests/panic`, with the generated code (clang `-fsanitize=address`) and the runtime (ASan + UBSan) instrumented, linked by gcc; outputs must still match |
 | `python3 tools/fuzz_frontend.py --count N` | mutated sources (cut, spliced, extra tokens) must get diagnostics, never a crash, hang or sanitizer report; `--minimize` shrinks a failure, and the seeds of `tests/fuzz/frontend` are replayed first |
 | `python3 tools/fuzz_programs.py --count N --stage1 build/stage1/ofir` | generated integer programs print what a Python oracle computes, or panic with its message, on both stages in dev and release (ADR 0086) |
-| `make check-fuzz` | both fuzzers with fixed seeds and small counts; part of `make test` |
+| `python3 tools/diff_programs.py --count N --stage1 build/stage1/ofir` | generated programs of structs, enums, tuples, lists, strings, loops and calls print the same on stage 0 dev, stage 0 release, stage 1 dev and release and the AIR interpreter (`comptime`); a difference is minimized into a run test (ADR 0103) |
+| `make check-fuzz` | the fuzzers and the differential generator with fixed seeds and small counts; part of `make test` |
 | `make libfuzz` (`tools/libfuzz.py`) | libFuzzer with ASan and UBSan on the stage 0 lexer, parser and checker (`bootstrap/fuzz/`), from a corpus of `tests/` and `std/`; a finding is minimized, and `--keep` makes it a seed of `tests/fuzz/frontend`; nightly in `.github/workflows/fuzz.yml` |
 | `make check-tsan` | the programs that import `std.task` or `std.sync`, and the runtime, under ThreadSanitizer: expected output and no race report |
 | `make check-faults` | every program with failing allocations, reads, writes and opens, interrupted calls and short writes (`tools/fault/inject.c`, glibc only): a status or a panic, never a crash or a hang |
