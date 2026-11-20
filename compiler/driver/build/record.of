@@ -10,7 +10,7 @@ import base.json.jsonString
 import base.sha256.Sha256
 import base.span.FileId
 import base.span.SourceMap
-import driver.modules.projectDir
+import driver.build.modules.projectDir
 import driver.pkg.resolve.workspaceRoot
 import std.fs
 import std.os

@@ -25,9 +25,9 @@ import base.span.FileId
 import base.span.Span
 import base.span.SourceMap
 import diag.Diagnostics
-import driver.cfg.CfgTarget
-import driver.cfg.stripCfg
-import driver.doctest.docTests
+import driver.build.cfg.CfgTarget
+import driver.build.cfg.stripCfg
+import driver.build.doctest.docTests
 import driver.pkg.packages.Package
 import driver.pkg.packages.dependencyOf
 import driver.pkg.packages.packageNamed
@@ -103,7 +103,7 @@ pub struct Front {
     /**
      * Parses a file as a doc test (`syntax.parse_items.docTestItems`).
      *
-     * @param file a file of the source map, made by `driver.doctest.docTests`
+     * @param file a file of the source map, made by `driver.build.doctest.docTests`
      * @returns its tree
      */
     pub fn parseDocTest(mut self, file: FileId) Option<Module> {
