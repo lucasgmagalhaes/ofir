@@ -17,6 +17,10 @@ project uses [Semantic Versioning](https://semver.org/).
   builds the runtime with clang `--coverage` and the test programs with
   `--coverage`, and reports `runtime/src` and `std/` as the Codecov flags
   `runtime` and `std`.
+- Coverage floors (ADR 0103, 6.33c): `make coverage-check` fails when a
+  directory's line coverage falls below its floor in
+  `tools/coverage_floors.json` or an exclusion marker gives no reason;
+  CI runs it after each measurement.
 - Glob imports (ADR 0098): `import a.b.*` brings every public member of
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
