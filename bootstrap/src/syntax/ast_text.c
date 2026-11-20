@@ -116,6 +116,10 @@ static void float_text(StrBuf *out, double value) {
 }
 
 void literal_text(StrBuf *out, const Expr *e, const Interner *names) {
+    if (!e) {   // a range pattern whose end is not a literal (a parse error)
+        strbuf_append_cstr(out, "<expr>");
+        return;
+    }
     switch (e->kind) {
     case EXPR_INT: strbuf_appendf(out, "%llu", (unsigned long long)e->as.int_value); break;
     case EXPR_FLOAT: float_text(out, e->as.float_value); break;
