@@ -17,8 +17,22 @@ make compare-stages   # stage 1's output equals stage 0's on every .of file
 Stage 1 is a complete compiler with stage 0's command line (`ofir
 build|run|test <file.of>`, `--emit=tokens|ast|names|types|air|llvm`,
 `-o`, `--release`, `--deny-warnings`, `--message-format=short`,
-`--stop-after=lex|parse|check`): `base`, `diag`, the lexer and the parser
-(`syntax/`), module loading (`driver/`), the resolver, the type checker and
-the move analysis (`sema/`), the AIR and the lowering (`air/`) and the LLVM
-codegen (`codegen/`). `fmt/` is `ofir fmt`, which only stage 1 has. It finds std through `OFIR_STD` and the runtime
-library through `OFIR_RUNTIME`, or next to its executable, as stage 0.
+`--stop-after=lex|parse|check`). It finds std through `OFIR_STD` and the
+runtime library through `OFIR_RUNTIME`, or next to its executable, as
+stage 0.
+
+The folders are layers (ADR 0093): each imports only the folders above it
+in this list, and `make check-layers` enforces it.
+
+| Folder | Contents | May import |
+|--------|----------|------------|
+| `base/` | spans, interning, index vectors, number text, JSON, SHA-256 | — |
+| `diag/` | diagnostics | `base` |
+| `syntax/` | the lexer, the parser and the AST | `base`, `diag` |
+| `sema/` | the resolver, the type checker and the move analysis | the above |
+| `air/` | the AIR and the lowering | the above and `sema` |
+| `codegen/` | the LLVM codegen | the above and `air` |
+| `driver/` | module loading, packages and the build | `base`, `diag`, `syntax`, `sema` |
+| `doc/`, `fmt/` | `ofir doc` and `ofir fmt` | `base`, `diag`, `syntax` |
+| `lsp/` | `ofir lsp` | `base`, `diag`, `syntax`, `sema`, `driver` |
+| `main.of` | the command line | any |
