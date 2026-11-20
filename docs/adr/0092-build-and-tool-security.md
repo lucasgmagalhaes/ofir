@@ -66,9 +66,9 @@ others.
    `tools/check_build_security.py` gives both stages adversarial files
    (random bytes, NUL bytes, invalid UTF-8, a 1 MiB line, deep nesting,
    long operator chains, a 10 000-digit literal, many syntax errors) and
-   requires each to end with a diagnostic, not a signal, within 10
-   seconds and 1 GiB of memory, with at most one error line per source
-   line. It also builds a program whose path holds spaces and shell
+   requires each to end with a diagnostic, not a signal or a panic,
+   within 10 seconds and 1 GiB of peak memory, with at most one error per
+   byte of source. It also builds a program whose path holds spaces and shell
    metacharacters, and checks that no compiler or runtime source calls
    `system` or `popen` and no tool script uses `shell=True`. It runs in
    `make test-shard-1`.
