@@ -1,0 +1,12 @@
+// A match on an enum no code has named yet: its variants are computed for
+// the exhaustiveness check, even under a pattern of the wrong type
+// (found by libFuzzer, roadmap 6.33i).
+
+fn first(r: Result<int, int>) int {
+    return match r {   // error[E0500]: non-exhaustive `match`: `Result.Err(_)` is not covered
+        false => 0     // error[E0300]: mismatched types: a literal pattern for a value of type Result<int, int>
+    }
+}
+
+fn main() {
+}

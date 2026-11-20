@@ -1,0 +1,1 @@
+fn n(r:Result<n,r>){match r{false =>0}}
