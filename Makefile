@@ -9,7 +9,7 @@ SAFETY_FLAGS ?=
 BUDGET_FLAGS ?=
 
 .PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-shard-1 \
-	test-shard-2 test-stage0 test-std test-stage1 compare-stages check-fuzz libfuzz check-build-security check-format check-fmt-corpus check-codes check-sizes check-layers check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist coverage coverage-check bench bench-programs bench-compare check-budgets clean
+	test-shard-2 test-stage0 test-std test-stage1 compare-stages check-fuzz libfuzz mutate check-build-security check-format check-fmt-corpus check-codes check-sizes check-layers check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist coverage coverage-check bench bench-programs bench-compare check-budgets clean
 
 all: stage0 runtime
 
@@ -100,6 +100,13 @@ check-fuzz: stage1
 	    --stage1 $(BUILD)/stage1/ofir$(EXE) --count 20 --seed 1
 	$(STAGE_ENV) $(PYTHON) tools/diff_programs.py --compiler $(BUILD)/stage0/ofir$(EXE) \
 	    --stage1 $(BUILD)/stage1/ofir$(EXE) --count 10 --seed 1
+
+# Mutation testing (roadmap 6.33k): a sample of mutants per directory of
+# bootstrap/src and compiler/, the tests run on each; report in
+# build/mutation/report.md. Slow: about a minute per mutant.
+MUTATE_PER_DIR ?= 3
+mutate:
+	$(PYTHON) tools/mutate.py --per-dir $(MUTATE_PER_DIR) --seed 1 --out $(BUILD)/mutation
 
 # libFuzzer on the stage 0 front end (roadmap 6.33i); needs clang. The
 # nightly workflow .github/workflows/fuzz.yml runs it for ten minutes a target.
