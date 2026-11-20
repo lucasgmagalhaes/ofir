@@ -139,6 +139,7 @@ p50 of five runs, the tool also prints min, p90 and max):
 | binary_trees | 17.04 G | 18.75 G | 1.81 s |
 | fib | 388 M | 430 M | 25 ms |
 | map_count | 156 M | 172 M | 45 ms |
+| matmul | 440 M | 485 M | 36 ms |
 | nbody | 2.95 G | 3.24 G | 231 ms |
 | sort | 377 M | 415 M | 69 ms |
 | strings | 224 M | 247 M | 17 ms |
