@@ -6,7 +6,7 @@ with `--release --coverage` (ADR 0073), which writes gcov counters that
 `llvm-cov gcov` reads. Each then runs the suites `make test` runs with it:
 
 - stage 0: the bootstrap unit tests, the test runner, the std tests,
-  `compare_stages.py` and the frontend fuzzer;
+  `compare_stages.py`, the frontend fuzzer and `check_stage0_cli.py`;
 - stage 1: the test runner, then every tool of the `test-stage1` recipe of
   the Makefile (read from it, so the two cannot drift), `compare_stages.py`
   and the frontend fuzzer;
@@ -100,6 +100,8 @@ def stage0(work, env):
     run(make)
     run([*make, "test"])
     frontends(build / f"ofir{EXE}", "0", env, BUILD / "stage1" / f"ofir{EXE}")
+    run([sys.executable, "tools/check_stage0_cli.py", "--compiler", build / f"ofir{EXE}",
+         "--runtime", BUILD / "libofir_rt.a"], env)
     # gcov finds the sources from bootstrap/, where gcc compiled them; the
     # paths of the report are made relative to the repository after.
     return [("stage0", ["gcovr", "-r", "bootstrap", "--object-directory", build / "obj",
