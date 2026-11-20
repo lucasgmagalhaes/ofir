@@ -503,7 +503,7 @@ Completion (`textDocument/completion`, asked for again after `.`) inserts a
 probe, a name no program declares, at the position, and checks the document
 with it. Where the resolver or the type checker reports the probe unknown,
 the names visible there are kept, as for a "did you mean" suggestion
-(`compiler/sema/complete.of`):
+(`compiler/sema/resolve/complete.of`):
 
 - after `module.`, the module's public declarations;
 - after `value.`, the fields of its struct and the methods that take
