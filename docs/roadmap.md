@@ -444,7 +444,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.31i | Scope and capacity (ADR 0102): `docs/design/scope.md` lists every open row with a priority, an owner, dependencies and a state; a maintainer has one row in progress and two next; the next pull requests of active rows are sized S or M; rejected and deferred alternatives link their decision and say when to reopen it; `tools/check_scope.py` checks it against the roadmap | OFIR-86 | **done** |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
-| 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | |
+| 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | **done**: `tests/run/basics/assign_order` passes on both stages |
 | 6.32b | Cascades suppressed: an error type silences diagnostics about its values and failed declarations; `--error-limit=N` (default 50); compile-fail expectations updated | ADR 0080 | |
 | 6.32c | `ofir outline`, `ofir sig`, `ofir def` and `ofir type`: text one line per item, versioned JSON, shared with `compiler/lsp` | ADR 0080 | |
 | 6.32d | `ofir refs`, `ofir impls [--of]` and `ofir callers` over the whole program | ADR 0080 | |
@@ -568,8 +568,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Follow the order of [scope and capacity](design/scope.md): 6.32a, then
-   6.32b; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
+1. Follow the order of [scope and capacity](design/scope.md): 6.32b, then
+   6.32f; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
    6.31c holds the rest of OFIR-80.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
@@ -580,7 +580,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 3. Keep the applications of `apps/` (OFIR-76) building, and validate each
    API milestone with the reference service (API-49).
    Select optional adapters and domain ecosystems by concrete demand and ownership.
-4. Code written by agents (6.32, ADR 0080): start with 6.32a and 6.32b,
+4. Code written by agents (6.32, ADR 0080): start with 6.32b (6.32a is done),
    then the query commands (6.32c, 6.32d) before edits, contracts and effects.
 5. Reconcile language states (LANG-01) and decide stability, editions, pointer
    provenance and atomic semantics (LANG-02–08) before implementing dependent
