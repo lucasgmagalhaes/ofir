@@ -10,7 +10,7 @@ import sema.check.check_box.boxInner
 import sema.check.interfaces.unsatisfied
 import sema.core.program.Program
 import sema.core.types.TyKind
-import syntax.ast.ast.Expr
+import syntax.ast.Expr
 
 /**
  * Converts `e`, of type `found`, to `expected` when `expected` is a

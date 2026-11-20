@@ -43,7 +43,7 @@ import sema.core.types.UNIT
 import base.span.Span
 import diag.noSpan
 import std.mem
-import syntax.ast.ast.Op
+import syntax.ast.Op
 
 fn scalar(c: mut Checker, ty: int) bool {
     return match c.types.get(ty).kind {

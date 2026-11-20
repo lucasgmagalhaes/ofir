@@ -5,9 +5,9 @@
 
 import base.intern.Symbol
 import diag.index.noSpan
-import syntax.ast.ast.Item
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Module
+import syntax.ast.Item
+import syntax.ast.ItemKind
+import syntax.ast.Module
 
 /**
  * A module of the program.

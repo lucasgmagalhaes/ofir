@@ -14,7 +14,7 @@ import base.intern.Symbol
 import base.span.Span
 import diag.noSpan
 import sema.core.types.UNIT
-import syntax.ast.ast.Op
+import syntax.ast.Op
 
 /** What an operand is. */
 pub copy enum OperandKind {

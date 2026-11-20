@@ -45,12 +45,12 @@ import sema.resolve.complete.offer
 import sema.resolve.complete.probing
 import sema.resolve.suggest.suggestField
 import sema.resolve.trace.CompletionKind
-import syntax.ast.ast.Arg
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FieldInit
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.TypeExpr
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FieldInit
+import syntax.ast.ItemKind
+import syntax.ast.TypeExpr
 
 /**
  * The struct declaration of a type (the `@lang` declaration of a primitive).

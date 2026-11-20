@@ -5,14 +5,14 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.ast.Block
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.ForKind
-import syntax.ast.ast.Op
-import syntax.ast.ast.Stmt
-import syntax.ast.ast.StmtKind
-import syntax.ast.ast.TypeExpr
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.ForKind
+import syntax.ast.Op
+import syntax.ast.Stmt
+import syntax.ast.StmtKind
+import syntax.ast.TypeExpr
 import syntax.lex.token.TokenKind
 import syntax.parse.parse_control.parseBlock
 import syntax.parse.parse_exprs.newExpr

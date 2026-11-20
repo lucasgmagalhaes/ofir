@@ -48,10 +48,10 @@ import sema.core.types.I64
 import sema.core.types.STR
 import sema.core.types.TyKind
 import sema.core.types.UNIT
-import syntax.ast.ast.Block
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.Stmt
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.Stmt
 
 // The record of a `comptime for` or of a member of its variable.
 fn infoOf(c: Checker, id: int) Option<ComptimeInfo> {

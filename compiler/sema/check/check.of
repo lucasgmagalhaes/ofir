@@ -65,13 +65,13 @@ import sema.resolve.resolve.findAttribute
 import sema.resolve.resolve.moduleInStd
 import sema.resolve.resolve_import.memberOf
 import std.mem
-import syntax.ast.ast.FnDecl
-import syntax.ast.ast.Item
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Mode
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
-import syntax.ast.ast.WherePred
+import syntax.ast.FnDecl
+import syntax.ast.Item
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
+import syntax.ast.WherePred
 import syntax.ast.ast_text.typeText
 
 /**

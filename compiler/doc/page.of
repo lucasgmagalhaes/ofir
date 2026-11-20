@@ -13,13 +13,13 @@ import doc.links.jsString
 import doc.markdown.escape
 import doc.markdown.summary
 import doc.tags.renderDoc
-import syntax.ast.ast.Attribute
-import syntax.ast.ast.FieldDecl
-import syntax.ast.ast.FnDecl
-import syntax.ast.ast.Item
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Module
-import syntax.ast.ast.Variant
+import syntax.ast.Attribute
+import syntax.ast.FieldDecl
+import syntax.ast.FnDecl
+import syntax.ast.Item
+import syntax.ast.ItemKind
+import syntax.ast.Module
+import syntax.ast.Variant
 import syntax.lex.token.Token
 import syntax.lex.token.TokenKind
 

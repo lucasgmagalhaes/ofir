@@ -39,9 +39,9 @@ import sema.check.structs.isCopy
 import sema.core.program.Program
 import sema.core.types.UNIT
 import std.mem
-import syntax.ast.ast.Expr
-import syntax.ast.ast.Op
-import syntax.ast.ast.Param
+import syntax.ast.Expr
+import syntax.ast.Op
+import syntax.ast.Param
 
 /**
  * Lowers a closure: its body to a function of its own, and its value here.

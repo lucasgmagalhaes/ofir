@@ -79,8 +79,8 @@ import sema.core.types.UNIT
 import sema.resolve.resolve.findAttribute
 import std.mem
 import std.os
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Op
+import syntax.ast.ItemKind
+import syntax.ast.Op
 
 /** A generated value: its LLVM type and its text (`%t3`, `42`, `true`, ...). */
 pub struct Value {

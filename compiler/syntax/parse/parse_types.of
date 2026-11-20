@@ -6,11 +6,11 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.ast.Mode
-import syntax.ast.ast.Op
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
-import syntax.ast.ast.WherePred
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
+import syntax.ast.WherePred
 import syntax.lex.token.TokenKind
 import syntax.lex.token.TokenValue
 import syntax.parse.parse_exprs.parseExpr

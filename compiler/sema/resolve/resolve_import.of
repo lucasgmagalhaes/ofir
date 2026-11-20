@@ -21,9 +21,9 @@ import sema.resolve.complete.completeMember
 import sema.resolve.complete.probing
 import sema.resolve.suggest.suggestMember
 import sema.resolve.trace.traceUse
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.ItemKind
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.ItemKind
 
 // The dotted name of the first `count` segments of `path`.
 fn dotted(r: Resolver, path: List<Symbol>, count: int) str {

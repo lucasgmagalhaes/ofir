@@ -7,15 +7,15 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.ast.Arg
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FieldInit
-import syntax.ast.ast.Mode
-import syntax.ast.ast.Op
-import syntax.ast.ast.Param
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FieldInit
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.Param
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
 import syntax.lex.cursor.cut
 import syntax.lex.token.TokenKind
 import syntax.lex.token.TokenValue

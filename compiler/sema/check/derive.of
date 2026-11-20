@@ -37,7 +37,7 @@ import sema.core.types.BOOL
 import sema.core.types.STR
 import sema.core.types.UNIT
 import sema.core.types.TyKind
-import syntax.ast.ast.Mode
+import syntax.ast.Mode
 
 /**
  * The `DefId` of a method a struct or enum type declares, or 0.

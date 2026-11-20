@@ -27,8 +27,8 @@ import sema.core.types.KeyFields
 import sema.core.types.STR
 import sema.core.types.TyKind
 import sema.core.types.U8
-import syntax.ast.ast.FieldDecl
-import syntax.ast.ast.ItemKind
+import syntax.ast.FieldDecl
+import syntax.ast.ItemKind
 
 /**
  * The fields of a struct.
