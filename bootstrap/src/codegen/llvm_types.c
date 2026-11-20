@@ -43,7 +43,7 @@ static const TypeId *field_types(Gen *g, TypeId adt, int64_t v, uint32_t count) 
 // `@repr(C)`, `@packed`, `@lang` or without a declaration.
 static bool fixed_order(Gen *g, const Def *def) {
     if (!def->item) {
-        return true;
+        return true;   // GCOVR_EXCL_LINE: every struct and enum is declared by an item
     }
     AttributeList attributes = def->item->attributes;
     return find_attribute(g->sema, attributes, "repr") ||

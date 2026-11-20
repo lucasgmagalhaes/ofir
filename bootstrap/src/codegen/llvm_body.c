@@ -181,7 +181,7 @@ static void terminator(Gen *g, const Terminator *t, size_t index) {
 // `@inline`, `@inline(never)` and `@cold` (spec 12.1).
 static void hints(Gen *g, const Def *def) {
     if (!def->fn) {
-        return;
+        return;   // GCOVR_EXCL_LINE: every non-glue body is a declared function
     }
     const Attribute *in = find_attribute(g->sema, def->fn->attributes, "inline");
     if (in) {

@@ -8,7 +8,7 @@
 
 static const FnDecl *next_method(Checker *c, const Def *def) {
     if (!def || !def->item || (def->kind != DEF_STRUCT && def->kind != DEF_ENUM)) {
-        return NULL;
+        return NULL;   // GCOVR_EXCL_LINE: every ADT is a struct or enum declared by an item
     }
     const Item *item = def->item;
     FnList methods = item->kind == ITEM_ENUM ? item->as.enum_.methods : item->as.struct_.methods;
