@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Package discovery (ADR 0097): the manifest's `description`, `keywords`
+  and `repository` go, with `toolchain`, into the index line; `ofir
+  search <words>` finds packages of the index by name, description or
+  keywords; `docs/packages/official.md` has the criteria of official
+  packages.
 - Maintenance process (ADR 0096): `docs/maintaining.md` (triage, review,
   releases, security handling, accounts, continuity), `SECURITY.md`,
   issue and pull request templates and CODEOWNERS;
