@@ -1,5 +1,7 @@
 #include "diag/diag.h"
 
+#include "base/str.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -108,50 +110,50 @@ static const char *severity_name(Severity s) {
     return s == SEVERITY_ERROR ? "error" : "warning";
 }
 
-static void render_human(const Diagnostic *d, const SourceMap *map, FILE *out) {
+static void render_human(const Diagnostic *d, const SourceMap *map, StrBuf *out) {
     const SourceFile *file = source_file(map, d->span.file);
     LineCol lc = source_line_col(map, d->span.file, d->span.start);
     StrView line = source_line_text(map, d->span.file, lc.line);
 
     char number[16];
     int width = snprintf(number, sizeof number, "%u", lc.line);
-    fprintf(out, "%s[%s]: %s\n", severity_name(d->severity), d->code, d->message);
-    fprintf(out, "%*s--> " SV_FMT ":%u:%u\n", width, "", SV_ARG(file->path), lc.line, lc.column);
-    fprintf(out, "%*s |\n", width, "");
-    fprintf(out, "%s | " SV_FMT "\n", number, SV_ARG(line));
+    strbuf_appendf(out, "%s[%s]: %s\n", severity_name(d->severity), d->code, d->message);
+    strbuf_appendf(out, "%*s--> " SV_FMT ":%u:%u\n", width, "", SV_ARG(file->path), lc.line,
+                   lc.column);
+    strbuf_appendf(out, "%*s |\n", width, "");
+    strbuf_appendf(out, "%s | " SV_FMT "\n", number, SV_ARG(line));
 
     // The caret line: tabs are kept so the marker stays under the text.
     uint32_t len = d->span.end > d->span.start ? d->span.end - d->span.start : 1;
     if (lc.column - 1 + len > line.len + 1) {
         len = (uint32_t)line.len + 1 - (lc.column - 1);   // clip spans running past the line
     }
-    // Built whole and written once: stderr is unbuffered, and a character
-    // at a time is a system call each.
-    size_t indent = lc.column - 1;
-    char *caret = xmalloc(indent + len + 1);
-    for (size_t i = 0; i < indent; i++) {
-        caret[i] = line.ptr[i] == '\t' ? '\t' : ' ';
+    strbuf_appendf(out, "%*s | ", width, "");
+    for (size_t i = 0; i < lc.column - 1; i++) {
+        strbuf_push(out, line.ptr[i] == '\t' ? '\t' : ' ');
     }
-    memset(caret + indent, '^', len);
-    caret[indent + len] = '\n';
-    fprintf(out, "%*s | ", width, "");
-    fwrite(caret, 1, indent + len + 1, out);
-    free(caret);
+    for (uint32_t i = 0; i < len; i++) {
+        strbuf_push(out, '^');
+    }
+    strbuf_push(out, '\n');
     if (d->note_count > 0) {
-        fprintf(out, "%*s |\n", width, "");
+        strbuf_appendf(out, "%*s |\n", width, "");
     }
     for (uint32_t i = 0; i < d->note_count; i++) {
         const DiagNote *note = &d->notes[i];
-        fprintf(out, "%*s = %s: %s\n", width, "", note->kind == NOTE_HELP ? "help" : "note",
-                note->message);
+        strbuf_appendf(out, "%*s = %s: %s\n", width, "", note->kind == NOTE_HELP ? "help" : "note",
+                       note->message);
     }
-    fputc('\n', out);
+    strbuf_push(out, '\n');
 }
 
 void diags_render(Diagnostics *diags, const SourceMap *map, DiagFormat format, FILE *out) {
     if (diags->items.len > 1) {
         qsort(diags->items.data, diags->items.len, sizeof(Diagnostic), compare);
     }
+    // Rendered whole and written once: stderr is unbuffered, and each
+    // write is a system call, slow on Windows.
+    StrBuf text = {0};
     for (size_t i = 0; i < diags->items.len; i++) {
         const Diagnostic *d = &diags->items.data[i];
         if (i > 0 && same(d, &diags->items.data[i - 1])) {
@@ -160,10 +162,15 @@ void diags_render(Diagnostics *diags, const SourceMap *map, DiagFormat format, F
         if (format == DIAG_FORMAT_SHORT) {
             const SourceFile *file = source_file(map, d->span.file);
             LineCol lc = source_line_col(map, d->span.file, d->span.start);
-            fprintf(out, SV_FMT ":%u:%u: %s[%s]: %s\n", SV_ARG(file->path), lc.line, lc.column,
-                    severity_name(d->severity), d->code, d->message);
+            strbuf_appendf(&text, SV_FMT ":%u:%u: %s[%s]: %s\n", SV_ARG(file->path), lc.line,
+                           lc.column, severity_name(d->severity), d->code, d->message);
         } else {
-            render_human(d, map, out);
+            render_human(d, map, &text);
         }
     }
+    if (text.len > 0) {
+        fwrite(text.data, 1, text.len, out);
+    }
+    fflush(out);
+    strbuf_free(&text);
 }
