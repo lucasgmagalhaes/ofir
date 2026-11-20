@@ -93,7 +93,9 @@ void types_init(TypeTable *table, Arena *arena) {
     type_intern(table, (Ty){.kind = TY_FLOAT, .data = 64});
     type_intern(table, (Ty){.kind = TY_STR});
     if (table->count != TID_BUILTIN_COUNT) {
+        // GCOVR_EXCL_START: a compiler bug: the table is in TypeId order
         fatal("types_init: built-in types out of order");
+        // GCOVR_EXCL_STOP
     }
 }
 
