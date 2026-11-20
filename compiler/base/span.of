@@ -137,7 +137,9 @@ pub struct SourceFile {
         for end > start && (self.text[end - 1] == b'\n' || self.text[end - 1] == b'\r') {
             end -= 1
         }
-        return self.text.slice(start, end)
+        // Invalid UTF-8 is reported (E0008) and still shown, so the line is
+        // cut by bytes: a line can start with a stray continuation byte.
+        return unsafe { self.text.sliceUnchecked(start, end) }
     }
 }
 

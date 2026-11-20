@@ -16,6 +16,7 @@ import syntax.ast.Op
 import syntax.ast.Param
 import syntax.ast.TypeExpr
 import syntax.ast.TypeKind
+import syntax.cursor.cut
 import syntax.parse_control.parseControl
 import syntax.parse_exprs.newExpr
 import syntax.parse_exprs.parseExpr
@@ -369,7 +370,7 @@ fn member(p: mut Parser, base: move Expr) Expr {
         return tupleField(p, base, index)
     }
     if kind == TokenKind.Float {
-        const digits = p.src.slice(span.start, span.end)
+        const digits = cut(p.src, span.start, span.end)
         const dot = digits.find(".") ?? digits.len()
         const first = leadingNumber(digits.slice(0, dot))
         const from = if dot < digits.len() { dot + 1 } else { dot }

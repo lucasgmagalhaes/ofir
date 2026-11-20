@@ -1,0 +1,20 @@
+// The tests of `driver.resolve`.
+
+import std.testing.assert
+
+@test
+fn findsCredentialsInUrls() {
+    assert(hasCredential("https://bot:secret@example.com/text"))
+    assert(hasCredential("https://ghp_token@example.com/text"))
+    assert(hasCredential("http://user@example.com/text"))
+    assert(hasCredential("ssh://git:secret@example.com/text"))
+}
+
+@test
+fn acceptsUrlsWithoutCredentials() {
+    assert(!hasCredential("https://example.com/text"))
+    assert(!hasCredential("https://example.com/a@b"))
+    assert(!hasCredential("ssh://git@example.com/text"))
+    assert(!hasCredential("git@example.com:text"))
+    assert(!hasCredential("../deps/text.git"))
+}
