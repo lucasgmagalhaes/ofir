@@ -13,6 +13,10 @@ project uses [Semantic Versioning](https://semver.org/).
   the suites of `make test` and writes Cobertura reports; CI uploads them
   to Codecov with the flags `stage0` and `stage1`. Roadmap 6.33 is the
   QA plan towards 100% of reachable lines.
+- Runtime and `std` coverage (ADR 0103, 6.33b): `make coverage` also
+  builds the runtime with clang `--coverage` and the test programs with
+  `--coverage`, and reports `runtime/src` and `std/` as the Codecov flags
+  `runtime` and `std`.
 - Glob imports (ADR 0098): `import a.b.*` brings every public member of
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
