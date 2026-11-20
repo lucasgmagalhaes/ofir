@@ -1,0 +1,4 @@
+module
+  fn f
+    param _n: [u8; <expr>]
+    body
