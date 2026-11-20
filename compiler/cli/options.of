@@ -1,0 +1,276 @@
+/**
+ * @module
+ * The command line of `build`, `run`, `test`, `bench`, `check` and
+ * `metadata`: the usage text and the options it parses.
+ */
+
+import diag.Format
+import driver.build.target.hostTriple
+import driver.build.target.knownTarget
+import driver.build.target.runnerWords
+import std.fs
+import std.os
+
+pub fn printUsage() {
+    eprintln("usage: ofir <command> [arguments]\n\ncommands:\n"
+             + "  build <file.of>   compile a program\n"
+             + "  run <file.of>     compile and run a program\n"
+             + "  test <file.of>    compile and run the `@test` functions\n"
+             + "  bench <file.of>   compile with optimizations and time the `@bench` functions\n"
+             + "  check <file.of>   check a program for errors, without building it\n"
+             + "  metadata <file.of>  print the modules of a program as JSON\n"
+             + "  explain <code>    explain an error or warning code, as E0600\n"
+             + "  fmt [paths]       format the source files (--check: list those that would "
+             + "change; --stdout: print them)\n"
+             + "  doc [paths]       write HTML documentation to build/doc (-o: another "
+             + "directory; --stdout: print it)\n"
+             + "  fetch             fetch the git dependencies and write ofir.lock\n"
+             + "  update [name]     choose the newest versions of the git dependencies again\n"
+             + "  vendor [dir]      copy the locked packages into dir (default vendor)\n"
+             + "  package           write the package's archive into build/package\n"
+             + "  publish           add the package to a clone of the index (--index DIR)\n"
+             + "  yank <version>    mark a published version yanked (--undo: not yanked)\n"
+             + "  audit             check the locked packages against advisories (--offline)\n"
+             + "  sbom              print the bill of materials (--format=cyclonedx|spdx)\n"
+             + "  lsp               run the language server on standard input and output\n"
+             + "  repl              read and run entries from standard input (ADR 0074)\n"
+             + "  version           print the compiler version\n\noptions:\n"
+             + "  -o <path>                 output path\n"
+             + "  --emit=tokens             print the tokens and stop\n"
+             + "  --emit=ast                print the syntax tree and stop\n"
+             + "  --emit=names              print what the names resolve to and stop\n"
+             + "  --emit=types              print the types of declarations and locals and stop\n"
+             + "  --emit=air                print the intermediate representation and stop\n"
+             + "  --emit=llvm               write <output>.ll and stop\n"
+             + "  --release                 optimize the program (as one LLVM module)\n"
+            + "  --profile=NAME            build with a profile: dev, release or ofir.json's\n"
+             + "  --codegen-units=1         compile the program as one LLVM module\n"
+             + "  --lib=static, --lib=shared  build a C library and its header (ADR 0064)\n"
+             + "  --target=TRIPLE           compile for another target (spec 13.8)\n"
+             + "  -j N, --jobs N            run at most N clang processes (default: the cores)\n"
+             + "  --test-jobs N             run at most N tests at once (default: up to 4)\n"
+             + "  --no-cache                compile every unit, without the object cache\n"
+             + "  -g                        write debug info (DWARF: functions, lines)\n"
+             + "  --trim-paths              debug info without the build's directories\n"
+             + "  --record=FILE             write the build's inputs and hashes to FILE\n"
+             + "  --coverage                count executed lines for gcov (implies -g)\n"
+             + "  --watch                   run the command again when a source changes\n"
+             + "  --deny-warnings           treat warnings as errors\n"
+             + "  --locked                  fail instead of changing ofir.lock (also fetch)\n"
+             + "  --offline                 use only the package cache (also fetch, update)\n"
+             + "  --message-format=short    one line per diagnostic\n"
+             + "  --message-format=json     one JSON object per diagnostic\n"
+             + "  --stop-after=PHASE       run the phases up to lex, parse or check, without "
+             + "output\n"
+             + "  --time-passes             report the time spent in each phase")
+}
+
+/** What the command line asks for. */
+pub struct Options {
+    /** `build`, `run`, `test` or `bench`. */
+    pub command: str
+    /** The root file. */
+    pub input: str
+    /** `-o <path>`. */
+    pub output: Option<str>
+    /** `--emit=...`: what to print, or "". */
+    pub emit: str
+    /** `--stop-after=...`: the last phase, or "". */
+    pub stopAfter: str
+    /** `--release`, or a profile that inherits `release` (ADR 0078). */
+    pub release: bool
+    /** `--profile=NAME`, or "" for `dev`. */
+    pub profile: str
+    /** The optimization level of the profile, 0 to 3. */
+    pub opt: int
+    /** `-g`. */
+    pub debugInfo: bool
+    /** `--trim-paths`: the debug info names logical paths (ADR 0083). */
+    pub trimPaths: bool
+    /** `--coverage`: gcov line counters, with `-g` and without the cache. */
+    pub coverage: bool
+    /** `--deny-warnings`. */
+    pub deny: bool
+    /** `--locked`. */
+    pub locked: bool
+    /** `--offline`. */
+    pub offline: bool
+    /** `--codegen-units=1`: one LLVM module instead of one for each module. */
+    pub oneUnit: bool
+    /** `-j N` or `--jobs N`: at most N clang processes; 0 is the number of cores. */
+    pub jobs: int
+    /** `--test-jobs N`: at most N concurrent tests; 0 uses up to four cores. */
+    pub testJobs: int
+    /** `--no-cache`: neither read nor write the object cache. */
+    pub noCache: bool
+    /** `--time-passes`: report compilation phase durations. */
+    pub timePasses: bool
+    /** `--message-format=human`, `short` or `json`. */
+    pub format: Format
+    /** `--lib=static` or `--lib=shared`: a C library instead of a program, or "". */
+    pub lib: str
+    /** `--target=<triple>` other than the host's, or "" (ADR 0066). */
+    pub target: str
+    /** `--record=FILE`: where to write the build record, or "" (ADR 0083). */
+    pub record: str
+}
+
+pub fn parseOptions(args: List<str>) Option<Options> {
+    let opts = Options{command: args[1].clone(), input: "", output: Option.None, emit: "",
+                       stopAfter: "", release: false, profile: "", opt: 0, debugInfo: false,
+                       trimPaths: false, coverage: false, deny: false, locked: false,
+                       offline: false, oneUnit: false, jobs: 0, testJobs: 0,
+                       noCache: false, timePasses: false,
+                       format: Format.Human, lib: "", target: "", record: ""}
+    let hasInput = false
+    let i = 2
+    for i < args.len() {
+        const arg = args[i].clone()
+        if arg.startsWith("-") {
+            if arg == "-o" && i + 1 < args.len() {
+                opts.output = Option.Some(args[i + 1].clone())
+                i += 1
+            } else if arg.startsWith("--emit=") && knownEmit(arg.sliceFrom(7)) {
+                opts.emit = arg.sliceFrom(7).toOwned()
+            } else if arg == "--deny-warnings" {
+                opts.deny = true
+            } else if arg == "--locked" {
+                opts.locked = true
+            } else if arg == "--offline" {
+                opts.offline = true
+            } else if (arg == "-j" || arg == "--jobs") && i + 1 < args.len() {
+                opts.jobs = parseCount(args[i + 1])
+                if opts.jobs == 0 {
+                    eprintln("error: `{arg}` needs a positive number, not `{args[i + 1]}`")
+                    return Option.None
+                }
+                i += 1
+            } else if arg == "--test-jobs" && i + 1 < args.len() {
+                opts.testJobs = parseCount(args[i + 1])
+                if opts.testJobs == 0 {
+                    eprintln("error: `{arg}` needs a positive number, not `{args[i + 1]}`")
+                    return Option.None
+                }
+                i += 1
+            } else if arg == "--no-cache" {
+                opts.noCache = true
+            } else if arg == "--codegen-units=1" {
+                opts.oneUnit = true
+            } else if arg == "--release" {
+                opts.release = true
+            } else if arg.startsWith("--profile=") && arg.len() > 10 {
+                opts.profile = arg.sliceFrom(10).toOwned()
+            } else if arg == "-g" {
+                opts.debugInfo = true
+            } else if arg == "--trim-paths" {
+                opts.trimPaths = true
+            } else if arg == "--coverage" {
+                opts.coverage = true
+                opts.debugInfo = true
+                opts.noCache = true   // the counters' files are named after the objects
+            } else if arg == "--message-format=short" {
+                opts.format = Format.Short
+            } else if arg == "--message-format=json" {
+                opts.format = Format.Json
+            } else if arg == "--message-format=human" {
+                opts.format = Format.Human
+            } else if arg.startsWith("--stop-after=") && knownPhase(arg.sliceFrom(13)) {
+                opts.stopAfter = arg.sliceFrom(13).toOwned()
+            } else if arg == "--time-passes" {
+                opts.timePasses = true
+            } else if arg == "--lib=static" || arg == "--lib=shared" {
+                opts.lib = arg.sliceFrom(6).toOwned()
+            } else if arg.startsWith("--record=") {
+                opts.record = arg.sliceFrom(9).toOwned()
+            } else if arg.startsWith("--target=") {
+                opts.target = arg.sliceFrom(9).toOwned()
+                if !knownTarget(opts.target) {
+                    eprintln("error: unknown target `{opts.target}` (spec 13.8)")
+                    return Option.None
+                }
+            } else {
+                eprintln("error: unknown option `{arg}`")
+                return Option.None
+            }
+        } else if !hasInput {
+            // The driver splits paths at `/`.
+            opts.input = if onWindows() { arg.replace("\\", "/") } else { arg }
+            hasInput = true
+        } else {
+            eprintln("error: unexpected argument `{arg}`")
+            return Option.None
+        }
+        i += 1
+    }
+    if !hasInput {
+        eprintln("error: `{opts.command}` needs an input file")
+        return Option.None
+    }
+    if opts.release && opts.profile.len() > 0 && opts.profile != "release" {
+        eprintln("error: `--release` and `--profile={opts.profile}` cannot both be given")
+        return Option.None
+    }
+    if opts.command == "bench" && opts.profile.len() == 0 {
+        opts.release = true   // benchmarks are optimized (spec 12.3)
+    }
+    if opts.release {
+        opts.profile = "release".toOwned()
+        opts.opt = 2
+    }
+    if opts.lib.len() > 0 && opts.command != "build" {
+        eprintln("error: `--lib` applies only to `build`")
+        return Option.None
+    }
+    if opts.target == hostTriple() {
+        opts.target = "".toOwned()
+    }
+    const runs = opts.command == "run" || opts.command == "test" || opts.command == "bench"
+    if opts.target.len() > 0 && runs && opts.emit == "" && runnerWords().len() == 0 {
+        eprintln("error: `{opts.command}` for `{opts.target}` needs OFIR_RUNNER (ADR 0066)")
+        return Option.None
+    }
+    return Option.Some(opts)
+}
+
+pub fn knownEmit(what: str) bool {
+    return what == "tokens" || what == "ast" || what == "names" || what == "types" ||
+           what == "air" || what == "llvm"
+}
+
+pub fn knownPhase(what: str) bool {
+    return what == "lex" || what == "parse" || what == "check"
+}
+
+// A positive count written in decimal, or 0.
+pub fn parseCount(text: str) int {
+    if text.isEmpty() || text.len() > 6 {
+        return 0
+    }
+    let n = 0
+    for b in text.bytes() {
+        if b < 48 || b > 57 {
+            return 0
+        }
+        n = n * 10 + (b as int) - 48
+    }
+    return n
+}
+
+// Windows sets `OS` to `Windows_NT` in every process.
+pub fn onWindows() bool {
+    return match os.env("OS") {
+        Option.Some(name) => name == "Windows_NT"
+        Option.None => false
+    }
+}
+
+// `ofir test a/b_test.of` tests the module `a/b.of`, which loads its test file.
+pub fn testRoot(opts: &Options) str {
+    const input = opts.input.clone()
+    const suffix = "_test.of"
+    if opts.command != "test" || input.len() <= suffix.len() || !input.endsWith(suffix) {
+        return input
+    }
+    const root = "{input.slice(0, input.len() - suffix.len())}.of"
+    return if fs.exists(root) { root } else { input }
+}
