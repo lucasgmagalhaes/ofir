@@ -116,8 +116,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # Coverage of both compilers (ADR 0103): `make coverage`, uploaded to
-  # Codecov with the flags stage0 and stage1 (codecov.yml).
+  # Coverage of both compilers, the runtime and std (ADR 0103): `make
+  # coverage`, uploaded to Codecov with a flag each (codecov.yml).
   coverage:
     name: coverage / ubuntu-24.04 / LLVM 21
     runs-on: ubuntu-24.04
@@ -161,6 +161,22 @@ jobs:
         with:
           files: build/coverage/stage1.xml
           flags: stage1
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      - name: Upload the runtime to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: build/coverage/runtime.xml
+          flags: runtime
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      - name: Upload std to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: build/coverage/std.xml
+          flags: std
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
