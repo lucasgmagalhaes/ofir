@@ -461,7 +461,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.33f | Stage 1 middle and back end at 100%: `air` (the interpreter first, 68.9%) and `codegen` | ADR 0103 | |
 | 6.33g | Stage 1 tooling at 100%: `driver` (`pkg/packages.of`, `pkg/publish.of`, `pkg/resolve.of`), `cli`, `lsp`, `fmt`, `doc` and `base/json.of` | ADR 0103 | |
 | 6.33h | Branch floors: the branch coverage of each directory gets a floor once its lines are at 100%, and climbs the same way | ADR 0103 | |
-| 6.33i | libFuzzer on stage 0: the lexer, the parser and the checker built with `-fsanitize=fuzzer,address,undefined`, a corpus from `tests/`, a scheduled CI job; each crash becomes a regression seed of `tools/fuzz_frontend.py` | ADR 0103 | **done**: `make libfuzz`, nightly; one leak found and fixed |
+| 6.33i | libFuzzer on stage 0: the lexer, the parser and the checker built with `-fsanitize=fuzzer,address,undefined`, a corpus from `tests/`, a scheduled CI job; each crash becomes a regression seed of `tools/fuzz_frontend.py` | ADR 0103 | **done**: `make libfuzz`, nightly; a leak and an exhaustiveness crash found and fixed |
 | 6.33j | Differential generated programs: a generator of well-typed programs over the whole language, whose output must agree between stage 0, stage 1, the AIR interpreter and the release build; minimized failures become run tests | ADR 0103 | |
 | 6.33k | Mutation testing: operators, conditions and constants of `compiler/` and `bootstrap/src` mutated one at a time, the tests run on each; a surviving mutant is a missing test, a report per directory | ADR 0103 | |
 
