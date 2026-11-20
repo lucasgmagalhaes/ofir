@@ -17,6 +17,10 @@ project uses [Semantic Versioning](https://semver.org/).
   search <words>` finds packages of the index by name, description or
   keywords; `docs/packages/official.md` has the criteria of official
   packages.
+- Games, mobile and browser SDKs (ADR 0101): games are programs on the
+  desktop targets over a platform library package; Android and iOS stay
+  unsupported triples in version 1, and a browser SDK waits for ADR 0068
+  to be reopened.
 - Scientific and data computing (ADR 0100): tensors, dataframes, linear
   algebra and GPUs stay packages over C libraries; `tests/run/ffi/numeric_kernel.of`
   passes row-major `List<f64>` buffers to a BLAS-shaped kernel, and
