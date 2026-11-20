@@ -1,0 +1,5 @@
+// Spec A.3: a type alias names its type after `=` on the same line.
+type Count   // error[E0100]: expected `=` and a type, found the end of the line
+
+fn main() {
+}
