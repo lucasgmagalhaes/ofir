@@ -1,0 +1,22 @@
+// `const` patterns that do not match every value, and struct literals of
+// types without named fields.
+
+struct Point {
+    x: int,
+    y: int,
+}
+
+struct Named(int)
+
+enum Shape {
+    Dot,
+}
+
+fn main() {
+    const t = (1, 2)
+    const (_a, 1) = t   // error[E0501]: this pattern does not match every value: use `match` or `if const`
+    const p = Point{x: 1, y: 2}
+    const Point{x: 1, y: _y} = p   // error[E0501]: this pattern does not match every value: use `match` or `if const`
+    const _n = Named{a: 1}   // error[E0310]: `Named` is not a struct with named fields
+    const _s = Shape{a: 1}   // error[E0310]: `Shape` is not a struct with named fields
+}
