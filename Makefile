@@ -47,6 +47,7 @@ check-docs:
 	$(PYTHON) tools/check_api_plan.py
 	$(PYTHON) tools/check_book.py
 	$(PYTHON) tools/check_maintenance.py
+	$(PYTHON) tools/check_scope.py
 
 # No inline function or statement bodies (docs/style-guide.md, `fmt.inlineBlocks`).
 check-format:
