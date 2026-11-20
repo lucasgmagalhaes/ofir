@@ -8,7 +8,8 @@ PYTHON ?= python3
 SAFETY_FLAGS ?=
 BUDGET_FLAGS ?=
 
-.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist bench bench-programs bench-compare check-budgets clean
+.PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-shard-1 \
+	test-shard-2 test-stage0 test-std test-stage1 compare-stages check-fuzz check-format check-fmt-corpus check-codes check-sizes check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist bench bench-programs bench-compare check-budgets clean
 
 all: stage0 runtime
 
@@ -199,7 +200,21 @@ test-cross: stage1
 	$(STAGE_ENV) $(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage1/ofir$(EXE) \
 	    --stage 1 --target $(TARGET) run
 
-test: stage0 runtime unit runner-selftest check-codes check-sizes check-docs check-format check-fmt-corpus test-std compare-stages check-fuzz test-stage1 check-apps verify
+# `make test` is everything CI runs. CI runs its two halves as parallel jobs
+# (ADR 0091); `test` is defined as both, so a shard can neither add a check
+# that `make test` lacks nor drop one.
+TEST_SHARD_1 = unit runner-selftest check-codes check-sizes check-docs check-format \
+	check-fmt-corpus test-std compare-stages check-fuzz
+TEST_SHARD_2 = test-stage1 check-apps verify test-stage0
+
+test: stage0 runtime $(TEST_SHARD_1) $(TEST_SHARD_2)
+
+test-shard-1: stage0 runtime $(TEST_SHARD_1)
+
+test-shard-2: stage0 runtime $(TEST_SHARD_2)
+
+# All tests with stage 0 as the compiler.
+test-stage0: stage0 runtime
 	$(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
 
 # Performance (docs/design/performance.md)
