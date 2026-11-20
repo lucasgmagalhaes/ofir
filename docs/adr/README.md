@@ -102,6 +102,7 @@ starts with the same word as the record's status line.
 | [0089](0089-performance-budgets.md) | Performance budgets | Proposed |
 | [0090](0090-representative-applications.md) | Representative applications | Proposed |
 | [0091](0091-reliable-fast-ci.md) | Reliable, fast CI | Proposed |
+| [0092](0092-build-and-tool-security.md) | Build and hosted-tool security | Proposed |
 
 ## Template
 
