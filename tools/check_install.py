@@ -6,7 +6,8 @@
 - `install.sh` installs it into an empty prefix, and the installed
   compiler builds and runs a program, and explains an error, with
   `OFIR_STD` and `OFIR_RUNTIME` unset and the repository out of reach,
-  and runs the compatibility corpus (`tools/check_compat.py`, ADR 0084);
+  and runs the compatibility corpus (`tools/check_compat.py`, ADR 0084)
+  and the programs of the book (`tools/check_book.py`, ADR 0095);
 - a second version installs next to the first and becomes active, and
   `--use` rolls back to the first;
 - a manifest's `toolchain` that the compiler is not in is E0923, whose
@@ -117,6 +118,11 @@ def main():
                    str(prefix)], work, clean, ok=False)
         if out.returncode != 0:
             fail(f"the installed compiler fails the compatibility corpus:\n{out.stderr}")
+        # And the programs of the book (ADR 0095).
+        out = run([sys.executable, str(ROOT / "tools/check_book.py"), "--installed",
+                   str(prefix)], work, clean, ok=False)
+        if out.returncode != 0:
+            fail(f"the installed compiler fails the book:\n{out.stderr}")
 
         run(sh + [second.as_posix()], work, clean)
         if (prefix / "share/ofir/version").read_text() != f"{other}\n":
