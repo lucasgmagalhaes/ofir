@@ -119,7 +119,7 @@ static const Pattern *field(Ctx *x, const Pattern *p, uint32_t i) {
     case PAT_TUPLE_STRUCT:
         return i < p->as.tuple_struct.args.len ? p->as.tuple_struct.args.items[i] : NULL;
     case PAT_STRUCT: return struct_field(x, p, i);
-    default: return NULL;
+    default: return NULL;   // GCOVR_EXCL_LINE: only constructors with fields are asked for one
     }
 }
 
