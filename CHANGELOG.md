@@ -27,6 +27,9 @@ project uses [Semantic Versioning](https://semver.org/).
   expressions stage 0 rejects, attribute targets, escapes and extern
   ABIs; five unused functions are removed and internal errors excluded;
   stage 0 is at 100% of its reachable lines, and its floors with it.
+- Branch floors (ADR 0103, 6.33h): a directory at 100% of its lines
+  also has a branch coverage floor in `tools/coverage_floors.json`, which
+  `make coverage-check` enforces and `--update-floors` raises.
 - libFuzzer on stage 0 (ADR 0103, 6.33i): `make libfuzz`
   (`tools/libfuzz.py`) builds the lexer, the parser and the checker with
   `-fsanitize=fuzzer,address,undefined` (`bootstrap/fuzz/frontend.c`),
