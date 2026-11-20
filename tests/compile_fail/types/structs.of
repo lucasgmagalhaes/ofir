@@ -45,6 +45,10 @@ fn constructor() {
     const n = Named("x")         // error[E0310]: expected a value, found type `Named`; build a struct with `Name{field: value}`
 }
 
+fn fieldAsType(n: Named) {
+    const _x = n.Other{name: "x"}   // error[E0901]: this struct literal is not supported yet
+}
+
 fn tupleArity() {
     const w = Wrapper(1, 2)      // error[E0302]: wrong number of arguments: expected 1, found 2
 }
