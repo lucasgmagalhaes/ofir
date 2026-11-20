@@ -111,7 +111,3 @@ StrView source_line_text(const SourceMap *map, FileId id, uint32_t line) {
     }
     return (StrView){file->text.ptr + start, end - start};
 }
-
-Span span_join(Span a, Span b) {
-    return (Span){a.file, a.start < b.start ? a.start : b.start, a.end > b.end ? a.end : b.end};
-}
