@@ -1,4 +1,0 @@
-// requires: stage0
-// Stage 0 prints a length that is not a literal as `<expr>`.
-fn f(_n: [u8; N * 2]) {
-}

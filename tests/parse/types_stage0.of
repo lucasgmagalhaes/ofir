@@ -1,0 +1,5 @@
+// requires: stage0
+// Stage 0 prints a length that is not a literal as `<expr>`, and reads a
+// `dyn` type that its checker then rejects.
+fn f(_n: [u8; N * 2], _m: dyn Debug) {
+}
