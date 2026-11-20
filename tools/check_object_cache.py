@@ -6,8 +6,8 @@ that: the first build fills the cache, each object with its SHA-256 in
 `<hash>.sum`; a second build reuses every object and the program still
 runs; a cached object that is not an object file, that does not hash to
 its sum or that has no sum is replaced (ADR 0092); a cached object that
-breaks the link is recovered from; `--no-cache` leaves the cache alone; `OFIR_CACHE_LIMIT` bounds it;
-and a release build, one unit, is cached as one object.
+breaks the link is recovered from; `--no-cache` leaves the cache alone;
+`OFIR_CACHE_LIMIT` bounds it; and a release build, one unit, is cached as one object.
 
 Then it edits a copy of the program and checks that the cache key, the
 unit's text, follows the dependencies: an edit that changes no code
