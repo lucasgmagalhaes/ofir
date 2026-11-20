@@ -19,6 +19,7 @@
  */
 
 import base.json.JsonDoc
+import base.json.jsonString
 import base.json.parseJson
 import base.span.FileId
 import base.span.SourceFile
@@ -27,7 +28,6 @@ import base.span.Span
 import diag.Diagnostic
 import diag.NoteKind
 import diag.Severity
-import diag.jsonString
 import lsp.check.Checked
 import lsp.check.checkFile
 import sema.trace.CompletionKind

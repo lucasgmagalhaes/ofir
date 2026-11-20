@@ -10,8 +10,8 @@
  */
 
 import base.json.JsonKind
+import base.json.jsonString
 import base.json.parseJsonc
-import diag.jsonString
 import driver.sha256.Sha256
 import std.fs
 

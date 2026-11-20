@@ -5,6 +5,7 @@
  * (bootstrap/src/diag/diag.c). Codes come from docs/errors/README.md.
  */
 
+import base.json.jsonString
 import base.span.FileId
 import base.span.SourceFile
 import base.span.SourceMap
@@ -392,47 +393,6 @@ fn shortLine(d: &Diagnostic, map: SourceMap) str {
     const file = map.file(d.span.file)
     const at = file.lineCol(d.span.start)
     return "{file.path}:{at.line}:{at.column}: {severityName(d.severity)}[{d.code}]: {d.message}\n"
-}
-
-/**
- * A string as a JSON string literal, quotes included.
- *
- * @param text the string
- * @returns the literal
- */
-pub fn jsonString(text: str) str {
-    let out = "\""
-    let copied = 0   // text before it is in `out`
-    for i in 0..text.len() {
-        const escape = jsonEscape(text[i])
-        if escape.len() > 0 {
-            out.push(text.slice(copied, i))
-            out.push(escape)
-            copied = i + 1
-        }
-    }
-    out.push(text.sliceFrom(copied))
-    out.push("\"")
-    return out
-}
-
-// The JSON escape of a byte, "" for one copied as it is.
-fn jsonEscape(b: u8) str {
-    if b == b'"' {
-        return "\\\"".toOwned()
-    } else if b == b'\\' {
-        return "\\\\".toOwned()
-    } else if b == b'\n' {
-        return "\\n".toOwned()
-    } else if b == b'\t' {
-        return "\\t".toOwned()
-    } else if b < 32 {
-        const digits = "0123456789abcdef"
-        const high = b as int / 16
-        const low = b as int % 16
-        return "\\u00{digits.slice(high, high + 1)}{digits.slice(low, low + 1)}"
-    }
-    return "".toOwned()
 }
 
 /**

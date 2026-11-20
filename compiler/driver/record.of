@@ -6,9 +6,9 @@
  * same inputs in different directories write the same bytes.
  */
 
+import base.json.jsonString
 import base.span.FileId
 import base.span.SourceMap
-import diag.jsonString
 import driver.modules.projectDir
 import driver.resolve.workspaceRoot
 import driver.sha256.Sha256

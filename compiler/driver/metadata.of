@@ -5,8 +5,8 @@
  * ADR 0053).
  */
 
+import base.json.jsonString
 import base.span.SourceMap
-import diag.jsonString
 import sema.program.Program
 
 /** The version of the JSON shape; a change that drops or renames a field raises it. */

@@ -74,13 +74,6 @@ fn aSilencedWarningDropsItsNotes() {
 }
 
 @test
-fn jsonStringEscapes() {
-    assert(jsonString("a\"b\\c\nd\te") == "\"a\\\"b\\\\c\\nd\\te\"")
-    assert(jsonString("\x01\x1f") == "\"\\u0001\\u001f\"")
-    assert(jsonString("") == "\"\"")
-}
-
-@test
 fn denyWarningsMakesErrors() {
     let diags = Diagnostics.new()
     diags.denyWarnings = true

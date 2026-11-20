@@ -6,9 +6,9 @@
  * git repository: each change is a commit, which the user pushes.
  */
 
+import base.json.jsonString
 import base.json.parseJson
 import base.json.parseJsonc
-import diag.jsonString
 import driver.lock.checksum
 import driver.registry.indexPath
 import driver.resolve.registryVersion

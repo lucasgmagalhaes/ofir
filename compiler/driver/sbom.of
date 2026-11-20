@@ -6,11 +6,11 @@
  * output, byte for byte: the only date is `SOURCE_DATE_EPOCH`'s.
  */
 
+import base.json.jsonString
 import base.json.parseJsonc
 import base.span.SourceMap
 import diag.Diagnostics
 import diag.Format
-import diag.jsonString
 import driver.packages.Package
 import driver.packages.readPackages
 import driver.resolve.Mode
