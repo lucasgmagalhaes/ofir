@@ -39,7 +39,9 @@ static void call_list(Lowerer *l, const char *name, TypeId elem, CallArgs args, 
             return;
         }
     }
+    // GCOVR_EXCL_START: a std without the items the compiler calls
     fatal("lowering: std/core/list.of has no `%s`", name);
+    // GCOVR_EXCL_STOP
 }
 
 // `[a, b, c]`: `withCapacity(3)`, then `push` of each element in order;

@@ -106,7 +106,9 @@ FnDecl *std_fn(Lowerer *l, const char *module, const char *name) {
             }
         }
     }
+    // GCOVR_EXCL_START: a std without the items the compiler calls
     fatal("lowering: the standard library has no `%s.%s`", module, name);
+    // GCOVR_EXCL_STOP
 }
 
 bool by_address(const FnDecl *fn, int32_t index) {
