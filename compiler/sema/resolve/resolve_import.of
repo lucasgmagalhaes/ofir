@@ -12,6 +12,8 @@ import sema.core.def.Def
 import sema.core.def.DefKind
 import sema.core.def.Res
 import sema.core.program.Program
+import sema.resolve.Ambiguous
+import sema.resolve.Glob
 import sema.resolve.ImportUse
 import sema.resolve.ReExport
 import sema.resolve.enter
@@ -157,12 +159,73 @@ fn bind(r: mut Resolver, name: Symbol, id: int, span: Span) {
  */
 pub fn resolveImport(r: mut Resolver, program: Program, path: List<Symbol>,
                      alias: Option<Symbol>, span: Span, isPub: bool) {
+    if r.text(path[path.len() - 1]) == "*" {
+        globImport(r, path, span, isPub)
+        return
+    }
     const name = alias ?? path[path.len() - 1]
-    r.imports.push(ImportUse{module: r.current, name, span, used: isPub})
+    r.imports.push(ImportUse{module: r.current, name, span, used: isPub, glob: -1})
     if !isPub {
         bindImport(r, path, name, span, false)
     }
     traceUse(r, "import", name, span, Res.Def(r.scope.module(name)))
+}
+
+// `import path.*`: recorded for `bindGlobs`, once every other import is bound.
+fn globImport(r: mut Resolver, path: List<Symbol>, span: Span, isPub: bool) {
+    const count = path.len() - 1
+    if isPub {
+        r.error("E0208", span, "a glob import cannot be `pub`")
+        r.diags.help("re-export the module or each declaration: `pub import {dotted(r, path, count)}`")
+        return
+    }
+    const target = findModule(r, path, count)
+    if target < 0 {
+        r.error("E0204", span, "cannot find module `{dotted(r, path, count)}`")
+        return
+    }
+    const name = r.names.intern(dotted(r, path, path.len()))
+    r.globs.push(Glob{module: r.current, target, use: r.imports.len()})
+    r.imports.push(ImportUse{module: r.current, name, span, used: false, glob: target})
+}
+
+/**
+ * Binds the glob imports (`import path.*`, spec 7.2) of every module, below
+ * its own declarations and its imports by name: each public member of
+ * `path` takes a name that is free or the prelude's. Two globs that bring
+ * a name for different declarations leave it to neither (E0207 on use).
+ *
+ * @param r the resolver, with every other import bound
+ */
+pub fn bindGlobs(r: mut Resolver) {
+    const symbols = r.scope.symbols()
+    for g in 0..r.globs.len() {
+        const module = r.globs[g].module
+        const target = r.globs[g].target
+        for name in 0..symbols {
+            const id = memberOf(r, target, Symbol(name))
+            if id == 0 || !r.def(id).isPub {
+                continue
+            }
+            const key = module * symbols + name
+            const own = r.scope.moduleIn(module, Symbol(name))
+            let earlier = -1
+            if const Option.Some(g2) = r.globNames.get(key) {
+                earlier = *g2
+            }
+            if earlier == -2 || (own != 0 && sameTarget(r, own, id)) {
+                continue   // already ambiguous, or the same declaration
+            }
+            if earlier >= 0 {   // another glob's
+                r.ambiguous.push(Ambiguous{module, name: Symbol(name), first: earlier, second: g})
+                r.globNames.insert(key, -2)
+                r.scope.setIn(module, Symbol(name), 0)
+            } else if own == 0 || r.def(own).inPrelude {
+                r.globNames.insert(key, g)
+                r.scope.setIn(module, Symbol(name), id)
+            }
+        }
+    }
 }
 
 fn bindImport(r: mut Resolver, path: List<Symbol>, name: Symbol, span: Span, isPub: bool) {
@@ -215,6 +278,9 @@ fn reexportsOf(r: mut Resolver, program: Program, m: int, seen: mut List<bool>) 
             continue
         }
         if const ItemKind.Import(path, alias) = item.kind {
+            if r.text(path[path.len() - 1]) == "*" {
+                continue   // E0208, reported by `globImport`
+            }
             const owner = if path.len() > 1 { findModule(r, path, path.len() - 1) } else { -1 }
             if owner >= 0 {
                 reexportsOf(r, program, owner, seen)
