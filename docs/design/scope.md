@@ -78,6 +78,8 @@ listed. Each pull request is a few small commits (`CONTRIBUTING.md`).
 | 6.32b | Stage 1 suppresses cascades and takes `--error-limit=N` | M |
 | 6.32b | Stage 0 the same; compile-fail expectations updated | M |
 | 6.32f | `ofir check --fmt` warns about the files `ofir fmt` would change, both stages | S |
+| 6.33e | Stage 1 `sema/check` diagnostics: compile-fail cases for the uncovered paths | M |
+| 6.33e | Stage 1 `syntax`, `sema/core` and `diag`: the rest of the front end | M |
 
 ## Rejected and deferred
 
