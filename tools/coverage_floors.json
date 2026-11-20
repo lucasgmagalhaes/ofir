@@ -1,11 +1,11 @@
 {
   "stage0": {
-    "bootstrap/src": 86.5,
+    "bootstrap/src": 97.4,
     "bootstrap/src/air": 97.8,
-    "bootstrap/src/base": 89.9,
+    "bootstrap/src/base": 96.5,
     "bootstrap/src/codegen": 98.2,
     "bootstrap/src/diag": 94.0,
-    "bootstrap/src/sema": 95.2,
+    "bootstrap/src/sema": 96.8,
     "bootstrap/src/syntax": 98.4
   },
   "stage1": {
