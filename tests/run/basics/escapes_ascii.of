@@ -1,0 +1,7 @@
+// Escapes that stand for ASCII characters: `\u{..}` below 0x80 and `\0`.
+
+fn main() {
+    const a = "\u{41}\u{62}"
+    const z = "\0"
+    println("{a} {z.len()}")
+}
