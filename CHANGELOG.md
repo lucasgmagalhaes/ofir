@@ -17,6 +17,11 @@ project uses [Semantic Versioning](https://semver.org/).
   search <words>` finds packages of the index by name, description or
   keywords; `docs/packages/official.md` has the criteria of official
   packages.
+- Scientific and data computing (ADR 0100): tensors, dataframes, linear
+  algebra and GPUs stay packages over C libraries; `tests/run/ffi/numeric_kernel.of`
+  passes row-major `List<f64>` buffers to a BLAS-shaped kernel, and
+  `bench/programs/matmul.of` measures float loops against C, Rust and Go
+  with an instruction ceiling in `bench/budgets.json`.
 - GUI, graphics, audio and media (ADR 0099): they stay packages over the
   C boundary; `std.io.terminalSize` gives the columns and rows of a
   standard stream's terminal, and `tests/run/ffi/event_loop.of` drives
