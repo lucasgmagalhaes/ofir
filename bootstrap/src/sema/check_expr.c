@@ -85,7 +85,9 @@ static TypeId name_value(Checker *c, Expr *e, TypeId expected) {
         }
         return def_value(c, def, e->span);
     }
+    // GCOVR_EXCL_START: a name that resolves to nothing stops before checking
     default: return type_id(TID_ERROR);
+    // GCOVR_EXCL_STOP
     }
 }
 
@@ -134,7 +136,7 @@ static bool operand_ok(const Ty *ty, Op op) {
     case OP_LT: case OP_LE: case OP_GT: case OP_GE:
         return ty->kind == TY_INT || ty->kind == TY_FLOAT || ty->kind == TY_STR;
     case OP_LOGICAL_AND: case OP_LOGICAL_OR: return ty->kind == TY_BOOL;
-    default: return false;
+    default: return false;   // GCOVR_EXCL_LINE: the operators of a binary expression are all listed
     }
 }
 
@@ -351,7 +353,7 @@ static TypeId synthesize(Checker *c, Expr *e, TypeId expected) {
     case EXPR_VARIANT: return check_variant_shorthand(c, e, expected);
     case EXPR_MATCH: return check_match(c, e, expected, true);
     }
-    return type_id(TID_ERROR);
+    return type_id(TID_ERROR);   // GCOVR_EXCL_LINE: the switch covers every expression kind
 }
 
 TypeId check_unsafe_block(Checker *c, Expr *e, TypeId expected, bool as_value) {
