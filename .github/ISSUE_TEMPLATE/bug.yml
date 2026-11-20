@@ -1,0 +1,32 @@
+name: Bug
+description: The compiler, runtime, std or tools do the wrong thing.
+labels: ["kind: bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `ofir version`, and the platform.
+    validations:
+      required: true
+  - type: textarea
+    id: program
+    attributes:
+      label: Program
+      description: The smallest program (or manifest) that shows the problem.
+      render: ofir
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happens
+      description: The command you ran and what it printed.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
