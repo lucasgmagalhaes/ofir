@@ -207,7 +207,6 @@ Operand lower_clone_of(Lowerer *l, Expr *call);                 // `cloneOf<T>(v
 void drop_scope_enter(Lowerer *l);
 void drop_scope_leave(Lowerer *l);                     // drops the scope's locals
 void drop_scopes(Lowerer *l, uint32_t first);     // for `return`, `break`, `continue`
-bool drop_scope_owns(Lowerer *l);                      // the innermost scope owns a local
 void own_local(Lowerer *l, LocalId local, bool initialized);
 void own_bindings(Lowerer *l, const Pattern *p);
 void drop_moved(Lowerer *l, LocalId local);
