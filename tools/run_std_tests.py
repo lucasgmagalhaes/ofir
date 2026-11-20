@@ -23,6 +23,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tests" / "runner"))
+from run_tests import run_process  # noqa: E402
+
+# A module's tests, or a fixture, that run longer than this fail: one that
+# waits forever (on its standard input, a lock) must not hang the run.
+TIMEOUT_SECONDS = 600
 
 
 # The parts of `compiler/` that compile so far; each port adds its directory
@@ -71,12 +77,11 @@ def main() -> int:
     paths = modules_with_tests(args.stage)
     std_paths = std_modules_to_check(args.stage)
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        results = pool.map(lambda path: subprocess.run(
-            [args.compiler, "test", str(path), "--deny-warnings"],
-            capture_output=True, text=True), paths)
-        checked_results = pool.map(lambda path: subprocess.run(
-            [args.compiler, "build", str(path), "--stop-after=check", "--deny-warnings"],
-            capture_output=True, text=True), std_paths)
+        results = pool.map(lambda path: run(
+            [args.compiler, "test", str(path), "--deny-warnings"]), paths)
+        checked_results = pool.map(lambda path: run(
+            [args.compiler, "build", str(path), "--stop-after=check", "--deny-warnings"]),
+            std_paths)
         for path, result in zip(paths, results):
             total += sum(1 for line in result.stdout.splitlines() if line.startswith("test "))
             if result.returncode != 0:
@@ -91,6 +96,11 @@ def main() -> int:
         fixtures = check_fixtures(args.compiler, "ofir_doctest") and fixtures
     benches = args.stage == 0 or check_bench_fixtures(args.compiler)
     return 1 if failed or not checked or not fixtures or not benches else 0
+
+
+def run(args: list[str]) -> subprocess.CompletedProcess:
+    """Runs the compiler with an empty standard input and a time limit."""
+    return run_process(args, timeout=TIMEOUT_SECONDS)
 
 
 def requires_stage1(path: Path) -> bool:
@@ -122,7 +132,7 @@ def check_fixtures(compiler: str, directory: str) -> bool:
     for path in sorted((ROOT / "tests" / directory).glob("*.of")):
         if path.stem.endswith("_test"):
             continue   # loaded with its module
-        result = subprocess.run([compiler, "test", str(path)], capture_output=True, text=True)
+        result = run([compiler, "test", str(path)])
         expected = path.with_suffix(".out").read_text()
         if result.stdout != expected:
             ok = False
@@ -137,7 +147,7 @@ def check_bench_fixtures(compiler: str) -> bool:
     ok = True
     times = re.compile(r"\d+ ns/iter \(\d+ iterations\)")
     for path in sorted((ROOT / "tests" / "ofir_bench").glob("*.of")):
-        result = subprocess.run([compiler, "bench", str(path)], capture_output=True, text=True)
+        result = run([compiler, "bench", str(path)])
         output = times.sub("N ns/iter (N iterations)", result.stdout)
         if output != path.with_suffix(".out").read_text():
             ok = False

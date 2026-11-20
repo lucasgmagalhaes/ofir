@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Reliable, fast CI (ADR 0091): `make test` runs as two parallel shards
+  per platform and LLVM, superseded pull request runs are cancelled,
+  jobs have time limits and a failed job keeps its logs for 14 days. The
+  test runner reruns a failing test once and reports one that then
+  passes as flaky (`--no-retry` turns this off).
 - Representative applications (ADR 0090): `apps/` holds a CLI and
   filesystem utility, a C program linking an Ofir static library and a
   concurrent program; `make check-apps` builds each in dev and release
@@ -216,6 +221,9 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The test runners give every test an empty standard input and kill its
+  whole process group past a time limit: the `std/io` module example
+  waited forever for input when run from a terminal.
 - `a ?? b`, `a && b` and `a || b` whose right side diverges (`return`,
   `panic`, `break`) no longer emit invalid LLVM IR.
 - `read_line` panics with "out of memory" when a line cannot be

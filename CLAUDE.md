@@ -14,7 +14,7 @@ with clang.
 - `std/`, `runtime/`, `tests/`, `tools/`, `docs/` (spec, ADRs, roadmap).
 - Manifest: `ofir.json` (JSONC, camelCase keys; ADR 0026).
 - Work follows `docs/roadmap.md`; phase 5 and 6.22 to 6.27 are done (6.27 is
-  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63) and 6.29a-h (OFIR-64 to 71) and 6.30a-e (OFIR-72 to 76) are done; next: OFIR-77.
+  OFIR-48 to OFIR-55); 6.28a-h (OFIR-56 to 63) and 6.29a-h (OFIR-64 to 71) and 6.30a-f (OFIR-72 to 77) are done; next: OFIR-78.
 
 ## Working rules
 
@@ -42,6 +42,7 @@ the log with `grep`/`tail`, not whole.
 
 ```
 tools/quiet.sh test             # everything CI runs
+tools/quiet.sh test-shard-1     # its first half (test-shard-2: the second)
 tools/quiet.sh compare-stages   # stage 1 output == stage 0 output
 tools/quiet.sh test-stage1      # all tests with stage 1 as the compiler
 tools/quiet.sh verify           # stage 2 and stage 3 emit the same .ll

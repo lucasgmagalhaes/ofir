@@ -64,7 +64,7 @@ TOP_LEVEL_FN_RE = re.compile(r"^(pub\s+)?(unsafe\s+)?fn\b")
 @dataclass
 class Result:
     path: Path
-    status: str  # "pass", "fail" or "skip"
+    status: str  # "pass", "fail", "skip" or "flaky" (failed once, then passed)
     detail: str = ""
 
 
@@ -99,15 +99,27 @@ def executable(path: str) -> str:
 
 
 def run_process(cmd: list[str], cwd: Path | None = None, input_text: str | None = None,
-                env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+                env: dict[str, str] | None = None,
+                timeout: int = TIMEOUT_SECONDS) -> subprocess.CompletedProcess:
+    """Runs `cmd` with `input_text` as its standard input, or an empty one,
+    so that a program that reads stdin sees the same input wherever the
+    tests run. On a timeout it kills the process and everything it started
+    (its process group): a test program left running would keep the pipes
+    open, and the wait for them would never end."""
+    proc = subprocess.Popen(
+        cmd, cwd=cwd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        stdin=subprocess.DEVNULL if input_text is None else subprocess.PIPE,
+        start_new_session=os.name != "nt")
     try:
-        return subprocess.run(
-            cmd, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT_SECONDS,
-            input=input_text, env=env
-        )
-    except subprocess.TimeoutExpired as exc:
-        message = f"timeout after {TIMEOUT_SECONDS}s"
-        return subprocess.CompletedProcess(cmd, -1, exc.stdout or "", message)
+        out, err = proc.communicate(input_text, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            proc.kill()
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+        out, _ = proc.communicate()
+        return subprocess.CompletedProcess(cmd, -1, out or "", f"timeout after {timeout}s")
+    return subprocess.CompletedProcess(cmd, proc.returncode, out, err)
 
 
 def test_env(cfg: Config, path: Path) -> dict[str, str]:
@@ -795,6 +807,29 @@ def run_test(cfg: Config, suite: str, path: Path) -> Result:
     return check_diagnostics(cfg, path, source)
 
 
+def run_with_retry(cfg: Config, suite: str, path: Path, retry: bool) -> Result:
+    """Runs a test, and a failing one once more: a test that then passes is
+    flaky. It still counts and stays in the suite; it is reported, never
+    skipped (ADR 0091)."""
+    result = run_test(cfg, suite, path)
+    if result.status != "fail" or not retry:
+        return result
+    again = run_test(cfg, suite, path)
+    if again.status == "fail":
+        return again
+    return Result(path, "flaky", result.detail)
+
+
+def report_flaky(flaky: list[str], stage: int, log: Path) -> None:
+    """Writes the flaky tests to `log` and, in GitHub Actions, as warnings on
+    the run."""
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text("".join(f"{rel}\n" for rel in flaky))
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        for rel in flaky:
+            print(f"::warning title=flaky test::{rel} failed once, then passed (stage {stage})")
+
+
 def is_module_of_project(path: Path, suite_dir: Path) -> bool:
     """A directory with a main.of is one multi-file test: its other files are
     modules of that program, not tests."""
@@ -834,6 +869,10 @@ def main(argv: list[str]) -> int:
     parser.add_argument("-v", "--verbose", action="store_true", help="also list passing tests")
     parser.add_argument("--target", default="",
                         help="build run tests for this triple and run them under OFIR_RUNNER")
+    parser.add_argument("--no-retry", action="store_true",
+                        help="fail a test on its first failure instead of running it again")
+    parser.add_argument("--flaky-log", type=Path,
+                        help="where to list flaky tests (default: build/logs/flaky-*.txt)")
     args = parser.parse_args(argv)
 
     stage = args.stage if args.stage is not None else (0 if "stage0" in args.compiler else 1)
@@ -854,18 +893,26 @@ def main(argv: list[str]) -> int:
     make_registry_fixtures(cfg.tests_dir / "registry", root / "build" / "registry-fixtures")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        results = list(pool.map(lambda t: run_test(cfg, *t), tests))
+        retry = not args.no_retry and not cfg.bless
+        results = list(pool.map(lambda t: run_with_retry(cfg, *t, retry), tests))
 
-    counts = {"pass": 0, "fail": 0, "skip": 0}
+    counts = {"pass": 0, "fail": 0, "skip": 0, "flaky": 0}
+    flaky = []
     for r in results:
         counts[r.status] += 1
         rel = r.path.relative_to(cfg.tests_dir).as_posix()
         if r.status == "fail":
             print(f"FAIL {rel}\n" + "\n".join("     " + line for line in r.detail.splitlines()))
+        elif r.status == "flaky":
+            flaky.append(rel)
+            print(f"FLAKY {rel} (failed once, then passed)\n"
+                  + "\n".join("     " + line for line in r.detail.splitlines()))
         elif cfg.verbose:
             print(f"{r.status.upper():4} {rel}" + (f" ({r.detail})" if r.detail else ""))
+    name = f"flaky-stage{stage}" + (f"-{cfg.target}" if cfg.target else "") + ".txt"
+    report_flaky(flaky, stage, args.flaky_log or root / "build" / "logs" / name)
     print(f"\n{len(results)} tests: {counts['pass']} passed, {counts['fail']} failed, "
-          f"{counts['skip']} skipped (stage {stage})")
+          f"{counts['skip']} skipped, {counts['flaky']} flaky (stage {stage})")
     return 1 if counts["fail"] else 0
 
 

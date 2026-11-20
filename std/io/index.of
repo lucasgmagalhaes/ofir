@@ -4,7 +4,7 @@
  * streams (docs/std/system.md).
  *
  * @example
- * ```ofir
+ * ```ofir no_run
  * import std.io
  *
  * let line = str.new()

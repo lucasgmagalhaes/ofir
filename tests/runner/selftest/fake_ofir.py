@@ -8,6 +8,8 @@ test file and behaves as they say.
     // fake-diag: LINE CODE MSG   report a diagnostic (E... errors, W... warnings)
     // fake-panic: MSG            print `panic: MSG` and exit with 101
     // fake-ir: TEXT              write TEXT as a line of OUT.ll (--emit=llvm)
+    // fake-flaky:                fail the first time, pass afterwards (it
+                                  leaves FILE.tried next to the test)
 """
 
 import re
@@ -23,6 +25,11 @@ def main(argv):
     def directives(name):
         return re.findall(rf"//\s*fake-{name}:\s*(.*?)\s*$", source, re.MULTILINE)
 
+    tried = path.with_name(path.name + ".tried")
+    if "fake-flaky:" in source and not tried.exists():
+        tried.write_text("")
+        print(f"{path}:1:1: error[E0001]: flaky failure", file=sys.stderr)
+        return 1
     failed = False
     for diag in directives("diag"):
         line, code, message = diag.split(" ", 2)

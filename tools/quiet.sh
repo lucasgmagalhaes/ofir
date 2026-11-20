@@ -14,7 +14,7 @@ log="$dir/$target.log"
 make "$target" "$@" >"$log" 2>&1
 status=$?
 # Result lines printed by the runners and tools.
-grep -E '^[0-9]+ tests:|^stages:|^verify:|^unit tests|^std modules|passed|^ok:|clean$' "$log" \
+grep -E '^[0-9]+ tests:|^FLAKY|^stages:|^verify:|^unit tests|^std modules|passed|^ok:|clean$' "$log" \
     | grep -v '^make' | tail -n 20
 if [ "$status" -ne 0 ]; then
     echo "--- failures ($log) ---"
