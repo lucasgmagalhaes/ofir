@@ -69,6 +69,9 @@ fn pathDef(c: mut Checker, path: List<Symbol>, span: Span) int {
     }
     const id = c.r.scope.module(path[0])
     c.r.noteImportUse(path[0])
+    if id == 0 && c.r.ambiguity(path[0], span) {
+        return 0
+    }
     if id == 0 {
         c.error("E0200", span, "cannot find `{c.text(path[0])}` in this scope")
         suggestName(c.r, path[0], SuggestScope.Item)
