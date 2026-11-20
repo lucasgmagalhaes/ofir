@@ -12,4 +12,5 @@ fn types(
     k: *u8,
     l: std.io.File,
     m: List<move fn() int>,
+    n: (int),
 ) {}

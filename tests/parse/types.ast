@@ -13,4 +13,5 @@ module
     param k: *u8
     param l: std.io.File
     param m: List<move fn() int>
+    param n: int
     body
