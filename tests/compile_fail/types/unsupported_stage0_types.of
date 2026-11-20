@@ -20,6 +20,13 @@ fn mutStr() {
     const _r = &mut s   // error[E0901]: `&mut str` is not supported yet
 }
 
+fn nested(c: Color) {
+    match c {
+        x.y.Red => {}  // error[E0901]: nested module paths in patterns are not supported yet
+        _ => {}
+    }
+}
+
 fn named() {
     const _g = generic(x: 1)   // error[E0901]: named arguments are not supported yet
 }
