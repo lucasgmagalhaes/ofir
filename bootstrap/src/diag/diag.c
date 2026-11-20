@@ -125,14 +125,18 @@ static void render_human(const Diagnostic *d, const SourceMap *map, FILE *out) {
     if (lc.column - 1 + len > line.len + 1) {
         len = (uint32_t)line.len + 1 - (lc.column - 1);   // clip spans running past the line
     }
+    // Built whole and written once: stderr is unbuffered, and a character
+    // at a time is a system call each.
+    size_t indent = lc.column - 1;
+    char *caret = xmalloc(indent + len + 1);
+    for (size_t i = 0; i < indent; i++) {
+        caret[i] = line.ptr[i] == '\t' ? '\t' : ' ';
+    }
+    memset(caret + indent, '^', len);
+    caret[indent + len] = '\n';
     fprintf(out, "%*s | ", width, "");
-    for (uint32_t i = 0; i + 1 < lc.column; i++) {
-        fputc(line.ptr[i] == '\t' ? '\t' : ' ', out);
-    }
-    for (uint32_t i = 0; i < len; i++) {
-        fputc('^', out);
-    }
-    fputc('\n', out);
+    fwrite(caret, 1, indent + len + 1, out);
+    free(caret);
     if (d->note_count > 0) {
         fprintf(out, "%*s |\n", width, "");
     }
