@@ -1,0 +1,38 @@
+// Dense matrix multiply (ADR 0100): f64 arithmetic over row-major
+// buffers, the inner loop of numerical code, with bounds checks on.
+
+fn fill(n: int, seed: int) List<float> {
+    let m = List<float>.withCapacity(n * n)
+    for i in 0..n * n {
+        m.push(((i * seed) % 17) as float - 8.0)
+    }
+    return m
+}
+
+fn multiply(a: List<float>, b: List<float>, c: mut List<float>, n: int) {
+    for i in 0..n {
+        for k in 0..n {
+            const aik = a[i * n + k]
+            for j in 0..n {
+                c[i * n + j] += aik * b[k * n + j]
+            }
+        }
+    }
+}
+
+fn main() {
+    const n = 500
+    const a = fill(n, 7)
+    const b = fill(n, 5)
+    let c = List<float>.filled(0.0, n * n)
+    multiply(a, b, c, n)
+    let trace = 0.0
+    let total = 0.0
+    for i in 0..n {
+        trace += c[i * n + i]
+    }
+    for x in c {
+        total += x
+    }
+    println("{trace} {total}")
+}
