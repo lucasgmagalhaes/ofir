@@ -1,0 +1,23 @@
+// Parse errors of an alias, a range pattern and a match arm.
+
+type A<T: Eq> = T   // error[E0100]: a type alias cannot bound its type parameters
+
+fn ranges() {
+    const x = 3
+    const y = 4
+    match x {
+        1..=y => println("a"),   // error[E0100]: expected a literal to end the range, found an identifier
+        _ => println("b"),
+    }
+}
+
+fn arms() {
+    const x = 3
+    match x {
+        1 => println("a") 2 => println("b")   // error[E0100]: expected a new line or `,` after the match arm, found a number
+        _ => println("c"),
+    }
+}
+
+fn main() {
+}
