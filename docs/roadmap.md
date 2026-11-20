@@ -452,6 +452,18 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.32f | `ofir check --fmt`: the files `ofir fmt` would change, as warnings | ADR 0080 | |
 | 6.32g | Contracts: `@requires` and `@ensures` (spec 12.1), `result`, no effects in a condition, checked in debug and test, a profile setting for release; shown by `sig`, `outline` and `ofir doc`; new codes | ADR 0080 | |
 | 6.32h | Effects `io`, `alloc` and `unsafe` over the call graph, per instantiation, every effect through function and interface values; `@effects(...)` bound with a new code; bounds on the public functions of `std` | ADR 0080 | |
+| 6.33 | Quality assurance (ADR 0103): the compilers' coverage measured and uploaded to Codecov, every reachable line tested, bugs hunted by fuzzing, generated programs and mutation | ADR 0103 | Every directory at its floor; the floors reach 100% of reachable lines |
+| 6.33a | Coverage measurement: `tools/coverage.py` (`make coverage`) builds stage 0 with gcc `--coverage` and stage 1 with `--release --coverage`, runs the suites of `make test` with each and writes Cobertura per stage; a CI job uploads them to Codecov with the flags `stage0` and `stage1`; patch target 100% (`codecov.yml`) | ADR 0103 | **done**: stage 0 92.0% lines, stage 1 86.7% |
+| 6.33b | The runtime and `std` measured: `runtime/src` built with clang `--coverage` for the test programs, and the `std` lines those programs run, as the flags `runtime` and `std` | ADR 0103 | |
+| 6.33c | Exclusions and the ratchet: `GCOVR_EXCL_*` markers with a reason on lines no input reaches; floors per directory in `tools/coverage_floors.json`, checked by `tools/coverage.py --check` in the CI job | ADR 0103 | |
+| 6.33d | Stage 0 at 100% of reachable lines: `--emit=air` and trace tests on stage 0 (`air_print.c`, `check_trace.c`, `lower_test.c`), the driver and `main.c` options, patterns and constant evaluation; each uncovered line a test, dead code removed or a bug fixed | ADR 0103 | |
+| 6.33e | Stage 1 front end at 100%: `syntax`, `sema` (`const_eval.of`, `check_comptime_for.of`, `core/types.of`) and `diag`, with compile-fail cases for each uncovered diagnostic path | ADR 0103 | |
+| 6.33f | Stage 1 middle and back end at 100%: `air` (the interpreter first, 68.9%) and `codegen` | ADR 0103 | |
+| 6.33g | Stage 1 tooling at 100%: `driver` (`pkg/packages.of`, `pkg/publish.of`, `pkg/resolve.of`), `cli`, `lsp`, `fmt`, `doc` and `base/json.of` | ADR 0103 | |
+| 6.33h | Branch floors: the branch coverage of each directory gets a floor once its lines are at 100%, and climbs the same way | ADR 0103 | |
+| 6.33i | libFuzzer on stage 0: the lexer, the parser and the checker built with `-fsanitize=fuzzer,address,undefined`, a corpus from `tests/`, a scheduled CI job; each crash becomes a regression seed of `tools/fuzz_frontend.py` | ADR 0103 | |
+| 6.33j | Differential generated programs: a generator of well-typed programs over the whole language, whose output must agree between stage 0, stage 1, the AIR interpreter and the release build; minimized failures become run tests | ADR 0103 | |
+| 6.33k | Mutation testing: operators, conditions and constants of `compiler/` and `bootstrap/src` mutated one at a time, the tests run on each; a surviving mutant is a missing test, a report per directory | ADR 0103 | |
 
 ### Next language decisions (proposed)
 
@@ -569,7 +581,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 ## Next steps
 
 1. Follow the order of [scope and capacity](design/scope.md): 6.32b, then
-   6.32f; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
+   6.32f and 6.33b; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
    6.31c holds the rest of OFIR-80.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
@@ -582,10 +594,15 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
    Select optional adapters and domain ecosystems by concrete demand and ownership.
 4. Code written by agents (6.32, ADR 0080): start with 6.32b (6.32a is done),
    then the query commands (6.32c, 6.32d) before edits, contracts and effects.
-5. Reconcile language states (LANG-01) and decide stability, editions, pointer
+5. Quality assurance (6.33, ADR 0103): measure the runtime and `std`
+   (6.33b), then exclusions and floors (6.33c), then raise each area to
+   100% of its reachable lines, triaging what is uncovered as a test,
+   dead code or a bug; fuzzing, generated programs and mutation testing
+   hunt the bugs the tests miss.
+6. Reconcile language states (LANG-01) and decide stability, editions, pointer
    provenance and atomic semantics (LANG-02–08) before implementing dependent
    features; use measured workloads for LANG-16, LANG-19 and LANG-20.
-6. Implement the low-level API in dependency order: memory/ABI (LL-01–09),
+7. Implement the low-level API in dependency order: memory/ABI (LL-01–09),
    streams/files/processes/time (LL-10–24), then networking, workers and
    portability (LL-25–35). Add API-50–54 to production readiness reviews.
 
