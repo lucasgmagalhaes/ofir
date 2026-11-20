@@ -2,13 +2,13 @@
 // it on every lowered body, and again after the passes that rewrite bodies,
 // so a malformed body stops the compiler before it reaches LLVM.
 
-import air.ir.air.AirBody
-import air.ir.air.AirStmt
-import air.ir.air.Operand
-import air.ir.air.OperandKind
-import air.ir.air.RvalueKind
-import air.ir.air.StmtKind
-import air.ir.air.TermKind
+import air.ir.AirBody
+import air.ir.AirStmt
+import air.ir.Operand
+import air.ir.OperandKind
+import air.ir.RvalueKind
+import air.ir.StmtKind
+import air.ir.TermKind
 
 fn localOk(b: &AirBody, id: int) bool {
     return id >= 0 && id < b.locals.len()

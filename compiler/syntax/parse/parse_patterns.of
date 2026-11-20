@@ -5,9 +5,9 @@
 
 import base.intern.Symbol
 import base.span.Span
-import syntax.ast.ast.FieldPattern
-import syntax.ast.ast.Pattern
-import syntax.ast.ast.PatternKind
+import syntax.ast.FieldPattern
+import syntax.ast.Pattern
+import syntax.ast.PatternKind
 import syntax.lex.token.TokenKind
 import syntax.parse.parse_primary.atLiteral
 import syntax.parse.parse_primary.parseLiteral

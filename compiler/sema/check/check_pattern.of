@@ -8,7 +8,7 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_box.boxInner
 import sema.check.check_types.resolveType
 import sema.check.check_types.moduleType
@@ -33,9 +33,9 @@ import sema.core.types.UNIT
 import sema.resolve.suggest.SuggestScope
 import sema.resolve.suggest.suggestField
 import sema.resolve.suggest.suggestName
-import syntax.ast.ast.Pattern
-import syntax.ast.ast.PatternKind
-import syntax.ast.ast.TypeExpr
+import syntax.ast.Pattern
+import syntax.ast.PatternKind
+import syntax.ast.TypeExpr
 
 fn mismatch(c: mut Checker, span: Span, what: str, ty: int) {
     if ty != ERROR {

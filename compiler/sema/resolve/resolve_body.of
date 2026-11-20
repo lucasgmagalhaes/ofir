@@ -12,8 +12,8 @@ import base.span.Span
 import sema.core.def.DefKind
 import sema.core.def.Local
 import sema.core.def.Res
-import sema.resolve.resolve.Resolver
-import sema.resolve.resolve.constParamsOf
+import sema.resolve.Resolver
+import sema.resolve.constParamsOf
 import sema.resolve.resolve_attributes.warnDeprecated
 import sema.resolve.resolve_import.resolveQualified
 import sema.resolve.trace.traceAt
@@ -22,18 +22,18 @@ import sema.resolve.complete.completeScope
 import sema.resolve.complete.probing
 import sema.resolve.suggest.SuggestScope
 import sema.resolve.suggest.suggestName
-import syntax.ast.ast.Arg
-import syntax.ast.ast.Block
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FnDecl
-import syntax.ast.ast.Mode
-import syntax.ast.ast.Param
-import syntax.ast.ast.ForKind
-import syntax.ast.ast.Pattern
-import syntax.ast.ast.PatternKind
-import syntax.ast.ast.Stmt
-import syntax.ast.ast.StmtKind
+import syntax.ast.Arg
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FnDecl
+import syntax.ast.Mode
+import syntax.ast.Param
+import syntax.ast.ForKind
+import syntax.ast.Pattern
+import syntax.ast.PatternKind
+import syntax.ast.Stmt
+import syntax.ast.StmtKind
 
 fn declareLocal(r: mut Resolver, name: Symbol, span: Span, mutable: bool) int {
     if r.scope.inCurrentBlock(name) {

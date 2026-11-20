@@ -5,7 +5,7 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_stmt.checkBlock
 import sema.check.check_types.resolveType
 import sema.check.expr_check.checkExpr
@@ -20,12 +20,12 @@ import sema.core.types.FN_OWNED
 import sema.core.types.FN_SEND
 import sema.core.types.TyKind
 import sema.core.types.UNIT
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.Mode
-import syntax.ast.ast.Param
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.Mode
+import syntax.ast.Param
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
 
 /**
  * Checks a closure: each parameter's type comes from its annotation or

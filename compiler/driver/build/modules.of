@@ -39,8 +39,8 @@ import sema.core.program.newProgram
 import std.fs
 import std.mem
 import std.os
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Module
+import syntax.ast.ItemKind
+import syntax.ast.Module
 import syntax.lex.lexer.tokenize
 import syntax.parse.parser.parseFrom
 

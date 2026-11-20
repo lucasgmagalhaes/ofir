@@ -3,31 +3,31 @@
 // replaced by stores of the value into the expression's local, so the code
 // generator never sees them.
 
-import air.ir.air.AirBody
-import air.ir.air.AirStmt
-import air.ir.air.FieldPath
-import air.ir.air.FloatFn
-import air.ir.air.GLUE_CLONE
-import air.ir.air.GLUE_DROP
-import air.ir.air.Operand
-import air.ir.air.OperandKind
-import air.ir.air.PanicKind
-import air.ir.air.Rvalue
-import air.ir.air.RvalueKind
-import air.ir.air.RuntimeFn
-import air.ir.air.StmtKind
-import air.ir.air.TermKind
-import air.ir.air.Terminator
-import air.ir.air.VARIANT_STEP
-import air.ir.air.jump
-import air.ir.air.opBool
-import air.ir.air.opFloat
-import air.ir.air.opInt
-import air.ir.air.opStr
-import air.ir.air.runtimeName
-import air.ir.air.rvUse
-import air.ir.air.terminator
-import air.lower.lower.Lowerer
+import air.ir.AirBody
+import air.ir.AirStmt
+import air.ir.FieldPath
+import air.ir.FloatFn
+import air.ir.GLUE_CLONE
+import air.ir.GLUE_DROP
+import air.ir.Operand
+import air.ir.OperandKind
+import air.ir.PanicKind
+import air.ir.Rvalue
+import air.ir.RvalueKind
+import air.ir.RuntimeFn
+import air.ir.StmtKind
+import air.ir.TermKind
+import air.ir.Terminator
+import air.ir.VARIANT_STEP
+import air.ir.jump
+import air.ir.opBool
+import air.ir.opFloat
+import air.ir.opInt
+import air.ir.opStr
+import air.ir.runtimeName
+import air.ir.rvUse
+import air.ir.terminator
+import air.lower.Lowerer
 import air.opt.fold.ONES
 import air.opt.fold.castFails
 import air.opt.fold.compare
@@ -36,8 +36,8 @@ import air.opt.fold.isSigned
 import air.opt.fold.normalize
 import base.span.Span
 import diag.noSpan
-import sema.check.check.Checker
-import sema.check.check.itemOf
+import sema.check.Checker
+import sema.check.itemOf
 import sema.check.enums.variantsOf
 import sema.check.structs.fieldsOf
 import sema.check.structs.structFieldType
@@ -47,8 +47,8 @@ import sema.core.program.Program
 import sema.core.types.I32
 import sema.core.types.STR
 import sema.core.types.TyKind
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Op
+import syntax.ast.ItemKind
+import syntax.ast.Op
 
 /** Calls deeper than this are E0816: each one takes about 32 KiB of the compiler's stack. */
 const MAX_DEPTH: int = 128

@@ -4,11 +4,11 @@
  * order (load, check, lower, generate), then the native toolchain.
  */
 
-import air.interp.interp.evalComptimes
-import air.ir.air.AirBody
+import air.interp.evalComptimes
+import air.ir.AirBody
 import air.ir.air_print.AirPrinter
 import air.ir.validate.validateBody
-import air.lower.lower.lowerProgram
+import air.lower.lowerProgram
 import air.opt.accumulate.accumulate
 import air.opt.fold.foldChecks
 import base.intern.Interner
@@ -52,12 +52,12 @@ import driver.build.target.targetArch
 import driver.build.target.targetOs
 import driver.version.VERSION
 import sema.check.c_symbols.linkLibraries
-import sema.check.check.Checker
-import sema.check.check.checkProgram
+import sema.check.Checker
+import sema.check.checkProgram
 import sema.check.type_trace.traceTypes
 import sema.core.program.Program
 import sema.resolve.interface_params.desugarInterfaceParams
-import sema.resolve.resolve.resolveProgram
+import sema.resolve.resolveProgram
 import std.fs
 import std.mem
 import std.os

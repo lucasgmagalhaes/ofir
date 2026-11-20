@@ -13,7 +13,7 @@ import sema.check.borrows.bindLoans
 import sema.check.borrows.carriedSince
 import sema.check.borrows.dropCarry
 import sema.check.borrows.killHolder
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_comptime.knownCondition
 import sema.check.check_dyn.boxesDyn
 import sema.check.check_pattern.testedDyn
@@ -34,11 +34,11 @@ import sema.check.moves_expr.usePlace
 import sema.check.structs.isCopy
 import sema.core.program.Program
 import std.mem
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FieldPattern
-import syntax.ast.ast.Pattern
-import syntax.ast.ast.PatternKind
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FieldPattern
+import syntax.ast.Pattern
+import syntax.ast.PatternKind
 
 fn anyByMove(c: Checker, p: Program, list: List<Pattern>) bool {
     for i in 0..list.len() {

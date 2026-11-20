@@ -6,16 +6,16 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.BOUND_CONST
-import sema.check.check.Checker
-import sema.check.check.fnGenericsIn
-import sema.check.check.interfaceOf
-import sema.check.check.fnOf
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
-import sema.check.check.noGenerics
-import sema.check.check.typeGenerics
-import sema.check.check.typeGenericsOf
+import sema.check.BOUND_CONST
+import sema.check.Checker
+import sema.check.fnGenericsIn
+import sema.check.interfaceOf
+import sema.check.fnOf
+import sema.check.itemOf
+import sema.check.itemTypeParams
+import sema.check.noGenerics
+import sema.check.typeGenerics
+import sema.check.typeGenericsOf
 import sema.check.check_cond.boolType
 import sema.check.check_cond.condType
 import sema.check.check_cond.inferType
@@ -60,13 +60,13 @@ import sema.resolve.resolve_import.memberOf
 import sema.resolve.resolve_import.missingMember
 import sema.resolve.suggest.SuggestScope
 import sema.resolve.suggest.suggestName
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Mode
-import syntax.ast.ast.Op
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
 import syntax.ast.ast_text.typeText
 
 /**

@@ -11,23 +11,23 @@
 
 import base.span.Span
 import sema.check.call_args.arrangeArgs
-import sema.check.check.BOUND_CLONE
-import sema.check.check.BOUND_CONST
-import sema.check.check.BOUND_COUNT
-import sema.check.check.BOUND_DEBUG
-import sema.check.check.BOUND_DISPLAY
-import sema.check.check.BOUND_EQ
-import sema.check.check.BOUND_HASH
-import sema.check.check.BOUND_ORD
-import sema.check.check.BOUND_SEND
-import sema.check.check.BOUND_SYNC
-import sema.check.check.Checker
+import sema.check.BOUND_CLONE
+import sema.check.BOUND_CONST
+import sema.check.BOUND_COUNT
+import sema.check.BOUND_DEBUG
+import sema.check.BOUND_DISPLAY
+import sema.check.BOUND_EQ
+import sema.check.BOUND_HASH
+import sema.check.BOUND_ORD
+import sema.check.BOUND_SEND
+import sema.check.BOUND_SYNC
+import sema.check.Checker
 import sema.check.check_comptime.BOUND_NUMBER
-import sema.check.check.Generics
-import sema.check.check.fnGenericsIn
-import sema.check.check.fnOf
-import sema.check.check.noGenerics
-import sema.check.check.typeGenericsOf
+import sema.check.Generics
+import sema.check.fnGenericsIn
+import sema.check.fnOf
+import sema.check.noGenerics
+import sema.check.typeGenericsOf
 import sema.check.check_box.adjustedType
 import sema.check.check_box.derefArg
 import sema.check.check_closure.coerceToSend
@@ -65,10 +65,10 @@ import sema.core.types.NEVER
 import sema.core.types.Ty
 import sema.core.types.TyKind
 import sema.core.types.kindNumber
-import syntax.ast.ast.Arg
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.TypeExpr
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.TypeExpr
 
 /**
  * The type arguments of a generic use being inferred.

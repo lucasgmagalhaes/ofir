@@ -5,17 +5,17 @@
  */
 
 import base.intern.Symbol
-import syntax.ast.ast.Block
-import syntax.ast.ast.Expr
-import syntax.ast.ast.FieldDecl
-import syntax.ast.ast.FnDecl
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Mode
-import syntax.ast.ast.Param
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.Variant
-import syntax.ast.ast.WherePred
-import syntax.ast.ast.VariantField
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.FieldDecl
+import syntax.ast.FnDecl
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.Param
+import syntax.ast.TypeExpr
+import syntax.ast.Variant
+import syntax.ast.WherePred
+import syntax.ast.VariantField
 import syntax.lex.token.TokenKind
 import syntax.parse.parse_control.parseBlock
 import syntax.parse.parse_exprs.parseExpr

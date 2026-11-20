@@ -14,36 +14,36 @@
 // Calls and their effects keep their order, and the check fails where the
 // first failing addition would have.
 
-import air.ir.air.AirBlock
-import air.ir.air.AirBody
-import air.ir.air.AirStmt
-import air.ir.air.Operand
-import air.ir.air.OperandKind
-import air.ir.air.PanicKind
-import air.ir.air.Rvalue
-import air.ir.air.RvalueKind
-import air.ir.air.RuntimeFn
-import air.ir.air.StmtKind
-import air.ir.air.TermKind
-import air.ir.air.Terminator
-import air.ir.air.isGlue
-import air.ir.air.jump
-import air.ir.air.noPath
-import air.ir.air.opCopy
-import air.ir.air.opInt
-import air.ir.air.opUnit
-import air.ir.air.rvUse
-import air.ir.air.rvalue
-import air.ir.air.terminator
+import air.ir.AirBlock
+import air.ir.AirBody
+import air.ir.AirStmt
+import air.ir.Operand
+import air.ir.OperandKind
+import air.ir.PanicKind
+import air.ir.Rvalue
+import air.ir.RvalueKind
+import air.ir.RuntimeFn
+import air.ir.StmtKind
+import air.ir.TermKind
+import air.ir.Terminator
+import air.ir.isGlue
+import air.ir.jump
+import air.ir.noPath
+import air.ir.opCopy
+import air.ir.opInt
+import air.ir.opUnit
+import air.ir.rvUse
+import air.ir.rvalue
+import air.ir.terminator
 import air.opt.fold.intBits
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.core.types.BOOL
 import sema.core.types.TyKind
 import sema.core.types.UNIT
 import base.span.Span
 import diag.noSpan
 import std.mem
-import syntax.ast.ast.Op
+import syntax.ast.Op
 
 fn scalar(c: mut Checker, ty: int) bool {
     return match c.types.get(ty).kind {

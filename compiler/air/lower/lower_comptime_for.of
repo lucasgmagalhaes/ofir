@@ -5,24 +5,24 @@
  * does not have it.
  */
 
-import air.ir.air.AirStmt
-import air.ir.air.Operand
-import air.ir.air.OperandKind
-import air.ir.air.RvalueKind
-import air.ir.air.StmtKind
-import air.ir.air.isGlue
-import air.ir.air.opCopy
-import air.ir.air.opInt
-import air.ir.air.opStr
-import air.ir.air.rvUse
-import air.lower.lower.AirRange
-import air.lower.lower.Lowerer
-import air.lower.lower.Place
-import air.lower.lower.airRangeNow
-import air.lower.lower.emitAssign
-import air.lower.lower.flagParts
-import air.lower.lower.substFrom
-import air.lower.lower.toLocal
+import air.ir.AirStmt
+import air.ir.Operand
+import air.ir.OperandKind
+import air.ir.RvalueKind
+import air.ir.StmtKind
+import air.ir.isGlue
+import air.ir.opCopy
+import air.ir.opInt
+import air.ir.opStr
+import air.ir.rvUse
+import air.lower.AirRange
+import air.lower.Lowerer
+import air.lower.Place
+import air.lower.airRangeNow
+import air.lower.emitAssign
+import air.lower.flagParts
+import air.lower.substFrom
+import air.lower.toLocal
 import air.lower.lower_expr.lowerBlock
 import air.lower.lower_expr.lowerExpr
 import air.lower.lower_expr.lowerPlace
@@ -30,13 +30,13 @@ import air.lower.lower_expr.variantNamed
 import air.lower.lower_pattern.variantValue
 import air.lower.lower_pattern.isVariant
 import base.intern.Symbol
-import sema.check.check.COMPTIME_ATTRIBUTE
-import sema.check.check.COMPTIME_INDEX
-import sema.check.check.COMPTIME_LOOP
-import sema.check.check.COMPTIME_MATCHES
-import sema.check.check.COMPTIME_NAME
-import sema.check.check.Checker
-import sema.check.check.ComptimeInfo
+import sema.check.COMPTIME_ATTRIBUTE
+import sema.check.COMPTIME_INDEX
+import sema.check.COMPTIME_LOOP
+import sema.check.COMPTIME_MATCHES
+import sema.check.COMPTIME_NAME
+import sema.check.Checker
+import sema.check.ComptimeInfo
 import sema.check.check_comptime_for.comptimeAttribute
 import sema.check.check_comptime_for.comptimeIndex
 import sema.check.check_comptime_for.comptimeKey
@@ -48,10 +48,10 @@ import sema.core.types.I64
 import sema.core.types.STR
 import sema.core.types.TyKind
 import sema.core.types.UNIT
-import syntax.ast.ast.Block
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.Stmt
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.Stmt
 
 // The record of a `comptime for` or of a member of its variable.
 fn infoOf(c: Checker, id: int) Option<ComptimeInfo> {

@@ -6,15 +6,15 @@
 
 import base.intern.Interner
 import base.intern.Symbol
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FieldPattern
-import syntax.ast.ast.Mode
-import syntax.ast.ast.Op
-import syntax.ast.ast.Pattern
-import syntax.ast.ast.PatternKind
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FieldPattern
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.Pattern
+import syntax.ast.PatternKind
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
 import syntax.lex.token_print.formatG
 
 /**

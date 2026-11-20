@@ -10,15 +10,15 @@
 import base.span.Span
 import diag.lintCodes
 import sema.core.def.DefKind
-import sema.resolve.resolve.Resolver
-import sema.resolve.resolve.findAttribute
-import syntax.ast.ast.Attribute
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FieldDecl
-import syntax.ast.ast.FnDecl
-import syntax.ast.ast.Item
-import syntax.ast.ast.ItemKind
+import sema.resolve.Resolver
+import sema.resolve.findAttribute
+import syntax.ast.Attribute
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FieldDecl
+import syntax.ast.FnDecl
+import syntax.ast.Item
+import syntax.ast.ItemKind
 
 const ON_FN: int = 1
 const ON_METHOD: int = 2

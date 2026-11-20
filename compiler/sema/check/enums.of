@@ -6,10 +6,10 @@
  */
 
 import base.intern.Symbol
-import sema.check.check.Checker
-import sema.check.check.Loc
-import sema.check.check.itemOf
-import sema.check.check.typeGenericsOf
+import sema.check.Checker
+import sema.check.Loc
+import sema.check.itemOf
+import sema.check.typeGenericsOf
 import sema.check.check_ref.checkStorable
 import sema.check.check_types.ownerType
 import sema.check.check_types.resolveType
@@ -22,8 +22,8 @@ import sema.core.program.Program
 import sema.core.types.ERROR
 import sema.core.types.I64
 import sema.core.types.TyKind
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Variant
+import syntax.ast.ItemKind
+import syntax.ast.Variant
 
 /**
  * A variant of an enum.

@@ -10,13 +10,13 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.BOUND_CLONE
+import sema.check.BOUND_CLONE
 import sema.check.call_args.argParam
-import sema.check.check.Checker
-import sema.check.check.Loc
-import sema.check.check.fnOf
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
+import sema.check.Checker
+import sema.check.Loc
+import sema.check.fnOf
+import sema.check.itemOf
+import sema.check.itemTypeParams
 import sema.check.check_box.autoDeref
 import sema.check.check_box.methodReceiver
 import sema.check.check_list.arraySliceReceiver
@@ -74,13 +74,13 @@ import sema.resolve.complete.probing
 import sema.resolve.resolve_attributes.warnDeprecated
 import sema.resolve.suggest.Suggestion
 import sema.resolve.trace.CompletionKind
-import syntax.ast.ast.Arg
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FnDecl
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.Mode
-import syntax.ast.ast.TypeExpr
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FnDecl
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.TypeExpr
 
 /** The `members` entry of a `.clone()` derived by the compiler. */
 pub const DERIVED_CLONE: int = -2

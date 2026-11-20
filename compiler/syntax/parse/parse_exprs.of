@@ -6,9 +6,9 @@
  */
 
 import base.span.Span
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.Op
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.Op
 import syntax.lex.token.TokenKind
 import syntax.parse.parse_primary.parsePostfix
 import syntax.parse.parse_primary.parsePrimary

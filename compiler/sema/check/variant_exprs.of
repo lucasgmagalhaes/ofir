@@ -8,10 +8,10 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
-import sema.check.check.typeGenericsOf
+import sema.check.Checker
+import sema.check.itemOf
+import sema.check.itemTypeParams
+import sema.check.typeGenericsOf
 import sema.check.check_generic.checkGenericArgs
 import sema.check.check_generic.inferFromSelf
 import sema.check.check_generic.inferNew
@@ -25,9 +25,9 @@ import sema.check.expr_check.checkArgs
 import sema.core.program.Program
 import sema.core.types.ERROR
 import sema.core.types.TyKind
-import syntax.ast.ast.Arg
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
 
 // Checks the payload of variant `index` of enum `id`, built at `at`.
 fn build(c: mut Checker, p: Program, at: &Expr, args: Option<&List<Arg>>, id: int, index: int,

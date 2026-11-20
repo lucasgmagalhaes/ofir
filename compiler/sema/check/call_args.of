@@ -7,8 +7,8 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.fnOf
+import sema.check.Checker
+import sema.check.fnOf
 import sema.check.check_types.fnSignature
 import sema.check.expr_check.coerce
 import sema.core.def.DefKind
@@ -16,10 +16,10 @@ import sema.core.def.Res
 import sema.core.program.Program
 import sema.core.types.ERROR
 import base.intern.Symbol
-import syntax.ast.ast.Arg
-import syntax.ast.ast.Expr
-import syntax.ast.ast.ExprKind
-import syntax.ast.ast.FnDecl
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FnDecl
 
 // Whether `e` names a constant.
 fn isConst(c: Checker, e: &Expr) bool {

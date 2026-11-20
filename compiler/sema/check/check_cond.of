@@ -6,14 +6,14 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_types.resolveType
 import sema.core.program.Program
 import sema.core.types.ERROR
 import sema.core.types.INFER_BASE
 import sema.core.types.TyKind
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
 
 /**
  * The type `true` or `false`.

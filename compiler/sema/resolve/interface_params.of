@@ -13,13 +13,13 @@
 import base.intern.Symbol
 import sema.core.def.DefKind
 import sema.core.program.Program
-import sema.resolve.resolve.Resolver
-import syntax.ast.ast.FnDecl
-import syntax.ast.ast.Item
-import syntax.ast.ast.ItemKind
-import syntax.ast.ast.TypeExpr
-import syntax.ast.ast.TypeKind
-import syntax.ast.ast.WherePred
+import sema.resolve.Resolver
+import syntax.ast.FnDecl
+import syntax.ast.Item
+import syntax.ast.ItemKind
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
+import syntax.ast.WherePred
 
 /**
  * Rewrites every function and method of the program whose parameters
