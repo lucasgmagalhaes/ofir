@@ -26,7 +26,7 @@ project uses [Semantic Versioning](https://semver.org/).
   new tests cover constant evaluation, pattern mismatches, the
   expressions stage 0 rejects, attribute targets, escapes and extern
   ABIs; five unused functions are removed and internal errors excluded;
-  stage 0 is at 98.4% of its lines.
+  stage 0 is at 100% of its reachable lines, and its floors with it.
 - Glob imports (ADR 0098): `import a.b.*` brings every public member of
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
@@ -285,6 +285,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Comparing two unit values (`u == ()`) emitted `icmp` on `void`, which
+  is not LLVM IR; both stages compare two constant zeros.
 - A constant null pointer (`const NULL: *u8 = 0 as *u8`) used as a value
   emitted `ptr 0`, which is not LLVM IR; both stages emit `null`.
 - `ofir build --emit=ast` of stage 0 no longer crashes on a range
