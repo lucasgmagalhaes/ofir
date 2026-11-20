@@ -100,7 +100,9 @@ static Layout layout(Gen *g, TypeId type) {
     case TY_FLOAT: return (Layout){ty->data / 8, ty->data / 8};
     case TY_STR: return (Layout){24, 8};
     case TY_REF: case TY_PTR: return (Layout){8, 8};
+    // GCOVR_EXCL_START: function values are rejected (E0901): none is laid out
     case TY_FN: return (Layout){16, 8};
+    // GCOVR_EXCL_STOP
     case TY_TUPLE: return fields_layout(g, ty->args, ty->arg_count);
     case TY_ADT: {
         const Def *def = sema_def(g->sema, (DefId){ty->data});
