@@ -1,4 +1,5 @@
 fn main() {
     const x = 1 $ 2   // error[E0001]: unexpected character
     const é = 3       // error[E0001]: unexpected character
+    const b = b#      // error[E0001]: unexpected character
 }
