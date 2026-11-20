@@ -3,49 +3,109 @@ import { getCollection, render, type CollectionEntry } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 
 export async function getStaticPaths() {
-  const pages = await getCollection("reference");
-  return pages.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+    const pages = await getCollection("reference");
+    return pages.map((entry) => ({
+        params: { slug: entry.id },
+        props: { entry },
+    }));
 }
 
 const { entry } = Astro.props as { entry: CollectionEntry<"reference"> };
 const { Content, headings } = await render(entry);
-const title = entry.body.match(/^#\s+(.+)$/m)?.[1]?.replace(/[`*]/g, "") ?? entry.id;
+const title =
+    entry.body.match(/^#\s+(.+)$/m)?.[1]?.replace(/[`*]/g, "") ?? entry.id;
 const section = entry.id.split("/")[0];
 const pages = await getCollection("reference");
 const siblings = ["spec", "std"].includes(section)
-  ? pages.filter((page) => page.id === section || page.id.startsWith(`${section}/`))
-      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
-  : [];
+    ? pages
+          .filter(
+              (page) =>
+                  page.id === section || page.id.startsWith(`${section}/`),
+          )
+          .sort((a, b) =>
+              a.id.localeCompare(b.id, undefined, { numeric: true }),
+          )
+    : [];
 const label = (page: CollectionEntry<"reference">) =>
-  page.body.match(/^#\s+(.+)$/m)?.[1]?.replace(/[`*]/g, "") ?? page.id;
-const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+    page.body.match(/^#\s+(.+)$/m)?.[1]?.replace(/[`*]/g, "") ?? page.id;
+const toc = headings.filter(
+    (heading) => heading.depth === 2 || heading.depth === 3,
+);
 const source = ["spec", "std", "errors", "adr"].includes(entry.id)
-  ? `${entry.id}/README.md`
-  : `${entry.id}.md`;
+    ? `${entry.id}/README.md`
+    : `${entry.id}.md`;
 ---
 
-<BaseLayout title={`${title} — Ofir`} description={`Ofir documentation: ${title}`} page="docs">
-  <main id="main" class="docs-layout shell reference-layout">
-    <aside class="docs-sidebar reference-sidebar" aria-label="Documentation sections">
-      <span class="sidebar-title">REFERENCE</span>
-      <a href="/docs/">Get started</a>
-      <a href="/reference/spec/" aria-current={entry.id === "spec" ? "page" : undefined}>Language specification</a>
-      <a href="/reference/std/" aria-current={entry.id === "std" ? "page" : undefined}>Standard library</a>
-      <a href="/reference/errors/" aria-current={entry.id === "errors" ? "page" : undefined}>Error codes</a>
-      <div class="sidebar-divider"></div>
-      {siblings.length > 0 && <span class="sidebar-title">IN THIS SECTION</span>}
-      {siblings.map((page) => (
-        <a class="reference-sibling" href={`/reference/${page.id}/`} aria-current={page.id === entry.id ? "page" : undefined}>{label(page)}</a>
-      ))}
-    </aside>
-    <div class="docs-main reference-main">
-      <div class="docs-breadcrumb"><a href="/docs/">DOCS</a> <span>/</span> {entry.id.toUpperCase()}</div>
-      <article class="reference-content"><Content /></article>
-      <p class="reference-source"><a href={`https://github.com/lucasgmagalhaes/ofir/blob/main/docs/${source}`}>Edit this page on GitHub ↗</a></p>
-    </div>
-    <aside class="docs-toc reference-toc" aria-label="Page outline">
-      <span class="sidebar-title">ON THIS PAGE</span>
-      {toc.map((heading) => <a class:list={{ "toc-subheading": heading.depth === 3 }} href={`#${heading.slug}`}>{heading.text}</a>)}
-    </aside>
-  </main>
+<BaseLayout
+    title={`${title} — Ofir`}
+    description={`Ofir documentation: ${title}`}
+    page="docs"
+>
+    <main id="main" class="docs-layout shell reference-layout">
+        <aside
+            class="docs-sidebar reference-sidebar"
+            aria-label="Documentation sections"
+        >
+            <span class="sidebar-title">REFERENCE</span>
+            <a href="/docs/">Get started</a>
+            <a
+                href="/reference/spec/"
+                aria-current={entry.id === "spec" ? "page" : undefined}
+            >
+                Language specification
+            </a>
+            <a
+                href="/reference/std/"
+                aria-current={entry.id === "std" ? "page" : undefined}
+            >
+                Standard library
+            </a>
+            <a
+                href="/reference/errors/"
+                aria-current={entry.id === "errors" ? "page" : undefined}
+            >
+                Error codes
+            </a>
+            <div class="sidebar-divider"></div>
+            {siblings.length > 0 && (
+                <span class="sidebar-title">IN THIS SECTION</span>
+            )}
+            {siblings.map((page) => (
+                <a
+                    class="reference-sibling"
+                    href={`/reference/${page.id}/`}
+                    aria-current={page.id === entry.id ? "page" : undefined}
+                >
+                    {label(page)}
+                </a>
+            ))}
+        </aside>
+        <div class="docs-main reference-main">
+            <div class="docs-breadcrumb">
+                <a href="/docs/">DOCS</a> <span>/</span>{" "}
+                {entry.id.toUpperCase()}
+            </div>
+            <article class="reference-content">
+                <Content />
+            </article>
+            <p class="reference-source">
+                <a
+                    href={`https://github.com/lucasgmagalhaes/ofir/blob/main/docs/${source}`}
+                >
+                    Edit this page on GitHub ↗
+                </a>
+            </p>
+        </div>
+        <aside class="docs-toc reference-toc" aria-label="Page outline">
+            <span class="sidebar-title">ON THIS PAGE</span>
+            {toc.map((heading) => (
+                <a
+                    class:list={{ "toc-subheading": heading.depth === 3 }}
+                    href={`#${heading.slug}`}
+                >
+                    {heading.text}
+                </a>
+            ))}
+        </aside>
+    </main>
 </BaseLayout>
