@@ -3,6 +3,7 @@ module
     param a: int
     param b: &mut List<str>
     param c: [u8; 4]
+    param n: [u8; <expr>]
     param d: ()
     param e: (int,)
     param f: (int, str)
