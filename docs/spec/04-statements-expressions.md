@@ -20,6 +20,12 @@ a field or element of a mutable place, or a place reached through a `&mut`
 reference.
 Assignment is a statement, not an expression.
 
+The right side is evaluated first, then the place on the left, and then
+the value is stored (ADR 0080). So `items[i] = f()` is correct even when
+`f` grows `items`: the element is found after `f` returns. A compound
+assignment `x op= y` evaluates `y`, then the place, then reads the place
+and stores `x op y`.
+
 ## 4.3 `if`
 
 ```ofir

@@ -1,0 +1,49 @@
+// Every operator of a constant expression (spec 4.7), on signed,
+// unsigned, float and bool operands.
+const U_SUM: u32 = 4000000000 + 200000000
+const U_DIFF: u16 = 60000 - 1
+const U_PROD: u64 = 4000000000 * 4
+const U_QUOT: u8 = 250 / 7
+const U_REM: u8 = 250 % 7
+const S_REM = -17 % 5
+const AND: u8 = 0xF5 & 0x3C
+const XOR: u8 = 0xF5 ^ 0x3C
+const NOT: u8 = !0x0F
+const SHR_SIGNED = -64 >> 3
+const SHR_UNSIGNED: u32 = 4000000000 >> 4
+const U_LESS = U_QUOT < U_REM
+const S_LESS = S_REM < 0
+const F_SUM = 1.5 + 2.25
+const F_DIFF = 1.5 - 2.25
+const F_REM = 7.5 % 2.0
+const F_NEG = -F_SUM
+const F_NE = F_SUM != F_DIFF
+const F_LT = F_DIFF < F_SUM
+const F_LE = F_SUM <= F_SUM
+const F_GE = F_DIFF >= F_SUM
+const NAN_NE = f64.NAN != f64.NAN
+const NAN_EQ = f64.NAN == f64.NAN
+const INF = f64.INFINITY > 1.0e300
+const EPS32 = f32.EPSILON > 0.0
+const EPS64 = f64.EPSILON < 0.001
+const B_NOT = !F_NE
+const B_GT = true != F_GE
+const B_OR = false || F_LT
+const B_ORS = true || F_GE
+const TO_F = -3 as float
+const U_BIG: u32 = 3000000000
+const TO_F32 = U_BIG as f32
+const TO_FU = U_PROD as float
+const F_TO_F32 = F_SUM as f32
+const INT_AS_FLOAT: float = 2
+const BYTE = b'A'
+const NULL: *u8 = 0 as *u8
+
+fn main() {
+    println("{U_SUM} {U_DIFF} {U_PROD} {U_QUOT} {U_REM} {S_REM}")
+    println("{AND} {XOR} {NOT} {SHR_SIGNED} {SHR_UNSIGNED} {U_LESS} {S_LESS}")
+    println("{F_SUM} {F_DIFF} {F_REM} {F_NEG} {F_NE} {F_LT} {F_LE} {F_GE}")
+    println("{NAN_NE} {NAN_EQ} {INF} {EPS32} {EPS64}")
+    println("{B_NOT} {B_GT} {B_OR} {B_ORS}")
+    println("{TO_F} {TO_F32} {TO_FU} {F_TO_F32} {INT_AS_FLOAT} {BYTE} {NULL == 0 as *u8}")
+}

@@ -8,6 +8,23 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Compiler coverage (ADR 0103): `make coverage` (`tools/coverage.py`)
+  measures the line, function and branch coverage of both stages over
+  the suites of `make test` and writes Cobertura reports; CI uploads them
+  to Codecov with the flags `stage0` and `stage1`. Roadmap 6.33 is the
+  QA plan towards 100% of reachable lines.
+- Runtime and `std` coverage (ADR 0103, 6.33b): `make coverage` also
+  builds the runtime with clang `--coverage` and the test programs with
+  `--coverage`, and reports `runtime/src` and `std/` as the Codecov flags
+  `runtime` and `std`.
+- Coverage floors (ADR 0103, 6.33c): `make coverage-check` fails when a
+  directory's line coverage falls below its floor in
+  `tools/coverage_floors.json` or an exclusion marker gives no reason;
+  CI runs it after each measurement.
+- Stage 0 coverage (ADR 0103, 6.33d): `tools/check_stage0_cli.py` checks
+  the command line and the driver errors of stage 0 in `make test`, and
+  new tests cover constant evaluation, pattern mismatches and the
+  expressions stage 0 rejects; stage 0 is at 97.5% of its lines.
 - Glob imports (ADR 0098): `import a.b.*` brings every public member of
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
@@ -266,6 +283,12 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A constant null pointer (`const NULL: *u8 = 0 as *u8`) used as a value
+  emitted `ptr 0`, which is not LLVM IR; both stages emit `null`.
+
+- An assignment evaluates its right side before the place (spec 4.2,
+  ADR 0080 rule 9): `list[i] = f()` with `f` growing `list` no longer
+  writes into freed memory, on both stages.
 - Stage 1 no longer panics on a token or a line next to invalid UTF-8; it
   reports E0001 and E0008 as stage 0 does.
 - The test runners give every test an empty standard input and kill its

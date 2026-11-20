@@ -81,10 +81,15 @@ static Operand drop_old_value(Lowerer *l, const Expr *target, Place place, Opera
     return value;
 }
 
+// The right side runs before the place (spec 4.2): a value read from a
+// place is copied out first, so that the place's code cannot change it.
 static void lower_assign(Lowerer *l, Stmt *s) {
     Expr *target = s->as.assign.target;
-    Place place = lower_place(l, target);
     Operand value = lower_expr(l, s->as.assign.value);
+    if (value.kind == OPERAND_COPY && (value.path.len > 0 || value.path.deref)) {
+        value = op_copy(to_local(l, value), value.type);
+    }
+    Place place = lower_place(l, target);
     if (s->as.assign.op == OP_ADD && target->type.id == TID_STR) {   // s += t appends in place
         Operand part = {.kind = OPERAND_ADDR, .type = value.type, .as.local = to_local(l, value)};
         Operand args[] = {place_operand(place, OPERAND_ADDR, target->type), part};

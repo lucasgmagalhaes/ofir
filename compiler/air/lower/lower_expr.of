@@ -3126,8 +3126,14 @@ fn dropOldValue(l: mut Lowerer, c: mut Checker, p: Program, target: &Expr, place
 
 fn lowerAssign(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt, op: Op, target: &Expr,
                valueExpr: &Expr) {
-    const place = lowerPlace(l, c, p, target)
+    // The right side runs before the place (spec 4.2): a value read from a
+    // place is copied out first, so that the place's code cannot change it.
     let value = lowerExpr(l, c, p, valueExpr)
+    if value.kind == OperandKind.Copy && (value.path.fields.len() > 0 || value.path.deref) {
+        const vty = value.ty
+        value = opCopy(toLocal(l, value), vty)
+    }
+    const place = lowerPlace(l, c, p, target)
     const ty = c.typeOf(target.id.0)
     if op == Op.Add && ty == STR {   // s += t appends in place
         const vty = value.ty

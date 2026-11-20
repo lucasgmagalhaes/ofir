@@ -1,0 +1,72 @@
+// The shape of a pattern must match the type of the value (spec 6.4).
+
+struct Point {
+    x: int
+    y: int
+}
+
+struct Pair(int, int)
+
+enum Shape {
+    Dot
+    Circle(int)
+}
+
+enum Color {
+    Red
+}
+
+fn variants(s: Shape, n: int) {
+    match s {
+        Color.Red => {}       // error[E0300]: mismatched types: the pattern is a variant of `Color`
+        _ => {}
+    }
+    match n {
+        Shape.Dot => {}       // error[E0300]: mismatched types: an enum variant pattern for a value of type int
+        _ => {}
+    }
+    match s {
+        Missing.Dot => {}     // error[E0200]: cannot find `Missing` in this scope
+        _ => {}
+    }
+}
+
+fn structs(p: Point, n: int) {
+    match n {
+        Point { x, y } => {}  // error[E0300]: mismatched types: a struct pattern for a value of type int
+        _ => {}
+    }
+    match p {
+        Point { x, y, z } => {} // error[E0316]: no field `z` on type `Point`
+    }
+    match p {
+        Point { x } => {}     // error[E0308]: the pattern does not list every field
+    }
+}
+
+fn tuple_structs(q: Pair, n: int) {
+    match n {
+        Pair(a, b) => {}      // error[E0300]: mismatched types: a tuple struct pattern for a value of type int
+        _ => {}
+    }
+    match q {
+        Shape(a) => {}        // error[E0300]: mismatched types: a tuple struct pattern for a value of type Pair
+    }
+}
+
+fn others(p: Point, f: float) {
+    match f {
+        1 => {}               // error[E0300]: mismatched types: a literal pattern for a value of type float
+        _ => {}
+    }
+    match f {
+        1..=2 => {}           // error[E0300]: mismatched types: a range pattern for a value of type float
+        _ => {}
+    }
+    match p {
+        (a, b) => {}          // error[E0300]: mismatched types: a tuple pattern for a value of type Point
+    }
+}
+
+fn main() {
+}
