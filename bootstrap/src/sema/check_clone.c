@@ -14,7 +14,7 @@
 
 static FnDecl *method_named(Checker *c, const Def *def, const char *name) {
     if (!def || !def->item) {
-        return NULL;
+        return NULL;   // GCOVR_EXCL_LINE: every struct and enum declaration has its item
     }
     const Item *item = def->item;
     FnList methods = item->kind == ITEM_ENUM ? item->as.enum_.methods : item->as.struct_.methods;
