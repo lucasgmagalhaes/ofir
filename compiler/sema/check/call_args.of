@@ -1,0 +1,246 @@
+/**
+ * @module
+ * Default parameter values and named arguments (spec 3.3): which parameter
+ * each argument of a call gives, and the checks of the defaults. The
+ * calls that name arguments or leave parameters to their defaults record
+ * their arguments' parameters in `Checker.argSlots`.
+ */
+
+import base.span.Span
+import sema.check.check.Checker
+import sema.check.check.fnOf
+import sema.check.check_types.fnSignature
+import sema.check.expr_check.coerce
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.ERROR
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FnDecl
+import base.intern.Symbol
+
+// Whether `e` names a constant.
+fn isConst(c: Checker, e: &Expr) bool {
+    return match c.res(e.id.0) {
+        Res.Def(id) => c.def(id).kind == DefKind.Const
+        _ => false
+    }
+}
+
+// Whether `e` names a type, as the receiver of an associated function.
+fn isType(c: Checker, e: &Expr) bool {
+    return match e.kind {
+        ExprKind.SelfType => true
+        _ => match c.res(e.id.0) {
+            Res.Def(id) => {
+                const kind = c.def(id).kind
+                kind == DefKind.Struct || kind == DefKind.Enum || kind == DefKind.Primitive ||
+                kind == DefKind.TypeAlias
+            }
+            _ => false
+        }
+    }
+}
+
+// Whether `callee` is `T.f`, an associated function.
+fn isAssociated(c: Checker, callee: &Expr) bool {
+    return match callee.kind {
+        ExprKind.Field(base, _, _) => isType(c, &*base)
+        _ => false
+    }
+}
+
+// Whether a default value has a form spec 3.3 allows: a constant
+// expression, `[]` or a call to an associated function without arguments.
+fn allowedDefault(c: Checker, e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Int(_) | ExprKind.Float(_) | ExprKind.Byte(_) | ExprKind.Str(_) |
+        ExprKind.Bool(_) => true
+        ExprKind.Ident(_) | ExprKind.Field(_, _, _) => isConst(c, e)
+        ExprKind.Unary(_, operand) => allowedDefault(c, &*operand)
+        ExprKind.Binary(_, lhs, rhs) => allowedDefault(c, &*lhs) && allowedDefault(c, &*rhs)
+        ExprKind.Cast(value, _) => allowedDefault(c, &*value)
+        ExprKind.Array(elems) => elems.len() == 0
+        ExprKind.Call(callee, args) => args.len() == 0 && isAssociated(c, &*callee)
+        _ => false
+    }
+}
+
+fn checkDefault(c: mut Checker, p: Program, value: &Expr, ty: int) {
+    if !allowedDefault(c, value) {
+        c.error("E0359", value.span, "a default value must be a constant expression, `[]` or "
+                + "a call to an associated function without arguments")
+        return
+    }
+    if ty != ERROR && c.types.get(ty).hasParam {
+        c.unsupported(value.span, "defaults of parameters whose type has type parameters are")
+        return
+    }
+    coerce(c, p, value, ty)
+}
+
+/**
+ * Checks the defaults of a function's parameters, once, in its module:
+ * their form, their types and that they are trailing (E0358, E0359).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the function's `DefId`
+ */
+pub fn checkDefaults(c: mut Checker, p: Program, id: int) {
+    if c.defaultsChecked.get(id).isSome() {
+        return
+    }
+    c.defaultsChecked.insert(id, true)
+    const decl = fnOf(p, c.loc(id))
+    const sig = fnSignature(c, p, id)
+    const params = c.types.get(sig).args.clone()
+    const saved = c.enter(c.def(id).module)
+    let seen = false
+    for i in 0..decl.params.len() {
+        match decl.params[i].defaultValue {
+            Option.Some(value) => {
+                seen = true
+                checkDefault(c, p, &value, if i < params.len() { params[i] } else { ERROR })
+            }
+            Option.None => {
+                if seen {
+                    c.error("E0358", decl.params[i].span, "the parameter "
+                            + "`{c.text(decl.params[i].name)}` needs a default: it follows "
+                            + "one with a default")
+                }
+            }
+        }
+    }
+    c.enter(saved)
+}
+
+// The position of the parameter `name`, or -1.
+fn paramNamed(decl: &FnDecl, name: Symbol) int {
+    for i in 0..decl.params.len() {
+        if decl.params[i].name.0 == name.0 {
+            return i
+        }
+    }
+    return -1
+}
+
+// Whether a function has a parameter with a default.
+fn hasDefaults(decl: &FnDecl) bool {
+    for i in 0..decl.params.len() {
+        if decl.params[i].defaultValue.isSome() {
+            return true
+        }
+    }
+    return false
+}
+
+// The parameter a named argument gives, or -1 (E0306).
+fn namedSlot(c: mut Checker, decl: &FnDecl, arg: &Arg, name: Symbol, given: List<bool>) int {
+    const slot = paramNamed(decl, name)
+    if slot < 0 {
+        c.error("E0306", arg.value.span, "`{c.text(decl.name)}` has no parameter "
+                + "`{c.text(name)}`")
+        return -1
+    }
+    if given[slot] {
+        c.error("E0306", arg.value.span, "the parameter `{c.text(name)}` is given twice")
+        return -1
+    }
+    return slot
+}
+
+/**
+ * Matches the arguments of a call to the parameters of the function `id`
+ * (E0302, E0306, E0308), and records them when the call names arguments
+ * or leaves parameters to their defaults.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param callId the call's `NodeId`
+ * @param span the call
+ * @param args the arguments
+ * @param id the callee's `DefId`
+ * @returns the parameter each argument gives, -1 for none
+ */
+pub fn arrangeArgs(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
+                   id: int) List<int> {
+    const decl = fnOf(p, c.loc(id))
+    const count = decl.params.len()
+    const defaults = hasDefaults(decl)
+    let given = List.filled(false, count)
+    let slots: List<int> = []
+    let named = false
+    let extra = false
+    let misplaced = false
+    for i in 0..args.len() {
+        let slot = -1
+        match args[i].name {
+            Option.Some(name) => {
+                named = true
+                slot = namedSlot(c, decl, &args[i], name, given)
+            }
+            Option.None => {
+                if named {
+                    c.error("E0306", args[i].value.span, "a positional argument cannot follow a "
+                            + "named one")
+                    misplaced = true
+                } else if i < count {
+                    slot = i
+                } else {
+                    extra = true
+                }
+            }
+        }
+        if slot >= 0 {
+            given[slot] = true
+        }
+        slots.push(slot)
+    }
+    if !named && !defaults {
+        if args.len() != count {
+            c.error("E0302", span, "wrong number of arguments: expected {count}, "
+                    + "found {args.len()}")
+        }
+        return slots
+    }
+    if extra {
+        c.error("E0302", span, "wrong number of arguments: expected at most {count}, "
+                + "found {args.len()}")
+    }
+    let omitted = false
+    for i in 0..count {
+        if !given[i] {
+            if decl.params[i].defaultValue.isSome() {
+                omitted = true
+            } else if !misplaced {
+                c.error("E0308", span, "missing argument for the parameter "
+                        + "`{c.text(decl.params[i].name)}`")
+            }
+        }
+    }
+    if omitted {
+        checkDefaults(c, p, id)
+    }
+    if named || omitted {
+        c.argSlots[c.module()].insert(callId, slots.clone())
+    }
+    return slots
+}
+
+/**
+ * The parameter argument `i` of a call gives.
+ *
+ * @param c the checker
+ * @param callId the call's `NodeId`
+ * @param i the argument
+ * @returns its parameter, -1 for none
+ */
+pub fn argParam(c: Checker, callId: int, i: int) int {
+    return match c.argSlots[c.module()].get(callId) {
+        Option.Some(slots) => slots[i]
+        Option.None => i
+    }
+}

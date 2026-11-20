@@ -1,0 +1,188 @@
+/**
+ * @module
+ * Places and their mutability (spec 4.2; stage 0: place_root and
+ * require_mutable in bootstrap/src/sema/check_method.c).
+ */
+
+import sema.check.check.Checker
+import sema.check.check_closure.noteWrite
+import sema.check.check_box.adjustedType
+import sema.check.check_box.boxInner
+import sema.check.check_box.derefsOf
+import sema.check.expr_check.isModuleMember
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.ERROR
+import sema.core.types.STR
+import sema.core.types.TyKind
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.Op
+
+/**
+ * The root of a place: the variable of `p.pos.x`, an explicit `*p`, or a
+ * value reached through implicit dereferences.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the place
+ * @returns the root and the number of implicit dereferences of its value
+ *     (0 for a variable or an explicit `*p`), or `None` for a temporary
+ */
+pub fn placeRoot(c: mut Checker, e: &Expr) Option<(&Expr, int)> {
+    const own = derefsOf(c, e).len()
+    if own > 0 {   // the value itself is reached through a reference or a box
+        return Option.Some((e, own))
+    }
+    return placeRootBelow(c, e)
+}
+
+// The root of `e` as a place, before its own implicit dereferences.
+fn placeRootBelow(c: mut Checker, e: &Expr) Option<(&Expr, int)> {
+    let at = e
+    for {
+        if isModuleMember(c, at) {
+            return Option.Some((at, 0))   // `m.global`
+        }
+        const base = match at.kind {
+            ExprKind.Field(base, _, _) => &*base
+            ExprKind.TupleField(base, _) => &*base
+            ExprKind.Index(base, _) => {
+                if adjustedType(c, &*base) == STR {
+                    return Option.None
+                }
+                &*base   // an element of a list
+            }
+            ExprKind.Ident(_) | ExprKind.SelfValue => {
+                return Option.Some((at, 0))
+            }
+            ExprKind.Unary(op, _) => {
+                return if op == Op.Deref { Option.Some((at, 0)) } else { Option.None }
+            }
+            _ => {
+                return Option.None
+            }
+        }
+        const steps = derefsOf(c, base).len()
+        if steps > 0 {
+            return Option.Some((base, steps))
+        }
+        at = base
+    }
+}
+
+// Whether the place goes through an element of a slice: 1 for a `&[T]`,
+// which is read-only, 2 for a `&mut [T]`, which is writable whatever binds
+// it, and 0 for neither.
+fn throughSlice(c: Checker, e: &Expr) int {
+    let at = e
+    for {
+        const base = match at.kind {
+            ExprKind.Field(base, _, _) => &*base
+            ExprKind.TupleField(base, _) => &*base
+            ExprKind.Index(base, _) => {
+                const ty = adjustedType(c, &*base)
+                const slice = c.r.langItems[4]
+                if c.types.kind(ty) == TyKind.Adt && c.types.get(ty).data != 0 {
+                    const data = c.types.get(ty).data
+                    if data == slice {
+                        return 1
+                    }
+                    if data == c.r.langItems[7] {
+                        return 2
+                    }
+                }
+                &*base
+            }
+            _ => {
+                return 0
+            }
+        }
+        at = base
+    }
+}
+
+/**
+ * Reports E0315 unless `place` may be modified.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param place the place
+ */
+pub fn requireMutable(c: mut Checker, p: Program, place: &Expr) {
+    requirePlace(c, p, place, true)
+}
+
+fn requirePlace(c: mut Checker, p: Program, place: &Expr, withOwn: bool) {
+    const through = throughSlice(c, place)
+    if through == 2 {
+        return
+    }
+    if through == 1 {
+        c.error("E0315", place.span, "this value cannot be modified: the elements of a `&[T]` "
+                + "are read-only")
+        return
+    }
+    const found = if withOwn { placeRoot(c, place) } else { placeRootBelow(c, place) }
+    const Option.Some(root) = found else {
+        if c.typeOf(place.id.0) != ERROR {
+            c.error("E0315", place.span,
+                      "only variables and their fields can be modified".toOwned())
+        }
+        return
+    }
+    requireRoot(c, p, root.0, root.1)
+}
+
+// `e` after `level` of its implicit dereferences.
+fn requireRoot(c: mut Checker, p: Program, e: &Expr, level: int) {
+    if level > 0 {
+        const ty = derefsOf(c, e)[level - 1]
+        if boxInner(c, ty).isSome() {   // through a box: the box is modified
+            if level == 1 {
+                requirePlace(c, p, e, false)
+            } else {
+                requireRoot(c, p, e, level - 1)
+            }
+            return
+        }
+        if c.types.get(ty).data == 0 {
+            c.error("E0315", e.span, "this value cannot be modified: it is reached through a "
+                    + "`&T`, not a `&mut T`")
+        }
+        return
+    }
+    match e.kind {
+        ExprKind.Unary(_, operand) => {   // `*p`: writable through a `*mut T` or a `&mut T`
+            const ty = c.typeOf(operand.id.0)
+            if boxInner(c, ty).isSome() {
+                requireMutable(c, p, &*operand)
+                return
+            }
+            const kind = c.types.kind(ty)
+            const ok = ((kind == TyKind.Ptr || kind == TyKind.Ref) && c.types.get(ty).data != 0) ||
+                       c.typeOf(e.id.0) == ERROR
+            if !ok {
+                const isRef = kind == TyKind.Ref
+                c.error("E0315", e.span, "this value cannot be modified: it is reached through "
+                        + "a `{if isRef { "&T" } else { "*T" }}`, not a "
+                        + "`{if isRef { "&mut T" } else { "*mut T" }}`")
+            }
+        }
+        _ => {
+            const ok = match c.res(e.id.0) {
+                Res.Local(id) => {
+                    noteWrite(c, e.span, id)
+                    c.locals[id].mutable
+                }
+                Res.Def(id) => c.def(id).kind == DefKind.Global
+                _ => c.typeOf(e.id.0) == ERROR
+            }
+            if !ok {
+                c.error("E0315", e.span,
+                        "this value cannot be modified: declare it with `let`".toOwned())
+            }
+        }
+    }
+}

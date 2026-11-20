@@ -1,0 +1,247 @@
+/**
+ * @module
+ * Union types (spec 17): each union is an instance of a generic enum with
+ * one single-field variant per type argument, its members in canonical
+ * order (stage 1 only).
+ */
+
+import base.span.Span
+import sema.check.check.Checker
+import sema.check.check.emptyInfo
+import sema.check.enums.EnumInfo
+import sema.check.enums.VariantInfo
+import sema.core.def.Def
+import sema.core.def.DefKind
+import sema.core.types.ERROR
+import sema.core.types.TyKind
+import syntax.ast.Expr
+
+/**
+ * `A | B` between types other than keys: the union of their members.
+ *
+ * @param c the checker
+ * @param a the type of `A`
+ * @param spanA where `A` is written
+ * @param b the type of `B`
+ * @param spanB where `B` is written
+ * @param span the whole type
+ * @returns the union, or a single type when the members are all the same
+ */
+pub fn unionType(c: mut Checker, a: int, spanA: Span, b: int, spanB: Span, span: Span) int {
+    const keysA = c.types.kind(a) == TyKind.Key
+    const keysB = c.types.kind(b) == TyKind.Key
+    if keysA || keysB {
+        const found = if keysA { b } else { a }
+        c.error("E0351", span, "type `{c.typeName(found)}` cannot be a member of a union of "
+                + "keys")
+        return ERROR
+    }
+    if !memberAllowed(c, a, spanA) || !memberAllowed(c, b, spanB) {
+        return ERROR
+    }
+    let members: List<int> = []
+    addMembers(c, members, a)
+    addMembers(c, members, b)
+    if members.len() == 1 {
+        return members[0]
+    }
+    for i in 0..members.len() {
+        for j in i + 1..members.len() {
+            if overlap(c, members[i], members[j]) {
+                c.error("E0350", span, "the members `{c.typeName(members[i])}` and "
+                        + "`{c.typeName(members[j])}` of a union can be the same type")
+                return ERROR
+            }
+        }
+    }
+    return unionOf(c, members, span)
+}
+
+/**
+ * The members of a union, in canonical order; empty for another type.
+ *
+ * @param c the checker
+ * @param ty the type
+ * @returns its members
+ */
+pub fn unionMembers(c: Checker, ty: int) List<int> {
+    if c.types.kind(ty) != TyKind.Adt {
+        return []
+    }
+    return if c.isUnion(c.types.get(ty).data) { c.types.get(ty).args.clone() } else { [] }
+}
+
+// E0351 for a type that cannot be the payload of a variant.
+fn memberAllowed(c: mut Checker, ty: int, span: Span) bool {
+    if ty == ERROR {
+        return false
+    }
+    const kind = c.types.kind(ty)
+    const unsized = kind == TyKind.Slice || kind == TyKind.Dyn
+    if kind == TyKind.Ref || kind == TyKind.Never || unsized {
+        c.error("E0351", span, "type `{c.typeName(ty)}` cannot be a member of a union")
+        return false
+    }
+    return true
+}
+
+// Adds `ty`, or its members when it is a union, keeping `members` sorted by
+// name and without repeats.
+fn addMembers(c: mut Checker, members: mut List<int>, ty: int) {
+    const inner = unionMembers(c, ty)
+    if inner.len() == 0 {
+        insertMember(c, members, ty)
+        return
+    }
+    for i in 0..inner.len() {
+        insertMember(c, members, inner[i])
+    }
+}
+
+fn insertMember(c: mut Checker, members: mut List<int>, ty: int) {
+    const name = c.typeName(ty)
+    let at = members.len()
+    for i in 0..members.len() {
+        if members[i] == ty {
+            return
+        }
+        const other = c.typeName(members[i])
+        if at == members.len() && (name < other || (name == other && ty < members[i])) {
+            at = i
+        }
+    }
+    members.insert(at, ty)
+}
+
+// Whether two members become the same type for some instantiation of their
+// type parameters.
+fn overlap(c: Checker, a: int, b: int) bool {
+    if a == b {
+        return true
+    }
+    const ta = c.types.get(a)
+    const tb = c.types.get(b)
+    if ta.kind == TyKind.Param || tb.kind == TyKind.Param {
+        return true
+    }
+    if !ta.hasParam && !tb.hasParam {
+        return false
+    }
+    if ta.kind != tb.kind || ta.data != tb.data || ta.args.len() != tb.args.len() {
+        return false
+    }
+    const nested = ta.kind == TyKind.Ref || ta.kind == TyKind.Ptr || ta.kind == TyKind.Slice ||
+                   ta.kind == TyKind.Array || ta.kind == TyKind.Fn
+    if nested && !overlap(c, ta.inner, tb.inner) {
+        return false
+    }
+    for i in 0..ta.args.len() {
+        if !overlap(c, ta.args[i], tb.args[i]) {
+            return false
+        }
+    }
+    return true
+}
+
+// The union of `members`: an instance of the generic enum of the unions of
+// as many members, made once, with one variant per member.
+fn unionOf(c: mut Checker, members: List<int>, span: Span) int {
+    const count = members.len()
+    if const Option.Some(known) = c.unions.get(count) {
+        return c.types.adt(*known, members.clone())
+    }
+    let info = EnumInfo{variants: [], hasPayload: true}
+    for i in 0..count {
+        const symbol = c.r.names.intern("{i}")
+        const member = c.types.param(i, symbol.0)
+        info.variants.push(VariantInfo{name: symbol, fieldNames: [Option.None], types: [member],
+                                       discriminant: i})
+    }
+    const symbol = c.r.names.intern("Union{count}")
+    c.r.defs.push(Def{kind: DefKind.Enum, name: symbol, span, isPub: true, inPrelude: false,
+                      lang: false, module: c.module(), item: -1, member: -1, target: 0,
+                      primitive: 0})
+    c.info.push(emptyInfo())
+    const id = c.r.defs.len() - 1
+    c.info[id].variants = Option.Some(Box.new(info))
+    c.unions.insert(count, id)
+    c.unionDefs.insert(id, count)
+    return c.types.adt(id, members.clone())
+}
+
+/**
+ * Widens `e`, of type `found`, to `expected` when `found` widens to it
+ * (spec 17.3).
+ *
+ * @param c the checker
+ * @param e the value
+ * @param found its type
+ * @param expected the type expected
+ * @returns whether it was widened
+ */
+pub fn coerceToUnion(c: mut Checker, e: &Expr, found: int, expected: int) bool {
+    if !widens(c, found, expected) {
+        return false
+    }
+    c.unionCoercions[c.module()].insert(e.id.0, found)
+    c.setType(e.id.0, expected)
+    return true
+}
+
+/**
+ * Whether a value of type `found` widens to `expected` (spec 17.3):
+ * `expected` is a union with `found` as a member, or with all the members
+ * of the union `found`.
+ *
+ * @param c the checker
+ * @param found the value's type
+ * @param expected the type expected
+ * @returns true if it does
+ */
+pub fn widens(c: Checker, found: int, expected: int) bool {
+    if found == expected {
+        return false
+    }
+    const members = unionMembers(c, found)
+    if members.len() == 0 {
+        return memberIndex(c, expected, found) >= 0
+    }
+    for i in 0..members.len() {
+        if memberIndex(c, expected, members[i]) < 0 {
+            return false
+        }
+    }
+    return true
+}
+
+/**
+ * The variant of a union that holds a member.
+ *
+ * @param c the checker
+ * @param union the union
+ * @param member the member's type
+ * @returns its index, or -1 when it is not a member
+ */
+pub fn memberIndex(c: Checker, union: int, member: int) int {
+    const members = unionMembers(c, union)
+    for i in 0..members.len() {
+        if members[i] == member {
+            return i
+        }
+    }
+    return -1
+}
+
+/**
+ * The type `e` had before it was widened to a union.
+ *
+ * @param c the checker
+ * @param e an expression of the current module
+ * @returns the type, or -1 if it was not widened
+ */
+pub fn unionSourceType(c: Checker, e: &Expr) int {
+    return match c.unionCoercions[c.module()].get(e.id.0) {
+        Option.Some(found) => *found
+        Option.None => -1
+    }
+}

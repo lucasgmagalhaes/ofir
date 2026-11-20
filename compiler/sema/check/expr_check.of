@@ -1,0 +1,926 @@
+/**
+ * @module
+ * Type checking of expressions (spec 2 and 4.8; stage 0:
+ * bootstrap/src/sema/check_expr.c): literals, names, operators, calls,
+ * tuples, and the conversions of `coerce`.
+ */
+
+import base.intern.Symbol
+import base.span.Span
+import sema.check.call_args.arrangeArgs
+import sema.check.check.Checker
+import sema.check.check.fnOf
+import sema.check.check.itemOf
+import sema.check.check.noGenerics
+import sema.check.check_box.autoDeref
+import sema.check.check_box.derefArg
+import sema.check.check_closure.checkClosure
+import sema.check.check_comptime.BOUND_FLOAT
+import sema.check.check_comptime.BOUND_INT
+import sema.check.check_comptime.BOUND_NUMBER
+import sema.check.check_comptime.BOUND_SIGNED
+import sema.check.check_comptime.checkComptimeExpr
+import sema.check.check_comptime.requireComptime
+import sema.check.check_comptime.checkImplements
+import sema.check.check_comptime.metaCall
+import sema.check.check_comptime.numeric
+import sema.check.check_comptime_for.comptimeMethod
+import sema.check.check_dyn.boxesDyn
+import sema.check.check_dyn.coerceToDyn
+import sema.check.check_generic.checkGenericArgs
+import sema.check.check_generic.equatable
+import sema.check.check_generic.fnGenerics
+import sema.check.check_generic.inferExplicit
+import sema.check.check_generic.inferNew
+import sema.check.check_generic.orderable
+import sema.check.check_list.checkListLiteral
+import sema.check.check_list.checkListRepeat
+import sema.check.check_list.coerceToSlice
+import sema.check.check_methods.checkField
+import sema.check.check_methods.checkIndex
+import sema.check.check_methods.checkMethodCall
+import sema.check.check_methods.checkMutArgs
+import sema.check.check_option.checkCoalesce
+import sema.check.check_option.checkTry
+import sema.check.check_ref.checkRef
+import sema.check.check_stmt.checkBlock
+import sema.check.check_stmt.checkIf
+import sema.check.check_stmt.checkMatch
+import sema.check.check_types.compatible
+import sema.check.check_types.fnSignature
+import sema.check.check_types.resolveType
+import sema.check.check_types.sliceOf
+import sema.check.check_types.typeParameter
+import sema.check.check_union.coerceToUnion
+import sema.check.check_union.unionMembers
+import sema.check.check_unsafe.checkDeref
+import sema.check.check_unsafe.isCFunction
+import sema.check.check_unsafe.isUnsafeFn
+import sema.check.check_unsafe.pointerCast
+import sema.check.check_unsafe.requireUnsafe
+import sema.check.const_eval.constEval
+import sema.check.derive.debuggable
+import sema.check.derive.displayable
+import sema.check.struct_exprs.checkConstructor
+import sema.check.struct_exprs.checkStructLiteral
+import sema.check.struct_exprs.checkTupleField
+import sema.check.structs.isCopy
+import sema.check.variant_exprs.checkPreludeVariant
+import sema.check.variant_exprs.checkVariantShorthand
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.BOOL
+import sema.core.types.ERROR
+import sema.core.types.F32
+import sema.core.types.F64
+import sema.core.types.FN_BORROWED
+import sema.core.types.FN_C
+import sema.core.types.FN_OWNED
+import sema.core.types.FN_SEND
+import sema.core.types.I64
+import sema.core.types.NEVER
+import sema.core.types.STR
+import sema.core.types.TyKind
+import sema.core.types.U8
+import sema.core.types.UNIT
+import sema.resolve.resolve.findAttribute
+import syntax.ast.Arg
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.TypeExpr
+import syntax.format_spec.parseFormatSpec
+
+/**
+ * What a name expression resolves to: an identifier, `self`, `Name<T>`, or
+ * a module member `m.x`.
+ *
+ * @param c the checker
+ * @param e an expression
+ * @returns its resolution, `None` for other expressions
+ */
+pub fn nameRes(c: Checker, e: &Expr) Res {
+    return match e.kind {
+        ExprKind.Ident(_) | ExprKind.SelfValue | ExprKind.SelfType | ExprKind.Generic(_, _) |
+        ExprKind.Field(_, _, _) => c.res(e.id.0)
+        _ => Res.None
+    }
+}
+
+/**
+ * Whether `e` is `m.x` for a module `m`: a name, not a field.
+ *
+ * @param c the checker
+ * @param e an expression
+ * @returns true for a module member
+ */
+pub fn isModuleMember(c: Checker, e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Field(_, _, _) => match c.res(e.id.0) {
+            Res.None => false
+            _ => true
+        }
+        _ => false
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Literals
+
+fn intFits(c: Checker, ty: int, value: u64, negative: bool) bool {
+    const kind = c.types.get(ty).data
+    const maxima: List<u64> = [127, 32767, 2147483647, 9223372036854775807, 255, 65535,
+                               4294967295, 18446744073709551615]
+    if negative {   // negating an unsigned value is reported by the `-` operator
+        return kind > 3 || value <= maxima[kind] + 1
+    }
+    return value <= maxima[kind]
+}
+
+// An integer literal takes the expected integer or float type, else `int`.
+fn intLiteral(c: mut Checker, e: &Expr, value: u64, expected: int, negative: bool) int {
+    const kind = c.types.kind(expected)
+    if kind == TyKind.Param && value <= 127 && numeric(c, expected) != 0 {
+        return expected   // fits every integer type (spec 15.3)
+    }
+    const ty = if kind == TyKind.Int || kind == TyKind.Float { expected } else { I64 }
+    if c.types.kind(ty) == TyKind.Int && !intFits(c, ty, value, negative) {
+        c.error("E0312", e.span, "integer literal out of range for `{c.typeName(ty)}`")
+    }
+    return ty
+}
+
+fn interpolation(c: mut Checker, p: Program, parts: List<Expr>, specs: List<str>) int {
+    for i in 0..parts.len() {
+        const found = checkExpr(c, p, &parts[i], ERROR)
+        const ty = autoDeref(c, p, &parts[i], found)   // `"{r}"` shows `*r`
+        const kind = c.types.kind(ty)
+        if specs[i] == "?" {   // the debug representation (spec 9.9)
+            if !debuggable(c, p, ty) {
+                c.error("E0314", parts[i].span, "a value of type `{c.typeName(ty)}` has no "
+                        + "debug representation (`Debug`)")
+            }
+            continue
+        }
+        const printable = interpolates(c, ty) || (specs[i].len() == 0 &&
+                          (unionInterpolates(c, ty) || displayable(c, p, ty)))
+        if !printable {
+            c.error("E0314", parts[i].span, "a value of type `{c.typeName(ty)}` cannot be "
+                    + "interpolated into a string")
+        } else if specs[i].len() > 0 && kind != TyKind.Error {
+            checkFormatSpec(c, &parts[i], ty, specs[i])
+        }
+    }
+    return STR
+}
+
+fn interpolates(c: Checker, ty: int) bool {
+    const kind = c.types.kind(ty)
+    return kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Bool ||
+           kind == TyKind.Str ||
+           kind == TyKind.Error || numeric(c, ty) != 0
+}
+
+// A union interpolates when each of its members does (spec 17.5).
+fn unionInterpolates(c: Checker, ty: int) bool {
+    const members = unionMembers(c, ty)
+    if members.len() == 0 {
+        return false
+    }
+    for i in 0..members.len() {
+        if !interpolates(c, members[i]) {
+            return false
+        }
+    }
+    return true
+}
+
+// `{x:spec}` (spec 1.7): a precision needs a float, a radix an integer and
+// zero padding a number.
+fn checkFormatSpec(c: mut Checker, part: &Expr, ty: int, text: str) {
+    const f = parseFormatSpec(text)
+    if !f.valid {
+        c.error("E0357", part.span, "invalid format specifier `{text}`")
+        return
+    }
+    const bits = numeric(c, ty)
+    const isInt = c.types.kind(ty) == TyKind.Int || bits & BOUND_INT != 0
+    const isFloat = c.types.kind(ty) == TyKind.Float || bits & BOUND_FLOAT != 0
+    const number = isInt || isFloat || bits & BOUND_NUMBER != 0
+    const fits = (f.precision < 0 || isFloat) && (f.radix == 10 || isInt) && (!f.zero || number)
+    if !fits {
+        c.error("E0357", part.span, "the format specifier `{text}` does not apply to a value of "
+                + "type `{c.typeName(ty)}`")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Names
+
+// A named function used as a value (spec 10.2): the expected function type
+// when the signature matches it, else `fn(A) R`.
+fn fnValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
+    if c.types.isCFn(expected) {
+        return cFnValue(c, p, id, span, expected)
+    }
+    const decl = fnOf(p, c.loc(id))
+    if decl.typeParams.len() > 0 {
+        return c.unsupported(span, "generic functions as values are")
+    }
+    if c.def(id).member >= 0 {
+        return c.unsupported(span, "methods and external functions as values are")
+    }
+    if isUnsafeFn(c, p, id) {
+        return c.unsupported(span, "unsafe functions as values are")
+    }
+    requireComptime(c, p, id, span)
+    for i in 0..decl.params.len() {
+        if decl.params[i].mode != Mode.Borrow {
+            return c.unsupported(span, "functions with `mut` or `move` parameters as values are")
+        }
+    }
+    const sig = fnSignature(c, p, id)
+    const params = c.types.get(sig).args.clone()
+    const ret = c.types.get(sig).inner
+    if c.types.kind(ret) == TyKind.Ref {
+        return c.unsupported(span, "functions returning a borrow as values are")
+    }
+    const value = c.types.fnValueType(params.clone(), ret, false)
+    const owned = c.types.fnValueType(params.clone(), ret, true)
+    const send = c.types.fnValueTypeWith(params.clone(), ret, FN_OWNED | FN_SEND)
+    const lent = c.types.fnValueTypeWith(params, ret, FN_BORROWED | FN_SEND)
+    const fits = expected == owned || expected == send || expected == lent   // it captures nothing
+    return if fits { expected } else { value }
+}
+
+// A named function where a C function pointer is expected (spec 11.3):
+// only an `extern "C"` function (E0823); its signature as such a pointer.
+fn cFnValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
+    const name = c.text(c.def(id).name)
+    if !isCFunction(c, p, id) || fnOf(p, c.loc(id)).typeParams.len() > 0 {
+        c.error("E0823", span, "`{name}` is not an `extern \"C\"` function, so it cannot be a "
+                + "value of type `{c.typeName(expected)}`")
+        return ERROR
+    }
+    const sig = fnSignature(c, p, id)
+    const params = c.types.get(sig).args.clone()
+    return c.types.fnValueTypeWith(params, c.types.get(sig).inner, FN_C)
+}
+
+fn defValue(c: mut Checker, p: Program, id: int, span: Span, expected: int) int {
+    return match c.def(id).kind {
+        DefKind.Const => checkConst(c, p, id)
+        DefKind.Global => {   // spec 11.5: another thread may write it
+            requireUnsafe(c, span, "using a mutable global")
+            checkConst(c, p, id)
+        }
+        DefKind.Fn => fnValue(c, p, id, span, expected)
+        DefKind.Builtin => c.unsupported(span, "function values are")
+        _ => {
+            c.error("E0310", span, "expected a value, found type `{c.text(c.def(id).name)}`")
+            ERROR
+        }
+    }
+}
+
+/**
+ * The type of a name that is not a variant: a local, a constant or global.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param res what it resolves to
+ * @param span where it is used
+ * @returns its type
+ */
+pub fn checkName(c: mut Checker, p: Program, res: Res, span: Span) int {
+    return match res {
+        Res.Local(id) => c.localTypes[id]
+        Res.Def(id) => defValue(c, p, id, span, ERROR)
+        Res.ConstParam(name) => constParamValue(c, name, -1)
+        _ => ERROR
+    }
+}
+
+// `N`, a const parameter (spec 8.7): an `int`, its argument recorded for
+// the instance unless `node` is -1.
+fn constParamValue(c: mut Checker, name: Symbol, node: int) int {
+    const Option.Some(param) = typeParameter(c, name) else {
+        return ERROR
+    }
+    if node >= 0 {
+        c.constUses.insert(c.module() * 4294967296 + node, param)
+    }
+    return I64
+}
+
+fn nameValue(c: mut Checker, p: Program, e: &Expr, expected: int) int {
+    return match nameRes(c, e) {
+        Res.Local(id) => c.localTypes[id]
+        Res.ConstParam(name) => constParamValue(c, name, e.id.0)
+        Res.Def(id) => {
+            if c.def(id).kind == DefKind.Variant {   // `None`
+                return checkPreludeVariant(c, p, e, id, Option.None, expected)
+            }
+            defValue(c, p, id, e.span, expected)
+        }
+        _ => ERROR
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Operators
+
+fn isLiteral(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Int(_) | ExprKind.Float(_) => true
+        ExprKind.Unary(op, operand) => op == Op.Neg && match operand.kind {
+            ExprKind.Int(_) | ExprKind.Float(_) => true
+            _ => false
+        }
+        _ => false
+    }
+}
+
+fn operatorError(c: mut Checker, span: Span, ty: int) int {
+    c.error("E0313", span, "operator cannot be applied to type `{c.typeName(ty)}`")
+    return ERROR
+}
+
+fn unary(c: mut Checker, p: Program, e: &Expr, op: Op, operand: &Expr, expected: int) int {
+    if op == Op.Deref {
+        return checkDeref(c, p, e, operand)
+    }
+    if op == Op.Ref || op == Op.RefMut {
+        return checkRef(c, p, e, operand, op == Op.RefMut, expected)
+    }
+    let ty = ERROR
+    if const ExprKind.Int(value) = operand.kind {
+        if op == Op.Neg {
+            ty = intLiteral(c, operand, value, expected, true)
+            c.setType(operand.id.0, ty)
+        } else {
+            ty = checkExpr(c, p, operand, expected)
+        }
+    } else {
+        ty = checkExpr(c, p, operand, expected)
+    }
+    const t = c.types.get(ty)
+    const bits = numeric(c, ty)
+    const ok = if op == Op.Neg {
+        t.kind == TyKind.Float || (t.kind == TyKind.Int && t.data <= 3) ||
+        bits & BOUND_FLOAT != 0 || bits & (BOUND_INT | BOUND_SIGNED) == BOUND_INT | BOUND_SIGNED
+    } else {
+        t.kind == TyKind.Bool || t.kind == TyKind.Int || bits & BOUND_INT != 0
+    }
+    return if ok || t.kind == TyKind.Error { ty } else { operatorError(c, e.span, ty) }
+}
+
+// Which operand types an operator accepts.
+fn operandOk(c: mut Checker, p: Program, ty: int, op: Op) bool {
+    const kind = c.types.kind(ty)
+    const bits = numeric(c, ty)   // a parameter narrowed to numbers (spec 15.3)
+    return match op {
+        Op.Add => kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Str ||
+                  bits & BOUND_NUMBER != 0
+        Op.Sub | Op.Mul | Op.Div => kind == TyKind.Int || kind == TyKind.Float ||
+                                    bits & BOUND_NUMBER != 0
+        Op.Rem => kind == TyKind.Int || kind == TyKind.Float || bits & BOUND_INT != 0
+        Op.And | Op.Or | Op.Xor | Op.Shl | Op.Shr => kind == TyKind.Int || bits & BOUND_INT != 0
+        Op.Eq | Op.Ne => equatable(c, p, ty)   // derived for tuples, structs, enums (spec 9.9)
+        Op.Lt | Op.Le | Op.Gt | Op.Ge => orderable(c, p, ty)
+        Op.LogicalAnd | Op.LogicalOr => kind == TyKind.Bool
+        _ => false
+    }
+}
+
+fn isComparison(op: Op) bool {
+    return op == Op.Eq || op == Op.Ne || op == Op.Lt || op == Op.Le || op == Op.Gt || op == Op.Ge
+}
+
+/**
+ * `a op b`: both operands have one type. A literal on the left takes the
+ * type of the right operand: `1 + x` with `x: u8` adds `u8`s.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param span the expression
+ * @param op the operator
+ * @param lhs the left operand
+ * @param rhs the right operand
+ * @param expected the type the context expects
+ * @returns the type of the result
+ */
+pub fn checkBinary(c: mut Checker, p: Program, span: Span, op: Op, lhs: &Expr, rhs: &Expr,
+                   expected: int) int {
+    if op == Op.Coalesce {
+        return checkCoalesce(c, p, lhs, rhs, expected)
+    }
+    const compares = isComparison(op)
+    const logical = op == Op.LogicalAnd || op == Op.LogicalOr
+    const hint = if compares || logical { ERROR } else { expected }
+    const swap = isLiteral(lhs) && !isLiteral(rhs)
+    const first = if swap { rhs } else { lhs }
+    const second = if swap { lhs } else { rhs }
+    const ty = checkExpr(c, p, first, hint)
+    coerce(c, p, second, ty)
+    if !operandOk(c, p, ty, op) && ty != ERROR {
+        return operatorError(c, span, ty)
+    }
+    if compares && ty != ERROR && ty != F32 && ty != F64 && samePlace(lhs, rhs) {
+        const always = op == Op.Eq || op == Op.Le || op == Op.Ge
+        c.r.diags.warning("W0008", span, "a value is compared with itself")
+        c.r.diags.note("the result is always `{always}`")
+    }
+    return if compares { BOOL } else { ty }
+}
+
+/**
+ * Whether two expressions name the same place: the same local, `self`, or
+ * the same field of one (`x == x`, `a.b = a.b`; W0008, ADR 0071).
+ *
+ * @param a one
+ * @param b the other
+ * @returns true when they do
+ */
+pub fn samePlace(a: &Expr, b: &Expr) bool {
+    return match a.kind {
+        ExprKind.Ident(x) => match b.kind {
+            ExprKind.Ident(y) => x.0 == y.0
+            _ => false
+        }
+        ExprKind.SelfValue => match b.kind {
+            ExprKind.SelfValue => true
+            _ => false
+        }
+        ExprKind.Field(base, x, _) => match b.kind {
+            ExprKind.Field(other, y, _) => x.0 == y.0 && samePlace(&*base, &*other)
+            _ => false
+        }
+        ExprKind.TupleField(base, i) => match b.kind {
+            ExprKind.TupleField(other, j) => i == j && samePlace(&*base, &*other)
+            _ => false
+        }
+        _ => false
+    }
+}
+
+fn cast(c: mut Checker, p: Program, e: &Expr, value: &Expr, to: &TypeExpr) int {
+    const from = checkExpr(c, p, value, ERROR)
+    const target = resolveType(c, p, to)
+    const zero = match value.kind {   // `0 as *T`: the null pointer
+        ExprKind.Int(v) => v == 0
+        _ => false
+    }
+    if pointerCast(c, from, target, e.span, zero) {
+        return target
+    }
+    const fromNumber = c.types.isNumeric(from) || numeric(c, from) != 0
+    const toNumber = c.types.isNumeric(target) || numeric(c, target) != 0
+    const ok = (fromNumber && toNumber) || from == target ||
+               from == ERROR || target == ERROR
+    if !ok {
+        c.error("E0313", e.span, "cannot cast `{c.typeName(from)}` to `{c.typeName(target)}`")
+    }
+    return target
+}
+
+// ---------------------------------------------------------------------------
+// Calls
+
+/**
+ * Checks the arguments of a call against a signature that is not generic.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param span the call
+ * @param args the arguments
+ * @param params the parameter types
+ * @param ret the result type
+ * @returns the result type
+ */
+pub fn checkArgs(c: mut Checker, p: Program, span: Span, args: List<Arg>, params: List<int>,
+                 ret: int) int {
+    if args.len() != params.len() {
+        c.error("E0302", span, "wrong number of arguments: expected {params.len()}, "
+                + "found {args.len()}")
+    }
+    for i in 0..args.len() {
+        if args[i].name.isSome() {
+            c.error("E0306", args[i].value.span, "this callee has no named parameters: pass "
+                    + "the argument by position")
+        }
+        coerceArg(c, p, &args[i].value, if i < params.len() { params[i] } else { ERROR })
+    }
+    return ret
+}
+
+/**
+ * Checks the arguments of a call of the function `id`, which is not
+ * generic: they may be named, and parameters left to their defaults.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param call the call
+ * @param args the arguments
+ * @param id the callee's `DefId`
+ * @returns the result type
+ */
+pub fn checkCallArgs(c: mut Checker, p: Program, call: &Expr, args: List<Arg>, id: int) int {
+    const sig = fnSignature(c, p, id)
+    const params = c.types.get(sig).args.clone()
+    const slots = arrangeArgs(c, p, call.id.0, call.span, args, id)
+    for i in 0..args.len() {
+        coerceArg(c, p, &args[i].value, if slots[i] >= 0 { params[slots[i]] } else { ERROR })
+    }
+    return c.types.get(sig).inner
+}
+
+/**
+ * Checks the arguments of a call against a function type.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param span the call
+ * @param args the arguments
+ * @param sig a `fn` type
+ * @returns the result type
+ */
+pub fn checkArgsOf(c: mut Checker, p: Program, span: Span, args: List<Arg>, sig: int) int {
+    const params = c.types.get(sig).args.clone()
+    const ret = c.types.get(sig).inner
+    return checkArgs(c, p, span, args, params, ret)
+}
+
+// print(str), println(str) and panic(str) !; `assert` is in std.testing.
+fn builtinCall(c: mut Checker, p: Program, span: Span, args: List<Arg>, builtin: int) int {
+    const param = STR
+    const ret = if builtin == 2 { NEVER } else { UNIT }
+    return checkArgs(c, p, span, args, [param], ret)
+}
+
+fn checkFnCall(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<Arg>, id: int,
+               explicit: List<TypeExpr>, expected: int) int {
+    if isUnsafeFn(c, p, id) {
+        requireUnsafe(c, e.span, "calling an `unsafe` or `extern` function")
+    }
+    requireComptime(c, p, id, e.span)
+    const sig = fnSignature(c, p, id)
+    const generics = fnGenerics(c, p, id)
+    let ret = ERROR
+    if generics.owner.len() + generics.fnParams.len() == 0 {
+        if explicit.len() > 0 {
+            c.error("E0302", callee.span, "`{c.text(c.def(id).name)}` takes no type arguments")
+        }
+        ret = checkCallArgs(c, p, e, args, id)
+    } else {
+        let inf = inferNew(generics)
+        if explicit.len() > 0 {
+            inferExplicit(c, p, inf, false, explicit, callee.span)
+        }
+        const params = c.types.get(sig).args.clone()
+        const result = c.types.get(sig).inner
+        ret = checkGenericArgs(c, p, e.id.0, e.span, args, params, result, inf, expected,
+                               id)
+    }
+    checkMutArgs(c, p, id, e.id.0, args)
+    return ret
+}
+
+fn notAFunction(c: mut Checker, p: Program, callee: &Expr, args: List<Arg>, ty: int) int {
+    if ty != ERROR {
+        c.error("E0311", callee.span, "expression of type `{c.typeName(ty)}` is not a function")
+    }
+    for i in 0..args.len() {
+        checkExpr(c, p, &args[i].value, ERROR)
+    }
+    return ERROR
+}
+
+fn noTypes() List<TypeExpr> {
+    return []
+}
+
+fn call(c: mut Checker, p: Program, e: &Expr, callee: &Expr, args: List<Arg>,
+        expected: int) int {
+    const isField = match callee.kind {
+        ExprKind.Field(_, _, _) => !isModuleMember(c, callee)
+        _ => false
+    }
+    if isField {
+        const member = comptimeMethod(c, p, e, callee, args)
+        if member >= 0 {   // `field.attribute("json")` in a `comptime for`
+            return member
+        }
+        return checkMethodCall(c, p, e, callee, args, expected)
+    }
+    if metaCall(c, p, e) == "fieldsOf" {
+        return c.unsupported(e.span, "`meta.fieldsOf` outside of `comptime for` is")
+    }
+    const Res.Def(id) = nameRes(c, callee) else {
+        const ty = checkExpr(c, p, callee, ERROR)
+        if c.types.isCFn(ty) {   // the pointer may be invalid (spec 11.3)
+            requireUnsafe(c, e.span, "calling a C function pointer")
+        }
+        if c.types.kind(ty) == TyKind.Fn {
+            return checkArgsOf(c, p, e.span, args, ty)
+        }
+        return notAFunction(c, p, callee, args, ty)
+    }
+    const none = noTypes()
+    const explicit = match callee.kind {
+        ExprKind.Generic(_, list) => &list
+        ExprKind.Field(_, _, list) => &list   // `module.f<T>()`
+        _ => &none
+    }
+    if metaCall(c, p, e) == "implements" {
+        return checkImplements(c, p, e, explicit)
+    }
+    const kind = c.def(id).kind
+    if kind == DefKind.Builtin && explicit.len() == 0 {
+        return builtinCall(c, p, e.span, args, c.def(id).primitive)
+    }
+    if kind == DefKind.Struct {
+        c.setType(callee.id.0, UNIT)
+        return checkConstructor(c, p, e, id, explicit, args, expected)
+    }
+    if kind == DefKind.Variant && explicit.len() == 0 {   // `Some(x)`
+        c.setType(callee.id.0, UNIT)
+        return checkPreludeVariant(c, p, e, id, Option.Some(&args), expected)
+    }
+    if kind == DefKind.Fn {
+        c.setType(callee.id.0, fnSignature(c, p, id))
+        return checkFnCall(c, p, e, callee, args, id, explicit, expected)
+    }
+    const ty = defValue(c, p, id, callee.span, ERROR)
+    c.setType(callee.id.0, ty)
+    return notAFunction(c, p, callee, args, ty)
+}
+
+// ---------------------------------------------------------------------------
+
+// `(a, b)`: each element takes the matching element of the expected type.
+fn tuple(c: mut Checker, p: Program, elems: List<Expr>, expected: int) int {
+    const hint = c.types.get(expected)
+    const hinted = hint.kind == TyKind.Tuple && hint.args.len() == elems.len()
+    const hints = hint.args.clone()
+    let types: List<int> = []
+    for i in 0..elems.len() {
+        types.push(checkExpr(c, p, &elems[i], if hinted { hints[i] } else { ERROR }))
+    }
+    return c.types.tuple(types)
+}
+
+fn synthesize(c: mut Checker, p: Program, e: &Expr, expected: int) int {
+    if isModuleMember(c, e) {
+        return nameValue(c, p, e, expected)
+    }
+    return match e.kind {
+        ExprKind.Int(value) => intLiteral(c, e, value, expected, false)
+        ExprKind.Float(_) => {
+            const fits = c.types.kind(expected) == TyKind.Float ||
+                         numeric(c, expected) & BOUND_FLOAT != 0
+            match fits {
+                true => expected
+                false => F64
+            }
+        }
+        ExprKind.Byte(_) => U8
+        ExprKind.Bool(_) => BOOL
+        ExprKind.Str(_) => STR
+        ExprKind.ByteStr(_) => sliceOf(c, U8, e.span)
+        ExprKind.Interp(parts, specs) => interpolation(c, p, parts, specs)
+        ExprKind.Ident(_) | ExprKind.SelfValue => nameValue(c, p, e, expected)
+        ExprKind.Unary(op, operand) => unary(c, p, e, op, &*operand, expected)
+        ExprKind.Binary(op, lhs, rhs) => checkBinary(c, p, e.span, op, &*lhs, &*rhs, expected)
+        ExprKind.Cast(value, to) => cast(c, p, e, &*value, &to)
+        ExprKind.Call(callee, args) => call(c, p, e, &*callee, args, expected)
+        ExprKind.If(_, _, _, _) => checkIf(c, p, e, expected, true)
+        ExprKind.Block(block) => checkBlock(c, p, &block, expected, true)
+        ExprKind.Unsafe(block) => checkUnsafeBlock(c, p, &block, expected, true)
+        ExprKind.Comptime(inner) => checkComptimeExpr(c, p, e, &*inner, expected)
+        ExprKind.Keys(_) => c.unsupported(e.span, "`keys T` outside of `comptime for` is")
+        ExprKind.Tuple(elems) => tuple(c, p, elems, expected)
+        ExprKind.SelfType => match c.res(e.id.0) {   // `Self` as a value: the type's name
+            Res.Def(id) => defValue(c, p, id, e.span, ERROR)
+            _ => ERROR
+        }
+        ExprKind.Generic(name, _) => {
+            c.error("E0310", e.span, "expected a value, found `{c.text(name)}` with type "
+                    + "arguments")
+            ERROR
+        }
+        ExprKind.Range(_, _, _) => {
+            c.unsupported(e.span, "ranges outside of `for` are")
+            c.r.diags.help("write the range in a `for` or an index, `xs[a..b]` (ADR 0047)")
+            ERROR
+        }
+        ExprKind.Index(base, index) => checkIndex(c, p, e, &*base, &*index)
+        ExprKind.Field(base, name, _) => checkField(c, p, e, &*base, name, expected)
+        ExprKind.TupleField(base, index) => checkTupleField(c, p, e, &*base, index as int)
+        ExprKind.Try(inner) => checkTry(c, p, e, &*inner)
+        ExprKind.Struct(_, _, _) => checkStructLiteral(c, p, e, expected)
+        ExprKind.Array(elems) => checkListLiteral(c, p, e, elems, expected)
+        ExprKind.Repeat(value, count) => checkListRepeat(c, p, e, &*value, &*count, expected)
+        ExprKind.Variant(_, _, _) => checkVariantShorthand(c, p, e, expected)
+        ExprKind.Match(_, _) => checkMatch(c, p, e, expected, true)
+        ExprKind.Closure(params, ret, body, isMove) => checkClosure(c, p, e, params, &ret, &*body,
+                                                            isMove, expected)
+    }
+}
+
+/**
+ * Checks an `unsafe { }` block.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param block its block
+ * @param expected the type the context expects
+ * @param asValue whether its value is used
+ * @returns its type
+ */
+pub fn checkUnsafeBlock(c: mut Checker, p: Program, block: &Block, expected: int,
+                        asValue: bool) int {
+    c.unsafeDepth += 1
+    const ty = checkBlock(c, p, block, expected, asValue)
+    c.unsafeDepth -= 1
+    return ty
+}
+
+/**
+ * Checks an expression and records its type.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the expression
+ * @param expected the type the context expects, or `ERROR`
+ * @returns the type found
+ */
+pub fn checkExpr(c: mut Checker, p: Program, e: &Expr, expected: int) int {
+    const ty = synthesize(c, p, e, expected)
+    c.setType(e.id.0, ty)
+    return ty
+}
+
+// `*mut T` converts to `*T`: giving up the right to write is always safe.
+fn weakensPointer(c: Checker, found: int, expected: int) bool {
+    const f = c.types.get(found)
+    const x = c.types.get(expected)
+    if f.kind == TyKind.Fn && x.kind == TyKind.Fn {   // `move fn(A) R` lends itself as `fn(A) R`
+        const lends = f.data & FN_OWNED != 0 && x.data == FN_BORROWED   // or forgets `+ Send`
+        const forgets = f.data & FN_SEND != 0 && x.data == f.data - FN_SEND
+        return (lends || forgets) && sameTypes(f.args, x.args) && f.inner == x.inner
+    }
+    return f.kind == TyKind.Ptr && x.kind == TyKind.Ptr && f.data != 0 && x.data == 0 &&
+           f.inner == x.inner
+}
+
+fn sameTypes(a: List<int>, b: List<int>) bool {
+    if a.len() != b.len() {
+        return false
+    }
+    for i in 0..a.len() {
+        if a[i] != b[i] {
+            return false
+        }
+    }
+    return true
+}
+
+/**
+ * Reports E0300 unless `found`, the type of the checked `e`, fits
+ * `expected`.
+ *
+ * @param c the checker
+ * @param e the expression
+ * @param found its type
+ * @param expected the type expected
+ */
+pub fn requireType(c: mut Checker, e: &Expr, found: int, expected: int) {
+    requireTypeAt(c, e.span, found, expected)
+}
+
+/**
+ * Reports E0300 at `span` unless `found` fits `expected`.
+ *
+ * @param c the checker
+ * @param span where
+ * @param found the type found
+ * @param expected the type expected
+ */
+pub fn requireTypeAt(c: mut Checker, span: Span, found: int, expected: int) {
+    if !compatible(found, expected) && !weakensPointer(c, found, expected) {
+        c.error("E0300", span, "mismatched types: expected {c.typeName(expected)}, "
+                + "found {c.typeName(found)}")
+    }
+}
+
+/**
+ * Checks an expression against the type it must have.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the expression
+ * @param expected the type
+ * @returns the type found (`expected` after a conversion to a slice)
+ */
+pub fn coerce(c: mut Checker, p: Program, e: &Expr, expected: int) int {
+    // `Box.new(x)` expected as `Box<dyn I>` infers the type of `x`
+    const hint = if boxesDyn(c, expected) { ERROR } else { expected }
+    const found = checkExpr(c, p, e, hint)
+    if !compatible(found, expected) {
+        if coerceToSlice(c, p, e, found, expected) || coerceToDyn(c, p, e, found, expected) ||
+           coerceToUnion(c, e, found, expected) {
+            return expected
+        }
+        requireType(c, e, found, expected)
+    }
+    return found
+}
+
+/**
+ * Checks an argument against its parameter's type, as `coerce` does, and
+ * also accepts a reference to a value of that type (spec 5.6).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the argument
+ * @param param the parameter's type
+ */
+fn coerceArg(c: mut Checker, p: Program, e: &Expr, param: int) {
+    const hint = if boxesDyn(c, param) { ERROR } else { param }
+    const found = checkExpr(c, p, e, hint)
+    if !compatible(found, param) && !derefArg(c, e, found, param, false) &&
+       !coerceToSlice(c, p, e, found, param) && !coerceToDyn(c, p, e, found, param) &&
+       !coerceToUnion(c, e, found, param) {
+        requireType(c, e, found, param)
+    }
+}
+
+// `comptime e`: an initializer whose value the interpreter computes.
+fn isComptime(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Comptime(_) => true
+        _ => false
+    }
+}
+
+/**
+ * The type of a constant or global, and a constant's value, computed once.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id its `DefId`
+ * @returns its type
+ */
+pub fn checkConst(c: mut Checker, p: Program, id: int) int {
+    if c.info[id].typed {
+        return c.info[id].ty
+    }
+    if c.info[id].checking {
+        c.error("E0800", c.def(id).span, "the constant `{c.text(c.def(id).name)}` depends on "
+                + "itself")
+        return ERROR
+    }
+    c.info[id].checking = true
+    const saved = c.enter(c.def(id).module)
+    const outer = c.enterGenerics(noGenerics())
+    const item = itemOf(p, c.loc(id))
+    const isConst = c.def(id).kind == DefKind.Const
+    match item.kind {
+        ItemKind.Const(annotation, value) | ItemKind.Global(annotation, value) => {
+            let ty = ERROR
+            if const Option.Some(t) = annotation {
+                ty = resolveType(c, p, &t)
+                coerce(c, p, &value, ty)
+            } else {
+                ty = checkExpr(c, p, &value, ERROR)
+            }
+            c.info[id].ty = ty
+            if isConst && isComptime(&value) {   // run by the interpreter (spec 15.1)
+                c.info[id].byComptime = true
+            } else if isConst {
+                c.info[id].value = constEval(c, p, &value)   // while `checking`: catches cycles
+            } else if ty == ERROR {
+                // already reported
+            } else if findAttribute(c.r, item.attributes, "threadLocal").isSome() &&
+                    !isCopy(c, p, ty) {   // a thread ends without dropping it
+                c.error("E0822", item.span, "a `@threadLocal` global must not need drop, and "
+                        + "`{c.typeName(ty)}` is not Copy")
+            } else if !c.types.isNumeric(ty) && ty != BOOL && c.types.kind(ty) != TyKind.Ptr {
+                c.unsupported(item.span, "mutable globals of type `{c.typeName(ty)}` are")
+            } else {   // the initial value, stored in the binary
+                c.info[id].value = constEval(c, p, &value)
+            }
+        }
+        _ => {}
+    }
+    c.enterGenerics(outer)
+    c.enter(saved)
+    c.info[id].checking = false
+    c.info[id].typed = true
+    return c.info[id].ty
+}

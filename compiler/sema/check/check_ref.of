@@ -1,0 +1,376 @@
+/**
+ * @module
+ * References (spec 5.6; stage 0: bootstrap/src/sema/check_ref.c): `&place`,
+ * `&mut place`, and the rules that keep references second-class (ADR
+ * 0002), and borrowed function values (`fn(A) R`, spec 10.2). The borrow
+ * checker is `sema.check.borrows`.
+ */
+
+import base.span.Span
+import sema.check.check.Checker
+import sema.check.check.fnOf
+import sema.check.check.itemOf
+import sema.check.check_box.adjustedType
+import sema.check.check_list.checkRangeIndex
+import sema.check.check_place.placeRoot
+import sema.check.check_place.requireMutable
+import sema.check.expr_check.checkExpr
+import sema.check.layout_attrs.checkPackedBorrow
+import sema.check.structs.isCopy
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.ERROR
+import sema.core.types.FN_BORROWED
+import sema.core.types.STR
+import sema.core.types.TyKind
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.StmtKind
+
+/**
+ * `&x` or `&mut x`. Stage 0 treats `&str` as `str`: a view whose
+ * modification copies it first, like a literal.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the expression
+ * @param operand the borrowed place
+ * @param mutable `&mut`
+ * @param expected the type the context expects
+ * @returns its type
+ */
+pub fn checkRef(c: mut Checker, p: Program, e: &Expr, operand: &Expr, mutable: bool,
+                expected: int) int {
+    if mutable {
+        if const ExprKind.Index(base, index) = operand.kind {
+            if const ExprKind.Range(_, _, _) = index.kind {
+                return mutableSlice(c, p, operand, &*base, &*index)
+            }
+        }
+    }
+    const isRef = c.types.kind(expected) == TyKind.Ref
+    const hint = if isRef { c.types.get(expected).inner } else { ERROR }
+    const ty = checkExpr(c, p, operand, hint)
+    if mutable {
+        requireMutable(c, p, operand)
+    }
+    checkPackedBorrow(c, p, operand)
+    if ty == STR {
+        if mutable {
+            return c.unsupported(e.span, "`&mut str` is")
+        }
+        return ty
+    }
+    return if ty == ERROR { ty } else { c.types.ref(ty, mutable) }
+}
+
+// `&mut xs[a..b]`: a `&mut [T]` over part of a list, which must be
+// mutable, or of another `&mut [T]`.
+fn mutableSlice(c: mut Checker, p: Program, e: &Expr, base: &Expr, range: &Expr) int {
+    const ty = checkRangeIndex(c, p, e, base, range, true)
+    c.setType(e.id.0, ty)
+    const baseType = adjustedType(c, base)
+    const sliceMut = c.r.langItems[7]
+    const viaSlice = c.types.kind(baseType) == TyKind.Adt && c.types.get(baseType).data == sliceMut
+    if ty != ERROR && !viaSlice {
+        requireMutable(c, p, base)
+    }
+    return ty
+}
+
+/**
+ * Whether a value of a type holds a reference: `&T`, a `ref struct`, or a
+ * type made of them.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns true if it does
+ */
+pub fn holdsRef(c: Checker, p: Program, ty: int) bool {
+    const t = c.types.get(ty)
+    if t.kind == TyKind.Ref {
+        return true
+    }
+    if t.kind == TyKind.Adt && isRefStruct(c, p, t.data) {
+        return true
+    }
+    if t.kind == TyKind.Adt || t.kind == TyKind.Tuple {
+        for i in 0..t.args.len() {
+            if holdsRef(c, p, t.args[i]) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+/**
+ * Whether a type holds a borrowed function value (`fn(A) R`), which is
+ * second-class like a reference (spec 10.2) but cannot be returned.
+ *
+ * @param c the checker
+ * @param ty the type
+ * @returns true if it does
+ */
+pub fn holdsBorrowedFn(c: Checker, ty: int) bool {
+    const t = c.types.get(ty)
+    if t.kind == TyKind.Fn {
+        return t.data & FN_BORROWED != 0
+    }
+    if t.kind == TyKind.Adt || t.kind == TyKind.Tuple {
+        for i in 0..t.args.len() {
+            if holdsBorrowedFn(c, t.args[i]) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+fn isRefStruct(c: Checker, p: Program, id: int) bool {
+    if c.def(id).item < 0 {
+        return false
+    }
+    return match itemOf(p, c.loc(id)).kind {
+        ItemKind.Struct(_, isRef, isTuple, _, _, _) => isRef && !isTuple
+        _ => false
+    }
+}
+
+/**
+ * Reports E0702 when a type holding a reference is stored.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the stored type
+ * @param span where
+ * @param where the place, for the message
+ */
+pub fn checkStorable(c: mut Checker, p: Program, ty: int, span: Span, where: str) {
+    if c.types.kind(ty) == TyKind.Dyn {
+        c.error("E0355", span, "`{c.typeName(ty)}` has no size known at compile time and "
+                + "cannot be stored in {where}: store a `Box<{c.typeName(ty)}>`")
+    } else if holdsBorrowedFn(c, ty) {
+        c.error("E0702", span, "a borrowed function value cannot be stored in {where}: "
+                + "use a `move fn` type")
+    } else if holdsRef(c, p, ty) {
+        c.error("E0702", span, "a reference cannot be stored in {where}: store an owned value, "
+                + "or declare a `ref struct`")
+    }
+}
+
+/**
+ * The type arguments of a container may not hold references; those of
+ * Option and Result may, and a `ref struct` may hold anything.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty an instance
+ * @param span where it is named
+ */
+pub fn checkInstanceStorable(c: mut Checker, p: Program, ty: int, span: Span) {
+    const t = c.types.get(ty)
+    if t.kind != TyKind.Adt || t.data == c.r.langItems[2] || t.data == c.r.langItems[3] {
+        return
+    }
+    if isRefStruct(c, p, t.data) {
+        return
+    }
+    const args = t.args.clone()
+    const boxed = t.data == c.r.langItems[0]
+    for i in 0..args.len() {
+        if boxed && c.types.kind(args[i]) == TyKind.Dyn {
+            continue   // `Box<dyn I>`
+        }
+        checkStorable(c, p, args[i], span, "a container or a struct")
+    }
+}
+
+fn lends(c: Checker, p: Program, mode: Mode, ty: int) bool {
+    return holdsRef(c, p, ty) || (mode == Mode.Borrow && !isCopy(c, p, ty))
+}
+
+/**
+ * A function returning a reference borrows it from `self`, or else from
+ * its only borrowed parameter that can lend one (spec 5.6).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the function's `DefId`
+ * @param sig its signature
+ * @param selfType the type declaring the method
+ */
+pub fn checkBorrowSource(c: mut Checker, p: Program, id: int, sig: int, selfType: int) {
+    const ret = c.types.get(sig).inner
+    if holdsBorrowedFn(c, ret) {
+        c.error("E0702", fnOf(p, c.loc(id)).span, "a function cannot return a borrowed "
+                + "function value: return a `move fn`")
+        return
+    }
+    if !holdsRef(c, p, ret) {
+        return
+    }
+    const decl = fnOf(p, c.loc(id))
+    c.info[id].returnsBorrow = true
+    if decl.hasSelf && decl.selfMode != Mode.Move {
+        c.info[id].borrowSource = -1
+        c.info[id].sourceByRef = decl.selfMode == Mode.Borrow && !holdsRef(c, p, selfType)
+        return
+    }
+    if decl.isUnsafe {   // the caller guarantees what the reference points to
+        c.info[id].returnsBorrow = false
+        return
+    }
+    const params = c.types.get(sig).args.clone()
+    let source = -1
+    let count = 0
+    for i in 0..decl.params.len() {
+        if i < params.len() && lends(c, p, decl.params[i].mode, params[i]) {
+            source = i
+            count += 1
+        }
+    }
+    if count != 1 {
+        const which = if count > 0 { "several of" } else { "none of" }
+        c.error("E0702", decl.span, "a function that returns a reference must borrow it from "
+                + "`self` or from its only borrowed parameter, which it has {which}")
+        c.info[id].returnsBorrow = false
+    }
+    c.info[id].borrowSource = source
+    c.info[id].sourceByRef = count == 1 && decl.params[source].mode == Mode.Borrow &&
+                             !holdsRef(c, p, params[source])
+}
+
+/**
+ * `return &x` where `x` ends with the function, also inside `Some(&x)`
+ * (E0702).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param fnDef the function being checked
+ * @param value the returned value
+ */
+pub fn checkReturnedRef(c: mut Checker, p: Program, fnDef: int, value: &Expr) {
+    if !c.info[fnDef].returnsBorrow {
+        return
+    }
+    if returnedBranches(c, p, fnDef, value) {
+        return
+    }
+    let target = value
+    if const ExprKind.Call(_, args) = value.kind {
+        if args.len() == 1 {
+            target = &args[0].value   // `Some(&x)`, `Ok(&x)`
+        }
+    }
+    match target.kind {
+        ExprKind.Unary(op, operand) => {
+            if op != Op.Ref && op != Op.RefMut {
+                return
+            }
+            const Option.Some(root) = placeRoot(c, &*operand) else {
+                return
+            }
+            if root.1 > 0 {
+                return   // through an implicit dereference: not a local
+            }
+            const local = match root.0.kind {
+                ExprKind.Ident(_) | ExprKind.SelfValue => match c.res(root.0.id.0) {
+                    Res.Local(id) => id
+                    _ => -1
+                }
+                _ => -1
+            }
+            if local < 0 || isSource(c, p, fnDef, local) || holdsRef(c, p, c.localTypes[local]) {
+                return
+            }
+            const name = c.text(c.locals[local].name).toOwned()
+            c.error("E0702", target.span, "cannot return a reference to `{name}`, which ends "
+                    + "with the function")
+        }
+        _ => {
+            return
+        }
+    }
+}
+
+// The values a `match`, an `if` or a block gives: `return match x { .A(v) =>
+// &v }` returns a reference to the binding `v`, a copy that ends with the
+// function.
+fn returnedBranches(c: mut Checker, p: Program, fnDef: int, value: &Expr) bool {
+    match value.kind {
+        ExprKind.Match(_, arms) => {
+            for i in 0..arms.len() {
+                returnedRef(c, p, fnDef, &arms[i].body)
+            }
+            return true
+        }
+        ExprKind.If(_, _, then, otherwise) => {
+            returnedTail(c, p, fnDef, &then)
+            if const Option.Some(other) = otherwise {
+                returnedRef(c, p, fnDef, &*other)
+            }
+            return true
+        }
+        ExprKind.Block(block) | ExprKind.Unsafe(block) => {
+            returnedTail(c, p, fnDef, &block)
+            return true
+        }
+        _ => {
+            return false
+        }
+    }
+}
+
+fn returnedTail(c: mut Checker, p: Program, fnDef: int, block: &Block) {
+    const count = block.stmts.len()
+    if count > 0 {
+        if const StmtKind.ExprStmt(tail) = block.stmts[count - 1].kind {
+            returnedRef(c, p, fnDef, &tail)
+        }
+    }
+}
+
+// `&v` for a binding `v` of a branch (only the binding itself: `&v[i]` may
+// reach the elements of the matched value, which outlive the function).
+fn returnedRef(c: mut Checker, p: Program, fnDef: int, value: &Expr) {
+    if returnedBranches(c, p, fnDef, value) {
+        return
+    }
+    match value.kind {
+        ExprKind.Unary(op, operand) => {
+            if op != Op.Ref && op != Op.RefMut {
+                return
+            }
+            const local = match operand.kind {
+                ExprKind.Ident(_) | ExprKind.SelfValue => match c.res(operand.id.0) {
+                    Res.Local(id) => id
+                    _ => -1
+                }
+                _ => -1
+            }
+            if local < 0 || isSource(c, p, fnDef, local) || holdsRef(c, p, c.localTypes[local]) {
+                return
+            }
+            const name = c.text(c.locals[local].name).toOwned()
+            c.error("E0702", value.span, "cannot return a reference to `{name}`, which ends "
+                    + "with the function")
+        }
+        _ => {}
+    }
+}
+
+// Whether `local` is the parameter the function borrows from.
+fn isSource(c: Checker, p: Program, fnDef: int, local: int) bool {
+    const decl = fnOf(p, c.loc(fnDef))
+    const source = c.info[fnDef].borrowSource
+    if source < 0 {
+        return decl.hasSelf && local == 0
+    }
+    return c.localAt(decl.params[source].id.0) == local
+}

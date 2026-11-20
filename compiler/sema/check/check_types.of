@@ -1,0 +1,798 @@
+/**
+ * @module
+ * Type expressions to types, function signatures and the types of
+ * declarations (stage 0: bootstrap/src/sema/check_types.c).
+ */
+
+import base.intern.Symbol
+import base.span.Span
+import sema.check.check.BOUND_CONST
+import sema.check.check.Checker
+import sema.check.check.fnGenericsIn
+import sema.check.check.interfaceOf
+import sema.check.check.fnOf
+import sema.check.check.itemOf
+import sema.check.check.itemTypeParams
+import sema.check.check.noGenerics
+import sema.check.check.typeGenerics
+import sema.check.check.typeGenericsOf
+import sema.check.check_cond.boolType
+import sema.check.check_cond.condType
+import sema.check.check_cond.inferType
+import sema.check.check_cond.isType
+import sema.check.check_generic.checkBounds
+import sema.check.check_generic.reportBadLength
+import sema.check.check_keys.indexType
+import sema.check.check_keys.keyOpType
+import sema.check.check_keys.keyofType
+import sema.check.check_mapped.checkAliasBounds
+import sema.check.check_mapped.mappedType
+import sema.check.check_ref.checkInstanceStorable
+import sema.check.check_unsafe.cCompatible
+import sema.check.const_eval.byComptimeMessage
+import sema.check.expr_check.checkConst
+import sema.check.interfaces.dynIncompatible
+import sema.check.interfaces.isAny
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.ERROR
+import sema.core.types.FN_BORROWED
+import sema.core.types.FN_C
+import sema.core.types.FN_OWNED
+import sema.core.types.FN_SEND
+import sema.core.types.I64
+import sema.core.types.LEN_ADD
+import sema.core.types.LEN_DIV
+import sema.core.types.LEN_MUL
+import sema.core.types.LEN_REM
+import sema.core.types.LEN_SUB
+import sema.core.types.NEVER
+import sema.core.types.STR
+import sema.core.types.TyKind
+import sema.core.types.UNIT
+import sema.resolve.resolve_attributes.warnDeprecated
+import sema.resolve.trace.link
+import sema.resolve.complete.completeMember
+import sema.resolve.complete.completeScope
+import sema.resolve.complete.probing
+import sema.resolve.resolve_import.memberOf
+import sema.resolve.resolve_import.missingMember
+import sema.resolve.suggest.SuggestScope
+import sema.resolve.suggest.suggestName
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
+import syntax.ast_text.typeText
+
+/**
+ * The type `self` and `Self` stand for in the methods of item `index` of
+ * module `m`: the struct or enum applied to its own parameters
+ * (`Stack<T>`), or the primitive of a `@lang` declaration.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param m a module
+ * @param index an item of it
+ * @returns the type
+ */
+pub fn ownerTypeOf(c: mut Checker, p: Program, m: int, index: int) int {
+    for t in 0..c.r.lang.len() {
+        const lang = c.r.lang[t]
+        if lang != 0 && c.def(lang).module == m && c.def(lang).item == index {
+            return t
+        }
+    }
+    const id = c.itemDefs[m][index]
+    const params = itemTypeParams(&p.modules[m].module.items[index])
+    const isInterface = match p.modules[m].module.items[index].kind {
+        ItemKind.Interface(_, _, _) => true
+        _ => false
+    }
+    if isInterface {   // in an interface, `Self` is its type parameter 0
+        return c.types.param(0, params[0].0)
+    }
+    let args: List<int> = []
+    for i in 0..params.len() {
+        args.push(c.types.param(i, params[i].0))
+    }
+    return c.types.adt(id, args)
+}
+
+/**
+ * The type `self` stands for in the methods of a declaration's item.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id a struct, enum or `@lang` declaration
+ * @returns the type
+ */
+pub fn ownerType(c: mut Checker, p: Program, id: int) int {
+    if c.def(id).item < 0 {   // a type the checker made: a union
+        return c.types.adt(id, [])
+    }
+    return ownerTypeOf(c, p, c.def(id).module, c.def(id).item)
+}
+
+/**
+ * `Name<args>` for a type alias, expanded with its arguments so that the
+ * checks of the aliased type run at each use.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the alias
+ * @param args its type arguments
+ * @param span where it is named
+ * @returns the type
+ */
+pub fn resolveAlias(c: mut Checker, p: Program, id: int, args: List<TypeExpr>, span: Span) int {
+    const item = itemOf(p, c.loc(id))
+    return match item.kind {
+        ItemKind.TypeAlias(typeParams, aliased) => aliasType(c, p, id, typeParams, &aliased, args,
+                                                             span)
+        _ => ERROR
+    }
+}
+
+fn aliasType(c: mut Checker, p: Program, id: int, typeParams: List<Symbol>,
+             aliased: &TypeExpr, args: List<TypeExpr>, span: Span) int {
+    if args.len() != typeParams.len() {
+        c.error("E0302", span, "wrong number of type arguments for `{c.text(c.def(id).name)}`: "
+                + "expected {typeParams.len()}, found {args.len()}")
+        return ERROR
+    }
+    // Arguments belong to the caller; nested uses are not recursive bodies.
+    let generics = noGenerics()
+    generics.owner = typeParams.clone()
+    generics.bounds = c.generics.bounds.clone()
+    for i in 0..args.len() {
+        generics.aliasArgs.push(resolveType(c, p, &args[i]))
+    }
+    if c.info[id].checking && !recursionAllowed(c, id, span) {
+        return ERROR
+    }
+    if typeParams.len() == 0 && c.info[id].typed {
+        return c.info[id].ty
+    }
+    const savedUser = c.aliasUser
+    if c.aliasDef == 0 {
+        c.aliasUser = c.module()
+    }
+    const saved = c.enter(c.def(id).module)
+    const outer = c.enterGenerics(generics)
+    const savedSelf = c.selfType
+    const savedAlias = c.aliasDef
+    c.selfType = ERROR
+    c.aliasDef = id
+    const wasChecking = c.info[id].checking
+    c.info[id].checking = true
+    c.aliasStack.push(id)
+    c.aliasSpans.push(span)
+    c.aliasConds.push(c.condDepth)
+    c.aliasDefers.push(c.deferDepth)
+    let ty = ERROR
+    if checkAliasBounds(c, p, id, span) {
+        ty = resolveType(c, p, aliased)
+    }
+    c.aliasStack.pop()
+    c.aliasSpans.pop()
+    c.aliasConds.pop()
+    c.aliasDefers.pop()
+    c.info[id].checking = wasChecking
+    c.aliasDef = savedAlias
+    c.aliasUser = savedUser
+    c.selfType = savedSelf
+    c.enterGenerics(outer)
+    c.enter(saved)
+    if typeParams.len() == 0 {
+        c.info[id].ty = ty
+        c.info[id].typed = true
+    }
+    return ty
+}
+
+/**
+ * The expansions of type aliases that may be nested (spec 16.5): a recursive
+ * conditional type deeper than this is E0346.
+ */
+const MAX_ALIAS_DEPTH: int = 64
+
+// Whether the alias `id`, already being expanded, may be named again: from
+// a branch of a decided conditional type, up to `MAX_ALIAS_DEPTH`. Else an
+// error: E0310, E0346, or E0901 from a branch deferred on a type parameter.
+fn recursionAllowed(c: mut Checker, id: int, span: Span) bool {
+    let j = c.aliasStack.len() - 1
+    for j > 0 && c.aliasStack[j] != id {
+        j -= 1
+    }
+    const name = c.text(c.def(id).name)
+    if c.deferDepth > c.aliasDefers[j] {
+        c.unsupported(span, "recursive conditional types on a type parameter are")
+        return false
+    }
+    if c.condDepth == c.aliasConds[j] {
+        c.error("E0310", span, "the type alias `{name}` refers to itself")
+        return false
+    }
+    if c.aliasStack.len() < MAX_ALIAS_DEPTH {
+        return true
+    }
+    let first = 0
+    for c.aliasStack[first] != id {
+        first += 1
+    }
+    c.error("E0346", c.aliasSpans[first], "the type alias `{name}` expands more than "
+            + "{MAX_ALIAS_DEPTH} times: its recursion does not reach a branch without it")
+    return false
+}
+
+/**
+ * `Name<args>` for a struct or enum, checking the number of arguments (E0302).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id its `DefId`
+ * @param args its type arguments
+ * @param span where it is named
+ * @returns the type
+ */
+pub fn adtInstance(c: mut Checker, p: Program, id: int, args: [int], span: Span) int {
+    const expected = itemTypeParams(itemOf(p, c.loc(id))).len()
+    if args.len() != expected {
+        c.error("E0302", span, "wrong number of type arguments for `{c.text(c.def(id).name)}`: "
+                + "expected {expected}, found {args.len()}")
+        return ERROR
+    }
+    const ty = c.types.adt(id, args)
+    const generics = typeGenericsOf(c, p, id)
+    let list: List<int> = []
+    for i in 0..args.len() {
+        list.push(args[i])
+    }
+    checkBounds(c, p, &generics, list, span)
+    checkInstanceStorable(c, p, ty, span)
+    return ty
+}
+
+/**
+ * The type parameter named `name`, if it is in scope.
+ *
+ * @param c the checker
+ * @param name its name
+ * @returns its type
+ */
+pub fn typeParameter(c: mut Checker, name: Symbol) Option<int> {
+    let bound = c.typeVars.len()
+    for bound > 0 {   // the innermost first
+        bound -= 1
+        if c.typeVars[bound].0 == name.0 {
+            return Option.Some(c.typeVarTypes[bound])
+        }
+    }
+    for i in 0..c.generics.fnParams.len() {
+        if c.generics.fnParams[i].0 == name.0 {
+            return Option.Some(c.types.param(c.generics.owner.len() + i, name.0))
+        }
+    }
+    for i in 0..c.generics.owner.len() {
+        if c.generics.owner[i].0 == name.0 {
+            return Option.Some(if c.generics.aliasArgs.len() > 0 { c.generics.aliasArgs[i] }
+                         else { c.types.param(i, name.0) })
+        }
+    }
+    return Option.None
+}
+
+// `SIZE`, a `const` item of type `int`, as the argument of a const
+// parameter (spec 8.7).
+fn constArg(c: mut Checker, p: Program, id: int, span: Span) int {
+    const ty = checkConst(c, p, id)
+    if ty == ERROR {
+        return ERROR
+    }
+    if ty != I64 {
+        c.error("E0362", span, "the constant `{c.text(c.def(id).name)}` is of type "
+                + "`{c.typeName(ty)}`: const arguments are of type `int` (spec 8.7)")
+        return ERROR
+    }
+    if c.info[id].byComptime {
+        c.error("E0801", span, byComptimeMessage(c, id))
+        return ERROR
+    }
+    return match c.info[id].value {
+        Option.Some(v) => c.types.value(v.bits.wrappingCast<i64>())
+        Option.None => ERROR
+    }
+}
+
+// A const parameter or a `const` item in an array length (spec 8.7): a
+// value or a const parameter.
+fn namedValue(c: mut Checker, p: Program, name: Symbol, span: Span) int {
+    let len = ERROR
+    if const Option.Some(param) = typeParameter(c, name) {
+        len = param
+    } else {
+        const path = [name]
+        const id = pathTarget(c, path, span)
+        if id != 0 && c.def(id).kind == DefKind.Const {
+            len = constArg(c, p, id, span)
+        } else if id != 0 {
+            c.error("E0362", span, "`{c.text(name)}` is not a constant: an array length is an "
+                    + "integer constant or a const parameter (spec 8.7)")
+            return ERROR
+        } else {
+            c.error("E0200", span, "cannot find `{c.text(name)}` in this scope")
+            return ERROR
+        }
+    }
+    const t = c.types.get(len)
+    if t.kind == TyKind.Value {
+        if t.data < 0 {
+            c.error("E0362", span, "an array length cannot be negative: found {t.data}")
+            return ERROR
+        }
+        return len
+    }
+    const isConst = t.kind == TyKind.Param && t.data < c.generics.bounds.len() &&
+                    c.generics.bounds[t.data] & BOUND_CONST != 0
+    if !isConst {
+        if len != ERROR {
+            c.error("E0362", span, "`{c.text(name)}` is a type: an array length is an integer "
+                    + "constant or a const parameter (spec 8.7)")
+        }
+        return ERROR
+    }
+    return len
+}
+
+/**
+ * The length of `[T; e]` (spec 8.7): an integer constant, a const
+ * parameter or an arithmetic of them.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the length expression
+ * @returns a value, a const parameter or a `ValueOp`, or `ERROR`
+ */
+pub fn lengthType(c: mut Checker, p: Program, e: &Expr) int {
+    match e.kind {
+        ExprKind.Int(n) => {
+            if n > 4294967295 {
+                reportBadLength(c, e.span, "{n}")
+                return ERROR
+            }
+            return c.types.value(n as int)
+        }
+        ExprKind.Ident(name) => {
+            return namedValue(c, p, name, e.span)
+        }
+        ExprKind.Binary(op, lhs, rhs) => {
+            const code = lengthOp(op)
+            if code >= 0 {
+                const a = lengthType(c, p, &*lhs)
+                const b = lengthType(c, p, &*rhs)
+                if a == ERROR || b == ERROR {
+                    return ERROR
+                }
+                return c.types.valueOp(code, a, b)
+            }
+        }
+        _ => {}
+    }
+    c.error("E0362", e.span, "an array length is an integer constant, a const parameter or an "
+            + "arithmetic of them (spec 8.7)")
+    return ERROR
+}
+
+// The `ValueOp` operation of an arithmetic operator, or -1.
+fn lengthOp(op: Op) int {
+    return match op {
+        Op.Add => LEN_ADD
+        Op.Sub => LEN_SUB
+        Op.Mul => LEN_MUL
+        Op.Div => LEN_DIV
+        Op.Rem => LEN_REM
+        _ => -1
+    }
+}
+
+// `[T; len]`: E0366 when `len` is known and out of range.
+fn arrayOfLength(c: mut Checker, item: int, len: int, span: Span) int {
+    if len == ERROR || item == ERROR {
+        return ERROR
+    }
+    const t = c.types.get(len)
+    if t.kind == TyKind.Value {
+        if t.data > 4294967295 {
+            reportBadLength(c, span, c.typeName(len))
+            return ERROR
+        }
+        return c.types.intern(TyKind.Array, t.data, item, [])
+    }
+    if !t.hasParam {
+        reportBadLength(c, span, c.typeName(len))
+        return ERROR
+    }
+    return c.types.intern(TyKind.Array, -1, item, [len])
+}
+
+fn namedType(c: mut Checker, p: Program, id: int, args: List<TypeExpr>, span: Span) int {
+    const kind = c.def(id).kind
+    warnDeprecated(c.r, id, span)
+    if args.len() > 0 && kind != DefKind.Struct && kind != DefKind.Enum &&
+       kind != DefKind.TypeAlias {
+        c.error("E0302", span, "`{c.text(c.def(id).name)}` takes no type arguments")
+        return ERROR
+    }
+    return match kind {
+        DefKind.Primitive => c.def(id).primitive
+        DefKind.TypeAlias => resolveAlias(c, p, id, args, span)
+        DefKind.Struct | DefKind.Enum => {
+            if c.def(id).lang {
+                return c.def(id).primitive   // a `@lang` body names its primitive
+            }
+            let types: List<int> = []
+            for i in 0..args.len() {
+                types.push(resolveType(c, p, &args[i]))
+            }
+            adtInstance(c, p, id, types, span)
+        }
+        DefKind.Const => constArg(c, p, id, span)
+        DefKind.Interface => {
+            if isAny(c, id) {   // `any` is a `dyn` type already (spec 9.8)
+                return c.types.dynOf(id, [])
+            }
+            const name = c.text(c.def(id).name)
+            c.error("E0356", span, "`{name}` is an interface: only a parameter type can name it "
+                    + "alone; write `dyn {name}` or a type parameter (spec 9.6)")
+            ERROR
+        }
+        _ => {
+            c.error("E0310", span, "expected a type, found `{c.text(c.def(id).name)}`")
+            ERROR
+        }
+    }
+}
+
+/**
+ * A declaration of another module named in a type or a pattern; reports
+ * E0200 when it is missing and E0202 when it is private.
+ *
+ * @param c the checker
+ * @param m the module
+ * @param name the name
+ * @param span where it is used
+ * @returns its `DefId`, or 0
+ */
+pub fn moduleType(c: mut Checker, m: int, name: Symbol, span: Span) int {
+    const id = memberOf(c.r, m, name)
+    const moduleName = c.r.moduleNames[m].clone()
+    if id == 0 {
+        missingMember(c.r, m, name, span)
+        if probing(c.r, name) {
+            completeMember(c.r, m, true)
+        }
+        return 0
+    }
+    if !c.def(id).isPub {
+        c.error("E0202", span, "`{c.text(name)}` is private to module `{moduleName}`")
+    }
+    return id
+}
+
+// `Name` or `module.Name`: its `DefId`, or 0.
+fn pathTarget(c: mut Checker, segments: List<Symbol>, span: Span) int {
+    const first = c.r.scope.module(segments[0])
+    c.r.noteImportUse(segments[0])
+    if segments.len() == 1 {
+        if first != 0 {
+            link(c.r, span, Res.Def(first))
+        }
+        return first
+    }
+    if first == 0 {   // `nowhere.Name`
+        c.error("E0200", span, "cannot find `{c.text(segments[0])}` in this scope")
+        suggestName(c.r, segments[0], SuggestScope.Item)
+        if probing(c.r, segments[0]) {
+            completeScope(c.r, true)
+        }
+        return 0
+    }
+    if c.def(first).kind != DefKind.Module {
+        c.unsupported(span, "nested module paths in types are")
+        return 0
+    }
+    let module = c.def(first).target
+    for i in 1..segments.len() - 1 {   // `a.b.Name`: `b` a module that `a` re-exports
+        const inner = moduleType(c, module, segments[i], span)
+        if inner == 0 || !c.def(inner).isPub {
+            return 0   // reported by moduleType
+        }
+        if c.def(inner).kind != DefKind.Module {
+            c.error("E0200", span, "`{c.text(segments[i])}` is not a module")
+            return 0
+        }
+        module = c.def(inner).target
+    }
+    const id = moduleType(c, module, segments[segments.len() - 1], span)
+    if id != 0 {
+        link(c.r, span, Res.Def(id))
+    }
+    return id
+}
+
+fn resolvePath(c: mut Checker, p: Program, segments: List<Symbol>, args: List<TypeExpr>,
+               span: Span) int {
+    if segments.len() == 1 {
+        if const Option.Some(param) = typeParameter(c, segments[0]) {
+            if args.len() > 0 {
+                c.error("E0302", span, "a type parameter takes no type arguments".toOwned())
+            }
+            return param
+        }
+    }
+    const id = pathTarget(c, segments, span)
+    if id == 0 && segments.len() > 1 {
+        return ERROR   // reported by moduleType
+    }
+    if id == 0 {
+        const name = segments[segments.len() - 1]
+        c.error("E0200", span, "cannot find type `{c.text(name)}` in this scope")
+        const text = c.text(name)
+        if text == "i128" || text == "u128" {   // deferred (ADR 0047)
+            c.r.diags.help("128-bit integers are not supported: use two `u64` halves")
+        }
+        suggestName(c.r, name, SuggestScope.Type)
+        if probing(c.r, name) {
+            completeScope(c.r, true)
+        }
+        return ERROR
+    }
+    return namedType(c, p, id, args, span)
+}
+
+// `[T]` and `&[T]`: the std `Slice<T>`, a pointer and a length (spec 2.12).
+pub fn sliceOf(c: mut Checker, elem: int, span: Span) int {
+    const slice = c.r.langItems[4]
+    if slice == 0 {
+        return c.unsupported(span, "slices without the standard library are")
+    }
+    return c.types.adt(slice, [elem])
+}
+
+/**
+ * Whether a type is the built-in `str` view or a reference written `&[T]`:
+ * the kinds `resolveRef` passes through.
+ *
+ * @param t a type as written
+ * @returns true for `[T]`
+ */
+fn isSliceType(t: &TypeExpr) bool {
+    return match t.kind {
+        TypeKind.Slice(_) => true
+        _ => false
+    }
+}
+
+// A parameter or result type of `extern "C" fn`: one with a C layout (E0804).
+fn cType(c: mut Checker, p: Program, t: &TypeExpr) int {
+    const ty = resolveType(c, p, t)
+    if !cCompatible(c, ty) {
+        c.error("E0804", t.span, "type `{c.typeName(ty)}` has no C layout and cannot cross the "
+                + "C boundary")
+    }
+    return ty
+}
+
+/**
+ * The type a type expression names, in the current module and generics.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param t the type as written
+ * @returns the type
+ */
+pub fn resolveType(c: mut Checker, p: Program, t: &TypeExpr) int {
+    return match t.kind {
+        TypeKind.Path(segments, args) => resolvePath(c, p, segments, args, t.span)
+        TypeKind.SelfType => {
+            if c.selfType == ERROR {
+                c.error("E0200", t.span, "`Self` is only available inside a type".toOwned())
+            }
+            c.selfType
+        }
+        TypeKind.Ref(mutable, inner) => {
+            const target = resolveType(c, p, &*inner)
+            if target == STR && !mutable {
+                return STR   // stage 0: `&str` is a `str` view
+            }
+            if isSliceType(&*inner) {   // `&[T]` is the slice itself
+                if mutable {   // `&mut [T]` is `SliceMut<T>`
+                    const sliceMut = c.r.langItems[7]
+                    if sliceMut == 0 || c.types.kind(target) != TyKind.Adt {
+                        return c.unsupported(t.span, "mutable slices `&mut [T]` are")
+                    }
+                    return c.types.adt(sliceMut, [c.types.get(target).args[0]])
+                }
+                return target
+            }
+            c.types.ref(target, mutable)
+        }
+        TypeKind.Ptr(mutable, inner) => {
+            const target = resolveType(c, p, &*inner)
+            c.types.ptr(target, mutable)
+        }
+        TypeKind.Slice(elem) => {
+            const item = resolveType(c, p, &*elem)
+            sliceOf(c, item, t.span)
+        }
+        TypeKind.Array(elem, len) => {
+            const item = resolveType(c, p, &*elem)
+            arrayOfLength(c, item, lengthType(c, p, &*len), len.span)
+        }
+        TypeKind.Tuple(items) => {
+            let types: List<int> = []
+            for i in 0..items.len() {
+                types.push(resolveType(c, p, &items[i]))
+            }
+            c.types.tuple(types)
+        }
+        TypeKind.Fn(params, _, ret, owned, send) => {
+            let types: List<int> = []
+            for i in 0..params.len() {
+                types.push(resolveType(c, p, &params[i]))
+            }
+            const result = match ret {
+                Option.Some(r) => resolveType(c, p, &*r)
+                Option.None => UNIT
+            }
+            const kind = if owned { FN_OWNED } else { FN_BORROWED }
+            const flag = if send { FN_SEND } else { 0 }
+            c.types.fnValueTypeWith(types, result, kind | flag)
+        }
+        TypeKind.CFn(params, ret) => {
+            let types: List<int> = []
+            for i in 0..params.len() {
+                types.push(cType(c, p, &params[i]))
+            }
+            const result = match ret {
+                Option.Some(r) => cType(c, p, &*r)
+                Option.None => UNIT
+            }
+            c.types.fnValueTypeWith(types, result, FN_C)
+        }
+        TypeKind.Never => NEVER
+        TypeKind.Dyn(inner) => dynType(c, p, &*inner, t.span)
+        TypeKind.Optional(inner) => {   // `T?` is `Option<T>` (spec 2.6)
+            const target = resolveType(c, p, &*inner)
+            if c.r.langItems[2] == 0 {
+                return c.unsupported(t.span, "optional types (`T?`) without std are")
+            }
+            c.types.adt(c.r.langItems[2], [target])
+        }
+        TypeKind.KeyOf(inner) => keyofType(c, p, &*inner, t.span)
+        TypeKind.Key(name) => c.types.keys([name.0])
+        TypeKind.KeyOp(op, left, right) => keyOpType(c, p, op, &*left, &*right, t.span)
+        TypeKind.Index(base, key) => indexType(c, p, &*base, &*key, t.span)
+        TypeKind.Mapped(param, keys, filter, optional, field) => {
+            mappedType(c, p, t, param, &*keys, &filter, optional, &*field)
+        }
+        TypeKind.Is(_, _) => isType(c, p, t)
+        TypeKind.Cond(test, then, otherwise) => condType(c, p, &*test, &*then, &*otherwise)
+        TypeKind.Infer(name) => inferType(c, name, t.span)
+        TypeKind.Bool(value) => boolType(c, value)
+        TypeKind.Const(value) => c.types.value(value)
+    }
+}
+
+/**
+ * The signature of a function, computed once: its names are looked up in
+ * its own module, and `Self` is a method's own type.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the function's `DefId`
+ * @returns its `fn` type, without `self`
+ */
+pub fn fnSignature(c: mut Checker, p: Program, id: int) int {
+    if c.info[id].typed {
+        return c.info[id].ty
+    }
+    const def = c.def(id)
+    const module = def.module
+    const decl = fnOf(p, c.loc(id))
+    const item = itemOf(p, c.loc(id))
+    const isMethod = match item.kind {
+        ItemKind.Struct(_, _, _, _, _, _) | ItemKind.Enum(_, _, _, _) |
+        ItemKind.Interface(_, _, _) => true
+        _ => false
+    }
+    const saved = c.enter(module)
+    const savedSelf = c.selfType
+    const owner = typeGenerics(c, p, item)
+    const outer = c.enterGenerics(fnGenericsIn(c, p, &owner, decl))
+    if isMethod {
+        c.selfType = ownerTypeOf(c, p, module, c.def(id).item)
+    }
+    let params: List<int> = []
+    for i in 0..decl.params.len() {
+        let ty = resolveType(c, p, &decl.params[i].ty)
+        if decl.params[i].mode == Mode.Move {   // `f: move fn(A) R` takes an owned function
+            ty = ownedFn(c, ty)
+        }
+        if c.types.kind(ty) == TyKind.Dyn {   // `s: dyn Shape` borrows the value
+            if decl.params[i].mode == Mode.Move {
+                ty = c.unsupported(decl.params[i].ty.span, "`move` `dyn` parameters are")
+            } else {   // `s: mut dyn Shape` borrows it mutably
+                ty = c.types.ref(ty, decl.params[i].mode == Mode.Mut)
+            }
+        }
+        params.push(ty)
+    }
+    const ret = match decl.ret {
+        Option.Some(t) => resolveType(c, p, &t)
+        Option.None => UNIT
+    }
+    c.enterGenerics(outer)
+    c.selfType = savedSelf
+    c.enter(saved)
+    const sig = c.types.fnType(params, ret)
+    c.info[id].ty = sig
+    c.info[id].typed = true
+    return sig
+}
+
+/**
+ * Whether `found` fits `expected`: `!` converts to every type, and the
+ * error type is compatible with everything, so that one mistake is
+ * reported once.
+ *
+ * @param found the type found
+ * @param expected the type expected
+ * @returns true if compatible
+ */
+pub fn compatible(found: int, expected: int) bool {
+    return found == expected || found == ERROR || expected == ERROR || found == NEVER
+}
+
+// The owned function type `move fn(A) R` of `fn(A) R`; other types as they are.
+fn ownedFn(c: mut Checker, ty: int) int {
+    const t = c.types.get(ty)
+    if t.kind != TyKind.Fn || t.data & FN_BORROWED == 0 {
+        return ty
+    }
+    const args = t.args.clone()
+    const ret = t.inner
+    return c.types.fnValueTypeWith(args, ret, FN_OWNED | (t.data & FN_SEND))
+}
+
+// `dyn I`: E0333 unless `I` names an interface, E0338 unless its methods
+// can be called through a vtable (spec 9.7).
+fn dynType(c: mut Checker, p: Program, inner: &TypeExpr, span: Span) int {
+    const iface = interfaceOf(c, inner)
+    if iface == 0 {
+        c.error("E0333", inner.span, "`{typeText(inner, c.r.names)}` is not an interface")
+        return ERROR
+    }
+    if isAny(c, iface) {
+        c.error("E0365", span, "`any` is a `dyn` type already: write `any`, not `dyn any`")
+        return ERROR
+    }
+    const generic = match inner.kind {
+        TypeKind.Path(_, args) => args.len() > 0
+        _ => false
+    }
+    if generic {
+        return c.unsupported(span, "`dyn` of generic interfaces is")
+    }
+    const why = dynIncompatible(c, p, iface)
+    if why.len() > 0 {
+        c.error("E0338", span, "`dyn {typeText(inner, c.r.names)}` is not allowed: {why}")
+        return ERROR
+    }
+    return c.types.dynOf(iface, [])
+}

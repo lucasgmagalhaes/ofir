@@ -1,0 +1,790 @@
+/**
+ * @module
+ * Move analysis (spec 5.1; stage 0: bootstrap/src/sema/moves.c): states,
+ * statements and loops. Expressions and places are in `moves_expr`,
+ * patterns and `match` in `moves_match`.
+ *
+ * After a function is type checked, its body is walked in evaluation order
+ * with a state per program point: which variables, or parts of them, may
+ * have been moved out, and which may not be initialized yet. At a join
+ * (after `if`, `match`, `&&`, loops) a variable is maybe-moved if it is on
+ * some path. Loops are walked until their entry state no longer changes,
+ * then once more to report errors.
+ *
+ * Stage 0 walks a tree into which the checker wrote the implicit
+ * dereferences (`*r`, `*b.ptr`) and the conversions (`list.asSlice()`);
+ * stage 1 finds them in the checker's tables (`Checker.derefs`,
+ * `Checker.sliceCoercions`) and walks them as if they were written.
+ *
+ * The same walk checks borrows (`borrows`): the state also holds the
+ * loans that may be alive and the conflicting accesses to them.
+ */
+
+import base.intern.Symbol
+import base.span.Span
+import sema.check.borrows.Access
+import sema.check.borrows.Loan
+import sema.check.borrows.Conflict
+import sema.check.borrows.access
+import sema.check.borrows.bindLoans
+import sema.check.borrows.carriedSince
+import sema.check.borrows.dropCarry
+import sema.check.borrows.endScope
+import sema.check.borrows.escapesBlock
+import sema.check.borrows.joinLoans
+import sema.check.borrows.killHolder
+import sema.check.borrows.loansOf
+import sema.check.borrows.sameLoans
+import sema.check.borrows.useHolder
+import sema.check.check.Checker
+import sema.check.check.fnOf
+import sema.check.check_list.iteratorItem
+import sema.check.check_ref.holdsBorrowedFn
+import sema.check.check_ref.holdsRef
+import sema.check.moves_expr.isPlaceView
+import sema.check.moves_expr.movesNode
+import sema.check.moves_expr.viewType
+import sema.check.moves_match.patternInit
+import sema.check.moves_match.patternLocals
+import sema.check.structs.isCopy
+import sema.core.program.Program
+import sema.core.types.keyFieldType
+import syntax.ast.Block
+import syntax.ast.ExprKind
+import syntax.ast.ForKind
+import syntax.ast.Mode
+import syntax.ast.Op
+import syntax.ast.PatternKind
+import syntax.ast.Stmt
+import syntax.ast.StmtKind
+import std.mem
+
+/** A part of a local: `p.a.b` is local p with the path of fields [a, b]. */
+pub struct Part {
+    /** The local. */
+    pub local: int
+    /** The fields, outermost first; empty for the whole local. */
+    pub fields: List<int>
+
+    /**
+     * Whether two parts are the same.
+     *
+     * @param other the other part
+     * @returns true if they are
+     */
+    pub fn same(self, other: &Part) bool {
+        if self.local != other.local || self.fields.len() != other.fields.len() {
+            return false
+        }
+        for i in 0..self.fields.len() {
+            if self.fields[i] != other.fields[i] {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Whether one path is a prefix of the other: using one uses the other.
+     *
+     * @param other the other part
+     * @returns true if they overlap
+     */
+    pub fn overlaps(self, other: &Part) bool {
+        if self.local != other.local {
+            return false
+        }
+        const len = if self.fields.len() < other.fields.len() { self.fields.len() } else {
+            other.fields.len()
+        }
+        for i in 0..len {
+            // Two `value[key]` steps may name the same field (spec 16.2).
+            const keys = keyFieldType(self.fields[i]) >= 0 && keyFieldType(other.fields[i]) >= 0
+            if self.fields[i] != other.fields[i] && !keys {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Whether this part is `other` or inside it.
+     *
+     * @param other the enclosing part
+     * @returns true if it is
+     */
+    pub fn inside(self, other: &Part) bool {
+        return self.local == other.local && self.fields.len() >= other.fields.len() &&
+               self.overlaps(other)
+    }
+}
+
+/**
+ * The deepest path of a moved part, as stage 0 (`PART_DEPTH`).
+ */
+pub const PART_DEPTH: int = 7
+
+/** What is known at a program point. */
+pub struct State {
+    /** Unreachable: a join ignores it. */
+    pub dead: bool
+    /** Per local: maybe moved as a whole. */
+    pub moved: List<bool>
+    /** Per local: maybe not initialized. */
+    pub uninit: List<bool>
+    /** The parts maybe moved out. */
+    pub parts: List<Part>
+    /** The loans maybe alive. */
+    pub loans: List<Loan>
+    /** The accesses that conflict with a loan, errors if its holder is used. */
+    pub conflicts: List<Conflict>
+
+    /**
+     * A copy of this state.
+     *
+     * @returns the copy
+     */
+    pub fn dup(self) State {
+        return State{dead: self.dead, moved: self.moved.clone(), uninit: self.uninit.clone(),
+                     parts: self.parts.clone(), loans: self.loans.clone(),
+                     conflicts: self.conflicts.clone()}
+    }
+
+    /**
+     * Whether a part overlaps something moved.
+     *
+     * @param part the part
+     * @returns true if it does
+     */
+    pub fn movedPart(self, part: &Part) bool {
+        if self.moved[part.local] {
+            return true
+        }
+        for i in 0..self.parts.len() {
+            if self.parts[i].overlaps(part) {
+                return true
+            }
+        }
+        return false
+    }
+
+    fn addPart(mut self, part: &Part) {
+        for i in 0..self.parts.len() {
+            if self.parts[i].same(part) {
+                return
+            }
+        }
+        self.parts.push(part.clone())
+    }
+
+    /**
+     * Joins the state of another path into this one.
+     *
+     * @param other the other path's state
+     */
+    pub fn join(mut self, other: &State) {
+        if other.dead {
+            return
+        }
+        if self.dead {
+            self.replace(other.dup())
+            return
+        }
+        for i in 0..self.moved.len() {
+            self.moved[i] = self.moved[i] || other.moved[i]
+            self.uninit[i] = self.uninit[i] || other.uninit[i]
+        }
+        for i in 0..other.parts.len() {
+            self.addPart(&other.parts[i])
+        }
+        joinLoans(self, other)
+    }
+
+    /**
+     * Makes this state another one.
+     *
+     * @param other the new state
+     */
+    pub fn replace(mut self, other: move State) {
+        self.dead = other.dead
+        self.moved = other.moved
+        self.uninit = other.uninit
+        self.parts = other.parts
+        self.loans = other.loans
+        self.conflicts = other.conflicts
+    }
+
+    /**
+     * Whether two states are the same.
+     *
+     * @param other the other state
+     * @returns true if they are
+     */
+    pub fn equals(self, other: &State) bool {
+        if self.dead != other.dead || self.parts.len() != other.parts.len() {
+            return false
+        }
+        for i in 0..self.moved.len() {
+            if self.moved[i] != other.moved[i] || self.uninit[i] != other.uninit[i] {
+                return false
+            }
+        }
+        for i in 0..self.parts.len() {
+            if !self.parts[i].same(&other.parts[i]) {
+                return false
+            }
+        }
+        return sameLoans(&self, other)
+    }
+
+    /**
+     * An assignment to `part` makes it, and everything inside it, a value
+     * again.
+     *
+     * @param part the assigned part
+     */
+    pub fn initPart(mut self, part: &Part) {
+        if part.fields.len() == 0 {
+            self.moved[part.local] = false
+            self.uninit[part.local] = false
+        }
+        let kept: List<Part> = []
+        for i in 0..self.parts.len() {
+            if !self.parts[i].inside(part) {
+                kept.push(self.parts[i].clone())
+            }
+        }
+        self.parts = kept
+    }
+}
+
+/**
+ * A state where nothing is moved.
+ *
+ * @param count the number of locals
+ * @returns the state
+ */
+pub fn newState(count: int) State {
+    return State{dead: false, moved: List.filled(false, count),
+                 uninit: List.filled(false, count), parts: [], loans: [], conflicts: []}
+}
+
+/**
+ * The state of no path.
+ *
+ * @returns the state
+ */
+pub fn deadState() State {
+    return State{dead: true, moved: [], uninit: [], parts: [], loans: [], conflicts: []}
+}
+
+/** The states leaving a loop by `break` and by `continue`. */
+pub struct LoopFrame {
+    /** Joined at each `break`. */
+    pub breaks: State
+    /** Joined at each `continue` and at the end of the body. */
+    pub continues: State
+    /** `Moves.scope.len()` before the loop's variables. */
+    pub scope: int
+    /** The label of `name: for`. */
+    pub label: Option<Symbol>
+}
+
+/**
+ * How an expression is used: its value read (borrowed), consumed, for the
+ * target of `=` overwritten, or, for a `mut` argument, borrowed mutably
+ * once the other arguments are evaluated (two-phase borrows).
+ */
+pub copy enum Use {
+    Read
+    Move
+    Assign
+    Mutate
+}
+
+/** What the lowering needs from the analysis of a function. */
+pub struct FnMoves {
+    /** Per local: it borrows a place (borrowed parameter, `for` variable, binding). */
+    pub borrowed: List<bool>
+    /** Every part moved somewhere. */
+    pub parts: List<Part>
+}
+
+/** A flag of `Moves.flags`: the value of the local is moved out, so it is not dropped. */
+pub const MOVES: int = 1
+/** A flag of `Moves.flags`: the temporary is consumed, so it is not dropped. */
+pub const CONSUMED: int = 2
+/** A flag of `Moves.flags`: the `list.asSlice()` a conversion inserts is consumed. */
+pub const COERCION_CONSUMED: int = 4
+
+/** The analysis of a function. */
+pub struct Moves {
+    /** The function's `DefId`. */
+    pub fnDef: int
+    /** False while a loop's fixpoint is computed. */
+    pub report: bool
+    /** Per local: borrows a place. */
+    pub borrowed: List<bool>
+    /** The open loops. */
+    pub loops: List<LoopFrame>
+    /** Every part moved somewhere, for the drops. */
+    pub allParts: List<Part>
+    /** Per local: its type holds a reference, so it holds the loans of its value. */
+    pub refLocal: List<bool>
+    /** Per local: its type is Copy, so a binding that borrows copies instead. */
+    pub copyLocal: List<bool>
+    /** The holder of the loan of the outermost `for` loop; inner loops follow. */
+    pub holderBase: int
+    /** The loans of the values being computed, innermost last. */
+    pub carry: List<Loan>
+    /** The loans the bindings of the current pattern take. */
+    pub binding: List<Loan>
+    /** The place of the last place expression walked, if `lastLocal`. */
+    pub lastPlace: Part
+    /** The last place expression walked is rooted at a local. */
+    pub lastLocal: bool
+    /** The owned locals of the open blocks, innermost last: they die at its end. */
+    pub scope: List<int>
+    /** How many blocks are open; 1 is the function's body. */
+    pub depth: int
+
+    /**
+     * Marks a part moved.
+     *
+     * @param s the state
+     * @param part the part
+     */
+    pub fn movePart(mut self, s: mut State, part: &Part) {
+        if part.fields.len() == 0 {
+            s.moved[part.local] = true
+            return
+        }
+        s.addPart(part)
+        for i in 0..self.allParts.len() {
+            if self.allParts[i].same(part) {
+                return
+            }
+        }
+        self.allParts.push(part.clone())
+    }
+}
+
+/**
+ * Records a flag of a node of the current module, for the lowering.
+ *
+ * @param c the checker
+ * @param id the node
+ * @param flag `MOVES`, `CONSUMED` or `COERCION_CONSUMED`
+ */
+pub fn markFlag(c: mut Checker, id: int, flag: int) {
+    const old = match c.moveFlags[c.module()].get(id) {
+        Option.Some(value) => *value
+        Option.None => 0
+    }
+    c.moveFlags[c.module()].insert(id, old | flag)
+}
+
+/**
+ * Reports a move error, unless a loop's fixpoint is being computed.
+ *
+ * @param m the analysis
+ * @param c the checker
+ * @param code the error code
+ * @param span where
+ * @param message what
+ */
+pub fn moveError(m: Moves, c: mut Checker, code: str, span: Span, message: move str) {
+    if m.report {
+        c.error(code, span, message)
+    }
+}
+
+/**
+ * The name of a local, for messages.
+ *
+ * @param c the checker
+ * @param local the local
+ * @returns its name
+ */
+pub fn localName(c: Checker, local: int) str {
+    return c.text(c.locals[local].name).toOwned()
+}
+
+// A `mut` parameter may be moved out of, but it must hold a value again
+// when the function returns: the caller still owns it (spec 5.3).
+fn checkMutParams(m: Moves, c: mut Checker, p: Program, s: &State, span: Span) {
+    if s.dead {
+        return
+    }
+    const decl = fnOf(p, c.loc(m.fnDef))
+    for i in 0..decl.params.len() + 1 {
+        const isSelf = i == decl.params.len()
+        if isSelf && !(decl.hasSelf && decl.selfMode == Mode.Mut) {
+            continue
+        }
+        if !isSelf && decl.params[i].mode != Mode.Mut {
+            continue
+        }
+        const local = if isSelf { 0 } else { c.localAt(decl.params[i].id.0) }
+        if local >= 0 && s.movedPart(&Part{local: local, fields: []}) {
+            moveError(m, c, "E0602", span, "`{localName(c, local)}` is moved out of and not "
+                      + "given a new value before the function returns")
+        }
+    }
+}
+
+/**
+ * Walks a block.
+ *
+ * @param m the analysis
+ * @param c the checker
+ * @param p the program
+ * @param block the block
+ * @param s the state, updated
+ * @param tail how the value of its last expression is used
+ */
+pub fn movesBlock(m: mut Moves, c: mut Checker, p: Program, block: &Block, s: mut State,
+                  tail: Use) {
+    const count = block.stmts.len()
+    const base = m.scope.len()
+    m.depth += 1
+    for i in 0..count {
+        const stmt = &block.stmts[i]
+        let done = false
+        if i + 1 == count {
+            if const StmtKind.ExprStmt(e) = stmt.kind {
+                movesNode(m, c, p, &e, s, tail)
+                done = true
+            }
+        }
+        if !done {
+            const mark = m.carry.len()
+            movesStmt(m, c, p, stmt, s)
+            dropCarry(m, mark)
+            declaredLocals(m, c, stmt)
+        }
+    }
+    m.depth -= 1
+    if m.depth > 0 {   // the function's locals end with it: returning a borrow is E0702
+        escapesBlock(m, c, base)
+        endScope(m, c, s, base, block.span)
+    }
+    if m.scope.len() > base {
+        m.scope.truncate(base)
+    }
+}
+
+// The owned locals a statement declares: they die at the end of the block.
+fn declaredLocals(m: mut Moves, c: Checker, stmt: &Stmt) {
+    match stmt.kind {
+        StmtKind.Let(pattern, _, _, _) => patternLocals(c, &pattern, m.scope)
+        StmtKind.Var(_, _, _) => {
+            const local = c.localAt(stmt.id.0)
+            if local >= 0 {
+                m.scope.push(local)
+            }
+        }
+        _ => {}
+    }
+}
+
+fn movesStmt(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, s: mut State) {
+    match stmt.kind {
+        StmtKind.Let(pattern, _, value, otherwise) => {
+            // `const _ = value` keeps nothing: the value is a temporary, dropped at once.
+            const keeps = match pattern.kind {
+                PatternKind.Wildcard => false
+                _ => true
+            }
+            const mark = m.carry.len()
+            movesNode(m, c, p, &value, s, if keeps { Use.Move } else { Use.Read })
+            const loans = carriedSince(m, mark)
+            if const Option.Some(block) = otherwise {
+                let other = s.dup()
+                movesBlock(m, c, p, &block, other, Use.Read)   // never falls through
+            }
+            m.binding = loans
+            patternInit(m, c, &pattern, s, false)
+            m.binding = []
+        }
+        StmtKind.Var(_, _, value) => {
+            const mark = m.carry.len()
+            if const Option.Some(v) = value {
+                movesNode(m, c, p, &v, s, Use.Move)
+            }
+            const local = c.localAt(stmt.id.0)
+            if local >= 0 {
+                s.uninit[local] = value.isNone()
+                s.moved[local] = false
+                killHolder(s, local)
+                if m.refLocal[local] {
+                    bindLoans(s, local, carriedSince(m, mark))
+                }
+            }
+        }
+        StmtKind.Assign(op, target, value) => {
+            // `x = v` moves `v` into `x`; `x op= v` only reads it (`s += t` appends).
+            const mark = m.carry.len()
+            movesNode(m, c, p, &value, s, if op == Op.Assign { Use.Move } else { Use.Read })
+            if op != Op.Assign {   // `x += 1` reads `x` first, then writes it
+                m.lastLocal = false
+                movesNode(m, c, p, &target, s, Use.Mutate)
+                if m.lastLocal && isPlaceView(c, &target) {
+                    access(s, &m.lastPlace, Access.Write, target.span)
+                }
+                return
+            }
+            m.binding = carriedSince(m, mark)
+            movesNode(m, c, p, &target, s, Use.Assign)
+            m.binding = []
+        }
+        StmtKind.For(kind, _, _, _, _, body) => {
+            if kind == ForKind.Comptime {   // unrolled: once per key, each a different field
+                const local = c.localAt(stmt.id.0)
+                if local >= 0 {
+                    s.initPart(&Part{local: local, fields: []})
+                }
+                movesBlock(m, c, p, &body, s, Use.Read)
+            } else {
+                loopBody(m, c, p, stmt, s)
+            }
+        }
+        StmtKind.Return(value) => {
+            if const Option.Some(v) = value {
+                movesNode(m, c, p, &v, s, Use.Move)
+            }
+            checkMutParams(m, c, p, &s, stmt.span)
+            s.dead = true
+        }
+        StmtKind.Break => {
+            const last = jumpTarget(m, stmt)
+            if last >= 0 {   // else E0309 or E0323 was reported
+                endScope(m, c, s, m.loops[last].scope, stmt.span)
+                m.loops[last].breaks.join(&s)
+            }
+            s.dead = true
+        }
+        StmtKind.Continue => {
+            const last = jumpTarget(m, stmt)
+            if last >= 0 {
+                endScope(m, c, s, m.loops[last].scope, stmt.span)
+                useHolder(m, c, s, m.holderBase + last)   // the next iteration
+                m.loops[last].continues.join(&s)
+            }
+            s.dead = true
+        }
+        StmtKind.ExprStmt(e) => {
+            movesNode(m, c, p, &e, s, Use.Read)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Loops
+
+// The loop a `break` or `continue` leaves: the innermost, or the one with
+// its label; -1 if there is none.
+fn jumpTarget(m: Moves, stmt: &Stmt) int {
+    let i = m.loops.len()
+    const label = match stmt.label {
+        Option.Some(l) => l
+        Option.None => {
+            return i - 1
+        }
+    }
+    for i > 0 {
+        i -= 1
+        if const Option.Some(name) = m.loops[i].label {
+            if name.0 == label.0 {
+                return i
+            }
+        }
+    }
+    return -1
+}
+
+fn isRange(stmt: &Stmt) bool {
+    return match stmt.kind {
+        StmtKind.For(_, _, _, _, expr, _) => match expr {
+            Option.Some(e) => match e.kind {
+                ExprKind.Range(_, _, _) => true
+                _ => false
+            }
+            Option.None => false
+        }
+        _ => false
+    }
+}
+
+// One iteration from `entry`: the condition or the iterated value, the
+// bindings, the body. Returns the state at the loop's exit.
+fn iteration(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, entry: &State) State {
+    const last = m.loops.len() - 1
+    m.loops[last].breaks = deadState()
+    m.loops[last].continues = deadState()
+    const base = m.scope.len()
+    m.loops[last].scope = base
+    let st = entry.dup()
+    let exit = deadState()
+    match stmt.kind {
+        StmtKind.For(kind, _, _, second, expr, body) => {
+            if kind == ForKind.Cond {
+                if const Option.Some(cond) = expr {
+                    movesNode(m, c, p, &cond, st, Use.Read)
+                }
+                exit = st.dup()   // the condition was false
+            } else if kind == ForKind.In {
+                const first = c.localAt(stmt.id.0)
+                let owns = isRange(stmt)
+                if !owns {
+                    if const Option.Some(e) = expr {
+                        owns = iteratorItem(c, p, viewType(c, &e, -1)).isSome()
+                    }
+                }
+                if owns {   // the variable owns a new item
+                    exit = st.dup()
+                    if first >= 0 {
+                        st.initPart(&Part{local: first, fields: []})
+                        bindLoopVar(m, st, first, false, last)
+                        m.scope.push(first)   // a new one each iteration
+                    }
+                } else if first >= 0 {   // the variables borrow the elements
+                    m.borrowed[first] = true
+                    bindLoopVar(m, st, first, true, last)
+                    if second.isSome() {
+                        m.borrowed[first + 1] = true
+                        bindLoopVar(m, st, first + 1, true, last)
+                    }
+                    exit = st.dup()
+                } else {
+                    exit = st.dup()
+                }
+            }
+            movesBlock(m, c, p, &body, st, Use.Read)
+            endScope(m, c, st, base, body.span)
+            if m.scope.len() > base {
+                m.scope.truncate(base)
+            }
+            useHolder(m, c, st, m.holderBase + last)   // the next iteration
+        }
+        _ => {}
+    }
+    m.loops[last].continues.join(&st)
+    exit.join(&m.loops[last].breaks)
+    return exit
+}
+
+// A `for` variable holds the loans of the loop: those of the iterator, or
+// the borrow of the iterated place, unless it holds a copy.
+fn bindLoopVar(m: mut Moves, st: mut State, local: int, borrows: bool, last: int) {
+    killHolder(st, local)
+    if m.refLocal[local] || (borrows && !m.copyLocal[local]) {
+        const loans = loansOf(&st, m.holderBase + last)
+        bindLoans(st, local, loans)
+    }
+}
+
+// The loans of a `for` loop: those of the iterator, or a borrow of the
+// iterated place, shared or, for `for mut`, exclusive.
+fn loopLoans(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, st: mut State) {
+    const holder = m.holderBase + m.loops.len()
+    if const StmtKind.For(kind, mutable, _, _, expr, _) = stmt.kind {
+        if kind != ForKind.In {
+            return
+        }
+        if const Option.Some(e) = expr {
+            const mark = m.carry.len()
+            m.lastLocal = false
+            movesNode(m, c, p, &e, st, Use.Read)   // evaluated once, borrowed
+            let loans = carriedSince(m, mark)
+            dropCarry(m, mark)
+            const owns = isRange(stmt) || iteratorItem(c, p, viewType(c, &e, -1)).isSome()
+            if !owns && m.lastLocal && isPlaceView(c, &e) {
+                if mutable {
+                    access(st, &m.lastPlace, Access.BorrowMut, e.span)
+                }
+                loans.push(Loan{holder, part: m.lastPlace.clone(), mutable, span: e.span})
+            }
+            bindLoans(st, holder, loans)
+        }
+    }
+}
+
+// The state at the start of an iteration is the entry state joined with
+// the states at the end of every iteration. The first walk reports; when
+// an iteration changes that state (it moves or initializes something),
+// the loop is walked without reporting until the state is stable, then
+// once more to report. Errors reported twice are rendered once.
+fn loopBody(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, st: mut State) {
+    loopLoans(m, c, p, stmt, st)
+    m.loops.push(LoopFrame{breaks: deadState(), continues: deadState(), scope: m.scope.len(),
+                             label: stmt.label})
+    const last = m.loops.len() - 1
+    let entry = st.dup()
+    let exit = iteration(m, c, p, stmt, &entry)
+    let next = entry.dup()
+    next.join(&m.loops[last].continues)
+    if !next.equals(&entry) {
+        const report = m.report
+        m.report = false
+        let round = 0
+        for round < 16 && !next.equals(&entry) {
+            entry = mem.replace(next, deadState())
+            iteration(m, c, p, stmt, &entry)
+            next = entry.dup()
+            next.join(&m.loops[last].continues)
+            round += 1
+        }
+        m.report = report
+        exit = iteration(m, c, p, stmt, &entry)
+    }
+    st.replace(exit)
+    const _ = m.loops.pop()
+    killHolder(st, m.holderBase + m.loops.len())
+}
+
+/**
+ * Runs the analysis on a function whose body was just checked, and keeps
+ * what the lowering needs.
+ *
+ * @param c the checker, with the function's locals and types
+ * @param p the program
+ * @param id the function's `DefId`
+ */
+pub fn checkMoves(c: mut Checker, p: Program, id: int) {
+    const decl = fnOf(p, c.loc(id))
+    if decl.body.isNone() {
+        return
+    }
+    const count = c.locals.len()
+    let refLocal = List.filled(false, count)
+    let copyLocal = List.filled(false, count)
+    for i in 0..count {
+        if i < c.localTypes.len() {
+            const ty = c.localTypes[i]
+            refLocal[i] = holdsRef(c, p, ty) || holdsBorrowedFn(c, ty)
+            copyLocal[i] = isCopy(c, p, ty)
+        }
+    }
+    let m = Moves{fnDef: id, report: true, borrowed: List.filled(false, count), loops: [],
+                  allParts: [], refLocal, copyLocal, holderBase: count, carry: [],
+                  binding: [], lastPlace: Part{local: 0, fields: []}, lastLocal: false,
+                  scope: [], depth: 0}
+    if decl.hasSelf && decl.selfMode == Mode.Borrow && count > 0 {
+        m.borrowed[0] = true
+    }
+    for i in 0..decl.params.len() {
+        const local = c.localAt(decl.params[i].id.0)
+        if decl.params[i].mode == Mode.Borrow && local >= 0 {
+            m.borrowed[local] = true
+        }
+    }
+    let s = newState(count)
+    match decl.body {
+        Option.Some(body) => movesBlock(m, c, p, &body, s, Use.Read)
+        Option.None => {}
+    }
+    checkMutParams(m, c, p, &s, decl.span)
+    c.fnMoves.insert(id, FnMoves{borrowed: mem.replace(m.borrowed, []),
+                                 parts: mem.replace(m.allParts, [])})
+}
