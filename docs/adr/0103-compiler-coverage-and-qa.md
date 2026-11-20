@@ -27,6 +27,25 @@ or a bug that no test has reached.
 The C runtime (`runtime/src`) and `std` as test programs use it are not
 measured yet. Both are linked into programs, not into the compilers.
 
+## Amendment: the runtime and std (6.33b)
+
+The run tests and the std tests measure them. The runtime is built by
+clang with `--coverage`. A wrapper gives `--coverage` to each command
+that links a program, but not to `--emit` and cross builds, whose output
+the tests compare. The counters go to `TMPDIR`, where the compiler and
+the runner put the programs, and the test runner adds
+`OFIR_TEST_LDFLAGS` to the C programs it links against an Ofir library.
+gcovr keeps functions of the same name apart
+(`--merge-mode-functions=separate`): methods of different types share
+one. The first measurement:
+
+| Code | Lines | Functions | Branches |
+|------|------:|----------:|---------:|
+| Runtime (`runtime/src`, C) | 84.8% | 92.0% | 67.3% |
+| `std` | 86.7% | 97.9% | 56.3% |
+
+They are uploaded with the flags `runtime` and `std`.
+
 ## Decision
 
 1. **`tools/coverage.py` measures both compilers.** Stage 0 is built by
