@@ -113,9 +113,11 @@ static void drop_if_set(Lowerer *l, LocalId local) {
 // Drops the locals owned by the scopes from `first` on, the latest first,
 // without closing the scopes: for the jumps that leave them.
 void drop_scopes(Lowerer *l, uint32_t first) {
+    // GCOVR_EXCL_START: a jump is inside a block: the scope it leaves is open
     if (first >= l->scopes.len) {
         return;
     }
+    // GCOVR_EXCL_STOP
     for (size_t i = l->owned.len; i > l->scopes.data[first]; i--) {
         drop_if_set(l, l->owned.data[i - 1]);
     }
@@ -237,9 +239,11 @@ bool place_path(const Expr *e, LocalId *local, uint32_t *path, uint32_t *len) {
 void note_moved(Lowerer *l, const Expr *e) {
     LocalId local;
     uint32_t path[PART_DEPTH], len;
+    // GCOVR_EXCL_START: a moved value with no indirection is a local's field path
     if (!place_path(e, &local, path, &len)) {
         return;
     }
+    // GCOVR_EXCL_STOP
     LocalId flag = len > 0 ? part_flag(l, local, path, len) : (LocalId){0};
     if (flag.id != 0) {
         set_flag_of(l, flag, false);
@@ -275,9 +279,11 @@ void temp_scope_enter(Lowerer *l) {
 }
 
 void drop_temps(Lowerer *l, uint32_t first) {
+    // GCOVR_EXCL_START: a jump is a statement: its temporaries' scope is open
     if (first >= l->temp_scopes.len) {
         return;
     }
+    // GCOVR_EXCL_STOP
     for (size_t i = l->temps.len; i > l->temp_scopes.data[first]; i--) {
         Temp t = l->temps.data[i - 1];
         emit_drop(l, (Place){.local = t.local}, t.type);
