@@ -8,17 +8,17 @@
  */
 
 import base.span.Span
-import sema.check.check.BOUND_CLONE
-import sema.check.check.BOUND_COPY
-import sema.check.check.BOUND_DEBUG
-import sema.check.check.BOUND_EQ
-import sema.check.check.BOUND_HASH
-import sema.check.check.BOUND_ORD
-import sema.check.check.Checker
-import sema.check.check.Generics
-import sema.check.check.boundBit
-import sema.check.check.fnOf
-import sema.check.check.interfaceOf
+import sema.check.BOUND_CLONE
+import sema.check.BOUND_COPY
+import sema.check.BOUND_DEBUG
+import sema.check.BOUND_EQ
+import sema.check.BOUND_HASH
+import sema.check.BOUND_ORD
+import sema.check.Checker
+import sema.check.Generics
+import sema.check.boundBit
+import sema.check.fnOf
+import sema.check.interfaceOf
 import sema.check.check_comptime_for.comptimeInt
 import sema.check.check_comptime_for.isComptimeInt
 import sema.check.check_generic.paramBounds

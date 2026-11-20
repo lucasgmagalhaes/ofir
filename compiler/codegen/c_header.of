@@ -6,9 +6,9 @@
  */
 
 import sema.check.c_symbols.cSymbol
-import sema.check.check.Checker
-import sema.check.check.fnOf
-import sema.check.check.itemOf
+import sema.check.Checker
+import sema.check.fnOf
+import sema.check.itemOf
 import sema.check.check_types.fnSignature
 import sema.check.structs.fieldsOf
 import sema.check.structs.structFields

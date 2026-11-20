@@ -11,14 +11,14 @@
  */
 
 import base.intern.Symbol
-import sema.check.check.BOUND_COPY
-import sema.check.check.COMPTIME_ATTRIBUTE
-import sema.check.check.COMPTIME_INDEX
-import sema.check.check.COMPTIME_LOOP
-import sema.check.check.COMPTIME_MATCHES
-import sema.check.check.COMPTIME_NAME
-import sema.check.check.Checker
-import sema.check.check.ComptimeInfo
+import sema.check.BOUND_COPY
+import sema.check.COMPTIME_ATTRIBUTE
+import sema.check.COMPTIME_INDEX
+import sema.check.COMPTIME_LOOP
+import sema.check.COMPTIME_MATCHES
+import sema.check.COMPTIME_NAME
+import sema.check.Checker
+import sema.check.ComptimeInfo
 import sema.check.check_comptime.BOUND_ENUM
 import sema.check.check_comptime.BOUND_STRUCT
 import sema.check.check_comptime.metaCall

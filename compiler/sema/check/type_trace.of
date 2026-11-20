@@ -7,8 +7,8 @@
  */
 
 import base.float_text.formatG
-import sema.check.check.Checker
-import sema.check.check.skippedTest
+import sema.check.Checker
+import sema.check.skippedTest
 import sema.check.const_eval.ConstKind
 import sema.check.const_eval.ConstValue
 import sema.core.program.Program

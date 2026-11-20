@@ -6,8 +6,8 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.Generics
+import sema.check.Checker
+import sema.check.Generics
 import sema.check.check_mapped.mappedIndexType
 import sema.check.check_mapped.mappedKeys
 import sema.check.check_methods.checkVisible

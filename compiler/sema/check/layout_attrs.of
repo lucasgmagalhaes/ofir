@@ -4,8 +4,8 @@
  * `@align(N)`, their checks and the queries code generation asks.
  */
 
-import sema.check.check.Checker
-import sema.check.check.itemOf
+import sema.check.Checker
+import sema.check.itemOf
 import sema.check.enums.variantsOf
 import sema.check.structs.fieldsOf
 import sema.core.def.DefKind

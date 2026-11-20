@@ -36,7 +36,7 @@ import air.ir.rvUse
 import air.ir.rvalue
 import air.ir.terminator
 import air.opt.fold.intBits
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.core.types.BOOL
 import sema.core.types.TyKind
 import sema.core.types.UNIT

@@ -5,7 +5,7 @@
  * `dyn I`, recorded in `Checker.dynCoercions` for the lowering.
  */
 
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_box.boxInner
 import sema.check.interfaces.unsatisfied
 import sema.core.program.Program

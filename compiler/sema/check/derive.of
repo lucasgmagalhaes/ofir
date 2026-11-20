@@ -11,13 +11,13 @@
  * derived: a struct or enum declares `format`.
  */
 
-import sema.check.check.BOUND_DEBUG
-import sema.check.check.BOUND_DISPLAY
-import sema.check.check.BOUND_EQ
-import sema.check.check.BOUND_HASH
-import sema.check.check.BOUND_ORD
-import sema.check.check.Checker
-import sema.check.check.fnOf
+import sema.check.BOUND_DEBUG
+import sema.check.BOUND_DISPLAY
+import sema.check.BOUND_EQ
+import sema.check.BOUND_HASH
+import sema.check.BOUND_ORD
+import sema.check.Checker
+import sema.check.fnOf
 import sema.check.check_generic.equatable
 import sema.check.check_generic.orderable
 import sema.check.check_generic.paramBounds

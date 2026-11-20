@@ -6,11 +6,11 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.boundedParam
-import sema.check.check.emptyInfo
-import sema.check.check.isKeyBound
-import sema.check.check.itemOf
+import sema.check.Checker
+import sema.check.boundedParam
+import sema.check.emptyInfo
+import sema.check.isKeyBound
+import sema.check.itemOf
 import sema.check.check_cond.decide
 import sema.check.check_cond.notDecided
 import sema.check.check_keys.included

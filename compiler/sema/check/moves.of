@@ -36,8 +36,8 @@ import sema.check.borrows.killHolder
 import sema.check.borrows.loansOf
 import sema.check.borrows.sameLoans
 import sema.check.borrows.useHolder
-import sema.check.check.Checker
-import sema.check.check.fnOf
+import sema.check.Checker
+import sema.check.fnOf
 import sema.check.check_list.iteratorItem
 import sema.check.check_ref.holdsBorrowedFn
 import sema.check.check_ref.holdsRef

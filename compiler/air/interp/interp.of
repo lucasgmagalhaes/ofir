@@ -36,8 +36,8 @@ import air.opt.fold.isSigned
 import air.opt.fold.normalize
 import base.span.Span
 import diag.noSpan
-import sema.check.check.Checker
-import sema.check.check.itemOf
+import sema.check.Checker
+import sema.check.itemOf
 import sema.check.enums.variantsOf
 import sema.check.structs.fieldsOf
 import sema.check.structs.structFieldType

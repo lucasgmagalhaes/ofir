@@ -50,7 +50,7 @@ import air.lower.lower_expr.lowerTail
 import air.lower.lower_expr.ownBindings
 import air.lower.lower_expr.typeIsValue
 import diag.noSpan
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_dyn.boxesDyn
 import sema.check.check_union.memberIndex
 import sema.check.check_union.unionMembers

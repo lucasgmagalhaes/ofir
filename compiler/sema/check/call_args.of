@@ -7,8 +7,8 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.fnOf
+import sema.check.Checker
+import sema.check.fnOf
 import sema.check.check_types.fnSignature
 import sema.check.expr_check.coerce
 import sema.core.def.DefKind

@@ -6,7 +6,7 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_types.resolveType
 import sema.core.program.Program
 import sema.core.types.ERROR

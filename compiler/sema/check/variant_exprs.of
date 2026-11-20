@@ -8,10 +8,10 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
-import sema.check.check.typeGenericsOf
+import sema.check.Checker
+import sema.check.itemOf
+import sema.check.itemTypeParams
+import sema.check.typeGenericsOf
 import sema.check.check_generic.checkGenericArgs
 import sema.check.check_generic.inferFromSelf
 import sema.check.check_generic.inferNew

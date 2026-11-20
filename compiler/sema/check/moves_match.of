@@ -13,7 +13,7 @@ import sema.check.borrows.bindLoans
 import sema.check.borrows.carriedSince
 import sema.check.borrows.dropCarry
 import sema.check.borrows.killHolder
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_comptime.knownCondition
 import sema.check.check_dyn.boxesDyn
 import sema.check.check_pattern.testedDyn

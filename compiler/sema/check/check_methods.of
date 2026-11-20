@@ -10,13 +10,13 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.BOUND_CLONE
+import sema.check.BOUND_CLONE
 import sema.check.call_args.argParam
-import sema.check.check.Checker
-import sema.check.check.Loc
-import sema.check.check.fnOf
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
+import sema.check.Checker
+import sema.check.Loc
+import sema.check.fnOf
+import sema.check.itemOf
+import sema.check.itemTypeParams
 import sema.check.check_box.autoDeref
 import sema.check.check_box.methodReceiver
 import sema.check.check_list.arraySliceReceiver

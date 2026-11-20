@@ -7,10 +7,10 @@
  */
 
 import base.intern.Symbol
-import sema.check.check.Checker
-import sema.check.check.interfaceOf
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
+import sema.check.Checker
+import sema.check.interfaceOf
+import sema.check.itemOf
+import sema.check.itemTypeParams
 import sema.check.check_methods.methodAt
 import sema.check.check_methods.methodCount
 import sema.check.check_ref.holdsRef

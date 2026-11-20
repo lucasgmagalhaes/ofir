@@ -9,7 +9,7 @@
  * own fields are reached as usual.
  */
 
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_methods.hasMethod
 import sema.check.check_types.compatible
 import sema.check.structs.structFieldType

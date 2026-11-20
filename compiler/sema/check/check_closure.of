@@ -5,7 +5,7 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_stmt.checkBlock
 import sema.check.check_types.resolveType
 import sema.check.expr_check.checkExpr

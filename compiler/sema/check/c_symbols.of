@@ -4,7 +4,7 @@
  * 11.4): `@export("name")` and `@link("name")`.
  */
 
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.core.program.Program
 import sema.resolve.resolve.Resolver
 import sema.resolve.resolve.findAttribute

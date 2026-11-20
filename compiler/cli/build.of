@@ -52,8 +52,8 @@ import driver.build.target.targetArch
 import driver.build.target.targetOs
 import driver.version.VERSION
 import sema.check.c_symbols.linkLibraries
-import sema.check.check.Checker
-import sema.check.check.checkProgram
+import sema.check.Checker
+import sema.check.checkProgram
 import sema.check.type_trace.traceTypes
 import sema.core.program.Program
 import sema.resolve.interface_params.desugarInterfaceParams

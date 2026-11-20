@@ -110,10 +110,10 @@ import sema.check.moves_expr.viewType
 import sema.check.structs.fieldsOf
 import sema.check.structs.structFieldType
 import sema.check.structs.structFields
-import sema.check.check.Checker
-import sema.check.check.fnOf
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
+import sema.check.Checker
+import sema.check.fnOf
+import sema.check.itemOf
+import sema.check.itemTypeParams
 import sema.check.interfaces.isInterfaceMethod
 import sema.check.interfaces.dynMethods
 import sema.check.check_box.adjustedType

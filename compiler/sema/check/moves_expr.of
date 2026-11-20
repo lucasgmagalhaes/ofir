@@ -23,8 +23,8 @@ import sema.check.borrows.killHolder
 import sema.check.borrows.lend
 import sema.check.borrows.useHolder
 import sema.check.call_args.argParam
-import sema.check.check.Checker
-import sema.check.check.fnOf
+import sema.check.Checker
+import sema.check.fnOf
 import sema.check.check_box.adjustedType
 import sema.check.check_box.boxInner
 import sema.check.check_closure.capturedMut

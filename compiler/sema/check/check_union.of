@@ -6,8 +6,8 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.emptyInfo
+import sema.check.Checker
+import sema.check.emptyInfo
 import sema.check.enums.EnumInfo
 import sema.check.enums.VariantInfo
 import sema.core.def.Def

@@ -4,7 +4,7 @@
  * require_mutable in bootstrap/src/sema/check_method.c).
  */
 
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_closure.noteWrite
 import sema.check.check_box.adjustedType
 import sema.check.check_box.boxInner

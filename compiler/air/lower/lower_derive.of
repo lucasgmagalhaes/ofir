@@ -52,9 +52,9 @@ import air.lower.lower_expr.pushText
 import air.lower.lower_pattern.isVariant
 import base.intern.Symbol
 import diag.noSpan
-import sema.check.check.BOUND_EQ
-import sema.check.check.BOUND_ORD
-import sema.check.check.Checker
+import sema.check.BOUND_EQ
+import sema.check.BOUND_ORD
+import sema.check.Checker
 import sema.check.check_types.fnSignature
 import sema.check.derive.comparisonMethod
 import sema.check.derive.debugMethod

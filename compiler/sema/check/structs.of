@@ -6,11 +6,11 @@
 
 import base.intern.Symbol
 import base.span.Span
-import sema.check.check.BOUND_COPY
-import sema.check.check.Checker
-import sema.check.check.Loc
-import sema.check.check.itemOf
-import sema.check.check.typeGenericsOf
+import sema.check.BOUND_COPY
+import sema.check.Checker
+import sema.check.Loc
+import sema.check.itemOf
+import sema.check.typeGenericsOf
 import sema.check.check_generic.paramBounds
 import sema.check.check_generic.reportBadLengths
 import sema.check.check_ref.checkStorable

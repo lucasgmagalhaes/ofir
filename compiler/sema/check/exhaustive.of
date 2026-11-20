@@ -13,7 +13,7 @@
  * ranges never cover them. The patterns are first turned into `Pat` trees.
  */
 
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.check_union.memberIndex
 import sema.check.check_union.unionMembers
 import sema.check.enums.variantsOf

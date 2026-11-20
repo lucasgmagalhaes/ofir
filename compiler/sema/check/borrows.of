@@ -16,7 +16,7 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.check.moves.Moves
 import sema.check.moves.Part
 import sema.check.moves.State

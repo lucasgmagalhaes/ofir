@@ -9,10 +9,10 @@
  * are: its raw pointers are not checked. `UnsafeCell` is never `Sync`.
  */
 
-import sema.check.check.BOUND_SEND
-import sema.check.check.BOUND_SYNC
-import sema.check.check.Checker
-import sema.check.check.itemOf
+import sema.check.BOUND_SEND
+import sema.check.BOUND_SYNC
+import sema.check.Checker
+import sema.check.itemOf
 import sema.check.check_generic.paramBounds
 import sema.check.enums.enumOf
 import sema.check.enums.variantsOf

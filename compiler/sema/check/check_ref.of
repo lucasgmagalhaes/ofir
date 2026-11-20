@@ -7,9 +7,9 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.fnOf
-import sema.check.check.itemOf
+import sema.check.Checker
+import sema.check.fnOf
+import sema.check.itemOf
 import sema.check.check_box.adjustedType
 import sema.check.check_list.checkRangeIndex
 import sema.check.check_place.placeRoot

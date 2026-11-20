@@ -5,9 +5,9 @@
  */
 
 import base.span.Span
-import sema.check.check.Checker
-import sema.check.check.fnOf
-import sema.check.check.itemOf
+import sema.check.Checker
+import sema.check.fnOf
+import sema.check.itemOf
 import sema.check.check_box.boxInner
 import sema.check.check_box.boxTarget
 import sema.check.check_types.fnSignature

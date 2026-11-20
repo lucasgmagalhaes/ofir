@@ -23,7 +23,7 @@ import air.ir.glueName
 import air.ir.isGlue
 import air.ir.runtimeName
 import base.float_text.formatG
-import sema.check.check.Checker
+import sema.check.Checker
 import sema.core.types.UNIT
 import syntax.ast.Op
 

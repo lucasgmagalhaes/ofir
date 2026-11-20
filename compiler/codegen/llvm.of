@@ -47,10 +47,10 @@ import base.span.FileId
 import base.span.Span
 import codegen.debug.DebugInfo
 import sema.check.c_symbols.cSymbol
-import sema.check.check.Checker
-import sema.check.check.fnOf
-import sema.check.check.itemOf
-import sema.check.check.itemTypeParams
+import sema.check.Checker
+import sema.check.fnOf
+import sema.check.itemOf
+import sema.check.itemTypeParams
 import sema.check.check_box.boxInner
 import sema.check.const_eval.ConstKind
 import sema.check.interfaces.dynMethods
