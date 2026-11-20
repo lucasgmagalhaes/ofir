@@ -100,7 +100,7 @@ static void add_test_file(Loader *ld, Module *module, StrView name, const char *
 static void load(Loader *ld, StrView name, const char *path) {
     FileId file;
     if (!source_map_load(&ld->p->session->sources, path, &file)) {
-        return;
+        return;   // GCOVR_EXCL_LINE: module_file found a regular file
     }
     Next next;
     Module *module = parse_file(ld->p, file, false, &next);
@@ -175,7 +175,7 @@ static bool name_under(Loader *ld, const char *input, const char *dir, const cha
 static bool project_dir(const char *input, char out[PATH_SIZE]) {
     char path[PLATFORM_PATH_SIZE];
     if (!platform_realpath(input, path)) {
-        return false;
+        return false;   // GCOVR_EXCL_LINE: the input was just read
     }
     for (char *slash = strrchr(path, '/'); slash && slash > path; slash = strrchr(path, '/')) {
         *slash = '\0';
@@ -223,14 +223,14 @@ static void set_logical_paths(Loader *ld) {
         std[0] = '\0';
     }
     if (!platform_realpath(ld->root_dir, root)) {
-        root[0] = '\0';
+        root[0] = '\0';   // GCOVR_EXCL_LINE: the root directory holds the input just read
     }
     SourceMap *map = &ld->p->session->sources;
     for (uint32_t i = 0; i < map->count; i++) {
         char path[PLATFORM_PATH_SIZE], file[PLATFORM_PATH_SIZE], logical[PLATFORM_PATH_SIZE];
         StrView given = map->files[i].path;
         if (given.len >= sizeof path) {
-            continue;
+            continue;   // GCOVR_EXCL_LINE: fopen refuses a path of PATH_MAX bytes or more
         }
         memcpy(path, given.ptr, given.len);
         path[given.len] = '\0';
