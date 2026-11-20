@@ -62,7 +62,7 @@ static bool count_reads(const AirBody *body, uint32_t *reads) {
         for (size_t i = 0; i < block->stmts.len; i++) {
             const AirStmt *s = &block->stmts.data[i];
             if (s->dest_path.len || s->dest_path.deref) {
-                return false;
+                return false;   // GCOVR_EXCL_LINE: a body of scalars writes no field and no deref
             }
             if (s->kind == AIR_CALL) {
                 for (uint32_t a = 0; a < s->as.call.arg_count; a++) {
@@ -79,7 +79,7 @@ static bool count_reads(const AirBody *body, uint32_t *reads) {
         }
         const Terminator *t = &block->term;
         if (!read(reads, t->cond) || !read(reads, t->index) || !read(reads, t->len)) {
-            return false;
+            return false;   // GCOVR_EXCL_LINE: terminators never take an address
         }
     }
     return true;
@@ -137,7 +137,9 @@ static bool is_site(const AirBody *body, const TypeTable *types, const uint32_t 
     Operand cond = block->term.cond;
     if (r == 0 || cond.kind != OPERAND_COPY || cond.as.local.id != o || !whole(cond)
         || reads[c] != 1 || reads[o] != 1 || reads[r] != 1) {
+        // GCOVR_EXCL_START: lowering gives the call and the sum fresh temps, read once
         return false;
+        // GCOVR_EXCL_STOP
     }
     bool a_is_call = rv->a.kind == OPERAND_COPY && rv->a.as.local.id == c && whole(rv->a);
     bool b_is_call = rv->b.kind == OPERAND_COPY && rv->b.as.local.id == c && whole(rv->b);
@@ -156,7 +158,7 @@ static bool is_site(const AirBody *body, const TypeTable *types, const uint32_t 
     } else if (x.kind == OPERAND_COPY && whole(x)) {
         site->negative = sign;
     } else {
-        return false;
+        return false;   // GCOVR_EXCL_LINE: a scalar body's int term is a constant or a whole local
     }
     site->block = b;
     site->term = x;
@@ -266,11 +268,11 @@ static void iterate(Loop *l, BlockId block, const AirStmt *call, BlockId head) {
 static void retarget(Terminator *t, uint32_t from, uint32_t to) {
     if (t->kind == TERM_GOTO || t->kind == TERM_BRANCH || t->kind == TERM_ASSERT) {
         if (t->target.id == from) {
-            t->target.id = to;
+            t->target.id = to;   // GCOVR_EXCL_LINE: the entry is never a jump target
         }
     }
     if (t->kind == TERM_BRANCH && t->other.id == from) {
-        t->other.id = to;
+        t->other.id = to;   // GCOVR_EXCL_LINE: the entry is never a jump target
     }
 }
 
