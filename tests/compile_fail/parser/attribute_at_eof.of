@@ -1,0 +1,4 @@
+// An attribute whose arguments run to the end of the file.
+struct S {
+    @a(
+// error[E0100]: expected `)` to close the attribute arguments, found the end of the file // error[E0100]: expected `}` to close the struct, found the end of the file
