@@ -155,7 +155,9 @@ bool platform_exe_path(const char *argv0, char out[PLATFORM_PATH_SIZE]) {
         out[n] = '\0';
         return true;
     }
-    return realpath(argv0, out) != NULL;   // macOS: the path the compiler was started with
+    // GCOVR_EXCL_START: macOS, which has no /proc; CI measures on Linux
+    return realpath(argv0, out) != NULL;   // the path the compiler was started with
+    // GCOVR_EXCL_STOP
 }
 
 bool platform_make_temp_dir(const char *prefix, char out[PLATFORM_PATH_SIZE]) {
@@ -174,9 +176,9 @@ int platform_spawn_wait(char *const argv[]) {
     }
     int status;
     while (waitpid(pid, &status, 0) < 0) {
-        if (errno != EINTR) {
+        if (errno != EINTR) {   // GCOVR_EXCL_START: waitpid fails only for a bad pid
             return -1;
-        }
+        }   // GCOVR_EXCL_STOP
     }
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
 }
