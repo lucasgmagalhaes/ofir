@@ -36,6 +36,8 @@ fn f(_a: &[int], _b: int?, _c: Count, _d: Count) {
 }
 
 fn main() {
+    const _l = [1, 2]
+    const _r = [0; 3]
 }
 """
 
@@ -106,7 +108,8 @@ def main():
         no_std = tmp / "no_std.of"
         no_std.write_text(NO_STD)
         for name, text in (("slice", "slices without the standard library"),
-                           ("option", "optional types (`T?`) without std")):
+                           ("option", "optional types (`T?`) without std"),
+                           ("list", "list literals without the standard library")):
             c.expect(f"no std, {name}", ["build", str(no_std), "--stop-after=check"], 1, text,
                      env=dict(env, OFIR_STD=str(tmp / "no-std")))
         for stage in ("lex", "parse", "check"):
