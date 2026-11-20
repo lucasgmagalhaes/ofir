@@ -48,7 +48,6 @@ row, which must be done before this one starts. The API rows (6.11 to
 | 6.33e | G0 | @lucasgmagalhaes | - | next |
 | 6.33f | G0 | @lucasgmagalhaes | - | queued |
 | 6.33g | G0 | @lucasgmagalhaes | - | queued |
-| 6.33k | G0 | @lucasgmagalhaes | - | queued |
 | 6.31c | G1 | @lucasgmagalhaes | - | queued |
 | 6.11 | G1 | @lucasgmagalhaes | - | queued |
 | 6.12 | G1 | @lucasgmagalhaes | 6.11 | queued |
