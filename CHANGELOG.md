@@ -30,6 +30,12 @@ project uses [Semantic Versioning](https://semver.org/).
 - Branch floors (ADR 0103, 6.33h): a directory at 100% of its lines
   also has a branch coverage floor in `tools/coverage_floors.json`, which
   `make coverage-check` enforces and `--update-floors` raises.
+- Differential generated programs (ADR 0103, 6.33j):
+  `tools/diff_programs.py` generates programs of structs, enums, tuples,
+  lists, strings, loops and calls and compares their output on stage 0
+  dev and release, stage 1 dev and release and the AIR interpreter
+  (`comptime`); a difference is minimized into a run test. `make
+  check-fuzz` runs ten programs.
 - libFuzzer on stage 0 (ADR 0103, 6.33i): `make libfuzz`
   (`tools/libfuzz.py`) builds the lexer, the parser and the checker with
   `-fsanitize=fuzzer,address,undefined` (`bootstrap/fuzz/frontend.c`),
