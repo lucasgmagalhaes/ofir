@@ -37,7 +37,9 @@ static void index_lines(SourceMap *map, SourceFile *file) {
 // Adds a file whose text is already in the arena.
 static FileId add_owned(SourceMap *map, StrView path, StrView text) {
     if (text.len > UINT32_MAX - 1) {
+        // GCOVR_EXCL_START: a source file of 4 GiB or more
         fatal("source file too large: " SV_FMT, SV_ARG(path));
+        // GCOVR_EXCL_STOP
     }
     if (map->count == map->cap) {
         map->cap = map->cap ? map->cap * 2 : 16;

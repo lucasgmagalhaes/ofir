@@ -76,7 +76,9 @@ void strbuf_appendf(StrBuf *buf, const char *format, ...) {
     int n = vsnprintf(NULL, 0, format, copy);
     va_end(copy);
     if (n < 0) {
+        // GCOVR_EXCL_START: a compiler bug: the formats are constants
         fatal("invalid format string: %s", format);
+        // GCOVR_EXCL_STOP
     }
     reserve(buf, (size_t)n);
     vsnprintf(buf->data + buf->len, (size_t)n + 1, format, args);
