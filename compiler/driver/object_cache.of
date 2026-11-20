@@ -5,9 +5,9 @@
  * unit's text, the clang flags, and the path and version of clang.
  */
 
+import base.sha256.Sha256
+import base.sha256.sha256Hex
 import driver.git.ofirHome
-import driver.sha256.Sha256
-import driver.sha256.sha256Hex
 import std.fs
 import std.os
 

@@ -12,7 +12,7 @@
 import base.json.JsonKind
 import base.json.jsonString
 import base.json.parseJsonc
-import driver.sha256.Sha256
+import base.sha256.Sha256
 import std.fs
 
 /**
