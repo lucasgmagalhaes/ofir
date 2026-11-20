@@ -11,12 +11,14 @@ every suite `make test` runs, gives:
 
 | Code | Lines | Functions | Branches |
 |------|------:|----------:|---------:|
-| Stage 0 (`bootstrap/src`, C) | 92.0% | 96.8% | 80.5% |
-| Stage 1 (`compiler/`, Ofir) | 86.7% | 98.9% | 60.4% |
+| Stage 0 (`bootstrap/src`, C) | 96.3% | 98.9% | 86.1% |
+| Stage 1 (`compiler/`, Ofir) | 86.8% | 98.9% | 60.6% |
 
-The gaps are not spread evenly. In stage 0, `air_print.c` (the
-`--emit=air` printer), `check_trace.c` and `lower_test.c` were never run
-by the stage 0 tests. In stage 1, the AIR interpreter (68.9%), the
+The gaps are not spread evenly. Stage 0 reaches 92.0% with its own
+tests alone; `compare_stages.py` and the fuzzer run the rest, such as
+the `--emit=air` printer. Its weakest files are `driver_paths.c`
+(22.2%), `main.c` (65.2%), `check_pattern.c` (73.1%) and
+`const_eval.c` (81.5%). In stage 1, the AIR interpreter (68.9%), the
 package driver (`driver/pkg`, 73% to 88%), `base/json.of` (75.9%),
 `const_eval.of` (72.4%) and `check_comptime_for.of` (77%) are the
 weakest files. Each uncovered line is a test that is missing, dead code,
