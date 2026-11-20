@@ -1,0 +1,7 @@
+fn main() {
+    const a = Y°
+    const b = x.y° + 1.5° + t.1.5°
+    const c = "{a°}" + `x°
+    const d = 'a°'
+}
+@x°
