@@ -5,7 +5,9 @@ Copies the tracked files to a work tree (build/mutation/tree), then mutates
 the sources of `bootstrap/src` (stage 0) and `compiler/` (stage 1) one
 change at a time: a comparison, `&&` and `||`, `+` and `-`, the constants
 0 and 1, and `true` and `false`. For each mutant the compiler it belongs
-to is rebuilt and the tests run with it: a test that fails kills the
+to is rebuilt and the tests run with it (for stage 0 also
+`tools/check_stage0_cli.py`; with `--compare-stages`, `tools/compare_stages.py`
+too, which takes minutes per mutant): a test that fails kills the
 mutant; a mutant that passes every test survives, and points to a missing
 test (or is equivalent to the original). A mutant that does not build is
 not counted. The mutants are sampled per directory (`--per-dir`, with
@@ -13,7 +15,7 @@ not counted. The mutants are sampled per directory (`--per-dir`, with
 and the survivors with their file and line:
 
     python3 tools/mutate.py [--dirs bootstrap/src/sema,compiler/syntax] [--per-dir 10]
-        [--seed 1] [--tests FILTER ...] [--jobs N] [--out build/mutation]
+        [--seed 1] [--tests FILTER ...] [--jobs N] [--compare-stages] [--out build/mutation]
 
 The report is written to <out>/report.md and <out>/report.json.
 """
@@ -117,8 +119,9 @@ def copy_tree(tree: Path):
 
 
 class Runner:
-    def __init__(self, tree: Path, tests: list[str], jobs: int, timeout: int):
+    def __init__(self, tree: Path, tests: list[str], jobs: int, timeout: int, compare: bool):
         self.tree = tree
+        self.compare = compare
         self.tests = tests
         self.jobs = jobs
         self.timeout = timeout
@@ -137,9 +140,19 @@ class Runner:
         return self.run(["make", "-s", "runtime", "stage1" if stage else "stage0"])
 
     def test(self, stage: int) -> bool:
-        compiler = self.tree / "build" / f"stage{stage}" / "ofir"
-        return self.run([sys.executable, "tests/runner/run_tests.py", "--compiler", str(compiler),
-                         "--stage", str(stage), "-j", str(self.jobs), "--no-retry", *self.tests])
+        """The tests with the compiler of `stage`; for stage 0 also its command
+        line checks, and with `--compare-stages` the output of both stages."""
+        build = self.tree / "build"
+        compiler = build / f"stage{stage}" / "ofir"
+        if not self.run([sys.executable, "tests/runner/run_tests.py", "--compiler", str(compiler),
+                         "--stage", str(stage), "-j", str(self.jobs), "--no-retry", *self.tests]):
+            return False
+        if stage == 0 and not self.run([sys.executable, "tools/check_stage0_cli.py", "--compiler",
+                                        str(compiler), "--runtime", str(build / "libofir_rt.a")]):
+            return False
+        return not self.compare or self.run([
+            sys.executable, "tools/compare_stages.py", "--compiler", str(build / "stage0" / "ofir"),
+            "--stage1", str(build / "stage1" / "ofir")])
 
 
 def stage_of(m: Mutant) -> int:
@@ -178,6 +191,8 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--timeout", type=int, default=1800, help="seconds for a build or a run")
     parser.add_argument("--out", type=Path, default=ROOT / "build" / "mutation")
+    parser.add_argument("--compare-stages", action="store_true",
+                        help="also compare the output of the stages on each mutant (slow)")
     parser.add_argument("--list", action="store_true", help="count the mutants and stop")
     opts = parser.parse_args()
     by_dir = all_mutants([d for d in opts.dirs.split(",") if d])
@@ -190,7 +205,7 @@ def main() -> int:
     out = opts.out.resolve()
     tree = out / "tree"
     copy_tree(tree)
-    runner = Runner(tree, opts.tests, opts.jobs, opts.timeout)
+    runner = Runner(tree, opts.tests, opts.jobs, opts.timeout, opts.compare_stages)
     for stage in sorted({stage_of(m) for ms in sample.values() for m in ms}):
         if not (runner.build(stage) and runner.test(stage)):
             print(f"mutate: the tests fail on the unmutated stage {stage}; nothing to measure")
