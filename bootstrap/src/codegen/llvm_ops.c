@@ -192,6 +192,10 @@ static void binary(Gen *g, const Rvalue *rv, Value *result) {
     const Ty *ty = ty_of(g, rv->a.type);
     const char *op = ty->kind == TY_FLOAT ? float_op(rv->op) : int_op(rv->op, is_signed(ty));
     next_temp(g, result->text);
+    if (ty->kind == TY_UNIT) {   // every `()` is equal to every other: compare two zeros
+        out_fmt(&g->out, "  %s = %s i1 0, 0\n", result->text, op);
+        return;
+    }
     out_fmt(&g->out, "  %s = %s %s %s, %s\n", result->text, op, a.type, a.text, b.text);
 }
 
