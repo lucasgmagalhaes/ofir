@@ -13,10 +13,6 @@ bool sv_eq(StrView a, StrView b) {
     return a.len == b.len && (a.len == 0 || memcmp(a.ptr, b.ptr, a.len) == 0);
 }
 
-bool sv_eq_cstr(StrView a, const char *b) {
-    return sv_eq(a, sv_from_cstr(b));
-}
-
 // FNV-1a: simple, deterministic (no seed), good enough for identifiers.
 uint64_t sv_hash(StrView s) {
     uint64_t h = 0xcbf29ce484222325ull;

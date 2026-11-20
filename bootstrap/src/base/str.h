@@ -18,7 +18,6 @@ typedef struct {
 
 StrView sv_from_cstr(const char *s);
 bool sv_eq(StrView a, StrView b);
-bool sv_eq_cstr(StrView a, const char *b);
 uint64_t sv_hash(StrView s);
 
 // A growable, zero-terminated byte buffer.
