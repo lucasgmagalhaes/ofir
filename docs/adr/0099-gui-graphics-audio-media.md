@@ -69,7 +69,5 @@ a toolkit written in Ofir would have to rebuild it for each platform.
 - A handler gets its state through a raw pointer and `unsafe`; a safe
   wrapper is the package's work, and a closure over the state cannot be
   passed as a C function pointer.
-- `Send` does not mark a handler that must stay on the main thread; a
-  package keeps such calls on the thread that created the window.
 - Browser and mobile SDKs stay with OFIR-85 and ADR 0068; data and
   numerical computing with OFIR-84.
