@@ -83,3 +83,20 @@ pub fn digitValue(c: u8) int {
         _ => 99
     }
 }
+
+/**
+ * `src[lo..hi]`, cut by bytes: source with invalid UTF-8 (E0008) is still
+ * lexed, so a token can end next to a stray continuation byte.
+ *
+ * @param src the source
+ * @param lo the offset of the first byte
+ * @param hi the offset after the last byte
+ * @returns a view of the bytes
+ * @panics unless `0 <= lo <= hi <= src.len()`
+ */
+pub fn cut(src: str, lo: int, hi: int) str {
+    if lo < 0 || hi < lo || hi > src.len() {
+        return src.slice(lo, hi)   // panics with the range
+    }
+    return unsafe { src.sliceUnchecked(lo, hi) }
+}
