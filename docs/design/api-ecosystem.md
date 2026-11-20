@@ -6,11 +6,12 @@ runtime, library and tooling prerequisites are tracked there without duplicating
 implementation tasks. General-purpose readiness also requires non-service workloads.
 
 Status: **proposed backlog**, initial survey against `4b1da75` on 2026-11-04;
-API-50–54 added as operational follow-ups on 2026-11-19.
+API-50–54 added as operational follow-ups on 2026-11-19; starting point and
+record states reconciled on 2026-11-20 (OFIR-79, ADR 0094).
 This is an implementation plan, not a normative standard-library API.
 Module/package names below describe intended homes; none is promised as an
-existing import. Every API task below is **pending**, including extensions
-to modules that already provide a smaller API.
+existing import. The state of each record is in [Record states](#record-states),
+checked by `tools/check_api_plan.py`; no record is done yet.
 
 The goal is to build, test and operate HTTP/REST services in Ofir: accept
 requests, validate data, access storage, call other services, and diagnose
@@ -25,13 +26,13 @@ the initial service stack are explicit extensions, not universal requirements.
 | Ownership and errors | [Ownership](../spec/05-ownership.md), [errors](../spec/06-errors.md), `Option`/`Result` in `std/core` | Shared-resource and cancellation conventions; causal error chains |
 | Collections and text | [std/core](../../std/core/index.of), [std.strings](../../std/strings/index.of) | Public codecs, Unicode validation/normalization and bounded streaming buffers |
 | I/O | [std.io](../../std/io/index.of): `IoError`, stdin, runtime buffers | General readers/writers, seeking, buffered streams and short-read/write contracts |
-| Filesystem | [std.fs](../../std/fs/index.of): whole-file read/write, exists, canonicalize, create/remove, directory listing | Owned file handles, metadata, paths, temporary files, atomic replacement and large-file streaming |
+| Filesystem | [std.fs](../../std/fs/index.of): whole-file read/write/append, copy, rename, metadata, create/remove, directory listing; [std.path](../../std/path/index.of) | Owned file handles, seeking, permissions, temporary files, atomic replacement and large-file streaming |
 | Processes and configuration | [std.os](../../std/os/index.of): args, env, run, cwd, executable path | Typed configuration, signals, supervised processes and graceful service lifecycle |
-| Concurrency | [Chapter 14](../spec/14-concurrency.md), roadmap 6.1: planned threads/channels, `Send`/`Sync`, mutexes and `Arc` | Implement and validate these before a concurrent server or shared connection pool |
-| Time | [Compiler clock helper](../../bootstrap/src/base/clock.h) is internal C code | No public duration, monotonic clock, date/time or timezone module |
-| Networking and data exchange | No public modules for these in `std/` at the surveyed revision | Sockets, DNS, TLS, HTTP, JSON, forms and compression |
+| Concurrency | [Chapter 14](../spec/14-concurrency.md), roadmap 6.1: [std.task](../../std/task/index.of) and [std.sync](../../std/sync/index.of) (channels, `Mutex`, `RwLock`, `Arc`, atomics, `WaitGroup`, `CancelToken`), `Send`/`Sync` | Worker pools, overload and cancellation integrated with a service runtime |
+| Time | [std.time](../../std/time/index.of): monotonic `now`, `unixNanos`, `sleep`, `Deadline`; leap years and month lengths | No `Duration`/`Instant` types, injectable clock, calendar date/time, RFC 3339 or timezones |
+| Networking and data exchange | [std.json](../../std/json/index.of) (value tree, depth limit), [std.encoding](../../std/encoding/index.of) (hex, base64), [std.compress](../../std/compress/index.of) (bounded inflate, gunzip) | Sockets, DNS, TLS, HTTP, URLs, forms, streaming codecs and compression output |
 | Persistence and operations | No public database, logging, metrics or tracing modules in `std/` | Drivers, transactions, observability and production examples |
-| Package distribution | Roadmap 6.5; [manifest/toolchain design](toolchain.md) | Dependency resolution, reproducible lockfiles, native-library packaging |
+| Package distribution | Roadmap 6.5 and 6.29: lockfile, registry publishing, native inputs, SBOM, advisories (ADRs 0076 to 0079 and 0081 to 0084) | No framework or driver package published yet |
 
 The [system reference](../std/system.md) already describes `File`, readers,
 writers and path helpers beyond the implemented subset. Extend those
