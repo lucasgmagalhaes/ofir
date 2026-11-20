@@ -872,7 +872,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--no-retry", action="store_true",
                         help="fail a test on its first failure instead of running it again")
     parser.add_argument("--flaky-log", type=Path,
-                        help="where to list flaky tests (default: build/logs/flaky-stage<N>.txt)")
+                        help="where to list flaky tests (default: build/logs/flaky-*.txt)")
     args = parser.parse_args(argv)
 
     stage = args.stage if args.stage is not None else (0 if "stage0" in args.compiler else 1)
@@ -909,8 +909,8 @@ def main(argv: list[str]) -> int:
                   + "\n".join("     " + line for line in r.detail.splitlines()))
         elif cfg.verbose:
             print(f"{r.status.upper():4} {rel}" + (f" ({r.detail})" if r.detail else ""))
-    report_flaky(flaky, stage,
-                 args.flaky_log or root / "build" / "logs" / f"flaky-stage{stage}.txt")
+    name = f"flaky-stage{stage}" + (f"-{cfg.target}" if cfg.target else "") + ".txt"
+    report_flaky(flaky, stage, args.flaky_log or root / "build" / "logs" / name)
     print(f"\n{len(results)} tests: {counts['pass']} passed, {counts['fail']} failed, "
           f"{counts['skip']} skipped, {counts['flaky']} flaky (stage {stage})")
     return 1 if counts["fail"] else 0
