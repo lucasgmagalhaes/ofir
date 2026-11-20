@@ -4,6 +4,8 @@ fn unit() {
 }
 
 fn main() {
-    const u = unit()
+    let u = unit()
     println("{u == ()} {u != ()} {() == u}")
+    u = unit()
+    println("{u == ()}")
 }
