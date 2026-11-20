@@ -17,6 +17,10 @@ project uses [Semantic Versioning](https://semver.org/).
   search <words>` finds packages of the index by name, description or
   keywords; `docs/packages/official.md` has the criteria of official
   packages.
+- Scope and capacity (ADR 0102): `docs/design/scope.md` gives each open
+  roadmap row a priority, an owner, dependencies and a state, sizes the
+  next pull requests and lists the rejected alternatives;
+  `tools/check_scope.py` checks it in `make check-docs`.
 - Games, mobile and browser SDKs (ADR 0101): games are programs on the
   desktop targets over a platform library package; Android and iOS stay
   unsupported triples in version 1, and a browser SDK waits for ADR 0068
