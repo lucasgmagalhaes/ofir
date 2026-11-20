@@ -1,0 +1,12 @@
+// A constant's operands must be constants: an operator, a negation or a cast
+// over a global variable fails, and the only constant pointer is null (spec 3.2).
+
+let B: int = 1
+const A: int = B + 1   // error[E0801]: only constants can be used in a constant // error[E0803]: using a mutable global requires an `unsafe` block or function
+const C: int = -B   // error[E0801]: only constants can be used in a constant // error[E0803]: using a mutable global requires an `unsafe` block or function
+const D: i64 = B as i64   // error[E0801]: only constants can be used in a constant // error[E0803]: using a mutable global requires an `unsafe` block or function
+const E: *u8 = 1 as *u8   // error[E0801]: the only constant pointer is `0 as *T` // error[E0803]: converting a raw pointer requires an `unsafe` block or function
+
+fn main() {
+    println("{A} {C} {D}")
+}
