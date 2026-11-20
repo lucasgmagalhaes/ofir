@@ -112,6 +112,7 @@ starts with the same word as the record's status line.
 | [0099](0099-gui-graphics-audio-media.md) | GUI, graphics, audio and media are packages over the C boundary | Proposed |
 | [0100](0100-scientific-data-computing.md) | Scientific and data computing are packages over f64 buffers | Proposed |
 | [0101](0101-game-mobile-browser-sdks.md) | Games run on the desktop targets; mobile and browser SDKs wait | Proposed |
+| [0102](0102-scope-capacity-governance.md) | Scope and capacity are a checked page | Proposed |
 
 ## Template
 
