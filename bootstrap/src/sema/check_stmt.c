@@ -134,7 +134,7 @@ static TypeId for_stmt(Checker *c, Stmt *s) {
         return loop_body(c, s->as.for_.body, false);
     case FOR_IN: return for_in(c, s);
     }
-    return type_id(TID_UNIT);
+    return type_id(TID_UNIT);   // GCOVR_EXCL_LINE: every for kind returns from its case
 }
 
 static TypeId return_stmt(Checker *c, Stmt *s) {
@@ -185,7 +185,7 @@ static TypeId check_stmt(Checker *c, Stmt *s) {
     case STMT_BREAK: case STMT_CONTINUE: return jump_stmt(c, s);
     case STMT_EXPR: return expr_stmt(c, s->as.expr);
     }
-    return type_id(TID_UNIT);
+    return type_id(TID_UNIT);   // GCOVR_EXCL_LINE: every statement kind returns from its case
 }
 
 // As a value, a block is worth its last expression (spec 4.1). A block that
