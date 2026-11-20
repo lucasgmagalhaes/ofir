@@ -39,6 +39,12 @@ Phases after type checking never report user errors except the borrow
 checker and the instantiation depth limit of monomorphization. If any phase reports an error, compilation stops after that
 phase (the phase itself continues to collect as many errors as possible).
 
+In stage 1 each phase group is a folder of `compiler/`, and the folders
+are layers: `base`, `diag`, `syntax`, `sema`, `air` and `codegen`, each
+importing only those before it, with `driver`, `doc`, `fmt`, `lsp` and
+`main.of` on top. ADR 0093 gives the allowed imports, and
+`tools/check_layers.py` checks them.
+
 ## 2. Core data structures
 
 ### Identifiers instead of pointers
