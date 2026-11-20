@@ -1,0 +1,273 @@
+// A type nested more than 64 structs deep is not cloned: the check stops
+// at that depth (spec 5.1).
+
+struct S0 {
+    x: S1
+}
+
+struct S1 {
+    x: S2
+}
+
+struct S2 {
+    x: S3
+}
+
+struct S3 {
+    x: S4
+}
+
+struct S4 {
+    x: S5
+}
+
+struct S5 {
+    x: S6
+}
+
+struct S6 {
+    x: S7
+}
+
+struct S7 {
+    x: S8
+}
+
+struct S8 {
+    x: S9
+}
+
+struct S9 {
+    x: S10
+}
+
+struct S10 {
+    x: S11
+}
+
+struct S11 {
+    x: S12
+}
+
+struct S12 {
+    x: S13
+}
+
+struct S13 {
+    x: S14
+}
+
+struct S14 {
+    x: S15
+}
+
+struct S15 {
+    x: S16
+}
+
+struct S16 {
+    x: S17
+}
+
+struct S17 {
+    x: S18
+}
+
+struct S18 {
+    x: S19
+}
+
+struct S19 {
+    x: S20
+}
+
+struct S20 {
+    x: S21
+}
+
+struct S21 {
+    x: S22
+}
+
+struct S22 {
+    x: S23
+}
+
+struct S23 {
+    x: S24
+}
+
+struct S24 {
+    x: S25
+}
+
+struct S25 {
+    x: S26
+}
+
+struct S26 {
+    x: S27
+}
+
+struct S27 {
+    x: S28
+}
+
+struct S28 {
+    x: S29
+}
+
+struct S29 {
+    x: S30
+}
+
+struct S30 {
+    x: S31
+}
+
+struct S31 {
+    x: S32
+}
+
+struct S32 {
+    x: S33
+}
+
+struct S33 {
+    x: S34
+}
+
+struct S34 {
+    x: S35
+}
+
+struct S35 {
+    x: S36
+}
+
+struct S36 {
+    x: S37
+}
+
+struct S37 {
+    x: S38
+}
+
+struct S38 {
+    x: S39
+}
+
+struct S39 {
+    x: S40
+}
+
+struct S40 {
+    x: S41
+}
+
+struct S41 {
+    x: S42
+}
+
+struct S42 {
+    x: S43
+}
+
+struct S43 {
+    x: S44
+}
+
+struct S44 {
+    x: S45
+}
+
+struct S45 {
+    x: S46
+}
+
+struct S46 {
+    x: S47
+}
+
+struct S47 {
+    x: S48
+}
+
+struct S48 {
+    x: S49
+}
+
+struct S49 {
+    x: S50
+}
+
+struct S50 {
+    x: S51
+}
+
+struct S51 {
+    x: S52
+}
+
+struct S52 {
+    x: S53
+}
+
+struct S53 {
+    x: S54
+}
+
+struct S54 {
+    x: S55
+}
+
+struct S55 {
+    x: S56
+}
+
+struct S56 {
+    x: S57
+}
+
+struct S57 {
+    x: S58
+}
+
+struct S58 {
+    x: S59
+}
+
+struct S59 {
+    x: S60
+}
+
+struct S60 {
+    x: S61
+}
+
+struct S61 {
+    x: S62
+}
+
+struct S62 {
+    x: S63
+}
+
+struct S63 {
+    x: S64
+}
+
+struct S64 {
+    x: S65
+}
+
+struct S65 {
+    x: str
+}
+
+fn deep(s: S0) {
+    const _t = s.clone()   // error[E0322]: type `S0` cannot be cloned: declare a `clone` method, or give it only parts that can be cloned
+}
+
+fn main() {
+}
