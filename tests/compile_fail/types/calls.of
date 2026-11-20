@@ -6,6 +6,14 @@ fn count() {
     const x = add(1)          // error[E0302]: wrong number of arguments: expected 2, found 1
 }
 
+fn first<T>(a: move T) T {
+    return a
+}
+
+fn genericCount() {
+    const _x = first(1, 2)     // error[E0302]: wrong number of arguments: expected 1, found 2
+}
+
 fn extra() {
     println("a", "b")       // error[E0302]: wrong number of arguments: expected 1, found 2
 }
