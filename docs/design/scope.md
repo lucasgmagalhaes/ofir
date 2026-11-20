@@ -38,12 +38,11 @@ row, which must be done before this one starts. The API rows (6.11 to
 | Row | Priority | Owner | Depends on | State |
 |-----|----------|-------|------------|-------|
 | 6.24a | G1 | @lucasgmagalhaes | - | queued |
-| 6.32a | G1 | @lucasgmagalhaes | - | in progress |
-| 6.32b | G1 | @lucasgmagalhaes | - | next |
+| 6.32b | G1 | @lucasgmagalhaes | - | in progress |
 | 6.32c | G1 | @lucasgmagalhaes | 6.32b | queued |
 | 6.32d | G1 | @lucasgmagalhaes | 6.32c | queued |
 | 6.32e | G1 | @lucasgmagalhaes | 6.32d | queued |
-| 6.32f | G1 | @lucasgmagalhaes | - | queued |
+| 6.32f | G1 | @lucasgmagalhaes | - | next |
 | 6.32g | G1 | @lucasgmagalhaes | 6.32c | queued |
 | 6.32h | G1 | @lucasgmagalhaes | 6.32g | queued |
 | 6.31c | G1 | @lucasgmagalhaes | - | queued |
@@ -68,12 +67,10 @@ listed. Each pull request is a few small commits (`CONTRIBUTING.md`).
 
 | Row | Pull request | Size |
 |-----|--------------|------|
-| 6.32a | Spec 4.2: the right side of an assignment runs before the place | S |
-| 6.32a | Stage 0 runs the right side first; a test grows the list in `f()` | S |
-| 6.32a | Stage 1 the same, then the pitfall leaves `CLAUDE.md` | S |
 | 6.32b | Spec and codes: an error type silences the diagnostics it causes | S |
 | 6.32b | Stage 1 suppresses cascades and takes `--error-limit=N` | M |
 | 6.32b | Stage 0 the same; compile-fail expectations updated | M |
+| 6.32f | `ofir check --fmt` warns about the files `ofir fmt` would change, both stages | S |
 
 ## Rejected and deferred
 
