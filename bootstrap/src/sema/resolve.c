@@ -106,7 +106,9 @@ static DefKind item_def_kind(ItemKind kind) {
     case ITEM_CONST: return DEF_CONST;
     case ITEM_GLOBAL: return DEF_GLOBAL;
     case ITEM_TYPE_ALIAS: return DEF_TYPE_ALIAS;
+    // GCOVR_EXCL_START: functions, imports and extern blocks never get here
     default: return DEF_FN;
+    // GCOVR_EXCL_STOP
     }
 }
 

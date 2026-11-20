@@ -102,7 +102,7 @@ static bool args_match(const Resolver *r, ArgsKind kind, const Attribute *a) {
     case ARGS_TWO_STR:
         return n == 2 && first->kind == EXPR_STR && a->args.items[1]->kind == EXPR_STR;
     }
-    return false;
+    return false;   // GCOVR_EXCL_LINE: every argument shape returns from its case
 }
 
 static const AttributeRule *rule_of(StrView name) {
