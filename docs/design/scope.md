@@ -37,8 +37,8 @@ row, which must be done before this one starts. The API rows (6.11 to
 
 | Row | Priority | Owner | Depends on | State |
 |-----|----------|-------|------------|-------|
-| 6.24a | G1 | @lucasgmagalhaes | - | in progress |
-| 6.32a | G1 | @lucasgmagalhaes | - | next |
+| 6.24a | G1 | @lucasgmagalhaes | - | queued |
+| 6.32a | G1 | @lucasgmagalhaes | - | in progress |
 | 6.32b | G1 | @lucasgmagalhaes | - | next |
 | 6.32c | G1 | @lucasgmagalhaes | 6.32b | queued |
 | 6.32d | G1 | @lucasgmagalhaes | 6.32c | queued |
@@ -68,9 +68,6 @@ listed. Each pull request is a few small commits (`CONTRIBUTING.md`).
 
 | Row | Pull request | Size |
 |-----|--------------|------|
-| 6.24a | Array globals in stage 1: storage, reads and writes | M |
-| 6.24a | Array globals in stage 0, with the same tests | M |
-| 6.24a | `@repr(C)` struct globals in both stages | S |
 | 6.32a | Spec 4.2: the right side of an assignment runs before the place | S |
 | 6.32a | Stage 0 runs the right side first; a test grows the list in `f()` | S |
 | 6.32a | Stage 1 the same, then the pitfall leaves `CLAUDE.md` | S |
@@ -89,6 +86,7 @@ or spec section and shows the condition holds.
 | Unicode identifiers | rejected | [spec 1.1](../spec/01-lexical.md) | never in version 1 |
 | Editions | deferred | [ADR 0037](../adr/0037-compatibility-policy.md) | a break must ship after 1.0 |
 | Range values and 128-bit integers | deferred | [ADR 0047](../adr/0047-array-operations-ranges-and-128-bit.md) | a use needs them |
+| Fixed-array and `@repr(C)` struct globals (the rest of 6.24a) | deferred | [ADR 0042](../adr/0042-atomics-and-thread-locals.md#amendment-pointer-globals-first) | a program needs one; stage 0 first needs fixed arrays |
 | Fallible allocation | deferred | [ADR 0048](../adr/0048-allocation-failure-policy.md) | a program must survive running out of memory |
 | WebAssembly target | deferred | [ADR 0068](../adr/0068-webassembly.md) | a WASI or browser program and an owner |
 | Freestanding and embedded targets | deferred | [ADR 0069](../adr/0069-freestanding.md) | a named board and an owner |
