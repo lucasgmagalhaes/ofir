@@ -40,9 +40,9 @@ import air.ir.isGlue
 import air.ir.noPath
 import air.ir.opCopy
 import air.ir.runtimeName
-import air.lower.lower.byAddress
-import air.lower.lower.dynObject
-import air.lower.lower.dynSlotTarget
+import air.lower.byAddress
+import air.lower.dynObject
+import air.lower.dynSlotTarget
 import base.span.FileId
 import base.span.Span
 import codegen.debug.DebugInfo

@@ -8,7 +8,7 @@ import air.interp.interp.evalComptimes
 import air.ir.AirBody
 import air.ir.air_print.AirPrinter
 import air.ir.validate.validateBody
-import air.lower.lower.lowerProgram
+import air.lower.lowerProgram
 import air.opt.accumulate.accumulate
 import air.opt.fold.foldChecks
 import base.intern.Interner

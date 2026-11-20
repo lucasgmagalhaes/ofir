@@ -27,7 +27,7 @@ import air.ir.opStr
 import air.ir.runtimeName
 import air.ir.rvUse
 import air.ir.terminator
-import air.lower.lower.Lowerer
+import air.lower.Lowerer
 import air.opt.fold.ONES
 import air.opt.fold.castFails
 import air.opt.fold.compare
