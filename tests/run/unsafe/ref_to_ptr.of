@@ -10,4 +10,11 @@ fn main() {
         *q = 6
     }
     println("{x}")
+    match x > 0 {
+        true => unsafe {   // an arm body can be an `unsafe` block
+            *q = 7
+        }
+        false => {}
+    }
+    println("{x}")
 }
