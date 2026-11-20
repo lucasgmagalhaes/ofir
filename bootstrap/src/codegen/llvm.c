@@ -25,7 +25,9 @@ const char *llvm_type(Gen *g, TypeId type) {
         }
     case TY_FLOAT: return ty->data == 32 ? "float" : "double";
     case TY_STR: return "%ofir.str";
+    // GCOVR_EXCL_START: function values are rejected (E0901): no emitted function takes one
     case TY_FN: return "{ ptr, ptr }";   // the code and the environment
+    // GCOVR_EXCL_STOP
     default: return "void";   // (), ! and the types the checker rejects
     }
 }
@@ -188,8 +190,10 @@ Gen *llvm_begin(Sema *sema, FILE *file) {
     g->spill = tmpfile();
     if (g->spill) {
         out_to_file(&g->globals, g->spill);
+    // GCOVR_EXCL_START: tmpfile fails only when /tmp cannot be written
     } else {
         out_to_memory(&g->globals);
+    // GCOVR_EXCL_STOP
     }
     out_to_memory(&g->type_defs);
     out_to_memory(&g->fn_text);
@@ -278,8 +282,10 @@ static void c_decls(Gen *g) {
 
 static void write_globals(Gen *g) {
     if (!g->spill) {
+        // GCOVR_EXCL_START: tmpfile fails only when /tmp cannot be written
         out_write(&g->out, g->globals.buf, g->globals.len);
         return;
+        // GCOVR_EXCL_STOP
     }
     out_flush(&g->globals);
     rewind(g->spill);
