@@ -119,3 +119,32 @@ pre{margin:0;overflow:auto;tab-size:4}
 @media(max-width:760px){.shell{width:min(100% - 36px,620px)}.site-header{height:68px}.header-inner{gap:15px}.brand{font-size:25px}.brand img{width:30px;height:30px}.site-header nav{gap:16px}.site-header nav a{font-size:11px}.site-header nav a:first-child{display:none}.header-cta{display:none}.hero{grid-template-columns:1fr;gap:35px;padding-block:50px 58px;min-height:0}.hero h1{font-size:clamp(60px,14vw,82px)}.hero-lead{font-size:16px}.hero-visual{height:auto;padding:25px 0}.code-content{font-size:12px;gap:12px;padding:22px 14px}.visual-caption{font-size:9px}.intro{grid-template-columns:1fr;gap:20px;padding-block:58px 37px}.intro p{font-size:15px}.features{grid-template-columns:1fr;gap:30px;margin-bottom:68px}.feature{padding-top:18px}.showcase{grid-template-columns:1fr;gap:38px;padding-block:66px 76px}.showcase-code pre{font-size:12px;padding-inline:17px}.bottom-cta{padding:40px 30px;display:block;margin-bottom:65px}.bottom-cta h2{font-size:45px}.bottom-cta .button{margin-top:25px}.site-footer{padding-block:30px;flex-wrap:wrap;gap:15px}.site-footer p{width:100%;order:3}.docs-layout{display:block}.docs-sidebar{position:static;display:flex;flex-direction:row;flex-wrap:wrap;padding:25px 0 0;gap:5px 18px}.docs-sidebar .sidebar-title,.docs-sidebar .sidebar-divider,.docs-sidebar a:nth-last-child(-n+3){display:none}.docs-sidebar a{font-size:12px}.docs-breadcrumb{padding-top:40px}.docs-hero{padding-top:40px}.docs-hero h1{font-size:56px}.docs-section h2{font-size:30px}.docs-links{grid-template-columns:1fr}}
 @media(max-width:400px){.site-header nav a:last-child{display:none}.hero-actions{flex-direction:column}.button{width:100%}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.reference-layout{gap:40px}
+.reference-sidebar,.reference-toc{max-height:calc(100vh - 110px);overflow:auto;scrollbar-width:thin}
+.reference-sidebar a[aria-current="page"]{color:var(--yellow)}
+.reference-sidebar .reference-sibling{font-size:12px;padding:5px 0}
+.reference-toc .toc-subheading{padding-left:12px}
+.reference-main{padding-top:50px}
+.reference-main .docs-breadcrumb{padding-top:0;margin-bottom:30px;overflow-wrap:anywhere}
+.reference-content{color:#c7c9c9;font-size:16px;line-height:1.75;overflow-wrap:anywhere}
+.reference-content h1,.reference-content h2,.reference-content h3,.reference-content h4{color:var(--text);line-height:1.25;letter-spacing:-.025em;scroll-margin-top:105px}
+.reference-content h1{font-size:clamp(38px,5vw,56px);margin:0 0 30px}
+.reference-content h2{font-size:30px;margin:52px 0 18px;padding-top:25px;border-top:1px solid var(--line)}
+.reference-content h3{font-size:23px;margin:35px 0 14px}
+.reference-content h4{font-size:18px;margin:25px 0 12px}
+.reference-content p,.reference-content ul,.reference-content ol,.reference-content blockquote{margin:0 0 20px}
+.reference-content ul,.reference-content ol{padding-left:24px}
+.reference-content li{margin:6px 0}
+.reference-content code,.reference-content pre{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+.reference-content :not(pre)>code{font-size:.85em;background:#2b2e30;color:#e2e3df;padding:2px 5px;border-radius:3px}
+.reference-content pre{background:#1b1f22;border:1px solid var(--line);border-radius:6px;padding:20px;overflow:auto;font-size:13px;line-height:1.6;margin:22px 0 28px}
+.reference-content pre code{background:none;padding:0}
+.reference-content .table-wrap{overflow-x:auto}
+.reference-content table{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse;margin:22px 0 30px;font-size:14px}
+.reference-content th,.reference-content td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+.reference-content th{background:var(--surface-2);color:var(--text)}
+.reference-content blockquote{border-left:3px solid var(--yellow);padding:4px 0 4px 18px;color:var(--muted)}
+.reference-content a{overflow-wrap:anywhere}
+.reference-source{border-top:1px solid var(--line);margin-top:60px;padding-top:20px;font-size:13px}
+@media(max-width:760px){.reference-main{padding-top:30px}.reference-sidebar{max-height:none;overflow:visible}.reference-sidebar a:nth-last-child(-n+3){display:block}.reference-sidebar a.reference-sibling{display:none}.reference-content h2{font-size:26px}}
