@@ -1,0 +1,16 @@
+// An or-pattern binds an owned payload in every alternative (spec 4.5);
+// the arm moves it out of the scrutinee.
+
+enum Word {
+    Noun(str)
+    Verb(str)
+    Blank
+}
+
+fn main() {
+    const w = Word.Verb("run")
+    match w {
+        Word.Noun(s) | Word.Verb(s) => println("{s}")
+        Word.Blank => {}
+    }
+}
