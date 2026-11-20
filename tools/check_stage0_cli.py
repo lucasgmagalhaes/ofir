@@ -5,7 +5,8 @@ errors (ADR 0103, roadmap 6.33d).
 - the commands `version` and `help`, no command and an unknown one;
 - an unknown option, a missing input and a second input;
 - an input that does not exist or is a directory, a module path that is a
-  directory, an empty `_test.of` and a project file named `.of`;
+  directory, an import path too long for a module, an empty `_test.of`
+  and a project file named `.of`;
 - an `OFIR_STD` that does not exist, for a program that imports nothing,
   and the slice and optional types it then rejects;
 - the options `--stop-after=lex|parse|check`, `--message-format=human` and
@@ -97,6 +98,10 @@ def main():
         (project / "main.of").write_text("import lib\n\nfn main() {\n}\n")
         c.expect("module is a directory", ["build", str(project / "main.of")], 1,
                  "cannot find module `lib`")
+        long_path = ".".join(["segment"] * 80)   # longer than any module path stage 0 builds
+        (project / "long.of").write_text(f"import {long_path}\n\nfn main() {{\n}}\n")
+        c.expect("import path too long", ["build", str(project / "long.of")], 1,
+                 "cannot find module `segment.segment")
         (project / ".of").write_text("fn main() {\n}\n")
         c.expect("project file named .of", ["build", ".of", "-o", "dot"], 0, cwd=project)
         (tmp / "unit.of").write_text("fn main() {\n}\n")
