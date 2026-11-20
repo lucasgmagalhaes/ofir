@@ -73,6 +73,7 @@ void ofir_stdout_write(const uint8_t *ptr, int64_t len);
 void ofir_stdout_flush(void);
 void ofir_write(int fd, const uint8_t *ptr, int64_t len);
 bool ofir_is_terminal(int64_t fd);   // isatty
+int64_t ofir_terminal_size(int64_t fd);   // columns << 32 | rows, or -1
 
 void ofir_print_str(const OfirStr *s);
 void ofir_print_int(int64_t value);
