@@ -27,6 +27,11 @@ project uses [Semantic Versioning](https://semver.org/).
   expressions stage 0 rejects, attribute targets, escapes and extern
   ABIs; five unused functions are removed and internal errors excluded;
   stage 0 is at 100% of its reachable lines, and its floors with it.
+- libFuzzer on stage 0 (ADR 0103, 6.33i): `make libfuzz`
+  (`tools/libfuzz.py`) builds the lexer, the parser and the checker with
+  `-fsanitize=fuzzer,address,undefined` (`bootstrap/fuzz/frontend.c`),
+  seeds a corpus from `tests/` and `std/` and minimizes each finding into
+  a seed of `tests/fuzz/frontend`; a nightly workflow runs it.
 - Glob imports (ADR 0098): `import a.b.*` brings every public member of
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
@@ -285,6 +290,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Stage 0 leaked its doc comments when an encoding error stopped the
+  parse after a `/** @module */` comment (found by libFuzzer).
 - Comparing two unit values (`u == ()`) emitted `icmp` on `void`, which
   is not LLVM IR; both stages compare two constant zeros.
 - A constant null pointer (`const NULL: *u8 = 0 as *u8`) used as a value
