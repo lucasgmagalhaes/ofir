@@ -8,10 +8,17 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels the run of the push before it; runs
+# on main and release branches always finish (ADR 0091).
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
-    name: ${{ matrix.os }} / LLVM ${{ matrix.llvm }}
+    name: ${{ matrix.os }} / LLVM ${{ matrix.llvm }} / shard ${{ matrix.shard }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -19,6 +26,9 @@ jobs:
         # Oldest and newest supported LLVM versions: tools/llvm.json (ADR 0084).
         # Bump the newest one within a month of a new LLVM release.
         llvm: ["17", "21"]
+        # The two halves of `make test` (Makefile, ADR 0091): together they
+        # are `make test`, so the shards drop no check.
+        shard: ["1", "2"]
 
     steps:
       - uses: actions/checkout@v4
@@ -59,13 +69,18 @@ jobs:
           sudo apt-get install -y gdb valgrind libclang-rt-${{ matrix.llvm }}-dev
           sudo sysctl -w kernel.yama.ptrace_scope=0
 
+      # The full output stays in the job log and in build/logs, which a
+      # failed job uploads.
       - name: Build and test
-        run: make test
+        shell: bash
+        run: |
+          mkdir -p build/logs
+          make test-shard-${{ matrix.shard }} 2>&1 | tee build/logs/test-shard-${{ matrix.shard }}.log
 
       # Cross compilation (ADR 0066): the run tests built for aarch64 Linux
-      # and run under qemu-user.
+      # and run under qemu-user. In shard 1, the shorter one.
       - name: Cross tests (aarch64 Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.shard == '1'
         env:
           OFIR_RUNNER: qemu-aarch64 -L /usr/aarch64-linux-gnu
         run: |
@@ -77,17 +92,36 @@ jobs:
       # valgrind, gcc's sanitizer runtimes and glibc; ADR 0087). Here every
       # check must run: an unavailable one fails instead of being skipped.
       - name: Leaks, sanitizers and faults
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.shard == '1'
         run: |
           sudo apt-get install -y valgrind
           make check-safety
           make check-leaks check-asan check-tsan check-faults SAFETY_FLAGS=--require
+
+      # Tests that failed once and then passed (tests/runner/run_tests.py):
+      # they count as passed, so they are listed where a reviewer sees them.
+      - name: Report flaky tests
+        if: always()
+        shell: bash
+        run: tools/ci_flaky_summary.sh
+
+      - name: Keep the logs of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.os }}-llvm${{ matrix.llvm }}-shard${{ matrix.shard }}
+          path: |
+            build/logs/
+            tests/**/*.actual
+          if-no-files-found: ignore
+          retention-days: 14
 
   # Windows (roadmap 6.8): clang for the MinGW target, run from Git Bash
   # (docs/design/toolchain.md, section 7).
   windows:
     name: windows-2025 / LLVM
     runs-on: windows-2025
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -104,4 +138,21 @@ jobs:
           python --version
 
       - name: Build and test
-        run: mingw32-make test
+        run: |
+          mkdir -p build/logs
+          mingw32-make test 2>&1 | tee build/logs/test.log
+
+      - name: Report flaky tests
+        if: always()
+        run: tools/ci_flaky_summary.sh
+
+      - name: Keep the logs of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-windows-2025
+          path: |
+            build/logs/
+            tests/**/*.actual
+          if-no-files-found: ignore
+          retention-days: 14
