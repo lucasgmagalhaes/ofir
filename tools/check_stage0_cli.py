@@ -4,6 +4,9 @@ errors (ADR 0103, roadmap 6.33d).
 
 - the commands `version` and `help`, no command and an unknown one;
 - an unknown option, a missing input and a second input;
+- an input that does not exist or is a directory, a module path that is a
+  directory, an empty `_test.of` and a project file named `.of`;
+- an `OFIR_STD` that does not exist, for a program that imports nothing;
 - the options `--stop-after=lex|parse|check`, `--message-format=human` and
   `--time-passes`;
 - a build without `-o`, named after the input in the current directory;
@@ -74,6 +77,22 @@ def main():
         c.expect("unknown option", ["build", "--frob", src], 2, "unknown option `--frob`")
         c.expect("no input", ["build"], 2, "`build` needs an input file")
         c.expect("two inputs", ["build", src, src], 2, "unexpected argument")
+        c.expect("input not found", ["build", str(tmp / "nope.of")], 1, "cannot read")
+        c.expect("input is a directory", ["build", str(tmp)], 1, "cannot read")
+        project = tmp / "proj"
+        (project / "lib.of").mkdir(parents=True)
+        (project / "ofir.json").write_text("{}\n")
+        (project / "main.of").write_text("import lib\n\nfn main() {\n}\n")
+        c.expect("module is a directory", ["build", str(project / "main.of")], 1,
+                 "cannot find module `lib`")
+        (project / ".of").write_text("fn main() {\n}\n")
+        c.expect("project file named .of", ["build", ".of", "-o", "dot"], 0, cwd=project)
+        (tmp / "unit.of").write_text("fn main() {\n}\n")
+        (tmp / "unit_test.of").write_text("")
+        c.expect("empty test file", ["test", str(tmp / "unit.of")], 0, "0 tests",
+                 stream="stdout")
+        c.expect("no std directory", ["build", src, "--stop-after=check"], 0,
+                 env=dict(env, OFIR_STD=str(tmp / "no-std")))
         for stage in ("lex", "parse", "check"):
             c.expect(f"--stop-after={stage}", ["build", src, f"--stop-after={stage}",
                                               "--message-format=human"], 0)
