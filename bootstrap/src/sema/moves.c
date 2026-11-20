@@ -76,7 +76,9 @@ static bool state_equal(Moves *m, const State *a, const State *b) {
     }
     for (uint32_t i = 0; i < a->part_count; i++) {
         if (!same_part(&a->parts[i], &b->parts[i])) {
+            // GCOVR_EXCL_START: a join appends parts: the same count is the same parts
             return false;
+            // GCOVR_EXCL_STOP
         }
     }
     return true;
@@ -360,7 +362,7 @@ void note_signature(Checker *c, const FnDecl *fn, const Ty *sig, TypeId self_typ
 
 void check_moves(Checker *c, FnDecl *fn) {
     if (!fn->body) {
-        return;
+        return;   // GCOVR_EXCL_LINE: only a function with a body is analyzed
     }
     Moves m = {.c = c, .fn = fn, .report = true, .arena = &c->scratch};
     arena_reset(m.arena);
