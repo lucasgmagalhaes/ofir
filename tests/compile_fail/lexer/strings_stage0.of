@@ -1,0 +1,7 @@
+// requires: stage0
+// Byte and raw strings are stage 1 only (docs/bootstrap.md).
+
+fn main() {
+    const _f = b"x"   // error[E0100]: byte strings are not supported by stage 0
+    const _g = r"x"   // error[E0100]: raw strings are not supported by stage 0
+}

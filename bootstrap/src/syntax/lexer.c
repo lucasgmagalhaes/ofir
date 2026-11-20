@@ -30,7 +30,9 @@ void intern_keywords(Interner *names) {
     for (size_t i = 0; i < ARRAY_LEN(keywords); i++) {
         Symbol symbol = intern(names, keywords[i].word);
         if (symbol.id != i + 1) {
+            // GCOVR_EXCL_START: a compiler bug: the keywords are interned first
             fatal("keywords must be interned before any other name");
+            // GCOVR_EXCL_STOP
         }
     }
 }

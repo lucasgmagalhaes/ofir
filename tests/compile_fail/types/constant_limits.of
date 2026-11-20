@@ -1,0 +1,12 @@
+// What a constant initializer may not do (spec 4.5).
+
+fn f() int {
+    return 1
+}
+
+const A: int = 2.5 as int   // error[E0801]: float to integer conversions are not allowed in constants
+const B: int = f()   // error[E0801]: a constant may only use literals, constants and operators
+
+fn main() {
+    println("{A} {B}")
+}

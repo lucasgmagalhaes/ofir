@@ -164,7 +164,7 @@ static const char *int_op(Op op, bool is_signed_type) {
     case OP_LE: return is_signed_type ? "icmp sle" : "icmp ule";
     case OP_GT: return is_signed_type ? "icmp sgt" : "icmp ugt";
     case OP_GE: return is_signed_type ? "icmp sge" : "icmp uge";
-    default: return "add";
+    default: return "add";   // GCOVR_EXCL_LINE: the checker allows no other integer operator
     }
 }
 
@@ -181,7 +181,7 @@ static const char *float_op(Op op) {
     case OP_LE: return "fcmp ole";
     case OP_GT: return "fcmp ogt";
     case OP_GE: return "fcmp oge";
-    default: return "fadd";
+    default: return "fadd";   // GCOVR_EXCL_LINE: the checker allows no other float operator
     }
 }
 

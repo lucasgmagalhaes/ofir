@@ -121,7 +121,9 @@ static const char *conversion(Out *out, const char *f, va_list *args) {
                      : longs == 1 ? va_arg(*args, unsigned long)
                      : longs == 2 ? va_arg(*args, unsigned long long) : va_arg(*args, size_t));
         break;
+    // GCOVR_EXCL_START: a compiler bug: the formats are constants
     default: fatal("out_fmt: unsupported conversion `%%%c`", *f);
+    // GCOVR_EXCL_STOP
     }
     return f + 1;
 }

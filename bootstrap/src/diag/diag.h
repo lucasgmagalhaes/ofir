@@ -57,8 +57,7 @@ void diag_error(Diagnostics *diags, const char *code, Span span, const char *for
 void diag_warning(Diagnostics *diags, const char *code, Span span, const char *format, ...)
     __attribute__((format(printf, 4, 5)));
 
-// A note or help line on the diagnostic reported last (spec: toolchain.md).
-void diag_note(Diagnostics *diags, const char *format, ...) __attribute__((format(printf, 2, 3)));
+// A help line on the diagnostic reported last (spec: toolchain.md).
 void diag_help(Diagnostics *diags, const char *format, ...) __attribute__((format(printf, 2, 3)));
 
 static inline bool diags_has_errors(const Diagnostics *diags) {

@@ -1,0 +1,21 @@
+// `for` over a range and the places of `=` that stage 0 and stage 1 reject.
+
+fn pair() (int, int) {
+    return (1, 2)
+}
+
+fn open() {
+    for _i in 0.. {   // error[E0901]: `for` over ranges without both bounds is not supported yet
+    }
+}
+
+fn floats() {
+    for _x in 1.0..2.0 {   // error[E0300]: mismatched types: expected an integer, found float
+    }
+}
+
+fn main() {
+    pair().0 = 3   // error[E0901]: assigning to elements is not supported yet
+    open()
+    floats()
+}

@@ -57,6 +57,4 @@ LineCol source_line_col(const SourceMap *map, FileId id, uint32_t offset);
 // The text of line `line` (1-based), without its line terminator.
 StrView source_line_text(const SourceMap *map, FileId id, uint32_t line);
 
-Span span_join(Span a, Span b);
-
 #endif

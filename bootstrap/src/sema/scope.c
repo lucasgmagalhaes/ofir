@@ -51,7 +51,9 @@ void scope_leave(Scope *scope) {
 
 void scope_reset_locals(Scope *scope) {
     if (scope->marks.len != 0) {
+        // GCOVR_EXCL_START: a compiler bug: blocks are closed before
         fatal("scope_reset_locals: a block is still open");
+        // GCOVR_EXCL_STOP
     }
     scope->depth.len = 0;
 }

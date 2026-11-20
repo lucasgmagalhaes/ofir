@@ -20,15 +20,6 @@ const BuiltinInfo *builtin_method(const Interner *names, Receiver receiver, Symb
     return NULL;
 }
 
-const BuiltinInfo *builtin_info(BuiltinMethod method) {
-    for (size_t i = 0; i < ARRAY_LEN(TABLE); i++) {
-        if (TABLE[i].method == method) {
-            return &TABLE[i];
-        }
-    }
-    return NULL;
-}
-
 BuiltinConst builtin_const(const Interner *names, const Ty *type, Symbol name) {
     StrView text = symbol_name(names, name);
     if (type->kind == TY_INT) {

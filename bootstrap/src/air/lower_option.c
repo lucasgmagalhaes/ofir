@@ -12,7 +12,9 @@ static uint32_t variant_named(Lowerer *l, TypeId type, const char *name) {
             return i;
         }
     }
+    // GCOVR_EXCL_START: a std without the items the compiler calls
     fatal("lowering: std defines no variant `%s`", name);
+    // GCOVR_EXCL_STOP
 }
 
 static bool is_option(Lowerer *l, TypeId type) {

@@ -127,10 +127,6 @@ void drop_scope_leave(Lowerer *l) {
     l->scopes.len--;
 }
 
-bool drop_scope_owns(Lowerer *l) {
-    return l->scopes.len > 0 && l->owned.len > VEC_LAST(l->scopes);
-}
-
 static void set_flag_of(Lowerer *l, LocalId flag, bool value) {
     emit_assign(l, flag, (Rvalue){.kind = RV_USE, .a = op_bool(value)});
 }

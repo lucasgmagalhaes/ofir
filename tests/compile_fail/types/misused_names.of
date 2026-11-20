@@ -1,0 +1,32 @@
+// Names used where they do not fit: type arguments on a type parameter,
+// `Self` outside a type, a call of a value, a field of a constant
+// tuple, a method that does not exist, a builtin as a value and a generic
+// type as a value.
+
+struct Point {
+    x: int,
+    y: int,
+}
+
+struct Holder {
+    items: List<int>,
+}
+
+fn h<T>(_a: T<int>) {   // error[E0302]: a type parameter takes no type arguments
+}
+
+fn s(_a: Self) {   // error[E0200]: `Self` is only available inside a type
+}
+
+fn main() {
+    const k = 1
+    k()   // error[E0311]: expression of type `int` is not a function
+    const pr = (Holder{items: [1]}, 2)
+    pr.0.items.push(3)   // error[E0315]: this value cannot be modified: declare it with `let`
+    Point.nothing()   // error[E0301]: no method `nothing` on type `Point`
+    const pt = Point{x: 1, y: 2}
+    pt.missing(1 + 2)   // error[E0301]: no method `missing` on type `Point`
+    const _f = println   // error[E0901]: function values are not supported yet
+    if Point<int> {   // error[E0310]: expected a value, found `Point` with type arguments
+    }
+}

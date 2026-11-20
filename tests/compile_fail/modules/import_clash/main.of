@@ -1,0 +1,11 @@
+// An import may not take a name another import already binds, and a value
+// of a module must be one of its members.
+
+import lib
+import lib.Account as lib   // error[E0201]: `lib` is defined more than once
+
+fn unknownValue() {
+    lib.nothing()   // error[E0200]: cannot find `nothing` in module `lib`
+}
+
+fn main() {}

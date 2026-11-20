@@ -25,12 +25,12 @@ static bool operand_ok(const Validator *v, Operand o) {
 
 static bool stmt_ok(const Validator *v, const AirStmt *s) {
     if (s->has_dest && !local_ok(v, s->dest)) {
-        return false;
+        return false;   // GCOVR_EXCL_LINE: invalid AIR is a compiler bug
     }
     if (s->kind == AIR_CALL) {
         for (uint32_t i = 0; i < s->as.call.arg_count; i++) {
             if (!operand_ok(v, s->as.call.args[i])) {
-                return false;
+                return false;   // GCOVR_EXCL_LINE: invalid AIR is a compiler bug
             }
         }
         return true;
@@ -38,7 +38,7 @@ static bool stmt_ok(const Validator *v, const AirStmt *s) {
     const Rvalue *rv = &s->as.rvalue;
     for (uint32_t i = 0; i < rv->count; i++) {
         if (!operand_ok(v, rv->items[i])) {
-            return false;
+            return false;   // GCOVR_EXCL_LINE: invalid AIR is a compiler bug
         }
     }
     bool flag_ok = rv->kind != RV_CHECKED || local_ok(v, rv->flag);
@@ -66,7 +66,9 @@ static bool block_ok(Validator *v, size_t index) {
             return fail(v, index, "jump to a missing block");
         }
         if (!operand_ok(v, t->index) || !operand_ok(v, t->len)) {
+            // GCOVR_EXCL_START: invalid AIR is a compiler bug
             return fail(v, index, "bounds check refers to a missing local");
+            // GCOVR_EXCL_STOP
         }
         return operand_ok(v, t->cond) || fail(v, index, "condition refers to a missing local");
     case TERM_PANIC:

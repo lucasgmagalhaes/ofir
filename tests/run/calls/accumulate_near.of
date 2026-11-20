@@ -1,0 +1,120 @@
+// Self calls that look like accumulator recursion (ADR 0044) but are not:
+// each keeps the plain recursion, and the results are the same.
+
+struct Pair {
+    a: int,
+    b: int,
+}
+
+fn twice(n: int) int {
+    return n * 2
+}
+
+// The argument is a reference.
+fn viaRef(n: int) int {
+    const r = &n
+    if *r == 0 {
+        return 0
+    }
+    return n + viaRef(n - 1)
+}
+
+// A string is built in the body.
+fn withText(n: int) int {
+    const s = "n"
+    if n == 0 {
+        return s.len()
+    }
+    return n + withText(n - 1)
+}
+
+// A field is assigned.
+fn withField(n: int) int {
+    let p = Pair{a: 0, b: 0}
+    p.a = n
+    if n == 0 {
+        return p.a
+    }
+    return p.a + withField(n - 1)
+}
+
+// The sum is used before it is returned.
+fn traced(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    const r = n + traced(n - 1)
+    println("traced {r}")
+    return r
+}
+
+// The sum is compared before it is returned.
+fn capped(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    const r = n + capped(n - 1)
+    if r > 5 {
+        return 5
+    }
+    return r
+}
+
+// The call is another function.
+fn other(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return n + twice(n - 1)
+}
+
+// A subtraction, not an addition.
+fn minus(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return n - minus(n - 1)
+}
+
+// The result of the call is read twice.
+fn doubled(n: int) int {
+    if n == 0 {
+        return 1
+    }
+    const c = doubled(n - 1)
+    return c + c
+}
+
+// A negative constant term.
+fn negative(n: int) int {
+    if n == 0 {
+        return 100
+    }
+    return -5 + negative(n - 1)
+}
+
+// The term is a field of a parameter.
+fn fromField(p: Pair, n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return p.a + fromField(p, n - 1)
+}
+
+// The body starts with a loop, which jumps back to the entry.
+fn looped(n: int) int {
+    let i = 0
+    for _ in 0..n {
+        i += 1
+    }
+    if n == 0 {
+        return 0
+    }
+    return i + looped(n - 1)
+}
+
+fn main() {
+    println("{viaRef(4)} {withText(4)} {withField(4)} {traced(3)} {capped(4)}")
+    println("{other(4)} {minus(5)} {doubled(5)} {negative(4)}")
+    println("{fromField(Pair{a: 3, b: 0}, 4)} {looped(4)}")
+}

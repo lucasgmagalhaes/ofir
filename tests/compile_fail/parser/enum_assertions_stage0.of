@@ -1,0 +1,9 @@
+// requires: stage0
+// Stage 0 does not parse interface assertions on enums.
+
+enum E: Eq {   // error[E0100]: interface assertions are not supported by stage 0
+    A,
+}
+
+fn main() {
+}

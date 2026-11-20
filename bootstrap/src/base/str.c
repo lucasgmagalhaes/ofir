@@ -13,10 +13,6 @@ bool sv_eq(StrView a, StrView b) {
     return a.len == b.len && (a.len == 0 || memcmp(a.ptr, b.ptr, a.len) == 0);
 }
 
-bool sv_eq_cstr(StrView a, const char *b) {
-    return sv_eq(a, sv_from_cstr(b));
-}
-
 // FNV-1a: simple, deterministic (no seed), good enough for identifiers.
 uint64_t sv_hash(StrView s) {
     uint64_t h = 0xcbf29ce484222325ull;
@@ -80,7 +76,9 @@ void strbuf_appendf(StrBuf *buf, const char *format, ...) {
     int n = vsnprintf(NULL, 0, format, copy);
     va_end(copy);
     if (n < 0) {
+        // GCOVR_EXCL_START: a compiler bug: the formats are constants
         fatal("invalid format string: %s", format);
+        // GCOVR_EXCL_STOP
     }
     reserve(buf, (size_t)n);
     vsnprintf(buf->data + buf->len, (size_t)n + 1, format, args);

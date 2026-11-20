@@ -72,13 +72,6 @@ static void add_note(Diagnostics *diags, NoteKind kind, const char *format, va_l
     d->notes[d->note_count++] = (DiagNote){kind, format_text(diags, format, args)};
 }
 
-void diag_note(Diagnostics *diags, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    add_note(diags, NOTE_NOTE, format, args);
-    va_end(args);
-}
-
 void diag_help(Diagnostics *diags, const char *format, ...) {
     va_list args;
     va_start(args, format);

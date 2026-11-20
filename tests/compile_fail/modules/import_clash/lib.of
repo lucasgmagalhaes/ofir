@@ -1,0 +1,16 @@
+pub struct Account {
+    pub owner: str
+    balance: int
+
+    pub fn open(owner: move str) Account {
+        return Account{owner, balance: 0}
+    }
+
+    fn audit(self) int {
+        return self.balance
+    }
+}
+
+struct Secret {
+    code: int
+}

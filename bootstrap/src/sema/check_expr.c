@@ -336,7 +336,9 @@ static TypeId synthesize(Checker *c, Expr *e, TypeId expected) {
     case EXPR_BLOCK: return check_block(c, e->as.block, expected, true);
     case EXPR_UNSAFE: return check_unsafe_block(c, e, expected, true);
     case EXPR_TUPLE: return tuple(c, e, expected);
+    // GCOVR_EXCL_START: the resolver replaced Self
     case EXPR_SELF_TYPE: return type_id(TID_ERROR);   // replaced by the resolver
+    // GCOVR_EXCL_STOP
     case EXPR_GENERIC: return generic_value(c, e);
     case EXPR_RANGE: return unsupported(c, e->span, "ranges outside of `for` are");
     case EXPR_INDEX: return check_index(c, e);

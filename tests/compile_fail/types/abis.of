@@ -1,0 +1,27 @@
+// The ABIs of extern blocks, what crosses the C boundary (spec 9), and a method
+// called with type arguments it does not take.
+
+extern "Rust" {   // error[E0804]: unknown ABI: only `extern "C"` is supported
+    fn h()
+}
+
+extern "intrinsic" {   // error[E0805]: intrinsics are reserved to the standard library
+    fn k()
+}
+
+extern "C" fn back() str {   // error[E0804]: type `str` has no C layout and cannot cross the C boundary
+    return "x"
+}
+
+struct P {
+    x: int,
+
+    fn get(self) int {
+        return self.x
+    }
+}
+
+fn main() {
+    const p = P{x: 1}
+    println("{p.get<int>()}")   // error[E0302]: `get` takes no type arguments
+}
