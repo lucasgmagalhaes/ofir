@@ -125,7 +125,7 @@ def main():
         c.expect("float literal in the AST", ["build", src, "--emit=ast"], 0, "1e-05",
                  stream="stdout")
         c.expect("output named after the input", ["build", src], 0, cwd=tmp)
-        if not (tmp / "hello").exists():
+        if not (tmp / "hello").exists() and not (tmp / "hello.exe").exists():
             c.failures += 1
             print("FAIL output named after the input: no `hello` in the current directory")
 
@@ -151,7 +151,8 @@ def main():
         c.expect("unwritable output", ["build", src, "-o", str(tmp / "none" / "x")], 1,
                  "cannot write")
         c.expect("no temporary directory", ["run", src], 1, "cannot create the output path",
-                 env=dict(env, TMPDIR=str(tmp / "none")))
+                 env=dict(env, TMPDIR=str(tmp / "none"), TMP=str(tmp / "none"),
+                          TEMP=str(tmp / "none")))   # Windows reads TMP and TEMP
     print(f"stage 0 cli: {c.count} checks, {c.failures} failed")
     return 1 if c.failures else 0
 
