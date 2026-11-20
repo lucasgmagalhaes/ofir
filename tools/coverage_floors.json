@@ -1,0 +1,52 @@
+{
+  "stage0": {
+    "bootstrap/src": 97.4,
+    "bootstrap/src/air": 97.8,
+    "bootstrap/src/base": 96.5,
+    "bootstrap/src/codegen": 98.2,
+    "bootstrap/src/diag": 94.0,
+    "bootstrap/src/sema": 96.8,
+    "bootstrap/src/syntax": 98.4
+  },
+  "stage1": {
+    "compiler": 83.7,
+    "compiler/air": 87.7,
+    "compiler/base": 81.7,
+    "compiler/cli": 79.5,
+    "compiler/codegen": 91.4,
+    "compiler/diag": 88.7,
+    "compiler/doc": 87.5,
+    "compiler/driver": 81.7,
+    "compiler/fmt": 81.0,
+    "compiler/lsp": 84.8,
+    "compiler/sema": 87.6,
+    "compiler/syntax": 90.0
+  },
+  "runtime": {
+    "runtime/src": 84.8
+  },
+  "std": {
+    "std/arena": 79.4,
+    "std/checksum": 92.4,
+    "std/cli": 92.0,
+    "std/collections": 89.7,
+    "std/compress": 87.5,
+    "std/core": 84.3,
+    "std/encoding": 91.3,
+    "std/fmt": 93.0,
+    "std/fs": 75.2,
+    "std/io": 42.3,
+    "std/json": 93.2,
+    "std/math": 90.5,
+    "std/mem": 86.3,
+    "std/meta": 100.0,
+    "std/os": 76.5,
+    "std/path": 89.3,
+    "std/random": 91.7,
+    "std/strings": 91.2,
+    "std/sync": 83.7,
+    "std/task": 81.1,
+    "std/testing": 87.0,
+    "std/time": 88.2
+  }
+}

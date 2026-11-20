@@ -1,0 +1,36 @@
+// The right side of an assignment runs before the place (spec 4.2).
+
+struct Table {
+    items: List<int>
+    names: List<str>
+
+    fn grow(mut self) int {
+        for i in 0..100 {
+            self.items.push(i)
+            self.names.push("n{i}")
+        }
+        return 42
+    }
+
+    fn name(mut self) str {
+        const _ = self.grow()
+        return "new"
+    }
+
+    fn index(mut self) int {
+        const _ = self.grow()
+        return 1
+    }
+}
+
+fn main() {
+    let t = Table{items: [7], names: ["old"]}
+    t.items[0] = t.grow()
+    println("{t.items[0]} {t.items.len()}")
+    t.items[0] += t.grow()
+    println("{t.items[0]} {t.items.len()}")
+    t.names[0] = t.name()
+    println("{t.names[0]} {t.names.len()}")
+    t.items[t.index()] = t.items[0]
+    println("{t.items[1]} {t.items.len()}")
+}

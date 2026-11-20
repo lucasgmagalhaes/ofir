@@ -1,0 +1,44 @@
+# Codecov settings (ADR 0103). The reports come from `make coverage`
+# (tools/coverage.py), uploaded by the coverage job of CI.
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  precision: 1
+  round: down
+  status:
+    # The project total may not fall; new and changed lines are covered.
+    project:
+      default:
+        target: auto
+        threshold: 0.1%
+    patch:
+      default:
+        target: 100%
+
+flags:
+  stage0:
+    paths:
+      - bootstrap/src/
+    carryforward: true
+  stage1:
+    paths:
+      - compiler/
+    carryforward: true
+  runtime:
+    paths:
+      - runtime/src/
+    carryforward: true
+  std:
+    paths:
+      - std/
+    carryforward: true
+
+ignore:
+  - bootstrap/tests/
+  - tests/
+  - bench/
+
+comment:
+  layout: "diff, flags, files"
+  require_changes: true

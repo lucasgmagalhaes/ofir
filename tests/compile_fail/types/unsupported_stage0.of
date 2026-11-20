@@ -1,0 +1,30 @@
+// requires: stage0
+// Expressions that stage 1 compiles and stage 0 rejects (docs/bootstrap.md),
+// and qualified names that are no variant.
+
+fn add(a: int, b: int) int {
+    return a + b
+}
+
+struct Pair {
+    a: int,
+    b: int,
+}
+
+struct Box<T> {
+    v: T,
+}
+
+enum Shape {
+    Dot,
+}
+
+fn main() {
+    const _f = add // error[E0901]: function values are not supported by stage 0
+    const _n = add(a: 1, 2) // error[E0901]: named arguments are not supported yet
+    const _r = 0..3 // error[E0901]: ranges outside of `for` are not supported yet
+    const p = Pair{a: 1, b: 2}
+    const _same = p == p // error[E0901]: comparing `Pair` is not supported by stage 0
+    const _s = Shape.Square // error[E0320]: no variant `Square` in `Shape`
+    const _g = Box<int>.v // error[E0320]: no variant `v` in `Box`
+}

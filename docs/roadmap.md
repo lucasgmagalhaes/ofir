@@ -104,7 +104,7 @@ Each task covers lexer → parser → checker → lowering → codegen → tests
 | 2.9 | Interpolation of all primitive types; shortest round-trip float formatting (spec 2.1) | M | **done**: `tests/run/basics/strings`, `numbers/methods` |
 | 2.10 | Structs: declaration, literals, field access and assignment, nested structs, `copy struct`, default field values, tuple structs | M | **done**: `tests/run/structs/*` pass |
 | 2.11 | Methods and associated functions declared inside structs and enums, `self` | M | **done** for structs (enums with 2.14): `tests/run/methods/*` pass |
-| 2.12 | Parameter modes (borrow, `mut`, `move`) for parameters and `self`, `for mut`, `[T]`/`str` view parameters; explicit `&T`/`&mut T` locals, auto-deref, `*` | M | **in progress**: modes of parameters and `self` done (`mut` by reference); `for mut` done; views, `&T` locals and `*` remain |
+| 2.12 | Parameter modes (borrow, `mut`, `move`) for parameters and `self`, `for mut`, `[T]`/`str` view parameters; explicit `&T`/`&mut T` locals, auto-deref, `*` | M | **done**: modes of parameters and `self` (`mut` by reference), `for mut`, `[T]`/`str` views (`tests/run/refs/slices`), `&T`/`&mut T` locals and `*` (`tests/run/refs/references`), in both stages |
 | 2.13 | Tuples and destructuring `const` | S | **done**: `tests/run/enums/patterns` |
 | 2.14 | Enums: layout, construction, `.Variant` shorthand | M | **done**: `tests/run/enums/*` |
 | 2.15 | `match`: decision trees, literal, range, variant, tuple, struct patterns, guards; Copy bindings through references | L | **done** with sequential arm tests (decision trees later, if profiles ask for them); `examples/shapes.of` runs since `List` (2.20) |
@@ -440,9 +440,11 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.31e | Package discovery (ADR 0097): the manifest's `description`, `keywords` and `repository` (E0910 when invalid) go with `toolchain` into the index line; `ofir search` finds packages by name, description or keywords at their highest version that is not yanked, marking an incompatible toolchain; `docs/packages/official.md` has the criteria of official packages; `tools/check_search.py` | OFIR-82 | **done** |
 | 6.31f | GUI, graphics, audio and media (ADR 0099): no module in `std`; each is a package binding a C library, and a toolkit written in Ofir is rejected for accessibility; a C event loop that owns the loop, events and pixels drives an Ofir handler (`tests/run/ffi/event_loop.of`); `std.io.terminalSize` checked on a pseudo-terminal (`tools/check_terminal.py`); raw mode, key events and the alternate screen wait for a TUI workload | OFIR-83 | **done**: decided, packages |
 | 6.31g | Scientific, data and ML computing (ADR 0100): no tensor, dataframe, linear algebra or GPU module in `std`; each is a package binding a C library over row-major `List<f64>` buffers passed as pointer, sizes and leading dimension (`tests/run/ffi/numeric_kernel.of`); the goal is the scalar loop within 10% of C, measured by `bench/programs/matmul.of` with a ceiling in `bench/budgets.json`; SIMD types, multi-dimensional arrays, `f16` and GPUs wait for a workload | OFIR-84 | **done**: decided, packages |
+| 6.31h | Games, mobile and browser SDKs (ADR 0101): games are programs on the desktop targets binding a platform library as a package over the C boundary (ADR 0099); no Android or iOS target in version 1, and a mobile app reaches Ofir as a C-ABI library once a triple, a runtime, emulator CI and an owner exist; no browser SDK until ADR 0068 is reopened | OFIR-85 | **done**: decided, rejected for v1 |
+| 6.31i | Scope and capacity (ADR 0102): `docs/design/scope.md` lists every open row with a priority, an owner, dependencies and a state; a maintainer has one row in progress and two next; the next pull requests of active rows are sized S or M; rejected and deferred alternatives link their decision and say when to reopen it; `tools/check_scope.py` checks it against the roadmap | OFIR-86 | **done** |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
-| 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | |
+| 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | **done**: `tests/run/basics/assign_order` passes on both stages |
 | 6.32b | Cascades suppressed: an error type silences diagnostics about its values and failed declarations; `--error-limit=N` (default 50); compile-fail expectations updated | ADR 0080 | |
 | 6.32c | `ofir outline`, `ofir sig`, `ofir def` and `ofir type`: text one line per item, versioned JSON, shared with `compiler/lsp` | ADR 0080 | |
 | 6.32d | `ofir refs`, `ofir impls [--of]` and `ofir callers` over the whole program | ADR 0080 | |
@@ -450,6 +452,18 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.32f | `ofir check --fmt`: the files `ofir fmt` would change, as warnings | ADR 0080 | |
 | 6.32g | Contracts: `@requires` and `@ensures` (spec 12.1), `result`, no effects in a condition, checked in debug and test, a profile setting for release; shown by `sig`, `outline` and `ofir doc`; new codes | ADR 0080 | |
 | 6.32h | Effects `io`, `alloc` and `unsafe` over the call graph, per instantiation, every effect through function and interface values; `@effects(...)` bound with a new code; bounds on the public functions of `std` | ADR 0080 | |
+| 6.33 | Quality assurance (ADR 0103): the compilers' coverage measured and uploaded to Codecov, every reachable line tested, bugs hunted by fuzzing, generated programs and mutation | ADR 0103 | Every directory at its floor; the floors reach 100% of reachable lines |
+| 6.33a | Coverage measurement: `tools/coverage.py` (`make coverage`) builds stage 0 with gcc `--coverage` and stage 1 with `--release --coverage`, runs the suites of `make test` with each and writes Cobertura per stage; a CI job uploads them to Codecov with the flags `stage0` and `stage1`; patch target 100% (`codecov.yml`) | ADR 0103 | **done**: stage 0 96.3% lines, stage 1 86.8% |
+| 6.33b | The runtime and `std` measured: `runtime/src` built with clang `--coverage` for the test programs, and the `std` lines those programs run, as the flags `runtime` and `std` | ADR 0103 | **done**: runtime 84.8% lines, `std` 86.7% |
+| 6.33c | Exclusions and the ratchet: `GCOVR_EXCL_*` markers with a reason on lines no input reaches; floors per directory in `tools/coverage_floors.json`, checked by `tools/coverage.py --check` in the CI job | ADR 0103 | **done** |
+| 6.33d | Stage 0 at 100% of reachable lines: the driver paths and `main.c` options, patterns (`check_pattern.c`) and constant evaluation (`const_eval.c`); each uncovered line a test, dead code removed or a bug fixed | ADR 0103 | |
+| 6.33e | Stage 1 front end at 100%: `syntax`, `sema` (`const_eval.of`, `check_comptime_for.of`, `core/types.of`) and `diag`, with compile-fail cases for each uncovered diagnostic path | ADR 0103 | |
+| 6.33f | Stage 1 middle and back end at 100%: `air` (the interpreter first, 68.9%) and `codegen` | ADR 0103 | |
+| 6.33g | Stage 1 tooling at 100%: `driver` (`pkg/packages.of`, `pkg/publish.of`, `pkg/resolve.of`), `cli`, `lsp`, `fmt`, `doc` and `base/json.of` | ADR 0103 | |
+| 6.33h | Branch floors: the branch coverage of each directory gets a floor once its lines are at 100%, and climbs the same way | ADR 0103 | |
+| 6.33i | libFuzzer on stage 0: the lexer, the parser and the checker built with `-fsanitize=fuzzer,address,undefined`, a corpus from `tests/`, a scheduled CI job; each crash becomes a regression seed of `tools/fuzz_frontend.py` | ADR 0103 | |
+| 6.33j | Differential generated programs: a generator of well-typed programs over the whole language, whose output must agree between stage 0, stage 1, the AIR interpreter and the release build; minimized failures become run tests | ADR 0103 | |
+| 6.33k | Mutation testing: operators, conditions and constants of `compiler/` and `bootstrap/src` mutated one at a time, the tests run on each; a surviving mutant is a missing test, a report per directory | ADR 0103 | |
 
 ### Next language decisions (proposed)
 
@@ -566,9 +580,8 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue with OFIR-85; 6.30 (OFIR-72 to OFIR-78), 6.31a (OFIR-79), 6.31b
-   (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82), 6.31f (OFIR-83) and 6.31g
-   (OFIR-84) are done;
+1. Follow the order of [scope and capacity](design/scope.md): 6.32b, then
+   6.32f and 6.33d; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
    6.31c holds the rest of OFIR-80.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
@@ -579,12 +592,16 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 3. Keep the applications of `apps/` (OFIR-76) building, and validate each
    API milestone with the reference service (API-49).
    Select optional adapters and domain ecosystems by concrete demand and ownership.
-4. Code written by agents (6.32, ADR 0080): start with 6.32a and 6.32b,
+4. Code written by agents (6.32, ADR 0080): start with 6.32b (6.32a is done),
    then the query commands (6.32c, 6.32d) before edits, contracts and effects.
-5. Reconcile language states (LANG-01) and decide stability, editions, pointer
+5. Quality assurance (6.33, ADR 0103): raise each area to 100% of its
+   reachable lines, stage 0 first (6.33d), triaging what is uncovered as a test,
+   dead code or a bug; fuzzing, generated programs and mutation testing
+   hunt the bugs the tests miss.
+6. Reconcile language states (LANG-01) and decide stability, editions, pointer
    provenance and atomic semantics (LANG-02–08) before implementing dependent
    features; use measured workloads for LANG-16, LANG-19 and LANG-20.
-6. Implement the low-level API in dependency order: memory/ABI (LL-01–09),
+7. Implement the low-level API in dependency order: memory/ABI (LL-01–09),
    streams/files/processes/time (LL-10–24), then networking, workers and
    portability (LL-25–35). Add API-50–54 to production readiness reviews.
 

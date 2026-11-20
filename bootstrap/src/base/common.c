@@ -9,7 +9,7 @@
 void *xmalloc(size_t size) {
     void *ptr = malloc(size ? size : 1);
     if (!ptr) {
-        fatal("out of memory");
+        fatal("out of memory");   // GCOVR_EXCL_LINE: allocation failure, not injected
     }
     return ptr;
 }
@@ -17,7 +17,7 @@ void *xmalloc(size_t size) {
 void *xcalloc(size_t count, size_t size) {
     void *ptr = calloc(count ? count : 1, size ? size : 1);
     if (!ptr) {
-        fatal("out of memory");
+        fatal("out of memory");   // GCOVR_EXCL_LINE: allocation failure, not injected
     }
     return ptr;
 }
@@ -25,11 +25,12 @@ void *xcalloc(size_t count, size_t size) {
 void *xrealloc(void *ptr, size_t size) {
     void *result = realloc(ptr, size ? size : 1);
     if (!result) {
-        fatal("out of memory");
+        fatal("out of memory");   // GCOVR_EXCL_LINE: allocation failure, not injected
     }
     return result;
 }
 
+// GCOVR_EXCL_START: an internal error, which no test reaches when the compiler is right
 void fatal(const char *format, ...) {
     va_list args;
     va_start(args, format);
@@ -39,6 +40,7 @@ void fatal(const char *format, ...) {
     va_end(args);
     abort();
 }
+// GCOVR_EXCL_STOP
 
 void print_float_g(FILE *out, double v) {
     if (isnan(v)) {
