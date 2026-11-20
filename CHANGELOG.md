@@ -36,6 +36,11 @@ project uses [Semantic Versioning](https://semver.org/).
   dev and release, stage 1 dev and release and the AIR interpreter
   (`comptime`); a difference is minimized into a run test. `make
   check-fuzz` runs ten programs.
+- Mutation testing (ADR 0103, 6.33k): `make mutate` (`tools/mutate.py`)
+  mutates the comparisons, logical operators, `+` and `-` and the
+  constants of `bootstrap/src` and `compiler/` one at a time, rebuilds the
+  compiler and runs the tests on each, and reports the killed and surviving
+  mutants per directory.
 - libFuzzer on stage 0 (ADR 0103, 6.33i): `make libfuzz`
   (`tools/libfuzz.py`) builds the lexer, the parser and the checker with
   `-fsanitize=fuzzer,address,undefined` (`bootstrap/fuzz/frontend.c`),
