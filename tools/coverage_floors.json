@@ -1,12 +1,12 @@
 {
   "stage0": {
-    "bootstrap/src": 97.4,
-    "bootstrap/src/air": 98.2,
-    "bootstrap/src/base": 98.5,
-    "bootstrap/src/codegen": 98.6,
-    "bootstrap/src/diag": 98.2,
-    "bootstrap/src/sema": 98.1,
-    "bootstrap/src/syntax": 99.0
+    "bootstrap/src": 100.0,
+    "bootstrap/src/air": 100.0,
+    "bootstrap/src/base": 100.0,
+    "bootstrap/src/codegen": 100.0,
+    "bootstrap/src/diag": 100.0,
+    "bootstrap/src/sema": 100.0,
+    "bootstrap/src/syntax": 100.0
   },
   "stage1": {
     "compiler": 83.7,
