@@ -6,7 +6,7 @@ fn ranges() {
     const x = 3
     const y = 4
     match x {
-        1..=y => println("a"),   // error[E0100]: expected a literal to end the range, found an identifier
+        1..=[1] => println("a"),   // error[E0100]: expected a literal to end the range, found `[`
         _ => println("b"),
     }
 }
