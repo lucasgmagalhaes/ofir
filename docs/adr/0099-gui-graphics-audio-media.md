@@ -5,7 +5,7 @@
 
 ## Context
 
-OFIR-83 (roadmap 6.31e) covers GUI and TUI toolkits, graphics, audio
+OFIR-83 (roadmap 6.31f) covers GUI and TUI toolkits, graphics, audio
 and media. Its evidence is a package-level workload and the event-loop,
 accessibility and platform requirements. It is a G2 decision: it needs
 a concrete workload and an owner, and it may be rejected.
