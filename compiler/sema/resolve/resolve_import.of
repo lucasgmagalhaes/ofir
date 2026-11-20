@@ -176,7 +176,8 @@ fn globImport(r: mut Resolver, path: List<Symbol>, span: Span, isPub: bool) {
     const count = path.len() - 1
     if isPub {
         r.error("E0208", span, "a glob import cannot be `pub`")
-        r.diags.help("re-export the module or each declaration: `pub import {dotted(r, path, count)}`")
+        const whole = dotted(r, path, count)
+        r.diags.help("re-export the module or each declaration: `pub import {whole}`")
         return
     }
     const target = findModule(r, path, count)
