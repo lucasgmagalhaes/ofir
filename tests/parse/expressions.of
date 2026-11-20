@@ -25,6 +25,7 @@ fn expressions() {
     const x = b'a' + 0xff + 0b1010 + 1_000_000 + 1.5e3
     const y = true != false
     const z = a > b
+    const lookahead = f(a < b,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c)   // 64 tokens: not type arguments
     const shifted = value >> 3
     const total = a +
         b +
