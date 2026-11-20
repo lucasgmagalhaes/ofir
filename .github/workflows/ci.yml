@@ -180,6 +180,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
+      # After the uploads, so that a missed floor still shows on Codecov.
+      - name: Check the coverage floors
+        run: python3 tools/coverage.py --check
+
       - name: Keep the reports
         if: always()
         uses: actions/upload-artifact@v4

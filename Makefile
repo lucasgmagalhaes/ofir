@@ -9,7 +9,7 @@ SAFETY_FLAGS ?=
 BUDGET_FLAGS ?=
 
 .PHONY: all stage0 stage1 stage2 verify runtime unit runner-selftest test test-shard-1 \
-	test-shard-2 test-stage0 test-std test-stage1 compare-stages check-fuzz check-build-security check-format check-fmt-corpus check-codes check-sizes check-layers check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist coverage bench bench-programs bench-compare check-budgets clean
+	test-shard-2 test-stage0 test-std test-stage1 compare-stages check-fuzz check-build-security check-format check-fmt-corpus check-codes check-sizes check-layers check-docs check-leaks check-asan check-tsan check-faults check-safety check-apps seed check-seed dist coverage coverage-check bench bench-programs bench-compare check-budgets clean
 
 all: stage0 runtime
 
@@ -240,6 +240,9 @@ test-stage0: stage0 runtime
 # build/coverage (ADR 0103; needs gcc, gcovr and llvm-cov).
 coverage: stage1 runtime
 	$(PYTHON) tools/coverage.py
+
+coverage-check:
+	$(PYTHON) tools/coverage.py --check
 
 # Performance (docs/design/performance.md)
 bench:
