@@ -1,0 +1,398 @@
+/**
+ * @module
+ * Built-in interfaces derived for structs and enums (spec 9.9): `Eq` for
+ * `==` and `!=`, `Ord` for `<`, `<=`, `>`, `>=` and sorting, `Hash` for
+ * `Map` keys. A type that declares the method (`eq`, `cmp`) uses it;
+ * otherwise the compiler derives it when every field satisfies the
+ * interface. A type with a `drop` method owns a resource (`List`, `Box`),
+ * so its fields say nothing about its value: it derives none of them.
+ * `Debug` for `{x:?}` is derived the same way, but the std types that own a
+ * resource declare `debug` themselves. `Display` for `{x}` is never
+ * derived: a struct or enum declares `format`.
+ */
+
+import sema.check.check.BOUND_DEBUG
+import sema.check.check.BOUND_DISPLAY
+import sema.check.check.BOUND_EQ
+import sema.check.check.BOUND_HASH
+import sema.check.check.BOUND_ORD
+import sema.check.check.Checker
+import sema.check.check.fnOf
+import sema.check.check_generic.equatable
+import sema.check.check_generic.orderable
+import sema.check.check_generic.paramBounds
+import sema.check.check_list.hashable
+import sema.check.check_methods.methodAt
+import sema.check.check_methods.methodCount
+import sema.check.check_types.fnSignature
+import sema.check.enums.enumOf
+import sema.check.enums.variantsOf
+import sema.check.structs.fieldsOf
+import sema.check.structs.structFieldType
+import sema.check.structs.structFields
+import sema.check.structs.variantFieldType
+import sema.core.def.DefKind
+import sema.core.program.Program
+import sema.core.types.BOOL
+import sema.core.types.STR
+import sema.core.types.UNIT
+import sema.core.types.TyKind
+import syntax.ast.Mode
+
+/**
+ * The `DefId` of a method a struct or enum type declares, or 0.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @param name the method
+ * @returns its `DefId`, or 0
+ */
+pub fn declaredMethod(c: Checker, p: Program, ty: int, name: str) int {
+    if c.types.kind(ty) != TyKind.Adt {
+        return 0
+    }
+    const owner = c.types.get(ty).data
+    if c.def(owner).item < 0 {
+        return 0
+    }
+    const loc = c.loc(owner)
+    for i in 0..methodCount(p, loc) {
+        const decl = methodAt(p, loc, i)
+        if decl.hasSelf && c.text(decl.name) == name {
+            return c.r.tables[c.def(owner).module].fnDefs[decl.id.0]
+        }
+    }
+    return 0
+}
+
+/**
+ * The method `==` (`eq`) or `<` (`cmp`) calls on a type: one it declares as
+ * `fn eq(self, other: Self) bool` or `fn cmp(self, other: Self) Ordering`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @param bit `BOUND_EQ` or `BOUND_ORD`
+ * @returns its `DefId`, or 0 when the type declares none of that shape
+ */
+pub fn comparisonMethod(c: mut Checker, p: Program, ty: int, bit: int) int {
+    const id = declaredMethod(c, p, ty, if bit == BOUND_EQ { "eq" } else { "cmp" })
+    if id == 0 {
+        return 0
+    }
+    const decl = fnOf(p, c.loc(id))
+    if decl.selfMode != Mode.Borrow || decl.params.len() != 1 ||
+       decl.params[0].mode != Mode.Borrow || decl.typeParams.len() != 0 {
+        return 0
+    }
+    const sig = fnSignature(c, p, id)
+    const args = c.types.get(ty).args.clone()
+    const other = c.types.subst(c.types.get(sig).args[0], args.clone())
+    const ret = c.types.subst(c.types.get(sig).inner, args)
+    const ok = other == ty && if bit == BOUND_EQ { ret == BOOL } else { isOrdering(c, ret) }
+    return if ok { id } else { 0 }
+}
+
+/**
+ * Whether a type is `std.core.Ordering`.
+ *
+ * @param c the checker
+ * @param ty the type
+ * @returns true if it is
+ */
+pub fn isOrdering(c: Checker, ty: int) bool {
+    if c.types.kind(ty) != TyKind.Adt {
+        return false
+    }
+    const id = c.types.get(ty).data
+    return c.text(c.def(id).name) == "Ordering" &&
+           c.r.moduleNames[c.def(id).module].startsWith("std")
+}
+
+/**
+ * Whether a struct or enum type satisfies `Eq`, `Ord` or `Hash`: by its own
+ * method, or derived from its fields.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @param bit `BOUND_EQ`, `BOUND_ORD` or `BOUND_HASH`
+ * @returns true if it does
+ */
+pub fn adtSatisfies(c: mut Checker, p: Program, ty: int, bit: int) bool {
+    const id = c.types.get(ty).data
+    if id != 0 && id == c.r.langItems[4] {   // `&[T]`: by its elements (spec 9.9)
+        return bit == BOUND_EQ && equatable(c, p, c.types.get(ty).args[0])
+    }
+    if id != 0 && id == c.r.langItems[7] {
+        return false   // `&mut [T]`: compare `s.asSlice()`
+    }
+    if bit == BOUND_ORD && c.isUnion(c.types.get(ty).data) {
+        return false   // a union has no order of its own (spec 17.5)
+    }
+    if bit != BOUND_HASH && comparisonMethod(c, p, ty, bit) != 0 {
+        return true
+    }
+    if declaredMethod(c, p, ty, "drop") != 0 || declaredMethod(c, p, ty, "cmp") != 0 {
+        return false
+    }
+    if declaredMethod(c, p, ty, "eq") != 0 {
+        return false   // `Ord` and `Hash` must agree with the declared `eq`
+    }
+    return derives(c, p, ty, bit)
+}
+
+/**
+ * Whether the compiler derives `bit` for a struct or enum type: whether
+ * every field satisfies it.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @param bit `BOUND_EQ`, `BOUND_ORD` or `BOUND_HASH`
+ * @returns true if it does
+ */
+pub fn derives(c: mut Checker, p: Program, ty: int, bit: int) bool {
+    const id = c.types.get(ty).data
+    if c.def(id).kind == DefKind.Struct {
+        if !structFields(c, p, id) {
+            return false
+        }
+        const count = fieldsOf(c, id).types.len()
+        for i in 0..count {
+            if !fieldSatisfies(c, p, structFieldType(c, p, ty, i), bit) {
+                return false
+            }
+        }
+        return true
+    }
+    if enumOf(c, p, ty).isNone() {
+        return false
+    }
+    const count = variantsOf(c, id).variants.len()
+    for v in 0..count {
+        const fields = variantsOf(c, id).variants[v].types.len()
+        for i in 0..fields {
+            if !fieldSatisfies(c, p, variantFieldType(c, p, ty, v, i), bit) {
+                return false
+            }
+        }
+    }
+    return true
+}
+
+// Floats compare by IEEE rules (`NaN != NaN`), so they satisfy none of the
+// three (spec 2.1), even where `==` and `<` accept them.
+fn fieldSatisfies(c: mut Checker, p: Program, ty: int, bit: int) bool {
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Float {
+        return false
+    }
+    if kind == TyKind.Tuple {
+        const elems = c.types.get(ty).args.clone()
+        for i in 0..elems.len() {
+            if !fieldSatisfies(c, p, elems[i], bit) {
+                return false
+            }
+        }
+        return true
+    }
+    return if bit == BOUND_EQ {
+        equatable(c, p, ty)
+    } else if bit == BOUND_ORD {
+        orderable(c, p, ty)
+    } else {
+        hashable(c, p, ty)
+    }
+}
+
+/**
+ * The conversion `?` calls when the error types differ (spec 6.2): the
+ * function's error type declares `fn from(value: move E) Self`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param target the function's error type
+ * @param source the error type `?` returns
+ * @returns the `DefId` of `from`, or 0 when the type declares none of that shape
+ */
+pub fn fromMethod(c: mut Checker, p: Program, target: int, source: int) int {
+    if c.types.kind(target) != TyKind.Adt {
+        return 0
+    }
+    const owner = c.types.get(target).data
+    if c.def(owner).item < 0 {
+        return 0
+    }
+    const loc = c.loc(owner)
+    let id = 0
+    for i in 0..methodCount(p, loc) {
+        const decl = methodAt(p, loc, i)
+        if !decl.hasSelf && c.text(decl.name) == "from" {
+            id = c.r.tables[c.def(owner).module].fnDefs[decl.id.0]
+        }
+    }
+    if id == 0 {
+        return 0
+    }
+    const decl = fnOf(p, c.loc(id))
+    if decl.params.len() != 1 || decl.params[0].mode != Mode.Move || decl.typeParams.len() != 0 {
+        return 0
+    }
+    const sig = fnSignature(c, p, id)
+    const args = c.types.get(target).args.clone()
+    const value = c.types.subst(c.types.get(sig).args[0], args.clone())
+    const ret = c.types.subst(c.types.get(sig).inner, args)
+    return if value == source && ret == target { id } else { 0 }
+}
+
+/**
+ * The method `{x:?}` calls on a type: one it declares as
+ * `fn debug(self, out: mut str)`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns its `DefId`, or 0 when the type declares none of that shape
+ */
+pub fn debugMethod(c: mut Checker, p: Program, ty: int) int {
+    return writerMethod(c, p, ty, "debug")
+}
+
+/**
+ * The method `{x}` calls on a struct or enum (`Display`, spec 9.9): one it
+ * declares as `fn format(self, out: mut str)`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns its `DefId`, or 0 when the type declares none of that shape
+ */
+pub fn displayMethod(c: mut Checker, p: Program, ty: int) int {
+    if c.types.kind(ty) != TyKind.Adt {
+        return 0
+    }
+    return writerMethod(c, p, ty, "format")
+}
+
+// A method `fn name(self, out: mut str)` the type declares, or 0.
+fn writerMethod(c: mut Checker, p: Program, ty: int, name: str) int {
+    const id = declaredMethod(c, p, ty, name)
+    if id == 0 {
+        return 0
+    }
+    const decl = fnOf(p, c.loc(id))
+    if decl.selfMode != Mode.Borrow || decl.params.len() != 1 ||
+       decl.params[0].mode != Mode.Mut || decl.typeParams.len() != 0 {
+        return 0
+    }
+    const sig = fnSignature(c, p, id)
+    const ok = c.types.get(sig).args[0] == STR && c.types.get(sig).inner == UNIT
+    return if ok { id } else { 0 }
+}
+
+/**
+ * Whether `{x}` shows a value of a type (`Display`, spec 9.9): numbers,
+ * `bool`, `str`, references to such types, type parameters bounded by
+ * `Display`, and structs and enums that declare `format`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns true if it does
+ */
+pub fn displayable(c: mut Checker, p: Program, ty: int) bool {
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Bool ||
+       kind == TyKind.Str || kind == TyKind.Never || kind == TyKind.Error {
+        return true
+    }
+    if kind == TyKind.Ref {
+        return displayable(c, p, c.types.get(ty).inner)
+    }
+    if kind == TyKind.Param {
+        return paramBounds(c, ty) & BOUND_DISPLAY != 0
+    }
+    return displayMethod(c, p, ty) != 0
+}
+
+/**
+ * Whether a type has a debug representation (`Debug`, spec 9.9): numbers,
+ * `bool`, `str`, `()`, references, tuples, type parameters bounded by
+ * `Debug`, and structs and enums that declare `debug` or whose fields all
+ * have one.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns true if it does
+ */
+pub fn debuggable(c: mut Checker, p: Program, ty: int) bool {
+    let seen: List<int> = []
+    return debuggableIn(c, p, ty, &mut seen)
+}
+
+// `seen`: the structs and enums being decided, which a recursive type
+// reaches again; they count as debuggable there.
+fn debuggableIn(c: mut Checker, p: Program, ty: int, seen: &mut List<int>) bool {
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Bool ||
+       kind == TyKind.Str || kind == TyKind.Unit || kind == TyKind.Never ||
+       kind == TyKind.Error {
+        return true
+    }
+    if kind == TyKind.Ref || kind == TyKind.Array {
+        return debuggableIn(c, p, c.types.get(ty).inner, seen)
+    }
+    if kind == TyKind.Param {
+        return paramBounds(c, ty) & BOUND_DEBUG != 0
+    }
+    if kind != TyKind.Tuple && kind != TyKind.Adt {
+        return false
+    }
+    for i in 0..seen.len() {
+        if seen[i] == ty {
+            return true
+        }
+    }
+    seen.push(ty)
+    const args = c.types.get(ty).args.clone()
+    if kind == TyKind.Tuple || debugMethod(c, p, ty) != 0 {
+        for i in 0..args.len() {
+            if !debuggableIn(c, p, args[i], seen) {
+                return false
+            }
+        }
+        return true
+    }
+    if declaredMethod(c, p, ty, "debug") != 0 || declaredMethod(c, p, ty, "drop") != 0 {
+        return false
+    }
+    const id = c.types.get(ty).data
+    if c.def(id).kind == DefKind.Struct {
+        if !structFields(c, p, id) {
+            return false
+        }
+        const count = fieldsOf(c, id).types.len()
+        for i in 0..count {
+            if !debuggableIn(c, p, structFieldType(c, p, ty, i), seen) {
+                return false
+            }
+        }
+        return true
+    }
+    if enumOf(c, p, ty).isNone() {
+        return false
+    }
+    const count = variantsOf(c, id).variants.len()
+    for v in 0..count {
+        const fields = variantsOf(c, id).variants[v].types.len()
+        for i in 0..fields {
+            if !debuggableIn(c, p, variantFieldType(c, p, ty, v, i), seen) {
+                return false
+            }
+        }
+    }
+    return true
+}

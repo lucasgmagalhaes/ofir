@@ -1,0 +1,741 @@
+/**
+ * @module
+ * Name resolution (spec chapter 7, design/compiler-architecture.md 5; stage
+ * 0: bootstrap/src/sema/resolve.c). Three passes over every module:
+ * declarations, imports, then bodies, so that modules may refer to each
+ * other in any order. The results are kept beside the trees, in a
+ * `Resolutions` per module indexed by `NodeId`.
+ */
+
+import base.intern.Interner
+import base.intern.Symbol
+import base.span.SourceMap
+import base.span.Span
+import diag.Diagnostics
+import diag.noSpan
+import sema.core.def.Def
+import sema.core.def.DefKind
+import sema.core.def.Local
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.scope.Scope
+import sema.resolve.resolve_attributes.checkAttributes
+import sema.resolve.resolve_attributes.recordDeprecated
+import sema.resolve.resolve_body.resolveExpr
+import sema.resolve.resolve_body.resolveFn
+import sema.resolve.resolve_import.bindReexports
+import sema.resolve.resolve_import.importPrelude
+import sema.resolve.resolve_import.resolveImport
+import sema.resolve.trace.Trace
+import syntax.ast.Attribute
+import syntax.ast.ExprKind
+import syntax.ast.FnDecl
+import syntax.ast.Item
+import syntax.ast.ItemKind
+import syntax.ast.Mode
+import syntax.ast.TypeExpr
+import syntax.ast.TypeKind
+import syntax.ast.WherePred
+
+/**
+ * What the resolver found in one module, by `NodeId`.
+ */
+pub struct Resolutions {
+    /** What each name stands for: identifiers, `self`, `Self`, the module
+     * members `m.x`, the shorthand fields `P{x}`, and the patterns that name
+     * a prelude variant (`None`, `Some(x)`). */
+    pub res: List<Res>
+    /** The local that a binding, a parameter, a `let` or a `for` declares
+     * there, or -1; the second variable of `for i, x` is the next local. */
+    pub locals: List<int>
+    /** The `DefId` of each function and method, by the `NodeId` of its `FnDecl`. */
+    pub fnDefs: List<int>
+    /** The locals of each function with a body, by the `NodeId` of its `FnDecl`. */
+    pub fnLocals: Map<int, List<Local>>
+    /** The locals of the enclosing function that each closure uses, in the
+     * order of their first use, by the `NodeId` of the closure. */
+    pub captures: Map<int, List<int>>
+}
+
+
+/**
+ * An import, for the unused-import warning (W0002).
+ */
+pub struct ImportUse {
+    /** The importing module. */
+    pub module: int
+    /** The name it binds. */
+    pub name: Symbol
+    /** The import. */
+    pub span: Span
+    /** Whether the name is used. */
+    pub used: bool
+}
+
+/**
+ * A declaration that a module re-exports (`pub import`, spec 7.3).
+ */
+pub struct ReExport {
+    /** The re-exporting module. */
+    pub module: int
+    /** The name it binds. */
+    pub name: Symbol
+}
+
+/**
+ * The resolver's state and results.
+ */
+pub struct Resolver {
+    /** Every declaration; `defs[0]` stands for "none". */
+    pub defs: List<Def>
+    /** The module tables and the current function's locals. */
+    pub scope: Scope
+    /** The resolutions of each module. */
+    pub tables: List<Resolutions>
+    /** The `DefId` of `Box`, `List`, `Option`, `Result`, `Slice` and `Map`, or 0. */
+    pub langItems: List<int>
+    /** The `@lang` declaration of each primitive type, by type id, or 0. */
+    pub lang: List<int>
+    /** The interner of the program. */
+    pub names: Interner
+    /** Where errors go. */
+    pub diags: Diagnostics
+    /** The files, for the trace. */
+    pub map: SourceMap
+    /** `--emit=names`: what the root module's names resolve to. */
+    pub trace: Trace
+    /** The names of the modules. */
+    pub moduleNames: List<str>
+    /** The module being resolved. */
+    pub current: int
+    /** Its name. */
+    pub moduleName: str
+    /** The locals of the function being resolved. */
+    pub locals: List<Local>
+    /** The name of the struct or enum whose methods are resolved. */
+    pub owner: Option<Symbol>
+    /** The const parameters in scope: the type's, then the function's (spec 8.7). */
+    pub constParams: List<Symbol>
+    /** The `@deprecated` declarations, by def id: their message, or "". */
+    pub deprecated: Map<int, str>
+    /** `self` */
+    pub selfName: Symbol
+    /**
+     * The program is a harness that runs functions chosen by attribute,
+     * not `main`: `ofir test` (`@test`) or `ofir bench` (`@bench`).
+     */
+    pub testing: bool
+    /** `ofir bench`: the harness runs the `@bench` functions. */
+    pub benching: bool
+    /** `--lib`: a library, whose roots are its C exports, not `main` (ADR 0064). */
+    pub library: bool
+    /** The imports, in module order. */
+    pub imports: List<ImportUse>
+    /** The declarations re-exported with `pub import`. */
+    pub reexports: List<ReExport>
+    /** For each closure being resolved, outermost first: its first local. */
+    pub closureBases: List<int>
+    /** For each closure being resolved: the outer locals it uses. */
+    pub closureCaptures: List<List<int>>
+
+    /**
+     * Marks the import that binds `name` in the current module as used,
+     * unless `name` is the module's own declaration.
+     *
+     * @param name a name used in the current module
+     */
+    pub fn noteImportUse(mut self, name: Symbol) {
+        const id = self.scope.module(name)
+        if id != 0 {
+            const def = &self.defs[id]
+            if def.module == self.current && !def.inPrelude && def.kind != DefKind.Module {
+                return
+            }
+        }
+        let i = self.imports.len()
+        for i > 0 {
+            i -= 1
+            if self.imports[i].module < self.current {
+                break
+            }
+            if self.imports[i].module == self.current && self.imports[i].name.0 == name.0 {
+                self.imports[i].used = true
+            }
+        }
+    }
+
+    /**
+     * Reports an error.
+     *
+     * @param code its code
+     * @param span where
+     * @param message what
+     */
+    pub fn error(mut self, code: str, span: Span, message: move str) {
+        self.diags.error(code, span, message)
+    }
+
+    /**
+     * The text of a name.
+     *
+     * @param name the name
+     * @returns its text
+     */
+    pub fn text(self, name: Symbol) str {
+        return self.names.name(name)
+    }
+
+    /**
+     * The name of a module.
+     *
+     * @param m a module of the program
+     * @returns its dotted name
+     */
+    pub fn programName(self, m: int) str {
+        return self.moduleNames[m].sliceFrom(0)
+    }
+
+    /**
+     * A declaration.
+     *
+     * @param id its `DefId`, not 0
+     * @returns the declaration
+     */
+    pub fn def(self, id: int) &Def {
+        return &self.defs[id]
+    }
+
+    /**
+     * Adds a declaration that no scope binds.
+     *
+     * @param def the declaration
+     * @returns its `DefId`
+     */
+    pub fn addDef(mut self, def: move Def) int {
+        self.defs.push(def)
+        return self.defs.len() - 1
+    }
+
+    /**
+     * Records what a node's name stands for, in the current module.
+     *
+     * @param id the node's number
+     * @param res the resolution
+     */
+    pub fn setRes(mut self, id: int, res: Res) {
+        self.tables[self.current].res[id] = res
+    }
+
+    /**
+     * Records the local that a node declares, in the current module.
+     *
+     * @param id the node's number
+     * @param local the local's index
+     */
+    pub fn setLocal(mut self, id: int, local: int) {
+        self.tables[self.current].locals[id] = local
+    }
+}
+
+// The built-in names of every module: (name, kind, type id of a primitive,
+// as `sema.core.types` numbers them; `int` is `i64`, `uint` is `u64`).
+fn preludeNames() List<(str, DefKind, int)> {
+    return [("int", DefKind.Primitive, 7), ("uint", DefKind.Primitive, 11), ("i8",
+                                                                             DefKind.Primitive, 4),
+            ("i16", DefKind.Primitive, 5), ("i32", DefKind.Primitive, 6), ("i64", DefKind.Primitive,
+                                                                           7),
+            ("u8", DefKind.Primitive, 8), ("u16", DefKind.Primitive, 9), ("u32", DefKind.Primitive,
+                                                                          10),
+            ("u64", DefKind.Primitive, 11), ("float", DefKind.Primitive, 13), ("f32",
+                                                                               DefKind.Primitive,
+                                                                               12),
+            ("f64", DefKind.Primitive, 13), ("bool", DefKind.Primitive, 3), ("str",
+                                                                             DefKind.Primitive, 14),
+            ("print", DefKind.Builtin, 0), ("println", DefKind.Builtin, 1),
+            ("panic", DefKind.Builtin, 2)]
+}
+
+const PRIMITIVE_TYPES: int = 15
+
+/**
+ * Resolves the names of a program.
+ *
+ * @param program its modules, the root first
+ * @param names the interner of their names
+ * @param diags where errors go
+ * @param map their files
+ * @param trace whether to trace the root module's names (`--emit=names`)
+ * @param testing `ofir test` or `ofir bench`: the `@test` (or `@bench`)
+ *   functions are checked and compiled
+ * @param benching `ofir bench`
+ * @param links record name uses and their declarations (`ofir lsp`)
+ * @param probe the name `ofir lsp` inserted to complete, or `""`
+ * @returns the resolver, with the results and the tables it took over
+ */
+pub fn resolveProgram(program: Program, names: move Interner, diags: move Diagnostics,
+                      map: move SourceMap, trace: bool, testing: bool,
+                      benching: bool, links: bool, probe: str) Resolver {
+    let r = newResolver(program, names, diags, map, trace)
+    r.testing = testing
+    r.benching = benching
+    r.trace.linking = links
+    r.trace.probe = probe.toOwned()
+    if links {
+        for m in 0..program.modules.len() {
+            r.trace.moduleFiles.push(program.modules[m].module.file)
+        }
+    }
+    for m in 0..program.modules.len() {
+        const name = program.modules[m].name.clone()
+        const late = name == "std.core.any" || name == "std.core.iter"
+        if !late {   // stage 0 does not load them
+            r.trace.line("module {m} {program.modules[m].name}")
+        }
+    }
+    for pass in 0..3 {
+        for m in 0..program.modules.len() {
+            enter(r, program, m)
+            resolvePass(r, program, pass)
+        }
+        if pass == 0 {
+            importPrelude(r, program)
+            bindReexports(r, program)
+        }
+    }
+    enter(r, program, 0)
+    return r
+}
+
+fn newResolver(program: Program, given: move Interner, diags: move Diagnostics,
+               map: move SourceMap, trace: bool) Resolver {
+    let names = given
+    const prelude = preludeNames()
+    let symbols: List<Symbol> = []
+    for i in 0..prelude.len() {
+        symbols.push(names.intern(prelude[i].0))
+    }
+    const selfName = names.intern("self")   // before the scope tables are sized
+    names.intern("_")
+    let scope = Scope.new(names.len(), program.modules.len())
+    let defs: List<Def> = [noDef()]
+    for i in 0..prelude.len() {
+        defs.push(Def{kind: prelude[i].1, name: symbols[i], span: noSpan(), isPub: true,
+                      inPrelude: true, lang: false, module: 0, item: -1, member: -1,
+                      target: 0, primitive: prelude[i].2})
+        for m in 0..program.modules.len() {   // visible in every module
+            scope.setIn(m, symbols[i], defs.len() - 1)
+        }
+    }
+    let moduleNames: List<str> = []
+    let tables: List<Resolutions> = []
+    for m in 0..program.modules.len() {
+        moduleNames.push(program.modules[m].name.clone())
+        const count = program.modules[m].module.nodeCount
+        tables.push(Resolutions{res: List.filled(Res.None, count), locals: List.filled(-1, count),
+                                fnDefs: List.filled(0, count), fnLocals: Map.new(),
+                                captures: Map.new()})
+    }
+    return Resolver{defs, scope, tables, langItems: List.filled(0, 8),
+                    lang: List.filled(0, PRIMITIVE_TYPES), names, diags, map,
+                    trace: Trace.new(trace), moduleNames, current: 0, moduleName: "", locals: [],
+                    owner: Option.None, constParams: [], deprecated: Map.new(), selfName,
+                    testing: false, benching: false, library: false,
+                    imports: [], reexports: [], closureBases: [], closureCaptures: []}
+}
+
+fn noDef() Def {
+    return Def{kind: DefKind.Fn, name: Symbol(0), span: noSpan(), isPub: false, inPrelude: false,
+               lang: false, module: 0, item: -1, member: -1, target: 0, primitive: -1}
+}
+
+/**
+ * Makes module `m` the one being resolved.
+ *
+ * @param r the resolver
+ * @param program the program
+ * @param m a module
+ */
+pub fn enter(r: mut Resolver, program: Program, m: int) {
+    r.current = m
+    r.moduleName = program.modules[m].name.clone()
+    r.scope.useModule(m)
+    r.trace.active = r.trace.enabled && m == 0
+}
+
+/**
+ * Whether module `m` belongs to the standard library.
+ *
+ * @param program the program
+ * @param m a module
+ * @returns true for `std` and `std.*`
+ */
+pub fn moduleInStd(program: Program, m: int) bool {
+    const name = program.modules[m].name.sliceFrom(0)
+    return name == "std" || name.startsWith("std.")
+}
+
+/**
+ * The attribute `@name(...)` of a declaration.
+ *
+ * @param r the resolver
+ * @param attributes the declaration's attributes
+ * @param name the attribute's name
+ * @returns its position in `attributes`, if it is there
+ */
+pub fn findAttribute(r: Resolver, attributes: List<Attribute>, name: str) Option<int> {
+    for i in 0..attributes.len() {
+        if r.text(attributes[i].name) == name {
+            return Option.Some(i)
+        }
+    }
+    return Option.None
+}
+
+// A `@test` or `@bench` function that this build does not compile (spec
+// 12.2, 12.3): all of them outside `ofir test` and `ofir bench`, those of
+// the other attribute, and those of std modules other than the root.
+fn skippedTest(r: Resolver, program: Program, item: &Item) bool {
+    const isFn = match item.kind {
+        ItemKind.Fn(_) => true
+        _ => false
+    }
+    const test = isFn && findAttribute(r, item.attributes, "test").isSome()
+    const bench = isFn && findAttribute(r, item.attributes, "bench").isSome()
+    if !test && !bench {
+        return false
+    }
+    const wanted = (test && !r.benching) || (bench && r.benching)
+    const tested = r.current == 0 || !moduleInStd(program, r.current)
+    return !r.testing || !tested || !wanted
+}
+
+// ---------------------------------------------------------------------------
+// Declarations
+
+/**
+ * Binds a top-level name in the current module; a declaration of the module
+ * may hide a name of the prelude.
+ *
+ * @param r the resolver
+ * @param def the declaration
+ */
+pub fn declareItem(r: mut Resolver, def: move Def) {
+    const existing = r.scope.module(def.name)
+    if existing != 0 && !r.def(existing).inPrelude {
+        r.error("E0201", def.span, "`{r.text(def.name)}` is defined more than once")
+        return
+    }
+    const name = def.name
+    const id = r.addDef(def)
+    r.scope.setModule(name, id)
+}
+
+fn newDef(r: Resolver, kind: DefKind, name: Symbol, span: Span, isPub: bool, item: int,
+          member: int) Def {
+    return Def{kind, name, span, isPub, inPrelude: false, lang: false, module: r.current, item,
+               member, target: 0, primitive: -1}
+}
+
+fn declareFn(r: mut Resolver, decl: &FnDecl, item: int, member: int, inModule: bool) {
+    const def = newDef(r, DefKind.Fn, decl.name, decl.span, decl.isPub, item, member)
+    if inModule {
+        declareItem(r, def)
+        r.tables[r.current].fnDefs[decl.id.0] = r.scope.module(decl.name)
+    } else {
+        r.tables[r.current].fnDefs[decl.id.0] = r.addDef(def)   // found through their type
+    }
+}
+
+// Methods and fields share one namespace per type.
+fn checkMembers(r: mut Resolver, methods: List<FnDecl>, item: int) {
+    for i in 0..methods.len() {
+        for j in 0..i {
+            if methods[j].name.0 == methods[i].name.0 {
+                r.error("E0201", methods[i].span,
+                        "`{r.text(methods[i].name)}` is defined more than once")
+            }
+        }
+        declareFn(r, &methods[i], item, i, false)
+    }
+}
+
+fn inStd(r: Resolver) bool {
+    return r.moduleName.startsWith("std")
+}
+
+// The `@lang` types of std that the compiler knows by name (spec 2.6), in
+// the order of `Resolver.langItems`.
+fn langItemIndex(name: str) int {
+    const items = ["box", "list", "option", "result", "slice", "map", "unsafe_cell", "slice_mut"]
+    for i in 0..items.len() {
+        if items[i] == name {
+            return i
+        }
+    }
+    return -1
+}
+
+// The string argument of `@lang("...")`.
+fn langArgument(attribute: &Attribute) Option<str> {
+    if attribute.args.len() != 1 {
+        return Option.None
+    }
+    return match attribute.args[0].kind {
+        ExprKind.Str(text) => Option.Some(text.clone())
+        _ => Option.None
+    }
+}
+
+// `@lang("box") struct Box<T>`, ...: ordinary declarations of std that the
+// compiler knows. The index of their free `LangItem` slot, or -1.
+fn namedLang(r: Resolver, attribute: Option<&Attribute>) int {
+    const Option.Some(attr) = attribute else {
+        return -1
+    }
+    const Option.Some(name) = langArgument(attr) else {
+        return -1
+    }
+    const slot = if inStd(r) { langItemIndex(name) } else { -1 }
+    return if slot >= 0 && r.langItems[slot] == 0 { slot } else { -1 }
+}
+
+// `@lang("str") struct str { ... }` in std: the body of a primitive type. It
+// declares no name; the primitive gets its fields and methods.
+fn collectLang(r: mut Resolver, item: &Item, index: int, methods: List<FnDecl>) bool {
+    const Option.Some(at) = findAttribute(r, item.attributes, "lang") else {
+        return false
+    }
+    const attr = &item.attributes[at]
+    if namedLang(r, Option.Some(attr)) >= 0 {
+        return false
+    }
+    const stdModule = inStd(r)
+    let primitive = 0
+    if const Option.Some(name) = langArgument(attr) {
+        if const Option.Some(symbol) = r.names.find(name) {
+            primitive = r.scope.module(symbol)
+        }
+    }
+    const isPrimitive = primitive != 0 && r.def(primitive).kind == DefKind.Primitive
+    const taken = isPrimitive && r.lang[r.def(primitive).primitive] != 0
+    if !stdModule || !isPrimitive || taken {
+        const message = if stdModule {
+            "`@lang` needs a primitive type or a std type name, declared once: `@lang(\"str\")`"
+        } else {
+            "`@lang` is reserved to the standard library"
+        }
+        r.error("E0805", attr.span, message.toOwned())
+        return true
+    }
+    let def = newDef(r, DefKind.Struct, item.name, item.span, true, index, -1)
+    def.lang = true
+    def.primitive = r.def(primitive).primitive
+    const type = def.primitive
+    r.lang[type] = r.addDef(def)
+    checkMembers(r, methods, index)
+    return true
+}
+
+// The variants of Option and Result are names of their own (spec 6.1).
+fn declareVariants(r: mut Resolver, item: &Item, index: int, owner: int) {
+    match item.kind {
+        ItemKind.Enum(_, _, variants, _) => {
+            for i in 0..variants.len() {
+                let def = newDef(r, DefKind.Variant, variants[i].name, variants[i].span, true,
+                                 index, i)
+                def.target = owner
+                declareItem(r, def)
+            }
+        }
+        _ => {}
+    }
+}
+
+fn itemKind(kind: &ItemKind) DefKind {
+    return match *kind {
+        ItemKind.Struct(_, _, _, _, _, _) => DefKind.Struct
+        ItemKind.Enum(_, _, _, _) => DefKind.Enum
+        ItemKind.Const(_, _) => DefKind.Const
+        ItemKind.Global(_, _) => DefKind.Global
+        ItemKind.TypeAlias(_, _) => DefKind.TypeAlias
+        ItemKind.Interface(_, _, _) => DefKind.Interface
+        _ => DefKind.Fn
+    }
+}
+
+fn collectItem(r: mut Resolver, item: &Item, index: int) {
+    match item.kind {
+        ItemKind.Fn(decl) => declareFn(r, &*decl, index, -1, true)
+        ItemKind.Extern(_, fns) => {
+            for i in 0..fns.len() {
+                declareFn(r, &fns[i], index, i, true)
+            }
+        }
+        ItemKind.Import(_, _) => {}   // bound once every module's declarations are known
+        ItemKind.Struct(_, _, isTuple, _, _, methods) => {
+            if collectLang(r, item, index, methods) {
+                return
+            }
+            declareItem(r, newDef(r, DefKind.Struct, item.name, item.span, item.isPub, index, -1))
+            checkMembers(r, methods, index)
+            if !isTuple {
+                namedSlot(r, item, index)
+            }
+        }
+        ItemKind.Enum(_, _, _, methods) => {
+            declareItem(r, newDef(r, DefKind.Enum, item.name, item.span, item.isPub, index, -1))
+            checkMembers(r, methods, index)
+            namedSlot(r, item, index)
+        }
+        ItemKind.Interface(_, _, methods) => {
+            declareItem(r, newDef(r, DefKind.Interface, item.name, item.span, item.isPub, index,
+                                  -1))
+            checkMembers(r, methods, index)
+        }
+        _ => declareItem(r, newDef(r, itemKind(&item.kind), item.name, item.span, item.isPub,
+                                   index, -1))
+    }
+}
+
+// A `@lang("list")` struct or enum fills its slot; an enum's variants become
+// names (`Some`, `Ok`).
+fn namedSlot(r: mut Resolver, item: &Item, index: int) {
+    let attr: Option<&Attribute> = Option.None
+    if const Option.Some(at) = findAttribute(r, item.attributes, "lang") {
+        attr = Option.Some(&item.attributes[at])
+    }
+    const slot = namedLang(r, attr)
+    if slot < 0 {
+        return
+    }
+    r.langItems[slot] = r.scope.module(item.name)
+    if const ItemKind.Enum(_, _, _, _) = item.kind {
+        declareVariants(r, item, index, r.langItems[slot])
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Passes
+
+/**
+ * The names of the const parameters among bounds: `N` of `const N: int`
+ * (spec 8.7).
+ *
+ * @param preds the bounds
+ * @returns the names
+ */
+pub fn constParamsOf(preds: List<WherePred>) List<Symbol> {
+    let names: List<Symbol> = []
+    for i in 0..preds.len() {
+        if preds[i].isConst {
+            if const TypeKind.Path(segments, _) = preds[i].ty.kind {
+                names.push(segments[0])
+            }
+        }
+    }
+    return names
+}
+
+fn resolveItem(r: mut Resolver, item: &Item) {
+    match item.kind {
+        ItemKind.Fn(decl) => resolveFn(r, &*decl)
+        ItemKind.Struct(_, _, _, _, fields, methods) => {
+            r.owner = Option.Some(item.name)
+            r.constParams = constParamsOf(item.bounds)
+            for i in 0..methods.len() {
+                resolveFn(r, &methods[i])
+            }
+            r.constParams = []
+            r.owner = Option.None
+            for i in 0..fields.len() {
+                if const Option.Some(value) = fields[i].defaultValue {
+                    resolveExpr(r, &value)
+                }
+            }
+        }
+        ItemKind.Enum(_, _, _, methods) | ItemKind.Interface(_, _, methods) => {
+            r.owner = Option.Some(item.name)
+            r.constParams = constParamsOf(item.bounds)
+            for i in 0..methods.len() {
+                resolveFn(r, &methods[i])
+            }
+            r.constParams = []
+            r.owner = Option.None
+        }
+        ItemKind.Const(_, value) => resolveExpr(r, &value)
+        ItemKind.Global(_, value) => resolveExpr(r, &value)
+        _ => {}
+    }
+}
+
+// `@test fn name() { ... }` (spec 12.2): `ofir test` calls it with nothing.
+fn checkTestSignature(r: mut Resolver, item: &Item) {
+    if findAttribute(r, item.attributes, "test").isNone() {
+        return
+    }
+    match item.kind {
+        ItemKind.Fn(decl) => {
+            if decl.params.len() > 0 || decl.ret.isSome() || decl.typeParams.len() > 0 {
+                r.error("E0205", decl.span,
+                        "a `@test` function takes no parameters and returns nothing".toOwned())
+            }
+        }
+        _ => {}
+    }
+}
+
+// `@bench fn name(b: mut Bencher) { ... }` (spec 12.3): `ofir bench` calls
+// it with a `Bencher`.
+fn checkBenchSignature(r: mut Resolver, item: &Item) {
+    if findAttribute(r, item.attributes, "bench").isNone() {
+        return
+    }
+    match item.kind {
+        ItemKind.Fn(decl) => {
+            let ok = decl.params.len() == 1 && decl.ret.isNone() && decl.typeParams.len() == 0
+            if ok {
+                ok = decl.params[0].mode == Mode.Mut && isBencher(r, &decl.params[0].ty)
+            }
+            if !ok {
+                r.error("E0206", decl.span, "a `@bench` function takes one parameter, "
+                        + "`b: mut Bencher`, and returns nothing")
+            }
+        }
+        _ => {}
+    }
+}
+
+fn isBencher(r: Resolver, ty: &TypeExpr) bool {
+    return match ty.kind {
+        TypeKind.Path(segments, args) => {
+            args.len() == 0 && r.text(segments[segments.len() - 1]) == "Bencher"
+        }
+        _ => false
+    }
+}
+
+fn resolvePass(r: mut Resolver, program: Program, pass: int) {
+    const items = &program.modules[r.current].module.items
+    for i in 0..items.len() {
+        const item = &items[i]
+        if pass == 0 {
+            checkAttributes(r, item)
+            checkTestSignature(r, item)
+            checkBenchSignature(r, item)
+        }
+        if skippedTest(r, program, item) {
+            continue
+        }
+        if pass == 0 {
+            const first = r.defs.len()
+            collectItem(r, item, i)
+            recordDeprecated(r, item, first)
+        } else if pass == 1 {
+            if const ItemKind.Import(path, alias) = item.kind {
+                resolveImport(r, program, path, alias, item.span, item.isPub)
+            }
+        } else {
+            resolveItem(r, item)
+        }
+    }
+}

@@ -1,0 +1,160 @@
+/**
+ * @module
+ * The layout attributes (spec 13.2, 13.3): `@repr(C)`, `@packed` and
+ * `@align(N)`, their checks and the queries code generation asks.
+ */
+
+import sema.check.check.Checker
+import sema.check.check.itemOf
+import sema.check.enums.variantsOf
+import sema.check.structs.fieldsOf
+import sema.core.def.DefKind
+import sema.core.program.Program
+import sema.core.types.TyKind
+import sema.resolve.resolve.findAttribute
+import syntax.ast.ExprKind
+import syntax.ast.Expr
+import syntax.ast.ItemKind
+
+/**
+ * Whether a struct is `@packed`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the struct's `DefId`
+ * @returns true if it is
+ */
+pub fn isPacked(c: Checker, p: Program, id: int) bool {
+    if c.def(id).kind != DefKind.Struct || c.def(id).item < 0 {
+        return false
+    }
+    return findAttribute(c.r, itemOf(p, c.loc(id)).attributes, "packed").isSome()
+}
+
+/**
+ * The `N` of a struct's `@align(N)`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the struct's `DefId`
+ * @returns it, 0 without the attribute
+ */
+pub fn alignAttr(c: Checker, p: Program, id: int) int {
+    if c.def(id).kind != DefKind.Struct || c.def(id).item < 0 {
+        return 0
+    }
+    const attributes = &itemOf(p, c.loc(id)).attributes
+    const Option.Some(at) = findAttribute(c.r, attributes.clone(), "align") else {
+        return 0
+    }
+    return match attributes[at].args[0].kind {
+        ExprKind.Int(value) => value.wrappingCast<i64>()
+        _ => 0
+    }
+}
+
+/**
+ * Whether a struct keeps its fields in declaration order (spec 13.2):
+ * `@repr(C)`, `@packed`, `@lang` or without a declaration. Others are
+ * reordered by code generation.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the struct's `DefId`
+ * @returns true if it does
+ */
+pub fn fixedOrder(c: Checker, p: Program, id: int) bool {
+    if c.def(id).kind != DefKind.Struct || c.def(id).item < 0 {
+        return true
+    }
+    const attributes = &itemOf(p, c.loc(id)).attributes
+    return findAttribute(c.r, attributes.clone(), "repr").isSome() ||
+           findAttribute(c.r, attributes.clone(), "packed").isSome() ||
+           findAttribute(c.r, attributes.clone(), "lang").isSome()
+}
+
+// The types a field of a `@packed` struct may have.
+fn packable(c: Checker, p: Program, ty: int) bool {
+    const t = c.types.get(ty)
+    return match t.kind {
+        TyKind.Bool | TyKind.Int | TyKind.Float | TyKind.Error => true
+        TyKind.Adt => isPacked(c, p, t.data)
+        _ => false
+    }
+}
+
+/**
+ * Checks the layout attributes of a struct (E0808, E0811).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the struct's `DefId`
+ */
+pub fn checkStructAttrs(c: mut Checker, p: Program, id: int) {
+    const item = itemOf(p, c.loc(id))
+    const align = findAttribute(c.r, item.attributes.clone(), "align")
+    if const Option.Some(at) = align {
+        if isPacked(c, p, id) {
+            const span = item.attributes[at].span
+            c.error("E0808", span, "`@align` does not apply to a `@packed` struct".toOwned())
+        }
+    }
+    if !isPacked(c, p, id) || c.info[id].fields.isNone() {
+        return
+    }
+    const fields = match item.kind {
+        ItemKind.Struct(_, _, _, _, fields, _) => fields.clone()
+        _ => []
+    }
+    const types = fieldsOf(c, id).types.clone()
+    for i in 0..types.len() {
+        if i < fields.len() && !packable(c, p, types[i]) {
+            c.error("E0811", fields[i].span, "a field of a `@packed` struct must be `bool`, a "
+                    + "number or a `@packed` struct, not `{c.typeName(types[i])}`")
+        }
+    }
+}
+
+/**
+ * Checks `@repr(C)` on an enum: it has no payloads (E0808).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the enum's `DefId`
+ */
+pub fn checkEnumAttrs(c: mut Checker, p: Program, id: int) {
+    const item = itemOf(p, c.loc(id))
+    const Option.Some(at) = findAttribute(c.r, item.attributes.clone(), "repr") else {
+        return
+    }
+    if c.info[id].variants.isSome() && variantsOf(c, id).hasPayload {
+        c.error("E0808", item.attributes[at].span, "`@repr(C)` applies only to enums without "
+                + "payloads")
+    }
+}
+
+/**
+ * Reports E0812 when `e` is a field of a `@packed` struct, borrowed.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param e the borrowed place
+ */
+pub fn checkPackedBorrow(c: mut Checker, p: Program, e: &Expr) {
+    const base = match e.kind {
+        ExprKind.Field(base, _, _) => base.id.0
+        ExprKind.TupleField(base, _) => base.id.0
+        _ => -1
+    }
+    if base < 0 {
+        return
+    }
+    let ty = c.typeOf(base)
+    if c.types.kind(ty) == TyKind.Ref {
+        ty = c.types.get(ty).inner
+    }
+    if c.types.kind(ty) == TyKind.Adt && isPacked(c, p, c.types.get(ty).data) {
+        c.error("E0812", e.span, "cannot borrow a field of a `@packed` struct: its address may "
+                + "not be aligned")
+    }
+}

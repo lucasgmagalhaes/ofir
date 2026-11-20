@@ -1,0 +1,108 @@
+/**
+ * @module
+ * Completion for the language server (docs/design/toolchain.md): the
+ * server inserts a probe, a name no program declares, where the editor
+ * asks for a completion; the resolver and the type checker report it as
+ * unknown, and at that point the names visible there are kept in
+ * `r.trace.completions`, as the "did you mean" suggestions are found.
+ */
+
+import base.intern.Symbol
+import sema.core.def.DefKind
+import sema.resolve.resolve.Resolver
+import sema.resolve.trace.Completion
+import sema.resolve.trace.CompletionKind
+
+/**
+ * Whether `name` is the probe, not reached yet.
+ *
+ * @param r the resolver
+ * @param name an unknown name
+ * @returns true to keep the names visible here
+ */
+pub fn probing(r: Resolver, name: Symbol) bool {
+    return r.trace.probe.len() > 0 && r.trace.completions.len() == 0 &&
+        r.text(name).contains(r.trace.probe)
+}
+
+/**
+ * Keeps a completion, unless it is the probe itself.
+ *
+ * @param r the resolver
+ * @param label the name
+ * @param kind what it stands for
+ */
+pub fn offer(r: mut Resolver, label: str, kind: CompletionKind) {
+    if !label.contains(r.trace.probe) {
+        r.trace.completions.push(Completion{label: label.toOwned(), kind})
+    }
+}
+
+/**
+ * What a declaration of this kind completes as.
+ *
+ * @param kind the kind
+ * @returns the completion kind
+ */
+pub fn completionKind(kind: DefKind) CompletionKind {
+    return match kind {
+        DefKind.Fn | DefKind.Builtin => CompletionKind.Function
+        DefKind.Primitive | DefKind.Struct | DefKind.Enum | DefKind.TypeAlias => {
+            CompletionKind.Type
+        }
+        DefKind.Const | DefKind.Global => CompletionKind.Constant
+        DefKind.Module => CompletionKind.Module
+        DefKind.Variant => CompletionKind.Variant
+        DefKind.Interface => CompletionKind.Interface
+    }
+}
+
+// Whether a declaration of this kind can start a type: a type or a module.
+fn startsType(kind: DefKind) bool {
+    return match kind {
+        DefKind.Fn | DefKind.Builtin | DefKind.Const | DefKind.Global | DefKind.Variant => false
+        _ => true
+    }
+}
+
+/**
+ * Keeps the names visible in the current scope: the locals and the
+ * current module's table, or only what can start a type.
+ *
+ * @param r the resolver
+ * @param types whether a type is expected
+ */
+pub fn completeScope(r: mut Resolver, types: bool) {
+    for i in 0..r.scope.symbols() {
+        const name = Symbol(i)
+        if !types && r.scope.localOf(name).isSome() {
+            offer(r, r.text(name), CompletionKind.Variable)
+            continue
+        }
+        const id = r.scope.module(name)
+        if id != 0 && (!types || startsType(r.def(id).kind)) {
+            offer(r, r.text(name), completionKind(r.def(id).kind))
+        }
+    }
+}
+
+/**
+ * Keeps the public declarations of module `index`, or only its types.
+ *
+ * @param r the resolver
+ * @param index the module
+ * @param types whether a type is expected
+ */
+pub fn completeMember(r: mut Resolver, index: int, types: bool) {
+    for i in 0..r.scope.symbols() {
+        const id = r.scope.moduleIn(index, Symbol(i))
+        if id == 0 {
+            continue
+        }
+        const def = r.def(id)
+        const own = !def.inPrelude && def.module == index && def.isPub
+        if own && def.kind != DefKind.Module && (!types || startsType(def.kind)) {
+            offer(r, r.text(Symbol(i)), completionKind(def.kind))
+        }
+    }
+}

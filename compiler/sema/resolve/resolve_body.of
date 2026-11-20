@@ -1,0 +1,483 @@
+/**
+ * @module
+ * Name resolution of function bodies (stage 0:
+ * bootstrap/src/sema/resolve_body.c): binds each name to a local or a
+ * declaration and numbers the locals of each function. The parameters and
+ * the top level of the body are one scope (spec 3.1); each block, loop and
+ * match arm opens a nested one.
+ */
+
+import base.intern.Symbol
+import base.span.Span
+import sema.core.def.DefKind
+import sema.core.def.Local
+import sema.core.def.Res
+import sema.resolve.resolve.Resolver
+import sema.resolve.resolve.constParamsOf
+import sema.resolve.resolve_attributes.warnDeprecated
+import sema.resolve.resolve_import.resolveQualified
+import sema.resolve.trace.traceAt
+import sema.resolve.trace.traceUse
+import sema.resolve.complete.completeScope
+import sema.resolve.complete.probing
+import sema.resolve.suggest.SuggestScope
+import sema.resolve.suggest.suggestName
+import syntax.ast.Arg
+import syntax.ast.Block
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FnDecl
+import syntax.ast.Mode
+import syntax.ast.Param
+import syntax.ast.ForKind
+import syntax.ast.Pattern
+import syntax.ast.PatternKind
+import syntax.ast.Stmt
+import syntax.ast.StmtKind
+
+fn declareLocal(r: mut Resolver, name: Symbol, span: Span, mutable: bool) int {
+    if r.scope.inCurrentBlock(name) {
+        r.error("E0201", span, "`{r.text(name)}` is defined more than once in this scope")
+    }
+    const id = r.locals.len()
+    traceAt(r, span, "local {id} {r.text(name)}")
+    r.locals.push(Local{name, span, mutable, used: false})
+    r.scope.declare(name, id)
+    return id
+}
+
+// A use of `local`: each closure being resolved that starts after it
+// captures it (spec 10.3).
+fn capture(r: mut Resolver, local: int) {
+    let k = r.closureBases.len() - 1
+    for k >= 0 && local < r.closureBases[k] {
+        let known = false
+        for c in 0..r.closureCaptures[k].len() {
+            known = known || r.closureCaptures[k][c] == local
+        }
+        if !known {
+            r.closureCaptures[k].push(local)
+        }
+        k -= 1
+    }
+}
+
+// A closure: its parameters are locals of the enclosing function, numbered
+// after the locals before it; the outer locals it uses are its captures.
+fn resolveClosure(r: mut Resolver, e: &Expr, params: List<Param>, body: &Expr) {
+    r.closureBases.push(r.locals.len())
+    r.closureCaptures.push([])
+    r.scope.enter()
+    for i in 0..params.len() {
+        const param = &params[i]
+        const local = declareLocal(r, param.name, param.span, param.mode == Mode.Mut)
+        r.locals[local].used = true   // parameters are exempt from W0001
+        r.setLocal(param.id.0, local)
+    }
+    resolveExpr(r, body)
+    r.scope.leave()
+    const _ = r.closureBases.pop()
+    const captures = r.closureCaptures.pop() ?? []
+    r.tables[r.current].captures.insert(e.id.0, captures)
+}
+
+fn lookup(r: mut Resolver, name: Symbol, span: Span) Res {
+    const res = find(r, name, span)
+    traceUse(r, "use", name, span, res)
+    if const Res.Def(def) = res {
+        warnDeprecated(r, def, span)
+    }
+    return res
+}
+
+fn find(r: mut Resolver, name: Symbol, span: Span) Res {
+    if const Option.Some(local) = r.scope.localOf(name) {
+        r.locals[local].used = true
+        capture(r, local)
+        return Res.Local(local)
+    }
+    for i in 0..r.constParams.len() {
+        if r.constParams[i].0 == name.0 {
+            return Res.ConstParam(name)
+        }
+    }
+    const def = r.scope.module(name)
+    if def != 0 {
+        if r.def(def).module != r.current || r.def(def).kind == DefKind.Module {   // maybe imported
+            r.noteImportUse(name)
+        }
+        return Res.Def(def)
+    }
+    r.error("E0200", span, "cannot find `{r.text(name)}` in this scope")
+    if r.text(name) == "assert" {   // no longer built in (ADR 0036)
+        r.diags.help("import it: `import std.testing.assert`".toOwned())
+    } else {
+        suggestName(r, name, SuggestScope.Value)
+    }
+    if probing(r, name) {
+        completeScope(r, false)
+    }
+    return Res.Error
+}
+
+// ---------------------------------------------------------------------------
+// Patterns
+
+// `None` and `Some(x)` in a pattern name the prelude's variants, not a new
+// binding or a tuple struct. Their `DefId`, or 0.
+fn preludeVariant(r: mut Resolver, p: &Pattern) int {
+    const name = match p.kind {
+        PatternKind.Binding(name, _) => name
+        PatternKind.TupleStruct(path, _) => {
+            if path.len() != 1 {
+                return 0
+            }
+            path[0]
+        }
+        _ => {
+            return 0
+        }
+    }
+    const def = r.scope.module(name)
+    if def == 0 || r.def(def).kind != DefKind.Variant {
+        return 0
+    }
+    if const PatternKind.Binding(_, mutable) = p.kind {
+        if mutable {
+            r.error("E0200", p.span, "`{r.text(name)}` is a variant, not a variable")
+        }
+    }
+    r.setRes(p.id.0, Res.Def(def))
+    traceUse(r, "variant", name, p.span, Res.Def(def))
+    return def
+}
+
+// A binding; with `reuse`, a name already bound in this block keeps its
+// local: the alternatives of `a | b` bind the same names.
+fn declareBinding(r: mut Resolver, id: int, name: Symbol, span: Span, mutable: bool,
+                  reuse: bool) {
+    if reuse && r.scope.inCurrentBlock(name) {
+        if const Option.Some(existing) = r.scope.localOf(name) {
+            r.setLocal(id, existing)
+            return
+        }
+    }
+    r.setLocal(id, declareLocal(r, name, span, mutable))
+}
+
+// The shorthand field `Point{x}` of a pattern binds `x`, unless it names a
+// prelude variant.
+fn declareShorthand(r: mut Resolver, id: int, name: Symbol, span: Span, reuse: bool) {
+    const def = r.scope.module(name)
+    if def != 0 && r.def(def).kind == DefKind.Variant {
+        r.setRes(id, Res.Def(def))
+        traceUse(r, "variant", name, span, Res.Def(def))
+        return
+    }
+    declareBinding(r, id, name, span, false, reuse)
+}
+
+fn declarePattern(r: mut Resolver, p: &Pattern, reuse: bool) {
+    if preludeVariant(r, p) != 0 {
+        if const PatternKind.TupleStruct(_, args) = p.kind {
+            declarePatterns(r, args, reuse)
+        }
+        return
+    }
+    match p.kind {
+        PatternKind.Binding(name, mutable) => declareBinding(r, p.id.0, name, p.span, mutable,
+                                                             reuse)
+        PatternKind.Literal(value) => resolveExpr(r, &*value)
+        PatternKind.Range(lo, hi, _) => {
+            resolveExpr(r, &*lo)
+            resolveExpr(r, &*hi)
+        }
+        PatternKind.Variant(_, _, args, _) => declarePatterns(r, args, reuse)
+        PatternKind.Tuple(items) => declarePatterns(r, items, reuse)
+        PatternKind.TupleStruct(_, args) => declarePatterns(r, args, reuse)
+        PatternKind.Struct(_, fields, _) => {
+            for i in 0..fields.len() {
+                if const Option.Some(inner) = fields[i].pattern {
+                    declarePattern(r, &inner, reuse)
+                } else {
+                    declareShorthand(r, fields[i].id.0, fields[i].name, p.span, reuse)
+                }
+            }
+        }
+        PatternKind.Or(alternatives) => {
+            for i in 0..alternatives.len() {
+                declarePattern(r, &alternatives[i], reuse || i > 0)
+            }
+        }
+        PatternKind.TypeTest(name, _) => {
+            if const Option.Some(n) = name {
+                declareBinding(r, p.id.0, n, p.span, false, reuse)
+            }
+        }
+        PatternKind.At(name, mutable, inner) => {
+            declareBinding(r, p.id.0, name, p.span, mutable, reuse)
+            declarePattern(r, &*inner, reuse)
+        }
+        PatternKind.Wildcard => {}
+    }
+}
+
+fn declarePatterns(r: mut Resolver, list: List<Pattern>, reuse: bool) {
+    for i in 0..list.len() {
+        declarePattern(r, &list[i], reuse)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Expressions
+
+fn resolveExprs(r: mut Resolver, list: List<Expr>) {
+    for i in 0..list.len() {
+        resolveExpr(r, &list[i])
+    }
+}
+
+fn resolveArgs(r: mut Resolver, args: List<Arg>) {
+    for i in 0..args.len() {
+        resolveExpr(r, &args[i].value)
+    }
+}
+
+fn resolveOptional(r: mut Resolver, e: &Option<Box<Expr>>) {
+    if const Option.Some(inner) = *e {
+        resolveExpr(r, &*inner)
+    }
+}
+
+fn resolveSelf(r: mut Resolver, e: &Expr) {
+    if const Option.Some(local) = r.scope.localOf(r.selfName) {
+        capture(r, local)
+        r.setRes(e.id.0, Res.Local(local))
+        traceUse(r, "use", r.selfName, e.span, Res.Local(local))
+    } else {
+        r.error("E0200", e.span, "`self` is only available in methods".toOwned())
+        r.setRes(e.id.0, Res.Error)
+    }
+}
+
+// `Self` in a method names the enclosing type.
+fn resolveSelfType(r: mut Resolver, e: &Expr) {
+    const Option.Some(owner) = r.owner else {
+        r.error("E0200", e.span, "`Self` is only available inside a type".toOwned())
+        r.setRes(e.id.0, Res.Error)
+        return
+    }
+    const res: Res = Res.Def(r.scope.module(owner))
+    r.setRes(e.id.0, res)
+    traceUse(r, "use Self as", owner, e.span, res)
+}
+
+/**
+ * Resolves the names of an expression.
+ *
+ * @param r the resolver
+ * @param e the expression
+ */
+pub fn resolveExpr(r: mut Resolver, e: &Expr) {
+    match e.kind {
+        ExprKind.Int(_) | ExprKind.Float(_) | ExprKind.Byte(_) | ExprKind.Str(_) |
+        ExprKind.ByteStr(_) | ExprKind.Bool(_) => {}
+        ExprKind.SelfType => resolveSelfType(r, e)
+        ExprKind.Interp(parts, _) => resolveExprs(r, parts)
+        ExprKind.Ident(name) => {
+            const res = lookup(r, name, e.span)
+            r.setRes(e.id.0, res)
+        }
+        ExprKind.SelfValue => resolveSelf(r, e)
+        ExprKind.Generic(name, _) => {
+            const res = lookup(r, name, e.span)
+            r.setRes(e.id.0, res)
+        }
+        ExprKind.Unary(_, operand) => resolveExpr(r, &*operand)
+        ExprKind.Binary(_, lhs, rhs) => {
+            resolveExpr(r, &*lhs)
+            resolveExpr(r, &*rhs)
+        }
+        ExprKind.Cast(value, _) => resolveExpr(r, &*value)
+        ExprKind.Range(lo, hi, _) => {
+            resolveOptional(r, &lo)
+            resolveOptional(r, &hi)
+        }
+        ExprKind.Call(callee, args) => {
+            resolveExpr(r, &*callee)
+            resolveArgs(r, args)
+        }
+        ExprKind.Index(base, index) => {
+            resolveExpr(r, &*base)
+            resolveExpr(r, &*index)
+        }
+        ExprKind.Field(base, name,
+                       _) => {   // a field or method needs types; a module member is known
+            resolveExpr(r, &*base)
+            resolveQualified(r, e, &*base, name)
+        }
+        ExprKind.TupleField(base, _) => resolveExpr(r, &*base)
+        ExprKind.Try(inner) => resolveExpr(r, &*inner)
+        ExprKind.Struct(typeName, fields, base) => {
+            resolveExpr(r, &*typeName)
+            for i in 0..fields.len() {
+                if const Option.Some(value) = fields[i].value {
+                    resolveExpr(r, &value)
+                } else {   // `Point{x}` is `Point{x: x}`
+                    const res = lookup(r, fields[i].name, e.span)
+                    r.setRes(fields[i].id.0, res)
+                }
+            }
+            resolveOptional(r, &base)
+        }
+        ExprKind.Array(elems) => resolveExprs(r, elems)
+        ExprKind.Tuple(elems) => resolveExprs(r, elems)
+        ExprKind.Repeat(value, count) => {
+            resolveExpr(r, &*value)
+            resolveExpr(r, &*count)
+        }
+        ExprKind.Variant(_, args, _) => resolveArgs(r, args)
+        ExprKind.If(letPattern, cond, then, otherwise) => {
+            resolveExpr(r, &*cond)
+            r.scope.enter()   // `if const` bindings are visible in `then` only
+            if const Option.Some(pattern) = letPattern {
+                declarePattern(r, &pattern, false)
+            }
+            resolveBlock(r, &then)
+            r.scope.leave()
+            resolveOptional(r, &otherwise)
+        }
+        ExprKind.Match(scrutinee, arms) => {
+            resolveExpr(r, &*scrutinee)
+            for i in 0..arms.len() {
+                r.scope.enter()
+                declarePattern(r, &arms[i].pattern, false)
+                if const Option.Some(guard) = arms[i].guard {
+                    resolveExpr(r, &guard)
+                }
+                resolveExpr(r, &arms[i].body)
+                r.scope.leave()
+            }
+        }
+        ExprKind.Block(block) => resolveBlock(r, &block)
+        ExprKind.Unsafe(block) => resolveBlock(r, &block)
+        ExprKind.Comptime(inner) => resolveExpr(r, &*inner)
+        ExprKind.Keys(_) => {}
+        ExprKind.Closure(params, _, body, _) => resolveClosure(r, e, params, &*body)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Statements
+
+fn resolveStmt(r: mut Resolver, s: &Stmt) {
+    match s.kind {
+        StmtKind.Let(pattern, _, value, otherwise) => {
+            resolveExpr(r, &value)   // `const x = x + 1` reads the outer `x`
+            if const Option.Some(block) = otherwise {
+                resolveBlock(r, &block)
+            }
+            declarePattern(r, &pattern, false)
+        }
+        StmtKind.Var(name, _, value) => {
+            if const Option.Some(init) = value {
+                resolveExpr(r, &init)
+            }
+            r.setLocal(s.id.0, declareLocal(r, name, s.span, true))
+        }
+        StmtKind.Assign(_, target, value) => {
+            resolveExpr(r, &target)
+            resolveExpr(r, &value)
+        }
+        StmtKind.For(kind, mutable, first, second, expr, body) => {
+            if const Option.Some(iterable) = expr {
+                resolveExpr(r, &iterable)
+            }
+            r.scope.enter()
+            if kind == ForKind.In || kind == ForKind.Comptime {
+                const firstName = first ?? r.selfName
+                if const Option.Some(secondName) = second {
+                    r.setLocal(s.id.0, declareLocal(r, firstName, s.span, false))
+                    declareLocal(r, secondName, s.span, mutable)
+                } else {
+                    r.setLocal(s.id.0, declareLocal(r, firstName, s.span, mutable))
+                }
+            }
+            resolveBlock(r, &body)
+            r.scope.leave()
+        }
+        StmtKind.Return(value) => {
+            if const Option.Some(inner) = value {
+                resolveExpr(r, &inner)
+            }
+        }
+        StmtKind.ExprStmt(expr) => resolveExpr(r, &expr)
+        StmtKind.Break | StmtKind.Continue => {}
+    }
+}
+
+fn resolveStmts(r: mut Resolver, stmts: List<Stmt>) {
+    for i in 0..stmts.len() {
+        resolveStmt(r, &stmts[i])
+    }
+}
+
+fn resolveBlock(r: mut Resolver, block: &Block) {
+    r.scope.enter()
+    resolveStmts(r, block.stmts)
+    r.scope.leave()
+}
+
+// W0001 for the variables never read; parameters and names starting with
+// `_` are exempt (spec 12.6).
+fn warnUnusedLocals(r: mut Resolver, decl: &FnDecl) {
+    const params = decl.params.len() + if decl.hasSelf { 1 } else { 0 }
+    for i in params..r.locals.len() {
+        const name = r.text(r.locals[i].name)
+        if !r.locals[i].used && name.len() > 0 && !name.startsWith("_") {
+            r.diags.warning("W0001", r.locals[i].span,
+                            "unused variable `{name}`: use it, or start its name with `_`")
+        }
+    }
+}
+
+/**
+ * Resolves a function: its parameters, their defaults and its body.
+ *
+ * @param r the resolver
+ * @param decl the function
+ */
+pub fn resolveFn(r: mut Resolver, decl: &FnDecl) {
+    if const Option.Some(owner) = r.owner {
+        traceAt(r, decl.span, "fn {r.text(owner)}.{r.text(decl.name)}")
+    } else {
+        traceAt(r, decl.span, "fn {r.text(decl.name)}")
+    }
+    r.scope.resetLocals()
+    r.locals = []
+    const outerConsts = r.constParams.len()
+    const consts = constParamsOf(decl.bounds)
+    for i in 0..consts.len() {
+        r.constParams.push(consts[i])
+    }
+    r.scope.enter()
+    if decl.hasSelf {
+        declareLocal(r, r.selfName, decl.span, decl.selfMode == Mode.Mut)
+    }
+    for i in 0..decl.params.len() {
+        const param = &decl.params[i]
+        if const Option.Some(value) = param.defaultValue {
+            resolveExpr(r, &value)
+        }
+        r.setLocal(param.id.0, declareLocal(r, param.name, param.span, param.mode == Mode.Mut))
+    }
+    if const Option.Some(body) = decl.body {
+        resolveStmts(r, body.stmts)   // the same scope as the parameters
+    }
+    r.scope.leave()
+    r.constParams.truncate(outerConsts)
+    warnUnusedLocals(r, decl)
+    const locals = r.locals
+    r.locals = []
+    r.tables[r.current].fnLocals.insert(decl.id.0, locals)
+}

@@ -1,0 +1,394 @@
+/**
+ * @module
+ * Attribute checks (spec 12.1; stage 0:
+ * bootstrap/src/sema/resolve_attributes.c): known names, where each one
+ * applies, its arguments, and those this compiler does not implement yet;
+ * `@allow` silences warnings inside its declaration; uses of a `@deprecated`
+ * one are warnings (W0006).
+ */
+
+import base.span.Span
+import diag.lintCodes
+import sema.core.def.DefKind
+import sema.resolve.resolve.Resolver
+import sema.resolve.resolve.findAttribute
+import syntax.ast.Attribute
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.FieldDecl
+import syntax.ast.FnDecl
+import syntax.ast.Item
+import syntax.ast.ItemKind
+
+const ON_FN: int = 1
+const ON_METHOD: int = 2
+const ON_EXTERN_FN: int = 4
+const ON_STRUCT: int = 8
+const ON_ENUM: int = 16
+const ON_FIELD: int = 32
+const ON_EXTERN: int = 64
+const ON_CONST: int = 128
+const ON_GLOBAL: int = 256
+const ON_ALIAS: int = 512
+const ON_IMPORT: int = 1024
+const ON_INTERFACE: int = 2048
+const ON_ANY: int = 4095
+const ON_VARIANT: int = 4096   // only `@tag`: not part of ON_ANY
+
+const ARGS_NONE: int = 0
+const ARGS_INLINE: int = 1
+const ARGS_REPR: int = 2
+const ARGS_ALIGN: int = 3
+const ARGS_STR: int = 4
+const ARGS_OPT_STR: int = 5
+const ARGS_ONE: int = 6
+const ARGS_ALLOW: int = 7
+const ARGS_TWO_STR: int = 8
+const ARGS_LIB: int = 9
+const ARGS_SYMBOL: int = 10
+const ARGS_COUNT: int = 11
+
+fn ruleIndex(name: str) Option<int> {
+    const names = ["inline", "cold", "test", "lang", "repr", "packed", "align", "link", "export",
+                   "deprecated", "bench", "cfg", "allow", "tag", "threadsafe",
+                   "comptimeBudget", "threadLocal"]
+    for i in 0..names.len() {
+        if names[i] == name {
+            return Option.Some(i)
+        }
+    }
+    return Option.None
+}
+
+fn ruleTargets(rule: int) int {
+    const tag = ON_STRUCT | ON_ENUM | ON_FIELD | ON_VARIANT
+    const targets = [ON_FN | ON_METHOD, ON_FN | ON_METHOD, ON_FN, ON_STRUCT | ON_ENUM,
+                     ON_STRUCT | ON_ENUM, ON_STRUCT, ON_STRUCT, ON_EXTERN, ON_FN, ON_ANY, ON_FN,
+                     ON_ANY, ON_ANY, tag, ON_STRUCT | ON_ENUM, ON_FN | ON_METHOD, ON_GLOBAL]
+    return targets[rule]
+}
+
+fn ruleArgs(rule: int) int {
+    const args = [ARGS_INLINE, ARGS_NONE, ARGS_NONE, ARGS_STR, ARGS_REPR, ARGS_NONE, ARGS_ALIGN,
+                  ARGS_LIB, ARGS_SYMBOL, ARGS_OPT_STR, ARGS_NONE, ARGS_ONE, ARGS_ALLOW,
+                  ARGS_TWO_STR, ARGS_NONE, ARGS_COUNT, ARGS_NONE]
+    return args[rule]
+}
+
+fn ruleUsage(rule: int) str {
+    const usage = ["`@inline` or `@inline(never)`", "`@cold`", "`@test`", "`@lang(\"type\")`",
+                   "`@repr(C)`", "`@packed`", "`@align(N)`, N a power of two up to 4096",
+                   "`@link(\"name\")`, name a library name",
+                   "`@export(\"name\")`, name a C identifier",
+                   "`@deprecated` or `@deprecated(\"message\")`", "`@bench`", "`@cfg(condition)`",
+                   "`@allow(category)`, category `unused`, `unreachable`, `deprecated` or `naming`",
+                   "`@tag(\"key\", \"value\")`", "`@threadsafe`",
+                   "`@comptimeBudget(n)`, n a positive integer", "`@threadLocal`"]
+    return usage[rule].sliceFrom(0)
+}
+
+// The category of `@allow(category)`, empty if it is not an identifier.
+fn allowCategory(r: Resolver, a: &Attribute) str {
+    if a.args.len() != 1 {
+        return ""
+    }
+    return match a.args[0].kind {
+        ExprKind.Ident(n) => r.text(n)
+        _ => ""
+    }
+}
+
+fn targetName(target: int) str {
+    return if target == ON_FN {
+        "a function"
+    } else if target == ON_METHOD {
+        "a method"
+    } else if target == ON_EXTERN_FN {
+        "a function of an extern block"
+    } else if target == ON_STRUCT {
+        "a struct"
+    } else if target == ON_ENUM {
+        "an enum"
+    } else if target == ON_FIELD {
+        "a field"
+    } else if target == ON_VARIANT {
+        "a variant"
+    } else if target == ON_EXTERN {
+        "an extern block"
+    } else if target == ON_CONST {
+        "a constant"
+    } else if target == ON_GLOBAL {
+        "a global variable"
+    } else if target == ON_ALIAS {
+        "a type alias"
+    } else if target == ON_INTERFACE {
+        "an interface"
+    } else {
+        "an import"
+    }
+}
+
+// An identifier argument, `name` itself if given.
+fn isIdent(r: Resolver, e: &Expr, name: Option<str>) bool {
+    return match e.kind {
+        ExprKind.Ident(n) => match name {
+            Option.Some(want) => r.text(n) == want
+            Option.None => true
+        }
+        _ => false
+    }
+}
+
+fn isStr(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Str(_) => true
+        _ => false
+    }
+}
+
+// A power of two up to the page size: `@align(8)`.
+fn isAlignment(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Int(value) => value > 0 && value <= 4096 && (value & (value - 1)) == 0
+        _ => false
+    }
+}
+
+// A positive integer: `@comptimeBudget(1000)`.
+fn isCount(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Int(value) => value > 0 && value < 4611686018427387904
+        _ => false
+    }
+}
+
+// The text of a string argument, "" for another argument.
+fn strText(e: &Expr) str {
+    return match e.kind {
+        ExprKind.Str(value) => value.sliceFrom(0)
+        _ => ""
+    }
+}
+
+fn isAlnum(b: u8) bool {
+    return (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || (b >= b'0' && b <= b'9')
+}
+
+// A library name for `-lname`: letters, digits, `_`, `.`, `+` and `-`, not
+// starting with `-`.
+fn isLibrary(e: &Expr) bool {
+    const name = strText(e)
+    if name.len() == 0 || name[0] == b'-' {
+        return false
+    }
+    for i in 0..name.len() {
+        const b = name[i]
+        if !isAlnum(b) && b != b'_' && b != b'.' && b != b'+' && b != b'-' {
+            return false
+        }
+    }
+    return true
+}
+
+// A C identifier: `ofir_add`.
+fn isSymbol(e: &Expr) bool {
+    const name = strText(e)
+    if name.len() == 0 || (name[0] >= b'0' && name[0] <= b'9') {
+        return false
+    }
+    for i in 0..name.len() {
+        if !isAlnum(name[i]) && name[i] != b'_' {
+            return false
+        }
+    }
+    return true
+}
+
+fn argsMatch(r: Resolver, kind: int, a: &Attribute) bool {
+    const n = a.args.len()
+    if kind == ARGS_NONE {
+        return n == 0
+    } else if kind == ARGS_INLINE {
+        return n == 0 || (n == 1 && isIdent(r, &a.args[0], Option.Some("never")))
+    } else if kind == ARGS_REPR {
+        return n == 1 && isIdent(r, &a.args[0], Option.Some("C"))
+    } else if kind == ARGS_ALIGN {
+        return n == 1 && isAlignment(&a.args[0])
+    } else if kind == ARGS_STR {
+        return n == 1 && isStr(&a.args[0])
+    } else if kind == ARGS_OPT_STR {
+        return n == 0 || (n == 1 && isStr(&a.args[0]))
+    } else if kind == ARGS_ONE {
+        return n == 1
+    } else if kind == ARGS_ALLOW {
+        return lintCodes(allowCategory(r, a)).len() > 0
+    } else if kind == ARGS_LIB {
+        return n == 1 && isLibrary(&a.args[0])
+    } else if kind == ARGS_SYMBOL {
+        return n == 1 && isSymbol(&a.args[0])
+    } else if kind == ARGS_COUNT {
+        return n == 1 && isCount(&a.args[0])
+    }
+    return n == 2 && isStr(&a.args[0]) && isStr(&a.args[1])
+}
+
+fn checkList(r: mut Resolver, attributes: List<Attribute>, target: int, span: Span) {
+    for i in 0..attributes.len() {
+        const a = &attributes[i]
+        const name = r.text(a.name)
+        let twice = false
+        for j in 0..i {
+            twice = twice || r.text(attributes[j].name) == name
+        }
+        match ruleIndex(name) {
+            Option.None => r.error("E0807", a.span, "unknown attribute `@{name}`")
+            Option.Some(rule) => {
+                if twice {
+                    r.error("E0810", a.span, "the attribute `@{name}` is written twice")
+                } else if ruleTargets(rule) & target == 0 {
+                    r.error("E0808", a.span,
+                            "the attribute `@{name}` does not apply to {targetName(target)}")
+                } else if !argsMatch(r, ruleArgs(rule), a) {
+                    r.error("E0809", a.span,
+                            "invalid arguments for `@{name}`: write {ruleUsage(rule)}")
+                } else if name == "deprecated" {
+                    r.diags.allow("W0006", span)   // a deprecated declaration may use others
+                } else if name == "allow" {
+                    const codes = lintCodes(allowCategory(r, a))
+                    for k in 0..codes.len() {
+                        r.diags.allow(codes[k], span)
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn checkFns(r: mut Resolver, fns: List<FnDecl>, target: int) {
+    for i in 0..fns.len() {
+        checkList(r, fns[i].attributes, target, fns[i].span)
+    }
+}
+
+fn checkFields(r: mut Resolver, fields: List<FieldDecl>) {
+    for i in 0..fields.len() {
+        checkList(r, fields[i].attributes, ON_FIELD, fields[i].span)
+    }
+}
+
+// `@export` names a C symbol: only an `extern "C" fn` has one.
+fn checkNotExported(r: mut Resolver, attributes: List<Attribute>) {
+    if const Option.Some(at) = findAttribute(r, attributes, "export") {
+        r.error("E0808", attributes[at].span, "`@export` applies only to an `extern \"C\"` "
+                + "function")
+    }
+}
+
+/**
+ * Checks the attributes of a declaration and of its members.
+ *
+ * @param r the resolver
+ * @param item the declaration
+ */
+pub fn checkAttributes(r: mut Resolver, item: &Item) {
+    match item.kind {
+        ItemKind.Fn(decl) => {
+            checkList(r, item.attributes, ON_FN, item.span)
+            if decl.abi.len() == 0 {
+                checkNotExported(r, item.attributes)
+            }
+        }
+        ItemKind.Struct(_, _, _, _, fields, methods) => {
+            checkList(r, item.attributes, ON_STRUCT, item.span)
+            checkFields(r, fields)
+            checkFns(r, methods, ON_METHOD)
+        }
+        ItemKind.Enum(_, _, variants, methods) => {
+            checkList(r, item.attributes, ON_ENUM, item.span)
+            for i in 0..variants.len() {
+                checkList(r, variants[i].attributes, ON_VARIANT, variants[i].span)
+            }
+            checkFns(r, methods, ON_METHOD)
+        }
+        ItemKind.Const(_, _) => checkList(r, item.attributes, ON_CONST, item.span)
+        ItemKind.Global(_, _) => checkList(r, item.attributes, ON_GLOBAL, item.span)
+        ItemKind.TypeAlias(_, _) => checkList(r, item.attributes, ON_ALIAS, item.span)
+        ItemKind.Import(_, _) => checkList(r, item.attributes, ON_IMPORT, item.span)
+        ItemKind.Extern(_, fns) => {
+            checkList(r, item.attributes, ON_EXTERN, item.span)
+            checkFns(r, fns, ON_EXTERN_FN)
+        }
+        ItemKind.Interface(_, _, methods) => {
+            checkList(r, item.attributes, ON_INTERFACE, item.span)
+            checkFns(r, methods, ON_METHOD)
+        }
+    }
+}
+
+// The message of `@deprecated("message")`, "" without one; `None` if the
+// list has no `@deprecated`.
+fn deprecation(r: Resolver, attributes: List<Attribute>) Option<str> {
+    const Option.Some(at) = findAttribute(r, attributes, "deprecated") else {
+        return Option.None
+    }
+    if attributes[at].args.len() == 0 {
+        return Option.Some("")
+    }
+    return match attributes[at].args[0].kind {
+        ExprKind.Str(value) => Option.Some(value.sliceFrom(0))
+        _ => Option.Some("")
+    }
+}
+
+// The deprecation of a member of an item: a method or a function of an
+// extern block; of the item itself when `member` is negative.
+fn memberDeprecation(r: Resolver, item: &Item, member: int) Option<str> {
+    if member < 0 {
+        return deprecation(r, item.attributes)
+    }
+    return match item.kind {
+        ItemKind.Extern(_, fns) => deprecation(r, fns[member].attributes)
+        ItemKind.Struct(_, _, _, _, _, methods) => deprecation(r, methods[member].attributes)
+        ItemKind.Enum(_, _, _, methods) => deprecation(r, methods[member].attributes)
+        ItemKind.Interface(_, _, methods) => deprecation(r, methods[member].attributes)
+        _ => Option.None
+    }
+}
+
+/**
+ * Records which of the declarations of an item are `@deprecated`.
+ *
+ * @param r the resolver
+ * @param item the declaration
+ * @param first the first def it declared
+ */
+pub fn recordDeprecated(r: mut Resolver, item: &Item, first: int) {
+    for d in first..r.defs.len() {
+        if r.defs[d].kind == DefKind.Variant {
+            continue
+        }
+        if const Option.Some(message) = memberDeprecation(r, item, r.defs[d].member) {
+            r.deprecated.insert(d, message.toOwned())
+        }
+    }
+}
+
+/**
+ * Warns about a use of a `@deprecated` declaration (W0006).
+ *
+ * @param r the resolver
+ * @param def the declaration used
+ * @param span the use
+ */
+pub fn warnDeprecated(r: mut Resolver, def: int, span: Span) {
+    const Option.Some(message) = r.deprecated.get(def) else {
+        return
+    }
+    const name = r.text(r.def(def).name)
+    const text = if message.len() == 0 {
+        "`{name}` is deprecated"
+    } else {
+        "`{name}` is deprecated: {message}"
+    }
+    r.diags.warning("W0006", span, text)
+}

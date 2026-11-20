@@ -1,0 +1,31 @@
+// The tests of `sema.core.scope` (spec 12.2).
+
+import base.intern.Symbol
+import std.testing.assert
+
+@test
+fn moduleTablesAreSeparate() {
+    let scope = Scope.new(4, 2)
+    scope.setModule(Symbol(1), 7)
+    scope.setIn(1, Symbol(1), 9)
+    assert(scope.module(Symbol(1)) == 7 && scope.moduleIn(1, Symbol(1)) == 9)
+    scope.useModule(1)
+    assert(scope.module(Symbol(1)) == 9 && scope.module(Symbol(2)) == 0)
+    assert(scope.module(Symbol(10)) == 0)   // interned after the tables were sized
+}
+
+@test
+fn leavingABlockRestoresTheHiddenLocal() {
+    let scope = Scope.new(4, 1)
+    scope.enter()
+    scope.declare(Symbol(0), 0)
+    scope.enter()
+    assert(!scope.inCurrentBlock(Symbol(0)))
+    scope.declare(Symbol(0), 1)
+    assert((scope.localOf(Symbol(0)) ?? -1) == 1 && scope.inCurrentBlock(Symbol(0)))
+    scope.leave()
+    assert((scope.localOf(Symbol(0)) ?? -1) == 0 && scope.inCurrentBlock(Symbol(0)))
+    scope.leave()
+    assert(scope.localOf(Symbol(0)).isNone())
+    scope.resetLocals()
+}

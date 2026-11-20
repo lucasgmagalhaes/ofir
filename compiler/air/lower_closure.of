@@ -33,11 +33,11 @@ import air.lower_expr.aggregate
 import air.lower_expr.assignOperand
 import air.lower_expr.lowerExpr
 import diag.noSpan
-import sema.check.Checker
-import sema.check.fnOf
-import sema.program.Program
-import sema.structs.isCopy
-import sema.types.UNIT
+import sema.check.check.Checker
+import sema.check.check.fnOf
+import sema.check.structs.isCopy
+import sema.core.program.Program
+import sema.core.types.UNIT
 import std.mem
 import syntax.ast.Expr
 import syntax.ast.Op

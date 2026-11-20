@@ -15,7 +15,7 @@ import air.air.rvUse
 import air.air.terminator
 import base.intern.Symbol
 import diag.noSpan
-import sema.types.UNIT
+import sema.core.types.UNIT
 import std.testing.assert
 
 // fn1(x) { _0 = x; return }, the smallest valid body: 2 locals, 1 parameter.

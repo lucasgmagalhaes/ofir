@@ -16,8 +16,8 @@ import air.air.StmtKind
 import air.air.TermKind
 import air.air.Terminator
 import air.air.jump
-import sema.check.Checker
-import sema.types.TyKind
+import sema.check.check.Checker
+import sema.core.types.TyKind
 import syntax.ast.Op
 import diag.noSpan
 import std.mem

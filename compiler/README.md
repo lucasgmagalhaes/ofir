@@ -30,6 +30,9 @@ in this list, and `make check-layers` enforces it.
 | `diag/` | diagnostics | `base` |
 | `syntax/` | the lexer, the parser and the AST | `base`, `diag` |
 | `sema/` | the resolver, the type checker and the move analysis | the above |
+| `sema/core/` | definitions, the program, scopes and types | `sema/core` |
+| `sema/resolve/` | name resolution, completion and suggestions | `sema/core` |
+| `sema/check/` | the type checker, comptime, moves and borrows | `sema/core`, `sema/resolve` |
 | `air/` | the AIR and the lowering | the above and `sema` |
 | `codegen/` | the LLVM codegen | the above and `air` |
 | `driver/` | module loading, packages and the build | `base`, `diag`, `syntax`, `sema` |

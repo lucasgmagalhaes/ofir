@@ -1,0 +1,754 @@
+/**
+ * @module
+ * Type arguments of generic calls, struct literals and variants (spec 8.5;
+ * stage 0: bootstrap/src/sema/check_generic.c). They come from what is
+ * written (`f<int>(x)`), then from the expected type, then from the value
+ * arguments, left to right: the first type found for a parameter is its
+ * argument, and the values are then checked against the substituted
+ * signature. In a signature, type parameter `i` is the callee's parameter
+ * `i`.
+ */
+
+import base.span.Span
+import sema.check.call_args.arrangeArgs
+import sema.check.check.BOUND_CLONE
+import sema.check.check.BOUND_CONST
+import sema.check.check.BOUND_COUNT
+import sema.check.check.BOUND_DEBUG
+import sema.check.check.BOUND_DISPLAY
+import sema.check.check.BOUND_EQ
+import sema.check.check.BOUND_HASH
+import sema.check.check.BOUND_ORD
+import sema.check.check.BOUND_SEND
+import sema.check.check.BOUND_SYNC
+import sema.check.check.Checker
+import sema.check.check_comptime.BOUND_NUMBER
+import sema.check.check.Generics
+import sema.check.check.fnGenericsIn
+import sema.check.check.fnOf
+import sema.check.check.noGenerics
+import sema.check.check.typeGenericsOf
+import sema.check.check_box.adjustedType
+import sema.check.check_box.derefArg
+import sema.check.check_closure.coerceToSend
+import sema.check.check_dyn.boxesDyn
+import sema.check.check_dyn.coerceToDyn
+import sema.check.check_keys.checkKeyArg
+import sema.check.check_keys.checkKeyBound
+import sema.check.check_keys.isKeyLiteral
+import sema.check.check_keys.isKeyParam
+import sema.check.check_keys.keyLiteralType
+import sema.check.check_keys.resolveKeyed
+import sema.check.check_list.coerceToSlice
+import sema.check.check_list.hashable
+import sema.check.check_mapped.substType
+import sema.check.check_methods.isCloneable
+import sema.check.check_types.compatible
+import sema.check.check_types.resolveType
+import sema.check.check_union.coerceToUnion
+import sema.check.check_union.unionMembers
+import sema.check.derive.adtSatisfies
+import sema.check.derive.debuggable
+import sema.check.derive.displayable
+import sema.check.expr_check.checkExpr
+import sema.check.expr_check.requireType
+import sema.check.interfaces.implementedSigs
+import sema.check.interfaces.interfaceText
+import sema.check.interfaces.paramBoundArgs
+import sema.check.interfaces.unsatisfied
+import sema.check.send.isSend
+import sema.check.send.isSync
+import sema.check.structs.isCopy
+import sema.core.program.Program
+import sema.core.types.ERROR
+import sema.core.types.NEVER
+import sema.core.types.Ty
+import sema.core.types.TyKind
+import sema.core.types.kindNumber
+import syntax.ast.Arg
+import syntax.ast.Expr
+import syntax.ast.ExprKind
+import syntax.ast.TypeExpr
+
+/**
+ * The type arguments of a generic use being inferred.
+ */
+pub struct Infer {
+    /** The parameters, for messages. */
+    pub params: Generics
+    /** The argument of each parameter, once known. */
+    pub args: List<int>
+    /** Whether each is known. */
+    pub known: List<bool>
+}
+
+/**
+ * The type parameters of a function: its type's, then its own.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param id the function's `DefId`
+ * @returns them
+ */
+pub fn fnGenerics(c: mut Checker, p: Program, id: int) Generics {
+    const module = c.def(id).module
+    let owner = noGenerics()
+    if c.def(id).item >= 0 {
+        owner = typeGenericsOf(c, p, id)
+    }
+    const saved = c.enter(module)
+    const g = fnGenericsIn(c, p, &owner, fnOf(p, c.loc(id)))
+    c.enter(saved)
+    return g
+}
+
+/**
+ * Nothing inferred yet.
+ *
+ * @param params the parameters
+ * @returns the inference
+ */
+pub fn inferNew(params: move Generics) Infer {
+    const count = params.owner.len() + params.fnParams.len()
+    return Infer{params, args: List.filled(ERROR, count), known: List.filled(false, count)}
+}
+
+/**
+ * The explicit arguments of the type's parameters (`ofOwner`) or of the
+ * function's own (E0302).
+ *
+ * @param c the checker
+ * @param p the program
+ * @param inf the inference
+ * @param ofOwner whether they are the type's
+ * @param list the written arguments
+ * @param span where
+ */
+pub fn inferExplicit(c: mut Checker, p: Program, inf: mut Infer, ofOwner: bool,
+                     list: List<TypeExpr>, span: Span) {
+    const first = if ofOwner { 0 } else { inf.params.owner.len() }
+    const count = if ofOwner { inf.params.owner.len() } else { namedCount(c, &inf.params) }
+    if list.len() != count {
+        c.error("E0302", span, "wrong number of type arguments: expected {count}, "
+                + "found {list.len()}")
+        return
+    }
+    for i in 0..count {
+        inf.args[first + i] = resolveType(c, p, &list[i])
+        inf.known[first + i] = true
+    }
+}
+
+// The function's own parameters that are written: the anonymous ones
+// (ADR 0029) come after them and are always inferred.
+fn namedCount(c: Checker, params: &Generics) int {
+    let n = 0
+    for i in 0..params.fnParams.len() {
+        if c.text(params.fnParams[i]).find(" ").isNone() {
+            n += 1
+        }
+    }
+    return n
+}
+
+/**
+ * Binds the type's parameters from `self`, an instance of the same type.
+ *
+ * @param c the checker
+ * @param inf the inference
+ * @param selfType the instance
+ * @param count the number of the type's parameters
+ */
+pub fn inferFromSelf(c: Checker, inf: mut Infer, selfType: int, count: int) {
+    const t = c.types.get(selfType)
+    if t.kind != TyKind.Adt {
+        return
+    }
+    for i in 0..count {
+        if i < t.args.len() {
+            inf.args[i] = t.args[i]
+            inf.known[i] = true
+        }
+    }
+}
+
+fn hasInner(c: Checker, ty: int) bool {
+    const kind = c.types.kind(ty)
+    return kind == TyKind.Ref || kind == TyKind.Ptr || kind == TyKind.Slice ||
+           kind == TyKind.Array || kind == TyKind.Fn
+}
+
+/**
+ * Binds the parameters in `pattern` by matching it against `actual`.
+ *
+ * @param c the checker
+ * @param inf the inference
+ * @param pattern a type with the callee's parameters
+ * @param actual the type found
+ */
+pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
+    const pt = c.types.get(pattern).clone()
+    if !pt.hasParam || actual == ERROR || actual == NEVER {
+        return
+    }
+    if pt.kind == TyKind.Param {
+        if pt.data < inf.args.len() && !inf.known[pt.data] {
+            inf.args[pt.data] = actual
+            inf.known[pt.data] = true
+        }
+        return
+    }
+    const at = c.types.get(actual).clone()
+    const slice = c.r.langItems[4]
+    const list = c.r.langItems[1]
+    const array = if at.kind == TyKind.Ref { at.inner } else { actual }
+    const seq = c.types.get(array).clone()
+    if pt.kind == TyKind.Adt && seq.kind == TyKind.Adt && slice != 0 && pt.data == slice &&
+       seq.data == list && seq.args.len() == 1 {
+        inferFrom(c, inf, pt.args[0], seq.args[0])   // a list, or `&List<T>`, given for `[T]`
+        return
+    }
+    if pt.kind == TyKind.Adt && slice != 0 && pt.data == slice &&
+       c.types.kind(array) == TyKind.Array {
+        inferFrom(c, inf, pt.args[0], c.types.get(array).inner)   // an array, or `&[T; N]`
+        return
+    }
+    if pt.kind == TyKind.Array && pt.data == -1 && at.kind == TyKind.Array && at.data >= 0 {
+        inferFrom(c, inf, pt.inner, at.inner)   // `[T; N]` given an array of a known length
+        inferFrom(c, inf, pt.args[0], c.types.value(at.data))
+        return
+    }
+    if pt.kind == TyKind.Mapped && at.kind == TyKind.Adt {
+        inferMapped(c, inf, &pt, at.data)
+        return
+    }
+    if pt.kind == TyKind.Adt && c.isUnion(pt.data) && unionMembers(c, actual).len() == 0 {
+        inferMember(c, inf, &pt, actual)
+        return
+    }
+    if at.kind != pt.kind || at.args.len() != pt.args.len() ||
+       (pt.kind == TyKind.Adt && at.data != pt.data) {
+        return   // a mismatch, reported when the argument is checked
+    }
+    if hasInner(c, pattern) {
+        inferFrom(c, inf, pt.inner, at.inner)
+    }
+    for i in 0..pt.args.len() {
+        inferFrom(c, inf, pt.args[i], at.args[i])
+    }
+}
+
+// `Option<T> | int` given one of its members: from the member of the same
+// form.
+fn inferMember(c: mut Checker, inf: mut Infer, pt: &Ty, actual: int) {
+    const at = c.types.get(actual).clone()
+    for i in 0..pt.args.len() {
+        const member = c.types.get(pt.args[i]).clone()
+        if member.kind == at.kind && (member.kind != TyKind.Adt || member.data == at.data) {
+            inferFrom(c, inf, pt.args[i], actual)
+            return
+        }
+    }
+}
+
+// `Partial<T>` given the struct of `Partial<Config>`: from its arguments.
+fn inferMapped(c: mut Checker, inf: mut Infer, pt: &Ty, def: int) {
+    if const Option.Some(found) = c.mappedArgs.get(def) {
+        const alias = found.0
+        const args = c.types.get(found.1).args.clone()
+        if alias == pt.data && args.len() == pt.args.len() {
+            for i in 0..args.len() {
+                inferFrom(c, inf, pt.args[i], args[i])
+            }
+        }
+    }
+}
+
+fn allKnown(c: Checker, inf: &Infer, pattern: int) bool {
+    const pt = c.types.get(pattern)
+    if !pt.hasParam {
+        return true
+    }
+    if pt.kind == TyKind.Param {
+        return pt.data >= inf.args.len() || inf.known[pt.data]
+    }
+    if hasInner(c, pattern) && !allKnown(c, inf, pt.inner) {
+        return false
+    }
+    for i in 0..pt.args.len() {
+        if !allKnown(c, inf, pt.args[i]) {
+            return false
+        }
+    }
+    return true
+}
+
+/**
+ * `pattern` with the arguments substituted, or `ERROR` if some are unknown.
+ *
+ * @param c the checker
+ * @param inf the inference
+ * @param pattern a type with the callee's parameters
+ * @returns the hint
+ */
+pub fn inferHint(c: mut Checker, inf: &Infer, pattern: int) int {
+    return if allKnown(c, inf, pattern) { inferApply(c, inf, pattern) } else { ERROR }
+}
+
+/**
+ * `pattern` with the arguments substituted.
+ *
+ * @param c the checker
+ * @param inf the inference
+ * @param pattern a type with the callee's parameters
+ * @returns the type
+ */
+pub fn inferApply(c: mut Checker, inf: &Infer, pattern: int) int {
+    const ty = substType(c, pattern, inf.args)
+    return resolveKeyed(c, ty)
+}
+
+// Whether a tuple type has an `ERROR` element.
+fn anyError(c: Checker, tuple: int) bool {
+    const items = &c.types.get(tuple).args
+    for i in 0..items.len() {
+        if items[i] == ERROR {
+            return true
+        }
+    }
+    return false
+}
+
+// The arguments of interface bounds that only the bounded type gives: `T`
+// of `S: Source<T>` from the `next` of the type given for `S`.
+fn inferFromBounds(c: mut Checker, p: Program, inf: mut Infer) {
+    for i in 0..inf.params.ifaces.len() {
+        if i >= inf.args.len() || !inf.known[i] {
+            continue
+        }
+        for k in 0..inf.params.ifaces[i].len() {
+            const pattern = inf.params.ifaceArgs[i][k]
+            const iface = inf.params.ifaces[i][k]
+            if !allKnown(c, &inf, pattern) {
+                const implied = impliedArgs(c, p, inf.args[i], iface)
+                inferFrom(c, inf, pattern, implied)
+            }
+        }
+    }
+}
+
+// The type arguments of `iface` that the methods of `ty` give, as a tuple
+// type, `ERROR` where they give none.
+fn impliedArgs(c: mut Checker, p: Program, ty: int, iface: int) int {
+    if c.types.kind(ty) == TyKind.Param {
+        return paramBoundArgs(c, c.types.get(ty).data, iface)
+    }
+    let own = inferNew(typeGenericsOf(c, p, iface))
+    own.args[0] = ty
+    own.known[0] = true
+    const pairs = implementedSigs(c, p, ty, iface)
+    for j in 0..pairs.len() {
+        inferFrom(c, own, pairs[j].0, pairs[j].1)
+    }
+    let out: List<int> = []
+    for j in 1..own.args.len() {
+        out.push(own.args[j])
+    }
+    return c.types.tuple(out)
+}
+
+/**
+ * Reports E0330 for each parameter still unknown.
+ *
+ * @param c the checker
+ * @param inf the inference
+ * @param span where
+ */
+pub fn inferFinish(c: mut Checker, inf: mut Infer, span: Span) {
+    for i in 0..inf.args.len() {
+        if inf.known[i] {
+            continue
+        }
+        const owner = inf.params.owner.len()
+        const name = if i < owner { inf.params.owner[i] } else { inf.params.fnParams[i - owner] }
+        c.error("E0330", span, "cannot infer the type parameter `{c.paramText(name)}`: write the "
+                + "type arguments, as in `f<int>(x)`")
+        inf.args[i] = ERROR
+        inf.known[i] = true
+    }
+}
+
+// The parameter each argument gives: by name and with defaults for a
+// function (`callee` its `DefId`), by position for a constructor (0).
+fn genericSlots(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
+                count: int, callee: int) List<int> {
+    if callee != 0 {
+        return arrangeArgs(c, p, callId, span, args, callee)
+    }
+    if args.len() != count {
+        c.error("E0302", span, "wrong number of arguments: expected {count}, found {args.len()}")
+    }
+    let slots: List<int> = []
+    for i in 0..args.len() {
+        if args[i].name.isSome() {
+            c.error("E0306", args[i].value.span, "this callee has no named parameters: pass "
+                    + "the argument by position")
+        }
+        slots.push(if i < count { i } else { -1 })
+    }
+    return slots
+}
+
+/**
+ * Checks the arguments of a generic callee: binds its parameters from the
+ * expected type and the arguments, then checks the arguments against the
+ * result.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param callId the call's `NodeId`, to record its type arguments
+ * @param span the call
+ * @param args the arguments
+ * @param params the parameter types of the signature
+ * @param ret its result type
+ * @param inf the inference
+ * @param expected the type the context expects
+ * @param callee the function's `DefId`, 0 for a constructor
+ * @returns the result type
+ */
+// The array type an array literal given for `[T; N]` has, its length
+// from the literal (spec 8.7), or `ERROR`.
+fn arrayHint(c: mut Checker, inf: &Infer, param: int, arg: &Expr) int {
+    const pt = c.types.get(param).clone()
+    if pt.kind != TyKind.Array || pt.data != -1 {
+        return ERROR
+    }
+    if const ExprKind.Array(elems) = arg.kind {
+        const inner = inferHint(c, inf, pt.inner)
+        return c.types.intern(TyKind.Array, elems.len(), inner, [])
+    }
+    return ERROR
+}
+
+pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
+                        params: List<int>, ret: int, inf: mut Infer, expected: int,
+                        callee: int) int {
+    const slots = genericSlots(c, p, callId, span, args, params.len(), callee)
+    inferFrom(c, inf, ret, expected)
+    for i in 0..args.len() {
+        const arg = &args[i].value
+        const param = if slots[i] >= 0 { params[slots[i]] } else { ERROR }
+        const keyParam = isKeyParam(c, &inf.params, param)
+        let hint = if slots[i] >= 0 { inferHint(c, &inf, param) } else { ERROR }
+        if keyParam && hint == ERROR && isKeyLiteral(arg) {
+            hint = keyLiteralType(c, arg)   // `.x` for `K: keyof T`
+        }
+        if hint == ERROR && slots[i] >= 0 {
+            hint = arrayHint(c, &inf, param, arg)
+        }
+        const boxed = boxesDyn(c, hint)   // `Box.new(x)` infers the type of `x`
+        const checked = checkExpr(c, p, arg, if boxed { ERROR } else { hint })
+        const found = if derefArg(c, arg, checked, param, true) {
+            c.types.get(checked).inner
+        } else {
+            checked
+        }
+        if keyParam {
+            checkKeyArg(c, arg, found)
+        }
+        if !boxed {
+            inferFrom(c, inf, param, found)
+        }
+    }
+    inferFromBounds(c, p, inf)
+    inferFinish(c, inf, span)
+    checkBoundArgs(c, p, &inf, span)
+    for i in 0..args.len() {
+        if slots[i] >= 0 {
+            const wanted = inferApply(c, &inf, params[slots[i]])
+            const found = adjustedType(c, &args[i].value)
+            const widened = coerceToSlice(c, p, &args[i].value, found, wanted) ||
+                            (!compatible(found, wanted)
+                             && coerceToDyn(c, p, &args[i].value, found, wanted)) ||
+                            coerceToUnion(c, &args[i].value, found, wanted) ||
+                            coerceToSend(c, p, &args[i].value, found, wanted)
+            if !widened {
+                requireType(c, &args[i].value, found, wanted)
+            }
+        }
+    }
+    if callId >= 0 {
+        const targs = c.types.tuple(inf.args)
+        c.callTypeArgs[c.module()].insert(callId, targs)
+    }
+    const result = inferApply(c, &inf, ret)
+    reportUndecided(c, span)
+    reportBadLengths(c, span)
+    return result
+}
+
+/**
+ * E0344 for the conditions an instantiation left neither `true` nor
+ * `false` (spec 16.4).
+ *
+ * @param c the checker
+ * @param span the use
+ */
+pub fn reportUndecided(c: mut Checker, span: Span) {
+    const found = c.types.takeUndecided()
+    for i in 0..found.len() {
+        c.error("E0344", span, "a condition must be `true` or `false`, found "
+                + "`{c.typeName(found[i])}`")
+    }
+}
+
+/**
+ * E0366 for the array lengths an instantiation made out of range (spec 8.7).
+ *
+ * @param c the checker
+ * @param span the use
+ */
+pub fn reportBadLengths(c: mut Checker, span: Span) {
+    const found = c.types.takeBadLengths()
+    for i in 0..found.len() {
+        reportBadLength(c, span, c.typeName(found[i]))
+    }
+}
+
+/**
+ * E0366: the array length `len` is out of range (spec 8.7).
+ *
+ * @param c the checker
+ * @param span the length
+ * @param len the length as written
+ */
+pub fn reportBadLength(c: mut Checker, span: Span, len: str) {
+    c.error("E0366", span, "the array length `{len}` is out of range: it must be from 0 to "
+            + "4294967295, with no division by 0 (spec 8.7)")
+}
+
+// ---------------------------------------------------------------------------
+// Bounds (spec 8.1): until interfaces (roadmap 5.3), the built-in `Eq`,
+// `Ord`, `Hash` and `Clone`.
+
+/**
+ * The bounds of a type parameter in scope, or 0 for other types.
+ *
+ * @param c the checker
+ * @param ty a type
+ * @returns its bits: `BOUND_EQ`, ...
+ */
+pub fn paramBounds(c: Checker, ty: int) int {
+    const t = c.types.get(ty)
+    if t.kind != TyKind.Param || t.data >= c.generics.bounds.len() {
+        return 0
+    }
+    return c.generics.bounds[t.data]
+}
+
+/**
+ * Whether `==` and `!=` compare values of a type: scalars, `str`,
+ * pointers, enums without payloads, tuples of these and parameters bound
+ * by `Eq`.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns true if they do
+ */
+pub fn equatable(c: mut Checker, p: Program, ty: int) bool {
+    const kind = c.types.kind(ty)
+    if kindNumber(kind) <= 6 || kind == TyKind.Ptr {
+        return true
+    }
+    if kind == TyKind.Param {
+        return paramBounds(c, ty) & (BOUND_EQ | BOUND_NUMBER) != 0   // NUMBER: spec 15.3
+    }
+    if kind == TyKind.Array {   // element by element (spec 2.7)
+        return equatable(c, p, c.types.get(ty).inner)
+    }
+    if kind == TyKind.Tuple {
+        const elems = c.types.get(ty).args.clone()
+        for i in 0..elems.len() {
+            if !equatable(c, p, elems[i]) {
+                return false
+            }
+        }
+        return true
+    }
+    return kind == TyKind.Adt && adtSatisfies(c, p, ty, BOUND_EQ)
+}
+
+/**
+ * Whether `<`, `<=`, `>`, `>=` and `sort` order values of a type.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @returns true for numbers, `str`, parameters bound by `Ord`, and tuples,
+ *   structs and enums that satisfy `Ord` (spec 9.9)
+ */
+pub fn orderable(c: mut Checker, p: Program, ty: int) bool {
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Tuple {
+        const elems = c.types.get(ty).args.clone()
+        for i in 0..elems.len() {
+            if !orderable(c, p, elems[i]) {
+                return false
+            }
+        }
+        return true
+    }
+    return kind == TyKind.Int || kind == TyKind.Float || kind == TyKind.Str ||
+           kind == TyKind.Error ||
+           (kind == TyKind.Param && paramBounds(c, ty) & (BOUND_ORD | BOUND_NUMBER) != 0) ||
+           (kind == TyKind.Adt && adtSatisfies(c, p, ty, BOUND_ORD))
+}
+
+/**
+ * Whether a type satisfies a bound.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param ty the type
+ * @param bit the bound
+ * @returns true if it does
+ */
+pub fn satisfies(c: mut Checker, p: Program, ty: int, bit: int) bool {
+    const kind = c.types.kind(ty)
+    if kind == TyKind.Error || kind == TyKind.Never {
+        return true
+    }
+    if kind == TyKind.Param && paramBounds(c, ty) & bit != 0 {
+        return true
+    }
+    return if bit == BOUND_EQ {
+        equatable(c, p, ty)
+    } else if bit == BOUND_ORD {
+        orderable(c, p, ty)
+    } else if bit == BOUND_HASH {
+        hashable(c, p, ty)
+    } else if bit == BOUND_CLONE {
+        isCloneable(c, p, ty)
+    } else if bit == BOUND_DEBUG {
+        debuggable(c, p, ty)
+    } else if bit == BOUND_SEND {
+        isSend(c, p, ty)
+    } else if bit == BOUND_SYNC {
+        isSync(c, p, ty)
+    } else if bit == BOUND_DISPLAY {
+        displayable(c, p, ty)
+    } else {
+        isCopy(c, p, ty)
+    }
+}
+
+fn boundName(bit: int) str {
+    return if bit == BOUND_EQ {
+        "Eq"
+    } else if bit == BOUND_ORD {
+        "Ord"
+    } else if bit == BOUND_HASH {
+        "Hash"
+    } else if bit == BOUND_CLONE {
+        "Clone"
+    } else if bit == BOUND_DEBUG {
+        "Debug"
+    } else if bit == BOUND_SEND {
+        "Send"
+    } else if bit == BOUND_SYNC {
+        "Sync"
+    } else if bit == BOUND_DISPLAY {
+        "Display"
+    } else {
+        "Copy"
+    }
+}
+
+/**
+ * Reports E0332 for each type argument that does not satisfy the bounds of
+ * its parameter.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param params the parameters, with their bounds
+ * @param args the arguments
+ * @param span where
+ */
+pub fn checkBounds(c: mut Checker, p: Program, params: &Generics, args: List<int>,
+                   span: Span) {
+    const owner = params.owner.len()
+    for i in 0..params.bounds.len() {
+        if i >= args.len() {
+            return
+        }
+        const bits = params.bounds[i]
+        if !constArgFits(c, params, i, args[i], span) {
+            continue
+        }
+        for b in 0..BOUND_COUNT {
+            const bit = 1 << b
+            if bits & bit == 0 || satisfies(c, p, args[i], bit) {
+                continue
+            }
+            const name = if i < owner { params.owner[i] } else { params.fnParams[i - owner] }
+            c.error("E0332", span, "the type `{c.typeName(args[i])}` does not satisfy the "
+                    + "bound `{boundName(bit)}` of `{c.paramText(name)}`")
+        }
+        if i < params.ifaces.len() {
+            checkInterfaceBounds(c, p, params, i, args, span)
+        }
+        if i < params.keys.len() && params.keys[i] != 0 {
+            checkKeyBound(c, p, params, i, args, span)
+        }
+    }
+}
+
+// E0362 unless `arg` is a constant for a const parameter and a type for
+// another (spec 8.7); false after an error or for a constant.
+fn constArgFits(c: mut Checker, params: &Generics, i: int, arg: int, span: Span) bool {
+    const wantsConst = params.bounds[i] & BOUND_CONST != 0
+    const isConst = c.types.kind(arg) == TyKind.Value ||
+                    (c.types.kind(arg) == TyKind.Param && paramBounds(c, arg) & BOUND_CONST != 0)
+    if arg == ERROR || wantsConst == isConst {
+        return !isConst
+    }
+    const owner = params.owner.len()
+    const name = if i < owner { params.owner[i] } else { params.fnParams[i - owner] }
+    const what = if wantsConst { "a constant" } else { "a type" }
+    c.error("E0362", span, "`{c.typeName(arg)}` given for `{c.paramText(name)}`, which takes "
+            + "{what} (spec 8.7)")
+    return false
+}
+
+// E0332 for each interface bounding parameter `i` that `arg` does not satisfy.
+fn checkInterfaceBounds(c: mut Checker, p: Program, params: &Generics, i: int,
+                        args: List<int>, span: Span) {
+    const owner = params.owner.len()
+    const arg = args[i]
+    const wanted = params.ifaces[i].clone()
+    for k in 0..wanted.len() {
+        const ifaceArgs = substType(c, params.ifaceArgs[i][k], args.clone())
+        if anyError(c, ifaceArgs) {
+            continue   // reported where it was inferred
+        }
+        const why = unsatisfied(c, p, arg, wanted[k], ifaceArgs)
+        if why.len() > 0 {
+            const name = if i < owner { params.owner[i] } else { params.fnParams[i - owner] }
+            c.error("E0332", span, "the type `{c.typeName(arg)}` does not satisfy the bound "
+                    + "`{interfaceText(c, wanted[k], ifaceArgs)}` of `{c.paramText(name)}`: {why}")
+        }
+    }
+}
+
+/**
+ * Reports E0332 for the inferred arguments of a generic use.
+ *
+ * @param c the checker
+ * @param p the program
+ * @param inf the inference, finished
+ * @param span where
+ */
+pub fn checkBoundArgs(c: mut Checker, p: Program, inf: &Infer, span: Span) {
+    checkBounds(c, p, &inf.params, inf.args, span)
+}
