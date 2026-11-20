@@ -1,0 +1,9 @@
+// The `*` of a glob import is not an operator: the next line is not a
+// continuation.
+import std.strings.*
+    import std.path.*
+  import std.io
+
+fn main() {
+println(join(["a", "b"], ","))
+}
