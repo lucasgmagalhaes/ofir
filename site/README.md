@@ -9,6 +9,9 @@ Run `npm run build` to generate static pages in `dist/`, then
 `docs/assets/logo.png` in the repository; no copy of the source asset is
 needed.
 
+Run `npm run lint` to check JavaScript, TypeScript, and Astro files. Run
+`npm run format` to format the site and `npm run format:check` to verify it.
+
 The reference loads Markdown directly from `../docs/` during the build. Each
 document is published at `/reference/<path-without-.md>/`; a `README.md` is
 published at its parent path. Relative links to other Markdown documents become
