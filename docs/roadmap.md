@@ -440,6 +440,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.31e | Package discovery (ADR 0097): the manifest's `description`, `keywords` and `repository` (E0910 when invalid) go with `toolchain` into the index line; `ofir search` finds packages by name, description or keywords at their highest version that is not yanked, marking an incompatible toolchain; `docs/packages/official.md` has the criteria of official packages; `tools/check_search.py` | OFIR-82 | **done** |
 | 6.31f | GUI, graphics, audio and media (ADR 0099): no module in `std`; each is a package binding a C library, and a toolkit written in Ofir is rejected for accessibility; a C event loop that owns the loop, events and pixels drives an Ofir handler (`tests/run/ffi/event_loop.of`); `std.io.terminalSize` checked on a pseudo-terminal (`tools/check_terminal.py`); raw mode, key events and the alternate screen wait for a TUI workload | OFIR-83 | **done**: decided, packages |
 | 6.31g | Scientific, data and ML computing (ADR 0100): no tensor, dataframe, linear algebra or GPU module in `std`; each is a package binding a C library over row-major `List<f64>` buffers passed as pointer, sizes and leading dimension (`tests/run/ffi/numeric_kernel.of`); the goal is the scalar loop within 10% of C, measured by `bench/programs/matmul.of` with a ceiling in `bench/budgets.json`; SIMD types, multi-dimensional arrays, `f16` and GPUs wait for a workload | OFIR-84 | **done**: decided, packages |
+| 6.31h | Games, mobile and browser SDKs (ADR 0101): games are programs on the desktop targets binding a platform library as a package over the C boundary (ADR 0099); no Android or iOS target in version 1, and a mobile app reaches Ofir as a C-ABI library once a triple, a runtime, emulator CI and an owner exist; no browser SDK until ADR 0068 is reopened | OFIR-85 | **done**: decided, rejected for v1 |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
 | 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | |
@@ -566,9 +567,9 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue with OFIR-85; 6.30 (OFIR-72 to OFIR-78), 6.31a (OFIR-79), 6.31b
-   (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82), 6.31f (OFIR-83) and 6.31g
-   (OFIR-84) are done;
+1. Continue with OFIR-86; 6.30 (OFIR-72 to OFIR-78), 6.31a (OFIR-79), 6.31b
+   (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82), 6.31f (OFIR-83), 6.31g
+   (OFIR-84) and 6.31h (OFIR-85) are done;
    6.31c holds the rest of OFIR-80.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
