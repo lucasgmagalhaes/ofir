@@ -29,6 +29,19 @@ static void test_large_allocations(void) {
     arena_free(&arena);
 }
 
+static void test_reset_keeps_oldest_chunk(void) {
+    Arena arena;
+    arena_init(&arena);
+    void *first = arena_alloc(&arena, 10000, 8);
+    for (int i = 0; i < 20; i++) {   // several chunks
+        arena_alloc(&arena, 10000, 8);
+    }
+    arena_reset(&arena);
+    CHECK(arena.total == 0);
+    CHECK(arena_alloc(&arena, 10000, 8) == first);   // the oldest chunk is reused
+    arena_free(&arena);
+}
+
 static void test_strndup(void) {
     Arena arena;
     arena_init(&arena);
@@ -53,6 +66,7 @@ static void test_vec(void) {
 int main(void) {
     test_alignment_and_zeroing();
     test_large_allocations();
+    test_reset_keeps_oldest_chunk();
     test_strndup();
     test_vec();
     return test_report("arena");
