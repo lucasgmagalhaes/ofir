@@ -5,4 +5,6 @@ fn main() {
     const _b = "\u41"   // error[E0004]: invalid unicode escape
     const _c = "\u{1234567"   // error[E0004]: invalid unicode escape
     const _d = 1.5e+   // error[E0005]: invalid float literal
+    const _e = b'\0'
+    const _f = b'\q'   // error[E0004]: invalid byte literal
 }
