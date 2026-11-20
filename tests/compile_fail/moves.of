@@ -64,6 +64,15 @@ fn fromForVariable(names: List<str>) {
     }
 }
 
+fn eatUser(_u: move User) {
+}
+
+fn fieldOfMoved(u: move User) {
+    let whole = u
+    eatUser(whole)
+    whole.age = 2                // error[E0600]: use of moved value `whole`
+}
+
 fn main() {
 }
 

@@ -18,8 +18,18 @@ fn fails() int {
     return 1                     // warning[W0004]: unreachable code: the statement before it never finishes
 }
 
+fn movesAfterReturn() int {
+    const s = "x".toOwned()
+    return 1
+    consume(s)                   // warning[W0004]: unreachable code: the statement before it never finishes
+}
+
+fn consume(_s: move str) {
+}
+
 fn main() {
     println("{early(1)}")
     loop()
     const _ = fails()
+    const _ = movesAfterReturn()
 }
