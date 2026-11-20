@@ -105,6 +105,7 @@ starts with the same word as the record's status line.
 | [0092](0092-build-and-tool-security.md) | Build and hosted-tool security | Proposed |
 | [0093](0093-compiler-layers.md) | Layers of the stage 1 compiler | Proposed |
 | [0094](0094-service-ecosystem-records.md) | Service ecosystem records | Proposed |
+| [0095](0095-the-ofir-book.md) | The Ofir Book | Proposed |
 
 ## Template
 

@@ -30,6 +30,7 @@ The [website](site/README.md) has a landing page and a short getting-started gui
 
 | Document | Content |
 |----------|---------|
+| [The Ofir Book](docs/book/README.md) | learn the language, from installation to tests |
 | [Specification](docs/spec/README.md) | the language, chapter by chapter, with the full grammar |
 | [Standard library](docs/std/README.md) | API reference of `std` |
 | [Error codes](docs/errors/README.md) | registry of compiler diagnostics |
