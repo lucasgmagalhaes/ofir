@@ -46,6 +46,7 @@ check-docs:
 	$(PYTHON) tools/check_llvm_matrix.py
 	$(PYTHON) tools/check_api_plan.py
 	$(PYTHON) tools/check_book.py
+	$(PYTHON) tools/check_maintenance.py
 
 # No inline function or statement bodies (docs/style-guide.md, `fmt.inlineBlocks`).
 check-format:

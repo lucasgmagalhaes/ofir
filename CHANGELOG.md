@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Maintenance process (ADR 0096): `docs/maintaining.md` (triage, review,
+  releases, security handling, accounts, continuity), `SECURITY.md`,
+  issue and pull request templates and CODEOWNERS;
+  `tools/check_maintenance.py`, in `make check-docs`, keeps them
+  consistent.
 - The Ofir Book (ADR 0095): `docs/book/` teaches installation, the
   basics, ownership, errors, projects and tests; `tools/check_book.py`
   runs every program of it and checks its output or diagnostic, with
