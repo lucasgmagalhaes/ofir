@@ -48,6 +48,7 @@ The [website](site/README.md) has a landing page and a short getting-started gui
 | [API ecosystem plan](docs/design/api-ecosystem.md) | service capabilities, gaps, dependencies and delivery gates |
 | [Risks](docs/risks.md) | risk register and mitigations |
 | [Maintaining](docs/maintaining.md) | triage, review, releases, security reports and continuity |
+| [Official packages](docs/packages/official.md) | the criteria of official packages and the packages that meet them |
 
 ## Goals
 
