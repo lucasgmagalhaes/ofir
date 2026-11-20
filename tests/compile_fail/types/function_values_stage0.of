@@ -6,6 +6,14 @@ fn apply(f: fn(int) int, x: int) int {
     return f(x)
 }
 
+fn viaParam(f: fn() str) str {
+    return f()
+}
+
+fn viaField(fs: (fn() str, int)) str {
+    return fs.0()
+}
+
 fn twice(x: int) int {
     return x * 2
 }
