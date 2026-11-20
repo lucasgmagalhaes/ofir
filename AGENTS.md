@@ -71,7 +71,7 @@ build/stage0/ofir build|run|test <file.of> [--emit=tokens|ast|names|types|air|ll
 ## Token hygiene
 
 - Do not read large files whole (`compiler/codegen/llvm.of`,
-  `compiler/main.of`, `compiler/air/lower_expr.of`): search first, then read
+  `compiler/main.of`, `compiler/air/lower/lower_expr.of`): search first, then read
   the relevant range.
 - Filter command output (`tools/quiet.sh`, bounded searches, log excerpts).
 - Use `git diff --stat` before looking at a full diff.
