@@ -87,7 +87,9 @@ static uint32_t field_position(const StructInfo *info, Symbol name) {
             return f;
         }
     }
+    // GCOVR_EXCL_START: the checker reported unknown fields: only known names reach lowering
     return 0;   // the checker reported unknown fields
+    // GCOVR_EXCL_STOP
 }
 
 // Field `f` of the `..base` struct.
