@@ -1,0 +1,43 @@
+/**
+ * @module
+ * How the commands report: phase timers (`--time-passes`), rendered
+ * diagnostics and the errors of the driver itself.
+ */
+
+import base.span.SourceMap
+import diag.Diagnostics
+import diag.Format
+import diag.Severity
+import diag.jsonNoSource
+
+extern "C" {
+    fn ofir_now_ns() i64
+}
+
+pub fn timerStart(enabled: bool) i64 {
+    return if enabled { unsafe { ofir_now_ns() } } else { 0 }
+}
+
+pub fn timerReport(enabled: bool, phase: str, start: i64) {
+    if enabled {
+        timerReportNanos(phase, unsafe { ofir_now_ns() } - start)
+    }
+}
+
+pub fn timerReportNanos(phase: str, nanos: i64) {
+    eprintln("time: {phase} {nanos / 1_000_000} ms")
+}
+
+// Writes the diagnostics in the requested format.
+pub fn render(diags: Diagnostics, map: SourceMap, format: Format) {
+    eprint(diags.render(map, format))
+}
+
+// An error of the driver, which points at no source.
+pub fn driverError(format: Format, code: str, message: str) {
+    if format == Format.Json {
+        eprint(jsonNoSource(Severity.Error, code, message))
+    } else {
+        eprintln("error[{code}]: {message}")
+    }
+}

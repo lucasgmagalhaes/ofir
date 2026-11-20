@@ -1,0 +1,114 @@
+/**
+ * @module
+ * Runs what was built: the program, its `@test` functions or its `@bench`
+ * functions.
+ */
+
+import cli.native.withArg
+import std.os
+
+// Runs a program, its output passed on; returns its exit status.
+pub fn runProgram(exe: str, args: [str]) int {
+    return match os.run(exe, args) {
+        Result.Ok(out) => {
+            print(out.stdout)
+            eprint(out.stderr)
+            const status = if out.status < 0 { 1 } else { out.status }
+            status
+        }
+        Result.Err(_) => {
+            eprintln("error[E0902]: cannot run `{exe}`")
+            1
+        }
+    }
+}
+
+// What `ofir test` calls a test: `module.name`, or for a doc test
+// (`driver.build.modules.addDocTests`) the module and the line of the block.
+pub fn testName(module: str, name: str) str {
+    if !module.startsWith("doc:") {
+        return "{module}.{name}"
+    }
+    const block = module.sliceFrom(4)
+    if name == "compiled" {
+        return "{block} (doc test, not run)"
+    }
+    return "{block} (doc test)"
+}
+
+// A started test, with its output passed on in test declaration order.
+pub fn waitTest(exe: str, child: move os.Child) int {
+    return match child.wait() {
+        Result.Ok(out) => {
+            print(out.stdout)
+            eprint(out.stderr)
+            const status = if out.status < 0 { 1 } else { out.status }
+            status
+        }
+        Result.Err(_) => {
+            eprintln("error[E0902]: cannot run `{exe}`")
+            1
+        }
+    }
+}
+
+// Each test runs in its own process. Up to `jobs` run together, while their
+// captured output is reported in declaration order. A `no_run` doc test was
+// only compiled.
+pub fn runTests(exe: str, lead: List<str>, tests: List<str>, testJobs: int) int {
+    const cores = os.cpuCount()
+    const jobs = if testJobs > 0 { testJobs } else if cores < 4 { cores } else { 4 }
+    let pending: List<Option<os.Child>> = []
+    let next = 0
+    let failed = 0
+    for i in 0..tests.len() {
+        for next < tests.len() && pending.len() < jobs {
+            if tests[next].endsWith("(doc test, not run)") {
+                pending.push(Option.None)
+            } else {
+                pending.push(match os.spawn(exe, withArg(lead, "{next}")) {
+                    Result.Ok(child) => Option.Some(child)
+                    Result.Err(_) => Option.None
+                })
+            }
+            next += 1
+        }
+        print("test {tests[i]} ... ")
+        const child = pending.remove(0)
+        if tests[i].endsWith("(doc test, not run)") {
+            println("ok")
+            continue
+        }
+        const status = match child {
+            Option.Some(started) => waitTest(exe, started)
+            Option.None => {
+                eprintln("error[E0902]: cannot run `{exe}`")
+                1
+            }
+        }
+        if status == 0 {
+            println("ok")
+        } else {
+            println("FAILED (exit status {status})")
+            failed += 1
+        }
+    }
+    println("\n{tests.len()} tests: {tests.len() - failed} passed, {failed} failed")
+    return if failed > 0 { 1 } else { 0 }
+}
+
+// `ofir bench` (spec 12.3): each benchmark in its own process, which prints
+// its time.
+pub fn runBenches(exe: str, lead: List<str>, benches: List<str>) int {
+    let failed = 0
+    for i in 0..benches.len() {
+        print("bench {benches[i]} ... ")
+        const status = runProgram(exe, withArg(lead, "{i}"))
+        if status != 0 {
+            println("FAILED (exit status {status})")
+            failed += 1
+        }
+    }
+    println("\n{benches.len()} benchmarks: {benches.len() - failed} ran, {failed} failed")
+    return if failed > 0 { 1 } else { 0 }
+}

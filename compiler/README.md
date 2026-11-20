@@ -47,4 +47,5 @@ in this list, and `make check-layers` enforces it.
 | `driver/build/` | module loading, the object cache and the build | `driver/pkg` |
 | `doc/`, `fmt/` | `ofir doc` and `ofir fmt` | `base`, `diag`, `syntax` |
 | `lsp/` | `ofir lsp` | `base`, `diag`, `syntax`, `sema`, `driver` |
-| `main.of` | the command line | any |
+| `cli/` | the commands: options, the build pipeline, the native toolchain, `explain`, `repl`, `--watch` | any |
+| `main.of` | the command line: dispatches to the commands | any |

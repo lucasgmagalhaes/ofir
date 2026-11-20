@@ -1,0 +1,414 @@
+/**
+ * @module
+ * `build`, `run`, `test`, `bench`, `check` and `metadata`: the phases in
+ * order (load, check, lower, generate), then the native toolchain.
+ */
+
+import air.interp.interp.evalComptimes
+import air.ir.air.AirBody
+import air.ir.air_print.AirPrinter
+import air.ir.validate.validateBody
+import air.lower.lower.lowerProgram
+import air.opt.accumulate.accumulate
+import air.opt.fold.foldChecks
+import base.intern.Interner
+import base.span.SourceMap
+import cli.native.archive
+import cli.native.clangPath
+import cli.native.codegenFlags
+import cli.native.coverageFiles
+import cli.native.directoryOf
+import cli.native.inputBase
+import cli.native.link
+import cli.native.outputPath
+import cli.native.removeFiles
+import cli.native.runtimeLibrary
+import cli.native.windowsTarget
+import cli.options.Options
+import cli.options.testRoot
+import cli.report.driverError
+import cli.report.render
+import cli.report.timerReport
+import cli.report.timerReportNanos
+import cli.report.timerStart
+import cli.run.runBenches
+import cli.run.runProgram
+import cli.run.runTests
+import cli.run.testName
+import codegen.c_header.cHeader
+import codegen.llvm.generate
+import codegen.llvm.generateUnits
+import diag.Diagnostics
+import driver.build.cfg.CfgTarget
+import driver.build.metadata.metadataJson
+import driver.build.modules.Front
+import driver.build.modules.loadProgram
+import driver.build.object_cache
+import driver.build.profile.readProfile
+import driver.build.record.RecordInputs
+import driver.build.record.buildRecord
+import driver.build.target.runnerWords
+import driver.build.target.targetArch
+import driver.build.target.targetOs
+import driver.version.VERSION
+import sema.check.c_symbols.linkLibraries
+import sema.check.check.Checker
+import sema.check.check.checkProgram
+import sema.check.type_trace.traceTypes
+import sema.core.program.Program
+import sema.resolve.interface_params.desugarInterfaceParams
+import sema.resolve.resolve.resolveProgram
+import std.fs
+import std.mem
+import std.os
+import syntax.ast.ast_print.printModule
+import syntax.lex.lexer.tokenize
+import syntax.lex.token_print.printTokens
+import syntax.parse.parser.parse
+
+/** A compilation: what it was asked and what it built. */
+pub struct Pipeline {
+    /** The options. */
+    pub opts: Options
+    /** The executable, or "" when none was built. */
+    pub exe: str
+    /** The names of the `@test` (or `@bench`) functions, for `ofir test` (or `bench`). */
+    pub tests: List<str>
+    /** Start of compilation, excluding execution of the compiled program. */
+    pub totalStart: i64
+}
+
+// Runs the phases in order, then the program or its tests. Returns the
+// exit status.
+pub fn build(given: move Options) int {
+    let opts = given
+    const totalStart = timerStart(opts.timePasses)
+    opts.input = testRoot(&opts)
+    if opts.profile.len() == 0 {
+        opts.profile = "dev".toOwned()
+    }
+    // Every build reads the manifest's profiles, so a bad one is reported (ADR 0078).
+    match readProfile(opts.input, opts.profile) {
+        Result.Ok(p) => {
+            opts.release = p.release
+            opts.opt = p.opt
+            opts.debugInfo = opts.debugInfo || p.debugInfo
+            opts.trimPaths = opts.trimPaths || p.trimPaths
+        }
+        Result.Err(message) => {
+            driverError(opts.format, "E0918", message)
+            return 1
+        }
+    }
+    let pipeline = Pipeline{opts: opts.clone(), exe: "", tests: [], totalStart: totalStart}
+    let front = Front{map: SourceMap.new(), names: Interner.new(), diags: Diagnostics.new(),
+                      overlays: Map.new(), locked: opts.locked, offline: opts.offline}
+    front.diags.denyWarnings = opts.deny
+    let phaseStart = timerStart(opts.timePasses)
+    const Option.Some(file) = front.load(opts.input) else {
+        driverError(opts.format, "E0900", "cannot read `{opts.input}`")
+        timerReport(opts.timePasses, "total", totalStart)
+        return 1
+    }
+    timerReport(opts.timePasses, "load", phaseStart)
+    phaseStart = timerStart(opts.timePasses)
+    const tokens = tokenize(front.map.file(file).text, file, front.names, front.diags)
+    timerReport(opts.timePasses, "lex", phaseStart)
+    if opts.emit == "tokens" {
+        print(printTokens(tokens, *front.map.file(file), front.names))
+    }
+    const lexed = opts.emit == "tokens" || opts.stopAfter == "lex"
+    if front.diags.hasErrors() || lexed {
+        return finish(front.diags, front.map, &pipeline)
+    }
+    const names = mem.replace(front.names, Interner.new())
+    const diags = mem.replace(front.diags, Diagnostics.new())
+    phaseStart = timerStart(opts.timePasses)
+    const parsed = parse(file, front.map.file(file).text, tokens, names, diags)
+    timerReport(opts.timePasses, "parse", phaseStart)
+    front.names = parsed.names
+    front.diags = parsed.diags
+    if opts.emit == "ast" {
+        print(printModule(parsed.module, front.names))
+    }
+    const done = opts.emit == "ast" || opts.stopAfter == "parse"
+    if front.diags.hasErrors() || done {
+        return finish(front.diags, front.map, &pipeline)
+    }
+    const testing = opts.command == "test"
+    const benching = opts.command == "bench"
+    const target = CfgTarget{os: targetOs(opts.target), arch: targetArch(opts.target),
+                             debug: !opts.release, test: testing, bench: benching}
+    // Doc tests change the program: not under `--emit`, so that it is stage 0's.
+    const docTests = testing && opts.emit == ""
+    phaseStart = timerStart(opts.timePasses)
+    let program = loadProgram(opts.input, parsed.module, front, target, docTests)
+    timerReport(opts.timePasses, "modules", phaseStart)
+    if front.diags.hasErrors() {
+        return finish(front.diags, front.map, &pipeline)
+    }
+    if opts.command == "metadata" {
+        print(metadataJson(&program, &front.map, VERSION))
+        return finish(front.diags, front.map, &pipeline)
+    }
+    phaseStart = timerStart(opts.timePasses)
+    let r = resolveProgram(program, front.names, front.diags, front.map, opts.emit == "names",
+                           testing || benching, benching, false, "")
+    timerReport(opts.timePasses, "resolve", phaseStart)
+    r.library = opts.lib.len() > 0
+    if opts.emit == "names" {
+        print(r.trace.out)
+        return finish(r.diags, r.map, &pipeline)
+    }
+    if r.diags.hasErrors() {
+        return finish(r.diags, r.map, &pipeline)
+    }
+    phaseStart = timerStart(opts.timePasses)
+    desugarInterfaceParams(program, r)
+    let c = checkProgram(program, r)
+    timerReport(opts.timePasses, "check", phaseStart)
+    if opts.emit == "types" {
+        print(traceTypes(c, program))
+        return finish(c.r.diags, c.r.map, &pipeline)
+    }
+    if c.r.diags.hasErrors() || opts.stopAfter == "check" || opts.command == "check" {
+        return finish(c.r.diags, c.r.map, &pipeline)
+    }
+    const ok = backend(c, program, pipeline)
+    if !ok && !c.r.diags.hasErrors() {
+        render(c.r.diags, c.r.map, opts.format)
+        timerReport(opts.timePasses, "total", totalStart)
+        return 1
+    }
+    if opts.record.len() > 0 && !c.r.diags.hasErrors() {
+        if !writeRecord(&opts, &pipeline, &c.r.map) {
+            return 1
+        }
+    }
+    return finish(c.r.diags, c.r.map, &pipeline)
+}
+
+// Writes `--record=FILE`: the inputs of the build and the hashes of what it
+// wrote (ADR 0083). Returns false if the file cannot be written.
+pub fn writeRecord(opts: &Options, pipeline: &Pipeline, map: &SourceMap) bool {
+    let artifacts: List<str> = []
+    if opts.emit == "llvm" {
+        artifacts.push("{outputPath(opts)}.ll")
+    } else if pipeline.exe.len() > 0 {
+        artifacts.push(pipeline.exe.clone())
+        if opts.lib.len() > 0 {
+            artifacts.push("{directoryOf(pipeline.exe)}{inputBase(opts)}.h")
+        }
+    }
+    let flags: List<str> = []
+    if opts.release {
+        flags.push("--release")
+    }
+    flags.push("-O{opts.opt}")
+    if opts.debugInfo {
+        flags.push("-g")
+    }
+    if opts.trimPaths {
+        flags.push("--trim-paths")
+    }
+    if opts.coverage {
+        flags.push("--coverage")
+    }
+    if opts.lib.len() > 0 {
+        flags.push("--lib={opts.lib}")
+    }
+    if opts.emit.len() > 0 {
+        flags.push("--emit={opts.emit}")
+    }
+    const inputs = RecordInputs{ofir: VERSION.toOwned(), clang: clangPath(),
+                                target: opts.target.clone(), profile: opts.profile.clone(),
+                                flags, input: opts.input.clone(),
+                                runtime: runtimeLibrary() ?? ""}
+    if fs.writeString(opts.record, buildRecord(&inputs, map, artifacts)).isErr() {
+        driverError(opts.format, "E0902", "cannot write `{opts.record}`")
+        return false
+    }
+    return true
+}
+
+// Stops the compiler on a malformed body (air/validate.of), with the body:
+// a compiler bug, reported before it reaches LLVM.
+pub fn validateAir(c: Checker, b: &AirBody, pass: str) {
+    if const Option.Some(what) = validateBody(b) {
+        let printer = AirPrinter{out: ""}
+        printer.body(c, b)
+        eprint(printer.out)
+        eprintln("note: this is a compiler bug; a report needs the AIR above")
+        eprintln("ofir: internal error: invalid AIR after {pass}: {what}")
+        os.abort()
+    }
+}
+
+// Lowers the program, then prints its AIR (`--emit=air`), or writes its
+// LLVM IR and links it with clang. Returns false if a step failed.
+pub fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
+    const opts = pipeline.opts.clone()
+    let phaseStart = timerStart(opts.timePasses)
+    let l = lowerProgram(c, program)
+    if l.unsupported {
+        driverError(opts.format, "E0901", "stage 1 does not compile {l.missing} yet")
+        return false
+    }
+    evalComptimes(l, c, program)
+    if c.r.diags.hasErrors() {
+        return false
+    }
+    for i in 0..l.out.len() {
+        validateAir(c, &l.out[i], "lowering")
+        foldChecks(c, l.out[i])
+        accumulate(c, l.out[i])
+        validateAir(c, &l.out[i], "check folding")
+    }
+    timerReport(opts.timePasses, "lower", phaseStart)
+    for i in 0..l.tests.len() {
+        const def = c.def(l.tests[i])
+        pipeline.tests.push(testName(c.r.moduleNames[def.module], c.text(def.name)))
+    }
+    if opts.emit == "air" {
+        let printer = AirPrinter{out: ""}
+        for i in 0..l.out.len() {
+            printer.body(c, &l.out[i])
+        }
+        print(printer.out)
+        return true
+    }
+    const exe = outputPath(&opts)
+    let files: List<str> = []
+    let cached: List<str> = []   // where the object of each unit is cached
+    // Release builds are one unit: units lose inlining across modules (roadmap 6.6f).
+    // So are Windows builds: MinGW's ld cannot link the thread-local globals that
+    // units share as COMDATs (`linkonce_odr thread_local`, std/core/pool.of).
+    // A static library is one object, so that a linker that loads it for one
+    // symbol has the runtime's callbacks into `std` too (ADR 0064).
+    const single = opts.oneUnit || opts.lib == "static"
+    if opts.emit == "llvm" || single || opts.release || windowsTarget(&opts) {
+        const ll = "{exe}.ll"
+        files.push(ll.clone())
+        phaseStart = timerStart(opts.timePasses)
+        const text = generate(c, program, l.out, opts.debugInfo, opts.trimPaths, opts.release)
+        timerReport(opts.timePasses, "codegen", phaseStart)
+        phaseStart = timerStart(opts.timePasses)
+        const salt = if opts.noCache || opts.emit == "llvm" {
+            "".toOwned()
+        } else {
+            object_cache.cacheSalt(clangPath(), codegenFlags(&opts))
+        }
+        if salt.len() > 0 {
+            cached.push(object_cache.objectPath(salt, text))
+        }
+        if fs.writeString(ll, coverageFiles(&opts, ll, text)).isErr() {
+            driverError(opts.format, "E0902", "cannot write `{ll}`")
+            return false
+        }
+        timerReport(opts.timePasses, "cache+write", phaseStart)
+    } else {   // a module for each codegen unit (ADR 0033)
+        phaseStart = timerStart(opts.timePasses)
+        const units = generateUnits(c, program, l.out, opts.debugInfo, opts.trimPaths,
+                                    opts.release)
+        timerReport(opts.timePasses, "codegen", phaseStart)
+        phaseStart = timerStart(opts.timePasses)
+        let hashNanos: i64 = 0
+        let writeNanos: i64 = 0
+        const salt = if opts.noCache || opts.emit == "llvm" || units.len() < 2 {
+            "".toOwned()
+        } else {
+            object_cache.cacheSalt(clangPath(), codegenFlags(&opts))
+        }
+        for k in 0..units.len() {
+            const hashStart = timerStart(opts.timePasses)
+            if salt.len() > 0 {
+                cached.push(object_cache.objectPath(salt, units[k].text))
+            }
+            if opts.timePasses {
+                hashNanos += timerStart(true) - hashStart
+            }
+            const ll = "{exe}.{k}.ll"
+            files.push(ll.clone())
+            const writeStart = timerStart(opts.timePasses)
+            if fs.writeString(ll, coverageFiles(&opts, ll, units[k].text)).isErr() {
+                driverError(opts.format, "E0902", "cannot write `{ll}`")
+                removeFiles(files)
+                return false
+            }
+            if opts.timePasses {
+                writeNanos += timerStart(true) - writeStart
+            }
+        }
+        timerReport(opts.timePasses, "cache+write", phaseStart)
+        if opts.timePasses {
+            timerReportNanos("hash", hashNanos)
+            timerReportNanos("write", writeNanos)
+        }
+    }
+    if c.r.diags.hasErrors() {   // the lowering reported errors
+        removeFiles(files)
+        return true
+    }
+    if opts.emit == "llvm" {
+        return true
+    }
+    const libraries = linkLibraries(c.r, program)
+    if opts.lib == "static" && program.native.len() > 0 {
+        driverError(opts.format, "E0918", "a static library cannot have `build.native` files yet")
+        removeFiles(files)
+        return false
+    }
+    const linked = if opts.lib == "static" {
+        archive(&opts, files, cached, exe.clone())
+    } else {
+        link(&opts, files, cached, exe.clone(), libraries.clone(), program.native)
+    }
+    removeFiles(files)
+    if linked && opts.lib.len() > 0 {   // the library's header, next to it (ADR 0064)
+        const name = inputBase(&opts)
+        const header = "{directoryOf(exe)}{name}.h"
+        if fs.writeString(header, cHeader(c, program, name, libraries)).isErr() {
+            driverError(opts.format, "E0902", "cannot write `{header}`")
+            return false
+        }
+    }
+    if linked {
+        pipeline.exe = exe
+    }
+    return linked
+}
+
+// The diagnostics, then the program or its tests.
+pub fn finish(diags: Diagnostics, map: SourceMap, pipeline: &Pipeline) int {
+    render(diags, map, pipeline.opts.format)
+    timerReport(pipeline.opts.timePasses, "total", pipeline.totalStart)
+    if diags.hasErrors() {
+        return 1
+    }
+    if pipeline.exe.len() == 0 {
+        return 0
+    }
+    let status = 0
+    // Another target's executable runs under `OFIR_RUNNER` (ADR 0066).
+    let program = pipeline.exe.clone()
+    let lead: List<str> = []
+    const words = runnerWords()
+    if pipeline.opts.target.len() > 0 && words.len() > 0 {
+        program = words[0].clone()
+        for i in 1..words.len() {
+            lead.push(words[i].clone())
+        }
+        lead.push(pipeline.exe.clone())
+    }
+    if pipeline.opts.command == "run" {
+        status = runProgram(program, lead)
+    } else if pipeline.opts.command == "test" {
+        status = runTests(program, lead, pipeline.tests, pipeline.opts.testJobs)
+    } else if pipeline.opts.command == "bench" {
+        status = runBenches(program, lead, pipeline.tests)
+    }
+    if pipeline.opts.output.isNone() && pipeline.opts.command != "build" {
+        const _ = fs.removeFile(pipeline.exe)
+    }
+    return status
+}
