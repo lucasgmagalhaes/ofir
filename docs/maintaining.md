@@ -92,12 +92,14 @@ index (ADR 0081), not of this repository.
 
 What the project needs to keep running, and who holds it. No secret is
 stored in the repository or its workflows: the Release workflow uses
-the workflow's own `GITHUB_TOKEN`.
+the workflow's own `GITHUB_TOKEN`, and the coverage job reads the
+`CODECOV_TOKEN` secret of the repository (ADR 0103).
 
 | Account | Used for | Holder |
 |---------|----------|--------|
 | GitHub repository admin | settings, branch protection, private vulnerability reports, the Release workflow | @lucasgmagalhaes |
 | Vercel project | the website of `site/` | @lucasgmagalhaes |
+| Codecov project | the coverage reports and the `CODECOV_TOKEN` secret | @lucasgmagalhaes |
 
 ## Continuity
 

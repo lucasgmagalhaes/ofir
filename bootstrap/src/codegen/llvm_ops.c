@@ -126,6 +126,10 @@ Value gen_operand(Gen *g, Operand o) {
         place_address(g, o.as.local, o.path, v.text);
         break;
     case OPERAND_INT:
+        if (ty_of(g, o.type)->kind == TY_PTR) {   // a constant `0 as *T` (spec 4.7)
+            strcpy(v.text, "null");
+            break;
+        }
         int_text(v.text, sizeof v.text, o.as.int_value, INT_BITS[ty_of(g, o.type)->data]);
         break;
     case OPERAND_FLOAT:

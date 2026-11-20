@@ -17,6 +17,14 @@ project uses [Semantic Versioning](https://semver.org/).
   builds the runtime with clang `--coverage` and the test programs with
   `--coverage`, and reports `runtime/src` and `std/` as the Codecov flags
   `runtime` and `std`.
+- Coverage floors (ADR 0103, 6.33c): `make coverage-check` fails when a
+  directory's line coverage falls below its floor in
+  `tools/coverage_floors.json` or an exclusion marker gives no reason;
+  CI runs it after each measurement.
+- Stage 0 coverage (ADR 0103, 6.33d): `tools/check_stage0_cli.py` checks
+  the command line and the driver errors of stage 0 in `make test`, and
+  new tests cover constant evaluation, pattern mismatches and the
+  expressions stage 0 rejects; stage 0 is at 97.5% of its lines.
 - Glob imports (ADR 0098): `import a.b.*` brings every public member of
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
@@ -274,6 +282,9 @@ project uses [Semantic Versioning](https://semver.org/).
   `import std.testing.assert` (E0200, ADR 0036).
 
 ### Fixed
+
+- A constant null pointer (`const NULL: *u8 = 0 as *u8`) used as a value
+  emitted `ptr 0`, which is not LLVM IR; both stages emit `null`.
 
 - An assignment evaluates its right side before the place (spec 4.2,
   ADR 0080 rule 9): `list[i] = f()` with `f` growing `list` no longer
