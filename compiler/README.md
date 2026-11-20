@@ -34,6 +34,10 @@ in this list, and `make check-layers` enforces it.
 | `sema/resolve/` | name resolution, completion and suggestions | `sema/core` |
 | `sema/check/` | the type checker, comptime, moves and borrows | `sema/core`, `sema/resolve` |
 | `air/` | the AIR and the lowering | the above and `sema` |
+| `air/ir/` | the AIR, its printer and its validator | `air/ir` |
+| `air/opt/` | constant folding and accumulators | `air/ir` |
+| `air/lower/` | the lowering from the checked AST | `air/ir` |
+| `air/interp/` | the comptime interpreter | `air/ir`, `air/opt`, `air/lower` |
 | `codegen/` | the LLVM codegen | the above and `air` |
 | `driver/` | module loading, packages and the build | `base`, `diag`, `syntax`, `sema` |
 | `driver/pkg/` | manifests, resolution, the lock, git and the registry | `driver/pkg` |

@@ -14,50 +14,50 @@
  * nothing (`make compare-stages` skips the file).
  */
 
-import air.air.AirBody
-import air.air.AirStmt
-import air.air.GLUE_DROP
-import air.air.FieldPath
-import air.air.Operand
-import air.air.OperandKind
-import air.air.PanicKind
-import air.air.Rvalue
-import air.air.RuntimeFn
-import air.air.RvalueKind
-import air.air.StmtKind
-import air.air.Terminator
-import air.air.TermKind
-import air.air.branch
-import air.air.isGlue
-import air.air.jump
-import air.air.noPath
-import air.air.opAddr
-import air.air.opBool
-import air.air.opCopy
-import air.air.opUnit
-import air.air.rvUse
-import air.air.terminator
-import air.air.CALL_VALUE
-import air.air.GLUE_CLONE
-import air.air.GLUE_EQ
-import air.air.GLUE_DEBUG
-import air.air.GLUE_HASH
-import air.lower_derive.lowerCmpGlue
-import air.lower_derive.lowerDebugGlue
-import air.lower_derive.lowerEqGlue
-import air.lower_derive.lowerHashGlue
-import air.lower_expr.cloneValue
-import air.lower_expr.closingBrace
-import air.lower_expr.lowerBlock
-import air.lower_expr.stdFn
-import air.lower_pattern.variantValue
-import air.lower_pattern.isVariant
-import air.air.VARIANT_STEP
+import air.ir.air.AirBody
+import air.ir.air.AirStmt
+import air.ir.air.GLUE_DROP
+import air.ir.air.FieldPath
+import air.ir.air.Operand
+import air.ir.air.OperandKind
+import air.ir.air.PanicKind
+import air.ir.air.Rvalue
+import air.ir.air.RuntimeFn
+import air.ir.air.RvalueKind
+import air.ir.air.StmtKind
+import air.ir.air.Terminator
+import air.ir.air.TermKind
+import air.ir.air.branch
+import air.ir.air.isGlue
+import air.ir.air.jump
+import air.ir.air.noPath
+import air.ir.air.opAddr
+import air.ir.air.opBool
+import air.ir.air.opCopy
+import air.ir.air.opUnit
+import air.ir.air.rvUse
+import air.ir.air.terminator
+import air.ir.air.CALL_VALUE
+import air.ir.air.GLUE_CLONE
+import air.ir.air.GLUE_EQ
+import air.ir.air.GLUE_DEBUG
+import air.ir.air.GLUE_HASH
+import air.ir.air.VARIANT_STEP
+import air.ir.air.opInt
+import air.ir.air.rvalue
+import air.lower.lower_derive.lowerCmpGlue
+import air.lower.lower_derive.lowerDebugGlue
+import air.lower.lower_derive.lowerEqGlue
+import air.lower.lower_derive.lowerHashGlue
+import air.lower.lower_expr.cloneValue
+import air.lower.lower_expr.closingBrace
+import air.lower.lower_expr.lowerBlock
+import air.lower.lower_expr.stdFn
+import air.lower.lower_pattern.variantValue
+import air.lower.lower_pattern.isVariant
 import base.intern.Symbol
 import base.span.Span
 import diag.noSpan
-import air.air.opInt
-import air.air.rvalue
 import sema.check.check_generic.reportBadLengths
 import sema.check.check.Checker
 import sema.check.check.checkLate
@@ -152,7 +152,7 @@ pub copy struct Instance {
 /**
  * A `comptime` expression (spec 15.1): blocks `start` up to `after` of a
  * body compute its value into `dest`; the interpreter runs them and
- * replaces them with the constant (`air.interp`).
+ * replaces them with the constant (`air.interp.interp`).
  */
 pub struct ComptimeRegion {
     /** The body's function, as `AirBody.def`. */
