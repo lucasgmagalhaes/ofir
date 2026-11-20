@@ -10,6 +10,8 @@ import base.json.jsonString
 import base.json.parseJson
 import base.json.parseJsonc
 import driver.pkg.lock.checksum
+import driver.pkg.metadata.metadataError
+import driver.pkg.metadata.metadataJson
 import driver.pkg.registry.indexPath
 import driver.pkg.resolve.registryVersion
 import driver.pkg.semver.parseVersion
@@ -29,6 +31,9 @@ struct Packaged {
     deps: str
     // Its SPDX license expression (ADR 0081).
     license: str
+    // Its description, keywords, repository and toolchain, as members of
+    // the index line (ADR 0097).
+    metadata: str
 }
 
 /**
@@ -124,6 +129,7 @@ pub fn publishCommand(args: List<str>) int {
     }
     text.push("\{\"version\": {jsonString(p.version)}, \"dependencies\": {p.deps}, ")
     text.push("\"checksum\": {jsonString(p.sum)}, \"license\": {jsonString(p.license)}, ")
+    text.push(p.metadata)
     text.push("\"yanked\": false\}\n")
     if fs.createDirAll(parent(file)).isErr() || fs.writeString(file, text).isErr() {
         eprintln("error: cannot write `{file}`")
@@ -256,6 +262,12 @@ fn makePackage() Result<Packaged, str> {
     if problem.len() > 0 {
         return Result.Err("error[E0910]: `license` is not an SPDX license expression: {problem}")
     }
+    for key in ["description", "keywords", "repository"] {
+        const wrong = metadataError(&doc, key)
+        if wrong.len() > 0 {
+            return Result.Err("error[E0910]: {wrong}")
+        }
+    }
     let deps = "\{"
     const list = doc.field(0, "dependencies")
     if list >= 0 {
@@ -286,7 +298,8 @@ fn makePackage() Result<Packaged, str> {
     }
     run("tar", ["-czf", archive.clone(), "-C", stage.clone(), "."])?
     const sum = checksum(stage)
-    return Result.Ok(Packaged{name, version, archive, sum, deps, license})
+    const metadata = metadataJson(&doc)
+    return Result.Ok(Packaged{name, version, archive, sum, deps, license, metadata})
 }
 
 // The error line of a refused publish.

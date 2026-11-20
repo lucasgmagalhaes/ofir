@@ -107,6 +107,7 @@ starts with the same word as the record's status line.
 | [0094](0094-service-ecosystem-records.md) | Service ecosystem records | Proposed |
 | [0095](0095-the-ofir-book.md) | The Ofir Book | Proposed |
 | [0096](0096-maintenance-process.md) | Maintenance and contribution process | Proposed |
+| [0097](0097-package-discovery.md) | Package discovery and official packages | Proposed |
 | [0099](0099-gui-graphics-audio-media.md) | GUI, graphics, audio and media are packages over the C boundary | Proposed |
 
 ## Template

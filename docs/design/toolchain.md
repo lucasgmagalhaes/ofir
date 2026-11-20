@@ -17,6 +17,7 @@ A single executable provides every tool:
 | `ofir metadata <file.of>` | print the modules of a program as JSON (below) |
 | `ofir sbom [--format=cyclonedx\|spdx]` | print the project's bill of materials (below) |
 | `ofir audit [--offline] [--message-format=json]` | check the locked packages against advisories (below) |
+| `ofir search <words> [--index URL\|DIR] [--offline] [--message-format=json]` | find packages of the index (below) |
 | `ofir explain <code>` | describe an error code |
 | `ofir lsp` | run the language server on standard input and output (below) |
 | `ofir version` | print version and LLVM/clang versions in use |
@@ -196,6 +197,9 @@ allowed, the format of `tsconfig.json` (ADR 0026). Keys are camelCase.
   "version": "0.1.0",
   "edition": "2027",
   "license": "MIT OR Apache-2.0",   // an SPDX license expression (ADR 0081)
+  "description": "A small web app",   // what `ofir search` shows (ADR 0097)
+  "keywords": ["web", "http"],
+  "repository": "https://github.com/acme/my_app",
   "audit": {"ignore": ["OFIR-2026-0001"]},   // advisories accepted by `ofir audit`
   "trust": {"git": ["https://github.com/acme/"]},   // the accepted sources (ADR 0081)
   "toolchain": ">=0.5.0, <0.7.0",   // the compiler versions it builds with (ADR 0082)
@@ -331,6 +335,22 @@ after a license, or `LicenseRef-<id>`; anything else is E0910. The list
 is embedded in the compiler (`compiler/driver/pkg/spdx_list.of`, written by
 `tools/gen_spdx.py`). A package without a `license` cannot be published
 (E0919), and its index line records it as `"license"`.
+
+A manifest's discovery metadata (ADR 0097) is `description`, one line of
+at most 160 bytes; `keywords`, at most 5 distinct words of lowercase
+letters, digits and `-`, each at most 24 bytes; and `repository`, an
+`https://` URL. They are optional, and an invalid one is E0910. `ofir
+publish` adds them and the manifest's `toolchain` to the index line.
+`ofir search <words> [--index URL|DIR] [--offline]
+[--message-format=json]` reads the index (default `$OFIR_REGISTRY`) and
+prints the packages whose name, description or keywords hold every word,
+ignoring case: each at its highest version that is not yanked, as `name
+version: description`, followed by the toolchain it needs when this
+compiler is not in it. An exact name comes first, the others by name; a
+package whose versions are all yanked is left out; `--message-format=json`
+prints a JSON line per package, and nothing found exits with 1
+(`tools/check_search.py`). The criteria of official packages are in
+[docs/packages/official.md](../packages/official.md).
 
 `ofir sbom [--format=cyclonedx|spdx]` prints the project's software bill
 of materials: CycloneDX 1.5 JSON by default, SPDX 2.3 JSON with

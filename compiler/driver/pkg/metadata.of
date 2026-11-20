@@ -1,0 +1,115 @@
+/**
+ * @module
+ * The manifest's discovery metadata (ADR 0097): `description`, a line of
+ * at most 160 bytes; `keywords`, at most 5 distinct words of lowercase
+ * letters, digits and `-`, each at most 24 bytes; and `repository`, an
+ * `https://` URL. `ofir publish` copies them, with `toolchain`, into the
+ * index line, where `ofir search` reads them.
+ */
+
+import base.json.JsonDoc
+import base.json.JsonKind
+import base.json.jsonString
+
+/**
+ * What is wrong with one key of the metadata.
+ *
+ * @param doc the manifest
+ * @param key `description`, `keywords` or `repository`
+ * @returns the message, or an empty string when it is valid or absent
+ */
+pub fn metadataError(doc: &JsonDoc, key: str) str {
+    const node = doc.field(0, key)
+    if node < 0 {
+        return ""
+    }
+    if key == "keywords" {
+        return keywordsError(doc, node)
+    }
+    if doc.nodes[node].kind != JsonKind.String {
+        return "`{key}` must be a string"
+    }
+    const text = doc.text(node)
+    if key == "description" {
+        if text.trim().len() == 0 || text.contains("\n") || text.len() > 160 {
+            return "`description` must be one line of at most 160 bytes"
+        }
+        return ""
+    }
+    if !text.startsWith("https://") || text.len() <= 8 || text.contains(" ") {
+        return "`repository` must be an `https://` URL"
+    }
+    return ""
+}
+
+// What is wrong with `keywords`.
+fn keywordsError(doc: &JsonDoc, node: int) str {
+    const message = ("`keywords` must be a list of at most 5 distinct words of lowercase "
+                     + "letters, digits and `-`, each at most 24 bytes")
+    if doc.nodes[node].kind != JsonKind.Array {
+        return message
+    }
+    const items = doc.elements(node)
+    if items.len() > 5 {
+        return message
+    }
+    for i in 0..items.len() {
+        if doc.nodes[items[i]].kind != JsonKind.String || !isKeyword(doc.nodes[items[i]].text) {
+            return message
+        }
+        for j in 0..i {
+            if doc.nodes[items[j]].text == doc.nodes[items[i]].text {
+                return message
+            }
+        }
+    }
+    return ""
+}
+
+// Whether `word` can be a keyword.
+fn isKeyword(word: str) bool {
+    if word.len() == 0 || word.len() > 24 {
+        return false
+    }
+    for b in word.bytes() {
+        const lower = b >= b'a' && b <= b'z'
+        const digit = b >= b'0' && b <= b'9'
+        if !lower && !digit && b != b'-' {
+            return false
+        }
+    }
+    return true
+}
+
+/**
+ * The metadata of a valid manifest as members of the index line: each
+ * present key of the metadata and `toolchain`, followed by `, `.
+ *
+ * @param doc the manifest, whose metadata `metadataError` accepts
+ * @returns the members, such as `"description": "...", `; empty when it
+ * has none
+ */
+pub fn metadataJson(doc: &JsonDoc) str {
+    let out = ""
+    for key in ["description", "keywords", "repository", "toolchain"] {
+        const node = doc.field(0, key)
+        if node < 0 {
+            continue
+        }
+        if key == "keywords" {
+            let list = "["
+            const items = doc.elements(node)
+            for i in 0..items.len() {
+                if i > 0 {
+                    list.push(", ")
+                }
+                list.push(jsonString(doc.nodes[items[i]].text))
+            }
+            list.push("]")
+            out.push("\"keywords\": {list}, ")
+        } else if doc.nodes[node].kind == JsonKind.String {
+            out.push("{jsonString(key)}: {jsonString(doc.nodes[node].text)}, ")
+        }
+    }
+    return out
+}
