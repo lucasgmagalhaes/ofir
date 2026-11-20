@@ -1,0 +1,2 @@
+/** @module x: a module doc before an invalid byte (libFuzzer, 6.33i) */
+ÿ
