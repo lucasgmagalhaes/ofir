@@ -718,8 +718,9 @@ fn gitTarget(doc: &JsonDoc, file: FileId, member: int, base: str, r: &Resolution
         return Option.None
     }
     if hasCredential(doc.nodes[gitNode].text) {
-        diags.error("E0925", spanOf(doc, file, gitNode), "the git URL of `{key}` holds a credential")
-        diags.help("remove it from the URL and let git supply it: a credential helper or an SSH key")
+        const span = spanOf(doc, file, gitNode)
+        diags.error("E0925", span, "the git URL of `{key}` holds a credential")
+        diags.help("remove it from the URL: git gets it from a credential helper or an SSH key")
         return Option.None
     }
     let given = 0
