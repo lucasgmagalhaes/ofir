@@ -2,7 +2,8 @@
  * @module
  * The object cache of ADR 0033: the object of each codegen unit, in
  * `$OFIR_HOME/cache/objects/<hh>/<hash>.o`, keyed by the SHA-256 of the
- * unit's text, the clang flags, and the path and version of clang.
+ * unit's text, the clang flags, and the path and version of clang. Next to
+ * each object, `<hash>.sum` holds its SHA-256 (ADR 0092).
  */
 
 import driver.git.ofirHome
@@ -71,9 +72,9 @@ pub fn tempTag(exe: str) str {
 }
 
 /**
- * Whether a cached object can be used: it is non-empty and starts with
- * the magic number of an ELF, Mach-O or COFF object. One that cannot is
- * deleted. A usable one has its time updated, for `prune`.
+ * Whether a cached object can be used: it starts with the magic number of
+ * an ELF, Mach-O or COFF object and hashes to its `.sum`. One that cannot
+ * is deleted with its sum. A usable one has its time updated, for `prune`.
  *
  * @param path the cached object
  * @returns whether to use it
@@ -84,12 +85,47 @@ pub fn useObject(path: str) bool {
     }
     const empty: List<u8> = []
     const bytes = fs.read(path).unwrapOr(empty)
-    if !isObject(bytes) {
+    const sum = fs.readToString(sumPath(path)).unwrapOr("".toOwned())
+    if !isObject(bytes) || sum != hashOf(bytes) {
         const _ = fs.removeFile(path)
+        const _ = fs.removeFile(sumPath(path))
         return false
     }
     const _ = fs.touch(path)
     return true
+}
+
+/**
+ * Writes the checksum of an object compiled to a temporary name, before
+ * the object is renamed to `path` in the cache: to a temporary name, then
+ * renamed into place, so no build reads half of it.
+ *
+ * @param temp the compiled object
+ * @param path where it is cached
+ * @param tag what `tempTag` returned
+ * @returns whether the checksum is in place
+ */
+pub fn writeSum(temp: str, path: str, tag: str) bool {
+    const Result.Ok(bytes) = fs.read(temp) else {
+        return false
+    }
+    const sum = sumPath(path)
+    const tmp = "{sum}.{tag}.tmp"
+    if fs.writeString(tmp, hashOf(bytes)).isErr() {
+        return false
+    }
+    return fs.rename(tmp, sum).isOk()
+}
+
+// The checksum file of the cached object `path`: `<hash>.sum`.
+fn sumPath(path: str) str {
+    return "{path.slice(0, path.len() - 2)}.sum"
+}
+
+fn hashOf(bytes: List<u8>) str {
+    let h = Sha256.new()
+    h.update(bytes)
+    return h.finish()
 }
 
 fn isObject(bytes: List<u8>) bool {
