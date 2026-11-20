@@ -235,6 +235,8 @@ test-shard-2: stage0 runtime $(TEST_SHARD_2)
 # All tests with stage 0 as the compiler.
 test-stage0: stage0 runtime
 	$(PYTHON) tests/runner/run_tests.py --compiler $(BUILD)/stage0/ofir$(EXE)
+	$(PYTHON) tools/check_stage0_cli.py --compiler $(BUILD)/stage0/ofir$(EXE) \
+		--runtime $(BUILD)/libofir_rt.a
 
 # Line and branch coverage of both compilers, as Cobertura reports in
 # build/coverage (ADR 0103; needs gcc, gcovr and llvm-cov).
