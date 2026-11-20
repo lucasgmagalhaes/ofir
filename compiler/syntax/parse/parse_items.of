@@ -96,6 +96,17 @@ fn importItem(p: mut Parser) ItemKind {
         if !p.accept(TokenKind.Dot) {
             break
         }
+        if p.at(TokenKind.Star) {   // `import path.*` (spec 7.2): the last segment is `*`
+            p.advance()
+            path.push(p.names.intern("*"))
+            if p.at(TokenKind.As) {
+                const span = p.token(0).span
+                p.diags.error("E0208", span, "a glob import cannot take `as`")
+                p.advance()
+                const _ = p.expectName("a name after `as`")
+            }
+            return ItemKind.Import(path, Option.None)
+        }
     }
     let alias: Option<Symbol> = Option.None
     if p.accept(TokenKind.As) {
