@@ -199,7 +199,9 @@ static void statement(AirPrinter *p, const AirStmt *s) {
 static void terminator(AirPrinter *p, const Terminator *t) {
     fputs("    ", p->out);
     switch (t->kind) {
+    // GCOVR_EXCL_START: a compiler bug: every block is terminated
     case TERM_NONE: fputs("<unterminated>", p->out); break;
+    // GCOVR_EXCL_STOP
     case TERM_GOTO: fprintf(p->out, "goto bb%u", t->target.id); break;
     case TERM_BRANCH:
         fputs("branch ", p->out);
