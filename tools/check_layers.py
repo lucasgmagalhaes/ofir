@@ -34,6 +34,8 @@ LAYERS.update({
 INNER = {
     "driver/pkg": ["driver.pkg.", "driver.version"],
     "driver/build": ["driver.pkg.", "driver.build.", "driver.version"],
+    "sema/core": ["sema.core."],
+    "sema/resolve": ["sema.core.", "sema.resolve."],
 }
 
 IMPORT = re.compile(r"^(?:pub )?import ([A-Za-z_][A-Za-z0-9_.]*)", re.M)
