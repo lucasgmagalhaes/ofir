@@ -20,13 +20,14 @@ COMPILER = ROOT / "compiler"
 
 PASSES = ["base", "diag", "syntax", "sema", "air", "codegen"]
 
-# The folders each folder may import; `main.of` may import any.
+# The folders each folder may import; `cli` and `main.of` may import any.
 LAYERS = {name: set(PASSES[:i]) for i, name in enumerate(PASSES)}
 LAYERS.update({
     "driver": {"base", "diag", "syntax", "sema"},
     "doc": {"base", "diag", "syntax"},
     "fmt": {"base", "diag", "syntax"},
     "lsp": {"base", "diag", "syntax", "sema", "driver"},
+    "cli": set(PASSES) | {"driver", "doc", "fmt", "lsp"},
 })
 
 # Inside a folder: the modules of its own folder that each subfolder may
