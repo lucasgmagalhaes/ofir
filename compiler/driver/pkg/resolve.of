@@ -11,28 +11,28 @@
 import base.json.JsonDoc
 import base.json.JsonKind
 import base.json.parseJsonc
-import driver.git.checkout
-import driver.git.commitOf
-import driver.git.hasCommit
-import driver.git.hashHex
-import driver.git.isAncestor
-import driver.git.isCached
-import driver.git.repository
-import driver.git.tags
-import driver.lock.IndexPin
-import driver.lock.Locked
-import driver.lock.checksum
-import driver.lock.readIndexes
-import driver.lock.readLock
-import driver.lock.sourceOf
-import driver.registry.Release
-import driver.registry.archive
-import driver.registry.defaultIndex
-import driver.registry.releasesAt
-import driver.semver.Requirement
-import driver.semver.Version
-import driver.semver.parseRequirement
-import driver.semver.parseVersion
+import driver.pkg.git.checkout
+import driver.pkg.git.commitOf
+import driver.pkg.git.hasCommit
+import driver.pkg.git.hashHex
+import driver.pkg.git.isAncestor
+import driver.pkg.git.isCached
+import driver.pkg.git.repository
+import driver.pkg.git.tags
+import driver.pkg.lock.IndexPin
+import driver.pkg.lock.Locked
+import driver.pkg.lock.checksum
+import driver.pkg.lock.readIndexes
+import driver.pkg.lock.readLock
+import driver.pkg.lock.sourceOf
+import driver.pkg.registry.Release
+import driver.pkg.registry.archive
+import driver.pkg.registry.defaultIndex
+import driver.pkg.registry.releasesAt
+import driver.pkg.semver.Requirement
+import driver.pkg.semver.Version
+import driver.pkg.semver.parseRequirement
+import driver.pkg.semver.parseVersion
 import std.fs
 
 /**
@@ -129,7 +129,7 @@ pub struct Override {
 
 /**
  * The `overrides` of the root's manifest that have a `path`; the others
- * are left for `driver.packages` to report.
+ * are left for `driver.pkg.packages` to report.
  *
  * @param rootDir the root project's directory
  * @returns the overrides, in the manifest's order
@@ -189,7 +189,7 @@ pub struct Trust {
 
 /**
  * The `trust` of the root's manifest; invalid entries are left for
- * `driver.packages` to report.
+ * `driver.pkg.packages` to report.
  *
  * @param rootDir the root project's directory
  * @returns what it accepts
@@ -474,7 +474,7 @@ struct Need {
 // The requirements of the projects reached from `rootDir` and its
 // workspace members, through path dependencies, overrides and the
 // checkouts of the pins of `r`, with the dev dependencies of the root and
-// the members. Invalid entries are left for `driver.packages` to report.
+// the members. Invalid entries are left for `driver.pkg.packages` to report.
 fn collect(rootDir: str, index: str, r: &Resolution) List<Need> {
     const overrides = readOverrides(rootDir)
     let needs: List<Need> = []

@@ -5,7 +5,8 @@ Each top-level folder of `compiler/` may import only the folders listed
 for it in LAYERS, besides itself and `std`: the passes import downwards
 (base, diag, syntax, sema, air, codegen) and the tools on top import the
 passes, never the other way. A folder that is not in LAYERS is an error,
-so a new one states its place here.
+so a new one states its place here. INNER orders the subfolders of a
+folder the same way: `driver/pkg` must not import `driver/build`.
 
     python3 tools/check_layers.py
 """
@@ -28,7 +29,14 @@ LAYERS.update({
     "lsp": {"base", "diag", "syntax", "sema", "driver"},
 })
 
-IMPORT = re.compile(r"^(?:pub )?import ([A-Za-z_][A-Za-z0-9_]*)", re.M)
+# Inside a folder: the modules of its own folder that each subfolder may
+# import, by prefix (a subfolder imports only those below it).
+INNER = {
+    "driver/pkg": ["driver.pkg.", "driver.version"],
+    "driver/build": ["driver.pkg.", "driver.build.", "driver.version"],
+}
+
+IMPORT = re.compile(r"^(?:pub )?import ([A-Za-z_][A-Za-z0-9_.]*)", re.M)
 
 
 def layer(path: Path) -> str:
@@ -46,12 +54,18 @@ def main() -> int:
         if name not in LAYERS:
             errors.append(f"{rel}: folder `{name}` has no place in LAYERS")
             continue
+        inner = next((v for k, v in INNER.items()
+                      if path.relative_to(COMPILER).as_posix().startswith(k + "/")), None)
         text = path.read_text()
         for match in IMPORT.finditer(text):
-            target = match.group(1)
+            module = match.group(1)
+            target = module.split(".")[0]
+            line = text.count("\n", 0, match.start()) + 1
+            if target == name and inner is not None and not module.startswith(tuple(inner)):
+                where = rel.parent.relative_to("compiler").as_posix()
+                errors.append(f"{rel}:{line}: `{where}` may not import `{module}`")
             if target in (name, "std") or target in LAYERS[name]:
                 continue
-            line = text.count("\n", 0, match.start()) + 1
             errors.append(f"{rel}:{line}: `{name}` may not import `{target}`")
     for error in errors:
         print(error, file=sys.stderr)

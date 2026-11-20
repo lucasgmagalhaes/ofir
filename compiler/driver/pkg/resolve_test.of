@@ -1,4 +1,4 @@
-// The tests of `driver.resolve`.
+// The tests of `driver.pkg.resolve`.
 
 import std.testing.assert
 

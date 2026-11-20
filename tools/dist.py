@@ -36,7 +36,7 @@ def version() -> str:
 
 
 def host_triple() -> str:
-    """The triple of ADR 0065 for this host, as `driver.target.hostTriple`."""
+    """The triple of ADR 0065 for this host, as `driver.build.target.hostTriple`."""
     arch = platform.machine().lower()
     arch = {"amd64": "x86_64", "arm64": "aarch64"}.get(arch, arch)
     system = platform.system()

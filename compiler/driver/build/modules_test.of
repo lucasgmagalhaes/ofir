@@ -1,4 +1,4 @@
-// The tests of `driver.modules` (spec 12.2).
+// The tests of `driver.build.modules` (spec 12.2).
 
 import std.testing.assert
 

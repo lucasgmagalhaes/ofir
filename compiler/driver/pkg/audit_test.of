@@ -1,7 +1,7 @@
-// The tests of `driver.audit`.
+// The tests of `driver.pkg.audit`.
 
-import driver.semver.parseVersion
-import driver.semver.satisfies
+import driver.pkg.semver.parseVersion
+import driver.pkg.semver.satisfies
 import std.testing.assert
 
 fn hit(versions: str, version: str) bool {

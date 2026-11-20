@@ -28,31 +28,31 @@ import diag.Format
 import diag.Severity
 import diag.jsonNoSource
 import doc.docCommand
-import driver.audit.auditCommand
+import driver.build.profile.readProfile
+import driver.build.cfg.CfgTarget
+import driver.build.target.hostTriple
+import driver.build.target.knownTarget
+import driver.build.target.runnerWords
+import driver.build.target.targetArch
+import driver.build.target.targetOs
+import driver.build.target.targetRuntime
+import driver.build.metadata.metadataJson
+import driver.build.modules.Front
+import driver.build.object_cache
+import driver.build.record.RecordInputs
+import driver.build.record.buildRecord
+import driver.build.modules.loadProgram
+import driver.pkg.audit.auditCommand
+import driver.pkg.toolchain.installPrefix
+import driver.pkg.fetch.fetchCommand
+import driver.pkg.vendor.vendorCommand
+import driver.pkg.sbom.sbomCommand
+import driver.pkg.publish.packageCommand
+import driver.pkg.publish.publishCommand
+import driver.pkg.publish.yankCommand
 import driver.version.VERSION
-import driver.profile.readProfile
-import driver.cfg.CfgTarget
-import driver.target.hostTriple
-import driver.target.knownTarget
-import driver.target.runnerWords
-import driver.target.targetArch
-import driver.target.targetOs
-import driver.target.targetRuntime
-import driver.toolchain.installPrefix
 import driver.explain.explain
-import driver.metadata.metadataJson
-import driver.fetch.fetchCommand
-import driver.vendor.vendorCommand
-import driver.sbom.sbomCommand
-import driver.publish.packageCommand
-import driver.publish.publishCommand
-import driver.publish.yankCommand
 import fmt.fmtCommand
-import driver.modules.Front
-import driver.object_cache
-import driver.record.RecordInputs
-import driver.record.buildRecord
-import driver.modules.loadProgram
 import driver.repl.replCommand
 import driver.watch.wantsWatch
 import driver.watch.watchCommand
@@ -1241,7 +1241,7 @@ fn runProgram(exe: str, args: [str]) int {
 }
 
 // What `ofir test` calls a test: `module.name`, or for a doc test
-// (`driver.modules.addDocTests`) the module and the line of the block.
+// (`driver.build.modules.addDocTests`) the module and the line of the block.
 fn testName(module: str, name: str) str {
     if !module.startsWith("doc:") {
         return "{module}.{name}"

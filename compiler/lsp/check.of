@@ -9,9 +9,9 @@ import base.intern.Interner
 import base.span.SourceMap
 import diag.Diagnostic
 import diag.Diagnostics
-import driver.cfg.CfgTarget
-import driver.modules.Front
-import driver.modules.loadProgram
+import driver.build.cfg.CfgTarget
+import driver.build.modules.Front
+import driver.build.modules.loadProgram
 import sema.check.checkProgram
 import sema.interface_params.desugarInterfaceParams
 import sema.resolve.resolveProgram

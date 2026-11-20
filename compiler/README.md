@@ -33,6 +33,8 @@ in this list, and `make check-layers` enforces it.
 | `air/` | the AIR and the lowering | the above and `sema` |
 | `codegen/` | the LLVM codegen | the above and `air` |
 | `driver/` | module loading, packages and the build | `base`, `diag`, `syntax`, `sema` |
+| `driver/pkg/` | manifests, resolution, the lock, git and the registry | `driver/pkg` |
+| `driver/build/` | module loading, the object cache and the build | `driver/pkg` |
 | `doc/`, `fmt/` | `ofir doc` and `ofir fmt` | `base`, `diag`, `syntax` |
 | `lsp/` | `ofir lsp` | `base`, `diag`, `syntax`, `sema`, `driver` |
 | `main.of` | the command line | any |

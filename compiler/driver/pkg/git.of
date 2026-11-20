@@ -6,8 +6,8 @@
  * runs `git`, which must be installed. `$OFIR_HOME` is `~/.ofir` by default.
  */
 
-import driver.semver.Version
-import driver.semver.parseVersion
+import driver.pkg.semver.Version
+import driver.pkg.semver.parseVersion
 import std.fs
 import std.os
 

@@ -222,7 +222,7 @@ def make_git_fixtures(sources: Path, dest: Path) -> None:
 
 
 def package_checksum(top: Path) -> str:
-    """The checksum of a package's files, as `driver.lock.checksum` computes
+    """The checksum of a package's files, as `driver.pkg.lock.checksum` computes
     it: each file, in name order directory by directory, as its path, a NUL,
     its size, a NUL and its bytes."""
     h = hashlib.sha256()

@@ -1,4 +1,4 @@
-// The tests of `driver.spdx`.
+// The tests of `driver.pkg.spdx`.
 
 import std.testing.assert
 

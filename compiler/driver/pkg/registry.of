@@ -12,12 +12,12 @@
 
 import base.json.parseJson
 import base.json.parseJsonc
-import driver.git.fileAt
-import driver.git.fileAtRev
-import driver.git.hashHex
-import driver.git.ofirHome
-import driver.semver.Version
-import driver.semver.parseVersion
+import driver.pkg.git.fileAt
+import driver.pkg.git.fileAtRev
+import driver.pkg.git.hashHex
+import driver.pkg.git.ofirHome
+import driver.pkg.semver.Version
+import driver.pkg.semver.parseVersion
 import std.fs
 import std.os
 
@@ -26,7 +26,7 @@ import std.os
  */
 pub struct Release {
     pub version: Version
-    /** The checksum of its files (`driver.lock.checksum`). */
+    /** The checksum of its files (`driver.pkg.lock.checksum`). */
     pub checksum: str
     /** Whether it was withdrawn: it is only used when it is locked. */
     pub yanked: bool

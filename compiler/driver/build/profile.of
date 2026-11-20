@@ -7,8 +7,8 @@
 import base.json.JsonDoc
 import base.json.JsonKind
 import base.json.parseJsonc
-import driver.modules.projectDir
-import driver.resolve.workspaceRoot
+import driver.build.modules.projectDir
+import driver.pkg.resolve.workspaceRoot
 import std.fs
 
 /** How a profile builds. */
@@ -35,7 +35,7 @@ pub fn readProfile(input: str, name: str) Result<Profile, str> {
     let found = name == "dev" || name == "release"
     if const Option.Some(dir) = projectDir(input) {
         const root = workspaceRoot(dir)
-        // A manifest that cannot be read is reported by `driver.packages` (E0910).
+        // A manifest that cannot be read is reported by `driver.pkg.packages` (E0910).
         const Result.Ok(text) = fs.readToString("{root}/ofir.json") else {
             return Result.Ok(profile)
         }

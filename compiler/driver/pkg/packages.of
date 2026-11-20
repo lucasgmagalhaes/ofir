@@ -4,7 +4,7 @@
  * of the project's `ofir.json`, then theirs, transitively. A package is a
  * project whose `build.kind` is `"lib"`; its modules are found from the
  * directory of its `build.root` file. A `path` dependency is that
- * directory; a `git` one is the checkout of the version `driver.resolve`
+ * directory; a `git` one is the checkout of the version `driver.pkg.resolve`
  * chose, recorded in `ofir.lock`; a registry one (a version requirement)
  * is the archive of the version it chose, extracted.
  *
@@ -24,26 +24,26 @@ import diag.LINT_ALLOW
 import diag.LINT_DENY
 import diag.LINT_WARN
 import diag.lintCodes
-import driver.lock.Locked
-import driver.lock.lockMatches
-import driver.lock.readLock
-import driver.lock.sourceOf
-import driver.lock.writeLock
-import driver.resolve.Mode
-import driver.resolve.Resolution
-import driver.resolve.failureOf
-import driver.resolve.overrideOf
-import driver.resolve.gitUrl
-import driver.resolve.hasCredential
-import driver.resolve.isAbsolutePath
-import driver.resolve.pinOf
-import driver.resolve.registrySource
-import driver.resolve.registryVersion
-import driver.resolve.resolve
-import driver.registry.defaultIndex
-import driver.semver.parseRequirement
-import driver.spdx.checkLicense
-import driver.toolchain.checkToolchain
+import driver.pkg.lock.Locked
+import driver.pkg.lock.lockMatches
+import driver.pkg.lock.readLock
+import driver.pkg.lock.sourceOf
+import driver.pkg.lock.writeLock
+import driver.pkg.resolve.Mode
+import driver.pkg.resolve.Resolution
+import driver.pkg.resolve.failureOf
+import driver.pkg.resolve.overrideOf
+import driver.pkg.resolve.gitUrl
+import driver.pkg.resolve.hasCredential
+import driver.pkg.resolve.isAbsolutePath
+import driver.pkg.resolve.pinOf
+import driver.pkg.resolve.registrySource
+import driver.pkg.resolve.registryVersion
+import driver.pkg.resolve.resolve
+import driver.pkg.registry.defaultIndex
+import driver.pkg.semver.parseRequirement
+import driver.pkg.spdx.checkLicense
+import driver.pkg.toolchain.checkToolchain
 import std.fs
 
 /**
