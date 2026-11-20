@@ -1,0 +1,237 @@
+/**
+ * @module
+ * `ofir search <words> [--index URL|DIR] [--offline] [--message-format=json]`
+ * (ADR 0097): lists the packages of an index whose name, description or
+ * keywords hold every word, ignoring case. Each package is shown at its
+ * highest version that is not yanked, with the metadata of that version's
+ * index line; a package whose versions are all yanked is left out. An
+ * exact name comes first, the others in the order of their names.
+ */
+
+import base.json.jsonString
+import base.json.parseJson
+import driver.pkg.git.linesAt
+import driver.pkg.git.repository
+import driver.pkg.registry.defaultIndex
+import driver.pkg.semver.Version
+import driver.pkg.semver.parseVersion
+import driver.pkg.semver.satisfies
+import driver.version.VERSION
+
+// A package found by a search, at its highest version that is not yanked.
+struct Found {
+    name: str
+    version: Version
+    description: str
+    keywords: List<str>
+    repository: str
+    toolchain: str
+    license: str
+}
+
+/**
+ * Runs `ofir search`.
+ *
+ * @param args the arguments after the command
+ * @returns the exit code: 1 when nothing was found
+ */
+pub fn searchCommand(args: List<str>) int {
+    let index = ""
+    let offline = false
+    let json = false
+    let words: List<str> = []
+    let i = 0
+    for i < args.len() {
+        if args[i] == "--offline" {
+            offline = true
+        } else if args[i] == "--message-format=json" {
+            json = true
+        } else if args[i] == "--index" && i + 1 < args.len() {
+            index = args[i + 1].clone()
+            i += 1
+        } else if args[i].startsWith("--index=") {
+            index = args[i].sliceFrom(8).toOwned()
+        } else if args[i].startsWith("-") {
+            eprintln("error: unexpected argument `{args[i]}` for `search`")
+            eprintln(usage())
+            return 2
+        } else {
+            for word in args[i].splitWhitespace() {
+                words.push(word.toLower())
+            }
+        }
+        i += 1
+    }
+    if words.len() == 0 {
+        eprintln("error: `search` needs words to look for")
+        eprintln(usage())
+        return 2
+    }
+    if index.len() == 0 {
+        index = defaultIndex()
+    }
+    const dir = match repository(index, !offline) {
+        Result.Ok(dir) => dir,
+        Result.Err(message) => {
+            eprintln("error: cannot read the index `{index}`: {message}")
+            return 1
+        }
+    }
+    const Option.Some(text) = linesAt(dir, ["config.json", "advisories"]) else {
+        eprintln("error: cannot read the index `{index}`")
+        return 1
+    }
+    const all = latest(text)
+    const found = matching(&all, words)
+    const current = parseVersion(VERSION).expect("VERSION is a version")
+    for k in 0..found.len() {
+        const f = &all[found[k]]
+        if json {
+            println(jsonLine(f))
+            continue
+        }
+        let line = "{f.name} {f.version.text()}"
+        if f.description.len() > 0 {
+            line.push(": {f.description}")
+        }
+        if f.toolchain.len() > 0 && !(satisfies(f.toolchain, current) ?? true) {
+            line.push(" (needs the toolchain `{f.toolchain}`, not {VERSION})")
+        }
+        println(line)
+    }
+    if found.len() == 0 {
+        if !json {
+            println("no package of `{index}` matches")
+        }
+        return 1
+    }
+    return 0
+}
+
+fn usage() str {
+    return "usage: ofir search <words> [--index URL|DIR] [--offline] [--message-format=json]"
+}
+
+// The highest version that is not yanked of each package of the lines of
+// `linesAt`.
+fn latest(text: str) List<Found> {
+    let out: List<Found> = []
+    for raw in text.lines() {
+        // `HEAD:<path>:<line>`: a path of the index has no `:`.
+        if !raw.startsWith("HEAD:") {
+            continue
+        }
+        const rest = raw.sliceFrom(5)
+        const colon = rest.find(":") ?? -1
+        if colon < 0 {
+            continue
+        }
+        const path = rest.slice(0, colon)
+        const name = path.sliceFrom((path.rfind("/") ?? -1) + 1).toOwned()
+        const Option.Some(doc) = parseJson(rest.sliceFrom(colon + 1).trim()) else {
+            continue
+        }
+        const yank = doc.field(0, "yanked")
+        if yank >= 0 && doc.nodes[yank].text == "true" {
+            continue
+        }
+        const Option.Some(version) = parseVersion(doc.text(doc.field(0, "version"))) else {
+            continue
+        }
+        let keywords: List<str> = []
+        for item in doc.elements(doc.field(0, "keywords")) {
+            keywords.push(doc.text(item))
+        }
+        const f = Found{name, version, description: doc.text(doc.field(0, "description")),
+                        keywords, repository: doc.text(doc.field(0, "repository")),
+                        toolchain: doc.text(doc.field(0, "toolchain")),
+                        license: doc.text(doc.field(0, "license"))}
+        let at = -1
+        for k in 0..out.len() {
+            if out[k].name == f.name {
+                at = k
+            }
+        }
+        if at < 0 {
+            out.push(f)
+        } else if f.version.compare(out[at].version) > 0 {
+            out[at] = f
+        }
+    }
+    return out
+}
+
+// The indices of the packages of `all` that hold every word, an exact
+// name first and the others by name.
+fn matching(all: &List<Found>, words: List<str>) List<int> {
+    let out: List<int> = []
+    const query = joined(words)
+    for i in 0..all.len() {
+        if !holdsAll(&all[i], words) {
+            continue
+        }
+        // Insert in order: the exact name first, then by name.
+        let at = out.len()
+        for k in 0..out.len() {
+            if at == out.len() && before(&all[i], &all[out[k]], query) {
+                at = k
+            }
+        }
+        out.insert(at, i)
+    }
+    return out
+}
+
+// Whether `a` is listed before `b` for the search `query`.
+fn before(a: &Found, b: &Found, query: str) bool {
+    if (a.name == query) != (b.name == query) {
+        return a.name == query
+    }
+    return a.name < b.name
+}
+
+// Whether the name, description or keywords of `f` hold every word.
+fn holdsAll(f: &Found, words: List<str>) bool {
+    let text = f.name.clone()
+    text.push(" ")
+    text.push(f.description.toLower())
+    for k in 0..f.keywords.len() {
+        text.push(" ")
+        text.push(f.keywords[k])
+    }
+    for k in 0..words.len() {
+        if !text.contains(words[k]) {
+            return false
+        }
+    }
+    return true
+}
+
+fn joined(words: List<str>) str {
+    let out = ""
+    for k in 0..words.len() {
+        if k > 0 {
+            out.push(" ")
+        }
+        out.push(words[k])
+    }
+    return out
+}
+
+// The JSON line of a found package.
+fn jsonLine(f: &Found) str {
+    let keywords = "["
+    for k in 0..f.keywords.len() {
+        if k > 0 {
+            keywords.push(", ")
+        }
+        keywords.push(jsonString(f.keywords[k]))
+    }
+    keywords.push("]")
+    let out = "\{\"name\": {jsonString(f.name)}, \"version\": {jsonString(f.version.text())}, "
+    out.push("\"description\": {jsonString(f.description)}, \"keywords\": {keywords}, ")
+    out.push("\"repository\": {jsonString(f.repository)}, ")
+    out.push("\"toolchain\": {jsonString(f.toolchain)}, ")
+    out.push("\"license\": {jsonString(f.license)}\}")
+    return out
+}
