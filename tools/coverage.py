@@ -9,13 +9,16 @@ with `--release --coverage` (ADR 0073), which writes gcov counters that
   `compare_stages.py` and the frontend fuzzer;
 - stage 1: the test runner, then every tool of the `test-stage1` recipe of
   the Makefile (read from it, so the two cannot drift), `compare_stages.py`
-  and the frontend fuzzer.
+  and the frontend fuzzer;
+- programs: the run tests and std tests, built by stage 1 with
+  `--coverage` and linked with a runtime built by clang with
+  `--coverage`, which measure `runtime/src` and `std/`.
 
 gcovr then writes a Cobertura report per stage, which CI uploads to
-Codecov with the flags `stage0` and `stage1` (codecov.yml), and a JSON
+Codecov with the flags `stage0`, `stage1`, `runtime` and `std` (codecov.yml), and a JSON
 summary. Needs gcc, gcovr, `llvm-cov` and clang's profile runtime.
 
-    python3 tools/coverage.py [--only stage0|stage1] [--out build/coverage]
+    python3 tools/coverage.py [--only stage0|stage1|programs] [--out build/coverage]
 """
 
 import argparse
@@ -31,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 EXE = ".exe" if os.name == "nt" else ""
 JOBS = str(min(8, os.cpu_count() or 1))
+GCOV = os.environ.get("OFIR_LLVM_COV", "llvm-cov") + " gcov"
 CFLAGS = "-std=c11 -D_POSIX_C_SOURCE=200809L -Isrc -Itests -O0 -g --coverage"
 
 
@@ -91,8 +95,8 @@ def stage0(work, env):
     frontends(build / f"ofir{EXE}", "0", env, BUILD / "stage1" / f"ofir{EXE}")
     # gcov finds the sources from bootstrap/, where gcc compiled them; the
     # paths of the report are made relative to the repository after.
-    return ["gcovr", "-r", "bootstrap", "--object-directory", build / "obj",
-            "--exclude", "bootstrap/tests/"], "bootstrap/"
+    return [("stage0", ["gcovr", "-r", "bootstrap", "--object-directory", build / "obj",
+                        "--exclude", "bootstrap/tests/", build / "obj"], ROOT, "bootstrap/")]
 
 
 def stage1(work, env):
@@ -107,16 +111,59 @@ def stage1(work, env):
     frontends(compiler, "1", env, BUILD / "stage0" / f"ofir{EXE}")
     for command in tool_commands(compiler):
         run(command, env)
-    gcov = os.environ.get("OFIR_LLVM_COV", "llvm-cov") + " gcov"
-    return ["gcovr", "-r", ".", "--gcov-executable", gcov, "--object-directory", build,
-            "--filter", "compiler/"], ""
+    return [("stage1", ["gcovr", "-r", ".", "--gcov-executable", GCOV, "--object-directory",
+                        build, "--filter", "compiler/", build], ROOT, "")]
 
 
-def report(name, measured, out):
-    gcovr, prefix = measured
+# The commands that link a program get `--coverage`; `--emit` output and
+# cross builds stay as they are, since the tests compare them.
+WRAPPER = """#!/bin/sh
+cmd="$1"
+case "$cmd" in
+build|run|test|bench)
+    for arg in "$@"; do
+        case "$arg" in --emit=*|--target=*) exec "{ofir}" "$@" ;; esac
+    done
+    shift
+    exec "{ofir}" "$cmd" --coverage "$@" ;;
+esac
+exec "{ofir}" "$@"
+"""
+
+
+def programs(work, env):
+    """The runtime and std as the test programs run them: the runtime built
+    by clang with `--coverage`, and each test program built by stage 1
+    with `--coverage` through a wrapper. Their counters go to TMPDIR,
+    where the compiler and the test runner put the programs."""
+    build = work / "programs"
+    shutil.rmtree(build, ignore_errors=True)
+    (build / "tmp").mkdir(parents=True)
+    clang = os.environ.get("OFIR_CLANG", "clang")
+    cflags = ("-std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Werror -O2 "
+              "-Iinclude -fPIC --coverage")
+    run(["make", "-s", "-C", "runtime", f"BUILD={build}", f"CC={clang}", f"CFLAGS={cflags}"])
+    wrapper = build / "ofir"
+    wrapper.write_text(WRAPPER.format(ofir=BUILD / "stage1" / f"ofir{EXE}"))
+    wrapper.chmod(0o755)
+    env = dict(env, TMPDIR=str(build / "tmp"), OFIR_RUNTIME=str(build / "libofir_rt.a"),
+               OFIR_TEST_LDFLAGS="--coverage")
+    run([sys.executable, "tests/runner/run_tests.py", "--compiler", wrapper, "--stage", "1",
+         "-j", JOBS], env)
+    run([sys.executable, "tools/run_std_tests.py", "--compiler", wrapper, "--stage", "1"], env)
+    # clang names the runtime's sources relative to runtime/, where they
+    # were compiled; std is named by absolute paths. Methods of different
+    # types share a name, so their functions are kept apart.
+    runtime = ["gcovr", "-r", ".", "--gcov-executable", GCOV, build / "runtime"]
+    std = ["gcovr", "-r", ".", "--gcov-executable", GCOV, "--filter", "std/",
+           "--merge-mode-functions=separate", build / "tmp"]
+    return [("runtime", runtime, ROOT / "runtime", "runtime/"), ("std", std, ROOT, "")]
+
+
+def report(name, gcovr, cwd, prefix, out):
     xml = out / f"{name}.xml"
     summary = out / f"{name}.json"
-    run([*gcovr, "-j", JOBS, "--cobertura", xml, "--json-summary", summary])
+    run([*gcovr, "-j", JOBS, "--cobertura", xml, "--json-summary", summary], cwd=cwd)
     if prefix:
         text = xml.read_text().replace('filename="', f'filename="{prefix}')
         xml.write_text(text.replace(f"<source>{ROOT / prefix.rstrip('/')}</source>",
@@ -129,7 +176,7 @@ def report(name, measured, out):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--only", choices=["stage0", "stage1"])
+    parser.add_argument("--only", choices=["stage0", "stage1", "programs"])
     parser.add_argument("--out", type=Path, default=BUILD / "coverage")
     opts = parser.parse_args()
     if shutil.which("gcovr") is None:
@@ -140,9 +187,10 @@ def main():
     work = BUILD / "cov"
     env = stage_env()
     lines = []
-    for name, measure in (("stage0", stage0), ("stage1", stage1)):
+    for name, measure in (("stage0", stage0), ("stage1", stage1), ("programs", programs)):
         if opts.only in (None, name):
-            lines.append(report(name, measure(work, env), out))
+            for measured in measure(work, env):
+                lines.append(report(*measured, out))
     print("\n".join(lines))
 
 
