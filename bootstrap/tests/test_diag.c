@@ -48,7 +48,24 @@ static void test_render(void) {
     arena_free(&arena);
 }
 
+static void test_note_limits(void) {
+    Arena arena;
+    arena_init(&arena);
+    Diagnostics diags;
+    diags_init(&diags, &arena);
+    diag_help(&diags, "a note before any diagnostic is dropped");
+    CHECK(diags.items.len == 0);
+    diag_error(&diags, "E0001", (Span){{0}, 0, 1}, "unexpected character");
+    for (int i = 0; i < DIAG_MAX_NOTES + 2; i++) {
+        diag_help(&diags, "help %d", i);
+    }
+    CHECK(diags.items.data[0].note_count == DIAG_MAX_NOTES);
+    diags_free(&diags);
+    arena_free(&arena);
+}
+
 int main(void) {
     test_render();
+    test_note_limits();
     return test_report("diag");
 }
