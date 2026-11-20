@@ -116,6 +116,65 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Coverage of both compilers (ADR 0103): `make coverage`, uploaded to
+  # Codecov with the flags stage0 and stage1 (codecov.yml).
+  coverage:
+    name: coverage / ubuntu-24.04 / LLVM 21
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the main Ubuntu mirror
+        run: |
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|' \
+            -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|' \
+            /etc/apt/sources.list.d/*.sources /etc/apt/sources.list || true
+          echo 'Acquire::Retries "5";' | sudo tee /etc/apt/apt.conf.d/80-retries
+
+      - name: Install LLVM, gdb, the profile runtime and gcovr
+        run: |
+          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
+          sudo bash llvm.sh 21
+          sudo apt-get install -y gdb libclang-rt-21-dev
+          sudo sysctl -w kernel.yama.ptrace_scope=0
+          pipx install gcovr
+          echo "OFIR_CLANG=clang-21" >> "$GITHUB_ENV"
+          echo "OFIR_LLVM_COV=llvm-cov-21" >> "$GITHUB_ENV"
+
+      - name: Measure coverage
+        shell: bash
+        run: |
+          mkdir -p build/logs
+          make coverage 2>&1 | tee build/logs/coverage.log
+
+      - name: Upload stage 0 to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: build/coverage/stage0.xml
+          flags: stage0
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      - name: Upload stage 1 to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: build/coverage/stage1.xml
+          flags: stage1
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            build/coverage/
+            build/logs/
+          if-no-files-found: ignore
+          retention-days: 14
+
   # Windows (roadmap 6.8): clang for the MinGW target, run from Git Bash
   # (docs/design/toolchain.md, section 7).
   windows:
