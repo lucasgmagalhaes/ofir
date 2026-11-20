@@ -1,0 +1,8 @@
+// A `mut` binding cannot be named like a variant in scope: the name is the
+// variant `None`, not a new variable (spec 4.5).
+
+fn main() {
+    match 1 {
+        mut None => {}   // error[E0200]: `None` is a variant, not a variable
+    }
+}
