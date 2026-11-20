@@ -1,0 +1,6 @@
+// requires: stage1
+// A glob import takes no `as` (spec 7.2).
+import lib.* as l   // error[E0208]: a glob import cannot take `as`
+
+fn main() {
+}

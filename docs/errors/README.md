@@ -83,6 +83,8 @@ Warnings use the same scheme with a `W` prefix (`W0001`, ...).
 | E0204 | cannot find module `m` | stage 0 |
 | E0205 | a `@test` function takes no parameters and returns nothing | stage 0 |
 | E0206 | a `@bench` function takes one parameter, `b: mut Bencher`, and returns nothing | stage 1 |
+| E0207 | `x` is ambiguous: two glob imports bring it | stage 1 |
+| E0208 | a glob import cannot be `pub` or take `as` | stage 1 |
 | E0300 | mismatched types: expected X, found Y | stage 0 |
 | E0301 | no method `m` on type `T` | stage 0 |
 | E0302 | wrong number of arguments | stage 0 |

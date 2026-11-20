@@ -1,0 +1,20 @@
+// requires: stage1
+pub fn area(side: int) int {
+    return side * side
+}
+
+pub fn unit() int {
+    return 200
+}
+
+pub fn twice(x: int) int {
+    return 2 * x
+}
+
+pub fn shared() int {
+    return 1
+}
+
+pub fn print(text: str) {
+    println("other: {text}")
+}

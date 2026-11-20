@@ -8,6 +8,10 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Glob imports (ADR 0098): `import a.b.*` brings every public member of
+  the module, after the named imports and only into names they leave
+  free; a name two globs bring is E0207 when used, `pub` or `as` on a
+  glob is E0208, and an unused glob is W0002. Stage 1 only.
 - Package discovery (ADR 0097): the manifest's `description`, `keywords`
   and `repository` go, with `toolchain`, into the index line; `ofir
   search <words>` finds packages of the index by name, description or

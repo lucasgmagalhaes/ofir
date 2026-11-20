@@ -14,7 +14,7 @@ A terminator before `}` may be omitted.
 ```ebnf
 File          = [ ModuleDoc ] { Import } { Item } EOF .
 ModuleDoc     = doc_comment .            (* `/** @module ... */` *)
-Import        = "import" ModulePath [ "as" identifier ] NL .
+Import        = "import" ModulePath ( "." "*" | [ "as" identifier ] ) NL .
 ModulePath    = identifier { "." identifier } .
 
 Item          = [ DocComment ] { Attribute } [ "pub" ] ItemKind .

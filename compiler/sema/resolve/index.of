@@ -23,6 +23,7 @@ import sema.resolve.resolve_attributes.checkAttributes
 import sema.resolve.resolve_attributes.recordDeprecated
 import sema.resolve.resolve_body.resolveExpr
 import sema.resolve.resolve_body.resolveFn
+import sema.resolve.resolve_import.bindGlobs
 import sema.resolve.resolve_import.bindReexports
 import sema.resolve.resolve_import.importPrelude
 import sema.resolve.resolve_import.resolveImport
@@ -70,6 +71,35 @@ pub struct ImportUse {
     pub span: Span
     /** Whether the name is used. */
     pub used: bool
+    /** For `import path.*`: the module `path`; -1 otherwise. */
+    pub glob: int
+}
+
+/**
+ * A glob import (`import path.*`, spec 7.2), bound after every other
+ * import.
+ */
+pub struct Glob {
+    /** The importing module. */
+    pub module: int
+    /** The module whose public members it imports. */
+    pub target: int
+    /** Its entry in `imports`. */
+    pub use: int
+}
+
+/**
+ * A name that two glob imports of a module bring for different
+ * declarations: it binds to neither, and using it is E0207.
+ */
+pub struct Ambiguous {
+    /** The importing module. */
+    pub module: int
+    /** The name. */
+    pub name: Symbol
+    /** The two globs, by their index in `globs`. */
+    pub first: int
+    pub second: int
 }
 
 /**
@@ -133,6 +163,12 @@ pub struct Resolver {
     pub imports: List<ImportUse>
     /** The declarations re-exported with `pub import`. */
     pub reexports: List<ReExport>
+    /** The glob imports, in module order. */
+    pub globs: List<Glob>
+    /** The names that glob imports bind, by `module * symbols + name`: the glob. */
+    pub globNames: Map<int, int>
+    /** The names that two glob imports make ambiguous. */
+    pub ambiguous: List<Ambiguous>
     /** For each closure being resolved, outermost first: its first local. */
     pub closureBases: List<int>
     /** For each closure being resolved: the outer locals it uses. */
@@ -158,10 +194,47 @@ pub struct Resolver {
             if self.imports[i].module < self.current {
                 break
             }
-            if self.imports[i].module == self.current && self.imports[i].name.0 == name.0 {
+            if self.imports[i].module != self.current {
+                continue
+            }
+            const glob = self.imports[i].glob
+            if glob < 0 && self.imports[i].name.0 == name.0 {
+                self.imports[i].used = true
+            } else if glob >= 0 && id != 0 && self.scope.moduleIn(glob, name) == id {
                 self.imports[i].used = true
             }
         }
+    }
+
+    /**
+     * Reports E0207 when `name` is a name that two glob imports of the
+     * current module make ambiguous, and marks both as used.
+     *
+     * @param name a name that binds to nothing in the current module
+     * @param span where it is used
+     * @returns whether it was reported
+     */
+    pub fn ambiguity(mut self, name: Symbol, span: Span) bool {
+        for a in 0..self.ambiguous.len() {
+            if self.ambiguous[a].module != self.current || self.ambiguous[a].name.0 != name.0 {
+                continue
+            }
+            const first = self.globs[self.ambiguous[a].first].target
+            const second = self.globs[self.ambiguous[a].second].target
+            const use1 = self.globs[self.ambiguous[a].first].use
+            const use2 = self.globs[self.ambiguous[a].second].use
+            self.imports[use1].used = true
+            self.imports[use2].used = true
+            const text = self.text(name).toOwned()
+            const one = self.moduleNames[first].clone()
+            const two = self.moduleNames[second].clone()
+            self.error("E0207", span, ("`{text}` is ambiguous: both `import {one}.*` and "
+                                       + "`import {two}.*` bring it"))
+            self.diags.help("import the one you mean by name: `import {one}.{text}` or "
+                            + "`import {two}.{text}`")
+            return true
+        }
+        return false
     }
 
     /**
@@ -300,6 +373,8 @@ pub fn resolveProgram(program: Program, names: move Interner, diags: move Diagno
         if pass == 0 {
             importPrelude(r, program)
             bindReexports(r, program)
+        } else if pass == 1 {
+            bindGlobs(r)
         }
     }
     enter(r, program, 0)
@@ -340,7 +415,8 @@ fn newResolver(program: Program, given: move Interner, diags: move Diagnostics,
                     trace: Trace.new(trace), moduleNames, current: 0, moduleName: "", locals: [],
                     owner: Option.None, constParams: [], deprecated: Map.new(), selfName,
                     testing: false, benching: false, library: false,
-                    imports: [], reexports: [], closureBases: [], closureCaptures: []}
+                    imports: [], reexports: [], globs: [], globNames: Map.new(), ambiguous: [],
+                    closureBases: [], closureCaptures: []}
 }
 
 fn noDef() Def {

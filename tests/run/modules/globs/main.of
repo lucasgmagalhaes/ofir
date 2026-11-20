@@ -1,0 +1,26 @@
+// requires: stage1
+// Glob imports (spec 7.2): every public member of a module, below the
+// module's own declarations and its imports by name, above the prelude.
+import facade.*
+import other.*
+import other.area   // both globs bring `area`: the import by name settles it
+import shapes.*
+
+fn unit() int {   // the module's own: both globs bring `unit` too
+    return 1
+}
+
+fn name(k: Kind) str {
+    return match k {
+        Kind.Flat => "flat",
+        Kind.Curved => "curved",
+    }
+}
+
+fn main() {
+    const c = Circle{radius: 2}
+    const r = Round{radius: 1}   // a re-export of `facade`
+    println("{area(3)} {unit()} {twice(4)}")
+    println("{r.radius + c.radius} {name(Kind.Curved)}")
+    print("hello")   // `other.print`, above the prelude's
+}

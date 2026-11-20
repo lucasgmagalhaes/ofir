@@ -74,6 +74,7 @@ struct Layout {
     stack: List<Open> = []
     last: TokenKind = TokenKind.Invalid   // the kind of the last token
     lastIsCode: bool = false   // whether the last unit is a token
+    glob: bool = false       // the last token is the `*` of `import path.*`
     codeLine: int = -1       // the line of the last token; `lines.len()` for `line`
     codeEnd: int = 0         // the byte after the last token on that line
     inWhere: bool = false    // after a `where` that ends its line
@@ -155,7 +156,7 @@ struct Layout {
             const kept = orig + self.stmt - self.stmtOrig
             return if kept > self.stmt { kept } else { self.stmt }
         }
-        if isContinuation(self.last) {
+        if isContinuation(self.last) && !self.glob {
             return aligned(self.stmt, self.stmtOrig, orig)
         }
         if u.kind == UnitKind.Code {
@@ -173,6 +174,7 @@ struct Layout {
             self.codeLine = self.lines.len()
             self.codeEnd = self.line.len()
             self.inWhere = self.inWhere || (self.last != TokenKind.Dot && endsWhere(src, u))
+            self.glob = u.tok == TokenKind.Star && self.last == TokenKind.Dot
             self.last = u.tok
             self.lastIsCode = true
             self.bracket(u.tok, u.space == 0)
@@ -180,6 +182,7 @@ struct Layout {
         }
         self.line.push(reindented(text, self.indent))
         if u.kind == UnitKind.Code {
+            self.glob = false
             self.last = u.tok
         }
         self.lastIsCode = u.kind == UnitKind.Code

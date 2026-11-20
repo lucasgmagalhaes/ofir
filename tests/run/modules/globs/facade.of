@@ -1,0 +1,2 @@
+// requires: stage1
+pub import shapes.Circle as Round
