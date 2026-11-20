@@ -310,7 +310,7 @@ matched borrowed place), and the `mut` parameters that must hold a value
 again at each return. Step 3 is in `sema/check_ref.c`; step 2, the borrow
 checker proper, is in stage 1 only (roadmap 4.10).
 
-**Stage 1** (`compiler/sema/borrows.of`) does step 2 in the same walk as
+**Stage 1** (`compiler/sema/check/borrows.of`) does step 2 in the same walk as
 the move analysis. The state at each point also keeps the loans that may be
 alive: a loan is a borrowed place of a local and its *holder*, a local
 whose value holds a reference (`const r = &list`, `const f = list.first()`, a

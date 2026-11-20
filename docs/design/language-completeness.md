@@ -26,7 +26,7 @@ prove implementation. Stage 0 remains the bootstrap subset.
 |---|---|---|
 | Bootstrap and test infrastructure exist | [Bootstrap](../bootstrap.md), [testing](testing.md), [stage comparison](../../tools/compare_stages.py) | Extend these gates; do not plan their creation again |
 | Accepted design exceeds implemented language | [Specification](../spec/README.md), [roadmap](../roadmap.md) | Track per-feature conformance and explicit unsupported cases |
-| Checker still has unsupported paths | [Expression checker](../../compiler/sema/expr_check.of), [type checker](../../compiler/sema/check_types.of) | Audit function values, named arguments, ranges outside loops, mutable slices and array lengths individually |
+| Checker still has unsupported paths | [Expression checker](../../compiler/sema/check/expr_check.of), [type checker](../../compiler/sema/check/check_types.of) | Audit function values, named arguments, ranges outside loops, mutable slices and array lengths individually |
 | Language support in VS Code is a starting point | [Extension manifest](../../editors/vscode/package.json) | Grammar and icons do not supply LSP or debugger integration |
 | Standard-library reference contains planned APIs | [Utilities](../std/utilities.md), [collections](../std/collections.md), [API inventory](api-ecosystem.md) | Verify exported code and tests before labeling an API available |
 | Several foundational choices are already accepted | [ADRs](../adr/README.md) | Respect ownership, errors as values and bootstrap constraints |
