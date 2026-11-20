@@ -87,10 +87,12 @@ static void check_body(Checker *c, FnDecl *fn, TypeId self_type) {
     for (uint32_t i = 0; i < fn->params.len; i++) {
         c->local_types[fn->params.items[i].local.id] = sig->args[i];
     }
+    // GCOVR_EXCL_START: only extern block functions lack a body; check_extern takes them
     if (!fn->body) {
         enter_generics(c, outer);
         return;
     }
+    // GCOVR_EXCL_STOP
     c->unsafe_depth = fn->is_unsafe ? 1 : 0;
     uint32_t errors = c->sema->session->diags.error_count;
     note_signature(c, fn, sig, self_type);
