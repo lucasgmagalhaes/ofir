@@ -429,6 +429,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.30c | Sanitizers, leaks, races and fault injection (ADR 0087): `make check-tsan` runs the concurrent programs under ThreadSanitizer, `make check-faults` injects failing allocations and I/O into every program (`tools/fault/inject.c`), and `make check-safety` reports the checks that cannot run; CI requires them on Linux | OFIR-74 | **done** |
 | 6.30d | Performance budgets (ADR 0089): `make check-budgets` checks absolute ceilings in `bench/budgets.json` for compiler memory per source byte, warm self-compile and its unit count, the stripped hello world size and startup instructions, and the instructions of the generated programs; cold builds, startup and runtime distributions are reported, and the 3% gate stays | OFIR-75 | **done** |
 | 6.30e | Representative applications (ADR 0090): `apps/` holds a CLI and filesystem utility (`seek`), a C consumer of an Ofir static library (`textstats`) and a concurrent program (`wordfreq`); `make check-apps` builds each with stage 1 in dev and release and checks the output and exit status of every case, as part of `make test`; the compiler stays the largest application and the API service waits for API-49 | OFIR-76 | **done** |
+| 6.30f | Reliable, fast CI (ADR 0091): the test runners give each test an empty stdin and kill its process group past a time limit; a test that fails once and then passes is reported as flaky (log, warning and job summary), never skipped; `make test` is `make test-shard-1` and `make test-shard-2`, which CI runs as parallel jobs on every platform and LLVM; superseded pull request runs are cancelled, jobs have time limits and failed jobs keep `build/logs` for 14 days; CI caches no build output | OFIR-77 | **done** |
 | 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
@@ -475,7 +476,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue with 6.30 (OFIR-77); 6.30a to 6.30e (OFIR-72 to OFIR-76) are done.
+1. Continue with 6.30 (OFIR-78); 6.30a to 6.30f (OFIR-72 to OFIR-77) are done.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the
