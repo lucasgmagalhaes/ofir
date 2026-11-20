@@ -10,7 +10,9 @@ const char *llvm_type(Gen *g, TypeId type) {
     const Ty *ty = type_get(g->types, type);
     switch (ty->kind) {
     case TY_ADT: return adt_type(g, type);
+    // GCOVR_EXCL_START: a compiler bug: monomorphization substitutes every parameter
     case TY_PARAM: fatal("llvm_type: a type parameter survived monomorphization");
+    // GCOVR_EXCL_STOP
     case TY_TUPLE: return tuple_type(g, ty);
     case TY_REF: case TY_PTR: return "ptr";
     case TY_BOOL: return "i1";
