@@ -10,9 +10,11 @@ stream that is a pipe. POSIX only: Windows is skipped.
 
 import argparse
 import os
+import select
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 PROGRAM = """\
@@ -58,18 +60,20 @@ def main():
             fail(f"the program does not build:\n{build.stdout}{build.stderr}")
         main_fd, sub_fd = pty.openpty()
         fcntl.ioctl(sub_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
-        run = subprocess.run([str(exe)], stdin=sub_fd, stdout=sub_fd,
-                             stderr=subprocess.PIPE, timeout=60)
-        os.close(sub_fd)
+        # The parent keeps the subsidiary end open until it has read the
+        # line: macOS discards unread output when its last descriptor closes.
+        run = subprocess.Popen([str(exe)], stdin=sub_fd, stdout=sub_fd,
+                               stderr=subprocess.PIPE)
         out = b""
-        while True:
-            try:
-                chunk = os.read(main_fd, 4096)
-            except OSError:
+        deadline = time.monotonic() + 60
+        while b"\n" not in out and time.monotonic() < deadline:
+            ready, _, _ = select.select([main_fd], [], [], 0.1)
+            if ready:
+                out += os.read(main_fd, 4096)
+            elif run.poll() is not None and not out:
                 break
-            if not chunk:
-                break
-            out += chunk
+        run.wait(timeout=60)
+        os.close(sub_fd)
         os.close(main_fd)
         if run.returncode != 0:
             fail(f"the program exited with {run.returncode}")
