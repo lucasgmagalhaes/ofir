@@ -14,14 +14,14 @@ import sema.check_ref.checkStorable
 import sema.check_types.ownerType
 import sema.check_types.resolveType
 import sema.const_eval.constEval
-import sema.def.DefKind
+import sema.core.def.DefKind
+import sema.core.program.Program
+import sema.core.types.ERROR
+import sema.core.types.I64
+import sema.core.types.TyKind
 import sema.expr_check.coerce
-import sema.program.Program
 import sema.structs.checkNotRecursive
 import sema.structs.isCopy
-import sema.types.ERROR
-import sema.types.I64
-import sema.types.TyKind
 import syntax.ast.ItemKind
 import syntax.ast.Variant
 

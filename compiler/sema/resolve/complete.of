@@ -8,10 +8,10 @@
  */
 
 import base.intern.Symbol
-import sema.def.DefKind
-import sema.resolve.Resolver
-import sema.trace.Completion
-import sema.trace.CompletionKind
+import sema.core.def.DefKind
+import sema.resolve.resolve.Resolver
+import sema.resolve.trace.Completion
+import sema.resolve.trace.CompletionKind
 
 /**
  * Whether `name` is the probe, not reached yet.

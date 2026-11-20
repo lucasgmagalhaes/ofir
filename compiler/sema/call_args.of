@@ -10,11 +10,11 @@ import base.span.Span
 import sema.check.Checker
 import sema.check.fnOf
 import sema.check_types.fnSignature
-import sema.def.DefKind
-import sema.def.Res
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.ERROR
 import sema.expr_check.coerce
-import sema.program.Program
-import sema.types.ERROR
 import syntax.ast.Arg
 import syntax.ast.Expr
 import syntax.ast.ExprKind

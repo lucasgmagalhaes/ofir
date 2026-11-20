@@ -13,7 +13,7 @@
 import base.intern.Symbol
 import base.span.Span
 import diag.noSpan
-import sema.types.UNIT
+import sema.core.types.UNIT
 import syntax.ast.Op
 
 /** What an operand is. */

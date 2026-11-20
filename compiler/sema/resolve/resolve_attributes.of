@@ -9,9 +9,9 @@
 
 import base.span.Span
 import diag.lintCodes
-import sema.def.DefKind
-import sema.resolve.Resolver
-import sema.resolve.findAttribute
+import sema.core.def.DefKind
+import sema.resolve.resolve.Resolver
+import sema.resolve.resolve.findAttribute
 import syntax.ast.Attribute
 import syntax.ast.Expr
 import syntax.ast.ExprKind

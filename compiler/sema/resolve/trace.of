@@ -11,10 +11,10 @@
 import base.intern.Symbol
 import base.span.FileId
 import base.span.Span
-import sema.def.DefKind
-import sema.def.Res
-import sema.def.kindName
-import sema.resolve.Resolver
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.def.kindName
+import sema.resolve.resolve.Resolver
 
 /**
  * A use of a name of the root module and the declaration it stands for.

@@ -17,14 +17,14 @@ import sema.check_generic.inferFromSelf
 import sema.check_generic.inferNew
 import sema.check_keys.checkKeyLiteral
 import sema.check_types.ownerType
+import sema.core.program.Program
+import sema.core.types.ERROR
+import sema.core.types.TyKind
 import sema.enums.enumOf
 import sema.enums.enumVariants
 import sema.enums.variantIndex
 import sema.enums.variantsOf
 import sema.expr_check.checkArgs
-import sema.program.Program
-import sema.types.ERROR
-import sema.types.TyKind
 import syntax.ast.Arg
 import syntax.ast.Expr
 import syntax.ast.ExprKind

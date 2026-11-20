@@ -41,14 +41,14 @@ import sema.check.fnOf
 import sema.check_list.iteratorItem
 import sema.check_ref.holdsBorrowedFn
 import sema.check_ref.holdsRef
+import sema.core.program.Program
+import sema.core.types.keyFieldType
 import sema.moves_expr.isPlaceView
 import sema.moves_expr.movesNode
 import sema.moves_expr.viewType
 import sema.moves_match.patternInit
 import sema.moves_match.patternLocals
-import sema.program.Program
 import sema.structs.isCopy
-import sema.types.keyFieldType
 import syntax.ast.Block
 import syntax.ast.ExprKind
 import syntax.ast.ForKind

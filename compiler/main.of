@@ -60,9 +60,9 @@ import lsp.lspCommand
 import sema.c_symbols.linkLibraries
 import sema.check.Checker
 import sema.check.checkProgram
-import sema.interface_params.desugarInterfaceParams
-import sema.program.Program
-import sema.resolve.resolveProgram
+import sema.core.program.Program
+import sema.resolve.interface_params.desugarInterfaceParams
+import sema.resolve.resolve.resolveProgram
 import sema.type_trace.traceTypes
 import std.fs
 import std.mem

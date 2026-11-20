@@ -7,7 +7,7 @@
 
 import base.json.jsonString
 import base.span.SourceMap
-import sema.program.Program
+import sema.core.program.Program
 
 /** The version of the JSON shape; a change that drops or renames a field raises it. */
 pub const METADATA_FORMAT: int = 1

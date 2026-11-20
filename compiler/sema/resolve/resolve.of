@@ -13,20 +13,20 @@ import base.span.SourceMap
 import base.span.Span
 import diag.Diagnostics
 import diag.noSpan
-import sema.def.Def
-import sema.def.DefKind
-import sema.def.Local
-import sema.def.Res
-import sema.program.Program
-import sema.resolve_attributes.checkAttributes
-import sema.resolve_attributes.recordDeprecated
-import sema.resolve_body.resolveExpr
-import sema.resolve_body.resolveFn
-import sema.resolve_import.bindReexports
-import sema.resolve_import.importPrelude
-import sema.resolve_import.resolveImport
-import sema.scope.Scope
-import sema.trace.Trace
+import sema.core.def.Def
+import sema.core.def.DefKind
+import sema.core.def.Local
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.scope.Scope
+import sema.resolve.resolve_attributes.checkAttributes
+import sema.resolve.resolve_attributes.recordDeprecated
+import sema.resolve.resolve_body.resolveExpr
+import sema.resolve.resolve_body.resolveFn
+import sema.resolve.resolve_import.bindReexports
+import sema.resolve.resolve_import.importPrelude
+import sema.resolve.resolve_import.resolveImport
+import sema.resolve.trace.Trace
 import syntax.ast.Attribute
 import syntax.ast.ExprKind
 import syntax.ast.FnDecl
@@ -238,7 +238,7 @@ pub struct Resolver {
 }
 
 // The built-in names of every module: (name, kind, type id of a primitive,
-// as `sema.types` numbers them; `int` is `i64`, `uint` is `u64`).
+// as `sema.core.types` numbers them; `int` is `i64`, `uint` is `u64`).
 fn preludeNames() List<(str, DefKind, int)> {
     return [("int", DefKind.Primitive, 7), ("uint", DefKind.Primitive, 11), ("i8",
                                                                              DefKind.Primitive, 4),

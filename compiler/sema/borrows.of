@@ -17,14 +17,14 @@
 
 import base.span.Span
 import sema.check.Checker
-import sema.def.DefKind
+import sema.core.def.DefKind
+import sema.core.types.TyKind
 import sema.moves.Moves
 import sema.moves.Part
 import sema.moves.State
 import sema.moves.localName
 import sema.moves.moveError
 import sema.structs.fieldsOf
-import sema.types.TyKind
 
 /** A borrow of a part of a local. */
 pub struct Loan {

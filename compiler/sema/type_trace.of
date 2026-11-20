@@ -11,7 +11,7 @@ import sema.check.Checker
 import sema.check.skippedTest
 import sema.const_eval.ConstKind
 import sema.const_eval.ConstValue
-import sema.program.Program
+import sema.core.program.Program
 import syntax.ast.FnDecl
 import syntax.ast.Item
 import syntax.ast.ItemKind

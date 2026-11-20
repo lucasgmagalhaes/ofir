@@ -18,6 +18,7 @@ import sema.check_comptime.knownCondition
 import sema.check_dyn.boxesDyn
 import sema.check_pattern.testedDyn
 import sema.check_union.unionMembers
+import sema.core.program.Program
 import sema.moves.MOVES
 import sema.moves.Moves
 import sema.moves.Part
@@ -31,7 +32,6 @@ import sema.moves_expr.isPlace
 import sema.moves_expr.movesNode
 import sema.moves_expr.placeOfNode
 import sema.moves_expr.usePlace
-import sema.program.Program
 import sema.structs.isCopy
 import syntax.ast.Expr
 import syntax.ast.ExprKind

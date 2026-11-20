@@ -25,8 +25,13 @@ import sema.check_types.compatible
 import sema.check_union.coerceToUnion
 import sema.check_types.resolveType
 import sema.check_generic.reportBadLengths
-import sema.def.DefKind
-import sema.def.Res
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.BOOL
+import sema.core.types.ERROR
+import sema.core.types.NEVER
+import sema.core.types.UNIT
 import sema.exhaustive.checkExhaustive
 import sema.expr_check.checkBinary
 import sema.expr_check.checkExpr
@@ -35,11 +40,6 @@ import sema.expr_check.coerce
 import sema.expr_check.nameRes
 import sema.expr_check.requireTypeAt
 import sema.expr_check.samePlace
-import sema.program.Program
-import sema.types.BOOL
-import sema.types.ERROR
-import sema.types.NEVER
-import sema.types.UNIT
 import syntax.ast.Block
 import syntax.ast.Expr
 import syntax.ast.ExprKind

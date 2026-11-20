@@ -35,8 +35,12 @@ import sema.check_methods.primitiveName
 import sema.check_methods.typeNameOf
 import sema.check_ref.holdsBorrowedFn
 import sema.check_ref.holdsRef
-import sema.def.DefKind
-import sema.def.Res
+import sema.core.def.DefKind
+import sema.core.def.Res
+import sema.core.program.Program
+import sema.core.types.NEVER
+import sema.core.types.TyKind
+import sema.core.types.keyField
 import sema.enums.enumVariants
 import sema.enums.variantIndex
 import sema.enums.variantsOf
@@ -55,11 +59,7 @@ import sema.moves.movesBlock
 import sema.moves_match.initLocal
 import sema.moves_match.movesIf
 import sema.moves_match.movesMatch
-import sema.program.Program
 import sema.structs.isCopy
-import sema.types.NEVER
-import sema.types.TyKind
-import sema.types.keyField
 import syntax.ast.Arg
 import syntax.ast.Expr
 import syntax.ast.ExprKind

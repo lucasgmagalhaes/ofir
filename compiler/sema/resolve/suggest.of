@@ -8,8 +8,8 @@
  */
 
 import base.intern.Symbol
-import sema.def.DefKind
-import sema.resolve.Resolver
+import sema.core.def.DefKind
+import sema.resolve.resolve.Resolver
 
 // Longer names get no suggestion.
 const MAX_NAME: int = 128

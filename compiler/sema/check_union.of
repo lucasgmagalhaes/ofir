@@ -8,12 +8,12 @@
 import base.span.Span
 import sema.check.Checker
 import sema.check.emptyInfo
-import sema.def.Def
-import sema.def.DefKind
+import sema.core.def.Def
+import sema.core.def.DefKind
+import sema.core.types.ERROR
+import sema.core.types.TyKind
 import sema.enums.EnumInfo
 import sema.enums.VariantInfo
-import sema.types.ERROR
-import sema.types.TyKind
 import syntax.ast.Expr
 
 /**

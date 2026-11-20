@@ -1,4 +1,4 @@
-// The tests of `sema.suggest` (docs/design/toolchain.md, Suggestions).
+// The tests of `sema.resolve.suggest` (docs/design/toolchain.md, Suggestions).
 
 import base.intern.Symbol
 import std.testing.assert

@@ -33,9 +33,9 @@ import driver.pkg.packages.dependencyOf
 import driver.pkg.packages.packageNamed
 import driver.pkg.packages.readPackages
 import driver.pkg.resolve.Mode
-import sema.program.Program
-import sema.program.ProgramModule
-import sema.program.newProgram
+import sema.core.program.Program
+import sema.core.program.ProgramModule
+import sema.core.program.newProgram
 import std.fs
 import std.mem
 import std.os
