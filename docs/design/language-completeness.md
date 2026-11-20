@@ -1,12 +1,13 @@
 # Language completeness and ecosystem plan
 
-Status: **proposed inventory**, surveyed at `58c340e` on 2026-11-04.
+Status: **proposed inventory**, initially surveyed at `58c340e` on
+2026-11-04; API references reconciled on 2026-11-19.
 This covers a general-purpose language, including its compiler, runtime,
 libraries, tools, distribution and maintenance. It is not a specification or
 a commitment to ship every capability in version 1.0.
 
 The 86 OFIR records below are capability and acceptance records, not 86 missing
-implementations. Many extend or audit existing roadmap tasks. The 49 records in
+implementations. Many extend or audit existing roadmap tasks. The 54 records in
 the [API ecosystem plan](api-ecosystem.md) form a subordinate service plan;
 overlapping capabilities must share implementation tasks and must not be counted
 twice. Existing roadmap completion markers remain authoritative.
@@ -177,7 +178,7 @@ the [reproducible-build definition](https://reproducible-builds.org/docs/definit
 
 | ID | Priority/type | Capability and dependencies | Completion evidence |
 |---|---|---|---|
-| OFIR-79 | G1/N | API/service ecosystem (6.11–6.21) | Reuse all 49 API records and their foundation/local/production/extension gates |
+| OFIR-79 | G1/N | API/service ecosystem (6.11–6.21a) | Reuse all 54 API records and their foundation/local/production/extension gates |
 | OFIR-80 | G1/D | Book, tutorials, website and playground (6.10) | Versioned installation, ownership/error explanations and examples pass on clean machines |
 | OFIR-81 | G1/N | Maintenance and contribution process | Issue/review triage, release responsibility, security reporting and maintainer continuity |
 | OFIR-82 | G1/N | Package discovery and ecosystem quality | Searchable docs/compatibility metadata, examples and criteria for maintained official packages |
@@ -210,8 +211,9 @@ not a current Ofir target guarantee.
 
 1. Establish OFIR-01/02/03/07 and audit ownership, allocation, ABI, compiler
    invariants, bootstrap and existing quality gates. Classify unknowns honestly.
-2. Finish accepted phase 5 features in dependency order; preserve completed
-   work and coordinate shared interfaces. The sequential next item remains 5.17.
+2. Audit the remaining stage 1 limits and open semantic decisions in the
+   [roadmap](../roadmap.md), including LANG-01–20; preserve completed phase 5
+   work and coordinate shared interfaces.
 3. Advance general std, threads, editor tools, packages and installation alongside
    independent API foundations. Do not make all progress depend on HTTP or async.
 4. Validate real CLI, C interoperability and concurrent programs as well as the

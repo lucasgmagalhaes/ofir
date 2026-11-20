@@ -70,7 +70,7 @@ properties stated as **guaranteed** can be relied on.
 | `List<T>` | pointer + length + capacity (24 bytes) |
 | `Map<K, V>` | dense entry list in insertion order + open-addressing index table |
 | `fn(A) R`, `move fn(A) R` | code pointer + environment pointer (16 bytes) |
-| `extern "C" fn(A) R` **[planned]** | code pointer (8 bytes) |
+| `extern "C" fn(A) R` (stage 1) | code pointer (8 bytes) |
 
 A `str` built from a literal points to read-only static memory and has
 capacity 0; it is copied to the heap on first modification.

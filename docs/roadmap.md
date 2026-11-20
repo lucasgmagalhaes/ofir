@@ -283,7 +283,7 @@ closed. These gaps remain:
 | 6.7a6 | Module-level `const X = comptime f()`, of any `comptime` value (E0801 where its value is needed during checking); **done** | S |
 | 6.7a7 | Compile-time heap allocation (`List`, `Map`) inside `comptime` code; **done** | S |
 | 6.7a8 | Faster `comptime` interpreter: the checker and program are passed by reference, not copied on each call (about 6x faster); **done** | S |
-| 6.7b | `comptime for` over keys (spec 16.6) and the standard aliases in `std.core` (16.7), moved from 5.19: it needs 6.7a, mapped and conditional types over type parameters, and type operators that stage 0 can load in `std.core`; done when `merge(base, patch)` is written in Ofir | M |
+| 6.7b | `comptime for` over keys (spec 16.6) and the standard aliases in `std.core` (16.7), moved from 5.19: it needs 6.7a, mapped and conditional types over type parameters, and type operators that stage 0 can load in `std.core`; **done**: `merge(base, patch)` runs with a local alias (6.7b1), and the standard aliases load (6.7b2–3) | M |
 | 6.7b1 | Mapped types over type parameters: `Partial<T>` in a generic signature, `patch[key]` in `comptime for key in keyof T`, inference from an instance; `merge(base, patch)` (spec 16.6) runs with a local alias; **done** | M |
 | 6.7b2 | The standard aliases in `std.core` (spec 16.7): stage 0 loads type operator aliases as opaque (E0901 on use); in an alias body, the using module's private fields are keys too; **done** | S |
 | 6.7b3 | Filters, `Pick`/`Omit` and conditional types over type parameters (`Pick<T, K>`, `Unwrap<T>` in a generic signature); **done** | M |
@@ -294,12 +294,12 @@ closed. These gaps remain:
 | 6.8d | Installing and using Ofir on Windows in the docs (`docs/design/toolchain.md`, README); **done** | S |
 | 6.9 | Scheduled CI job for the auditable bootstrap path: `tools/bootstrap_chain.sh`, weekly; the link from the last release to the current sources waits for the next release; **done** | S |
 | 6.10 | Website, tutorial ("The Ofir Book"), playground | L |
-| 6.32 | Asserts and `Bencher` in `std.testing`, imported instead of in the prelude (ADR 0036), in the steps below; **done** | M |
-| 6.32a | Design: ADR 0036, spec 7.5, 12.2 and 12.3; **done** | S |
-| 6.32b | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import; **done**: `tests/compile_fail/names/assert_import` | M |
-| 6.32c | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert`; **done** | M |
-| 6.32d | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure; **done**: `tests/run/testing/assert_eq`, `tests/panic/assert_eq` | S |
-| 6.32e | `Bencher` moves to `std.testing`; `ofir bench` no longer adds it to the prelude; **done**: `tests/ofir_bench/sample` imports it | S |
+| 6.7c | Asserts and `Bencher` in `std.testing`, imported instead of in the prelude (ADR 0036), in the steps below; **done** | M |
+| 6.7c1 | Design: ADR 0036, spec 7.5, 12.2 and 12.3; **done** | S |
+| 6.7c2 | `std.testing` with the `assert` intrinsic, recognized by both stages; `assert` leaves the prelude, and E0200 on `assert` names the import; **done**: `tests/compile_fail/names/assert_import` | M |
+| 6.7c3 | Migration: the tests, the std and compiler modules and the doc tests import `std.testing.assert`; **done** | M |
+| 6.7c4 | `assertEq` and `assertNe` (stage 1), with `Debug` output on failure; **done**: `tests/run/testing/assert_eq`, `tests/panic/assert_eq` | S |
+| 6.7c5 | `Bencher` moves to `std.testing`; `ofir bench` no longer adds it to the prelude; **done**: `tests/ofir_bench/sample` imports it | S |
 
 ### API and service ecosystem (proposed)
 
@@ -430,7 +430,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.30c | Sanitizers, leaks, races and fault injection (ADR 0087): `make check-tsan` runs the concurrent programs under ThreadSanitizer, `make check-faults` injects failing allocations and I/O into every program (`tools/fault/inject.c`), and `make check-safety` reports the checks that cannot run; CI requires them on Linux | OFIR-74 | **done** |
 | 6.30d | Performance budgets (ADR 0089): `make check-budgets` checks absolute ceilings in `bench/budgets.json` for compiler memory per source byte, warm self-compile and its unit count, the stripped hello world size and startup instructions, and the instructions of the generated programs; cold builds, startup and runtime distributions are reported, and the 3% gate stays | OFIR-75 | **done** |
 | 6.30e | Representative applications (ADR 0090): `apps/` holds a CLI and filesystem utility (`seek`), a C consumer of an Ofir static library (`textstats`) and a concurrent program (`wordfreq`); `make check-apps` builds each with stage 1 in dev and release and checks the output and exit status of every case, as part of `make test`; the compiler stays the largest application and the API service waits for API-49 | OFIR-76 | **done** |
-| 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | Reproducible checks plus representative applications across releases |
+| 6.30 | Conformance, fuzzing, safety, performance, CI and build security | OFIR-72 to OFIR-78 | **in progress**: 6.30a–e done; CI reliability (OFIR-77) and build/hosted-tool security (OFIR-78) remain |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
 | 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | |
@@ -537,17 +537,21 @@ boundaries; coverage epics must be split into small implementation PRs.
 
 These do not block Phases 0–4 and will be settled with an ADR when needed:
 
-1. Lazy iterator chains (`list.iter().map(f).filter(g)`) versus eager
-   `List.map`/`filter` only (before task 5.8).
+1. ~~Lazy iterator chains versus eager iteration.~~ Settled (ADR 0040): std
+   uses loops and `List.drain()`; user types may provide adapters.
 2. ~~More patterns: strings, `name @ pattern` bindings.~~ Settled (ADR 0043);
    slice patterns (`[first, ..rest]`) wait for a use case (ADR 0045).
 3. ~~Labeled `break`/`continue` (task 6.7).~~ Settled: `name: for`, as in Go and Zig.
 4. Error handling conventions: error context and cause chains in `std`.
 5. 128-bit integers.
 6. The M:N scheduler for lightweight tasks (ADR 0027): task stacks, non-blocking I/O, blocking C calls.
-7. Packages: registry hosting, versioning, `pub import` re-exports.
-8. Custom allocators and arenas in `std`.
-9. Advanced FFI: callbacks from C, variadic C functions, `union`.
+7. ~~Registry, versioning and `pub import` re-exports.~~ Settled by 6.23m,
+   6.5 and 6.29d (ADRs 0046 and 0079); an official hosted index is separate
+   ecosystem work.
+8. ~~Custom allocators and arenas in `std`.~~ `std.arena` is available;
+   allocator parameters were rejected until a workload needs them (ADR 0049).
+9. ~~Callbacks from C.~~ Implemented (6.27a, ADR 0063); variadic C calls and
+   `union` types remain unsupported and need a workload and ADR.
 10. ~~Stability policy~~ Settled before 1.0 (ADR 0037); the 1.0 promise and editions stay open.
 11. Final project name and repository rename (risk R9).
 

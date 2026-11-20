@@ -101,7 +101,7 @@ for some targets only has a `target:` gap.
 | 5.6 Explicit references (advanced) | partial | full | `tests/borrow/escape.of` `tests/borrow/escape_accepted.of` `tests/compile_fail/types/references.of` | subset: borrows are not checked against moves and mutations, and `ref struct` |
 | 5.7 Why this is fast | n/a | n/a | `tests/codegen/noalias.of` | - |
 | 5.8 Interior mutability | none | full | `tests/run/cells/cell.of` `tests/compile_fail/types/cell_copy.of` | subset: `Cell<T: Copy>` needs a bound |
-| 5.9 Shared ownership | none | partial | `tests/run/rc` `tests/compile_fail/types/rc_send.of` | subset: stage 0 cannot clone a generic struct by method; planned: arena allocators |
+| 5.9 Shared ownership | none | partial | `tests/run/rc` `tests/run/arena/graph.of` `tests/compile_fail/types/rc_send.of` | subset: stage 0 cannot clone a generic struct by method |
 | 6.1 `Result` and `Option` | full | full | `tests/run/errors` `tests/run/option` `tests/compile_fail/types/errors.of` | - |
 | 6.2 The `?` operator | partial | full | `tests/run/errors/result.of` `tests/run/errors/try_from.of` `tests/compile_fail/types/errors.of` | subset: error conversion |
 | 6.3 Unused results | full | full | `tests/compile_fail/types/errors.of` `tests/run/errors/result.of` | - |
@@ -113,7 +113,7 @@ for some targets only has a `target:` gap.
 | 7.3 Visibility | full | full | `tests/compile_fail/modules/visibility` `tests/compile_fail/modules/checks` `tests/run/modules/app` | - |
 | 7.4 The prelude | full | full | `tests/run/basics/prelude.of` `tests/compile_fail/names/assert_import.of` | - |
 | 7.5 Built-in functions | partial | full | `tests/run/basics/prelude.of` `tests/panic/assert.of` `tests/run/testing/assert_eq.of` | subset: `assertEq` and `assertNe` need interfaces |
-| 7.6 Standard library (bootstrap subset) | partial | partial | `std/io/index.of` `std/fs/index.of` `std/os` `std/strings` `std/mem` `std/testing/index.of` `tests/run/strings` `tests/compile_fail/names/assert_import.of` | planned: `std.math` and the rest of the standard library |
+| 7.6 Standard library (bootstrap subset) | partial | partial | `std/io/index.of` `std/fs/index.of` `std/os` `std/strings` `std/mem` `std/math/index.of` `std/testing/index.of` `tests/run/strings` `tests/compile_fail/names/assert_import.of` | planned: further modules and APIs, tracked individually |
 | 8.1 Generic functions | partial | full | `tests/run/generics_basic/functions.of` `tests/run/generics/bounds.of` `tests/run/generics/bounds_stage0.of` `tests/compile_fail/types/bounds_stage0.of` | subset: bounds other than `Eq`, `Ord` and `Hash` |
 | 8.2 Generic types | full | full | `tests/run/generics_basic/types.of` `tests/compile_fail/types/generics.of` | - |
 | 8.3 Methods on generic types | full | full | `tests/run/generics_basic/types.of` `tests/run/generics_basic/edges.of` `tests/compile_fail/types/generic_methods.of` | - |
@@ -142,7 +142,7 @@ for some targets only has a `target:` gap.
 | 10.4 Representation | none | full | `tests/run/closures/move.of` `tests/run/closures/fields.of` | subset: closures; untested: no negative case (a layout rejects nothing) |
 | 11.1 `unsafe` blocks and functions | partial | partial | `tests/compile_fail/types/unsafe.of` `tests/run/ffi/libc.of` | planned: reading the fields of `union` types |
 | 11.2 Raw pointers | full | full | `tests/run/unsafe/ref_to_ptr.of` `tests/run/ffi/libc.of` `tests/compile_fail/types/unsafe.of` | - |
-| 11.3 Calling C | full | full | `tests/run/ffi/libc.of` `tests/run/ffi/cstring.of` `tests/run/ffi/c_calls.of` `tests/run/ffi/c_layout.of` `tests/panic/cstring_nul.of` | planned: `@repr(C)` structs and enums by value, `extern "C" fn` types |
+| 11.3 Calling C | full | full | `tests/run/ffi/libc.of` `tests/run/ffi/cstring.of` `tests/run/ffi/c_calls.of` `tests/run/ffi/c_layout.of` `tests/run/ffi/c_callbacks.of` `tests/panic/cstring_nul.of` | planned: `@repr(C)` structs and enums by value |
 | 11.4 Exporting functions to C | none | full | `tests/run/ffi/export_link.of` `tests/codegen/export.of` `tests/compile_fail/attributes/export_link.of` `tests/compile_fail/attributes/reserved_symbols.of` | subset: `@export` |
 | 11.5 Mutable globals | partial | partial | `tests/run/globals/app` `tests/compile_fail/types/globals.of` | subset: stage 0 has the declaration but no accesses; limit: globals of types other than numbers and `bool` |
 | 11.6 Undefined behavior | n/a | n/a | `tests/panic` `tests/run/unsafe/alignment.of` `tools/check_asan.py` `tools/check_leaks.py` | - |
@@ -155,7 +155,7 @@ for some targets only has a `target:` gap.
 | 13.1 Primitive types | full | full | `tests/codegen/functions.of` `tests/run/layout/sizes.of` | untested: no negative case (a layout rejects nothing) |
 | 13.2 Structs and tuples | partial | full | `tests/run/layout/field_order.of` `tests/run/layout/repr_order.of` `tests/run/attributes/layout.of` `tests/compile_fail/attributes/layout.of` `tests/run/layout/sizes.of` `tests/run/ffi/c_layout.of` | subset: `@repr(C)`, `@packed` and `@align` |
 | 13.3 Enums | full | full | `tests/run/niche` `tests/codegen/niche.of` `tests/run/layout/sizes.of` | planned: compact enum layout; untested: no negative case (a layout rejects nothing) |
-| 13.4 Built-in types | full | full | `tests/run/niche/niche.of` `tests/run/dyn` `tests/run/layout/sizes.of` | planned: `extern "C" fn` types; untested: no negative case (a layout rejects nothing) |
+| 13.4 Built-in types | full | full | `tests/run/niche/niche.of` `tests/run/dyn` `tests/run/layout/sizes.of` `tests/run/ffi/c_callbacks.of` | untested: no negative case (a layout rejects nothing) |
 | 13.5 Calling convention | full | full | `tests/codegen/functions.of` `tests/codegen/noalias.of` | untested: no negative case (a calling convention rejects nothing) |
 | 13.6 Program startup and shutdown | full | full | `runtime/src/entry.c` `tests/run/system/os.of` `tests/panic/stack_overflow.of` | - |
 | 13.7 Allocation | full | full | `runtime/src/mem.c` `tests/run/attributes/align_large.of` `tests/run/arena/graph.of` | untested: no negative case (allocation rejects nothing at compile time) |

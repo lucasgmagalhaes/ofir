@@ -37,18 +37,15 @@ before the feature changes state:
 
 | Feature | Owner | Gate | Source |
 |---------|-------|------|--------|
-| Arena allocators in `std` | std | available gate | [spec 5.9](../spec/05-ownership.md) |
-| `std.math` constants and functions | std | available gate | [spec 7.6](../spec/07-modules.md) |
 | The rest of the standard library beyond the bootstrap subset | std | available gate, per module ([API inventory](api-ecosystem.md)) | [spec 7.6](../spec/07-modules.md) |
 | Converting a `dyn` value to an interface it embeds (`dyn Both` to `dyn Named`) | stage 1 checker, codegen | available gate; a vtable layout for embedded interfaces | [spec 9.7](../spec/09-interfaces.md) |
 | `dyn` of generic interfaces (`dyn Iterator<int>`) | stage 1 checker, codegen | available gate | [spec 9.7](../spec/09-interfaces.md) |
 | Reading `union` fields in `unsafe` code | stage 1 checker, codegen | available gate; `union` types first (roadmap open question 9) | [spec 11.1](../spec/11-unsafe-ffi.md) |
-| `@repr(C)` structs and enums by value across `extern "C"`; `extern "C" fn` types | stage 1 checker, codegen | available gate; generated C shims (ADR 0051) | [spec 11.3](../spec/11-unsafe-ffi.md) |
+| `@repr(C)` structs and enums by value across `extern "C"` | stage 1 checker, codegen | available gate; generated C shims (ADR 0051) | [spec 11.3](../spec/11-unsafe-ffi.md) |
 | Warning for an unused private function, type or constant | stage 1 checker | available gate, with a W code | [spec 12.6](../spec/12-attributes-testing.md) |
 | Warning for an unused `mut` or `let` | stage 1 checker | available gate, with a W code | [spec 12.6](../spec/12-attributes-testing.md) |
 | Naming convention warning (W0007) | stage 1 checker | available gate | [spec 12.6](../spec/12-attributes-testing.md) |
 | Compact enum layout (smallest tag, payloads aligned to their fields) | codegen, both stages | available gate; benchmarks within 3% | [spec 13.3](../spec/13-memory-layout.md) |
-| `extern "C" fn` pointer types | stage 1 parser, checker, codegen | available gate (ADR 0051) | [spec 13.4](../spec/13-memory-layout.md) |
 | Editions | driver, specification | ADR on the 1.0 promise | [compatibility policy](compatibility.md) |
 
 ## Open
@@ -57,13 +54,11 @@ before the feature changes state:
 |----------|-------|------|--------|
 | Pointer provenance of integers cast to pointers | specification, codegen | ADR | [spec 11.6](../spec/11-unsafe-ffi.md) |
 | Weaker atomic orderings; racy reads in unsafe code | specification, runtime | ADR | [spec 11.6](../spec/11-unsafe-ffi.md) |
-| Lazy iterator chains or eager `List.map`/`filter` only | std | ADR before task 5.8 is extended | [roadmap, open question 1](../roadmap.md) |
-| Slice, string and `name @ pattern` patterns | stage 1 parser and checker | ADR | [roadmap, open question 2](../roadmap.md) |
+| Slice patterns (`[first, ..rest]`) | stage 1 parser and checker | workload and ADR refining ADR 0045 | [roadmap, open question 2](../roadmap.md) |
 | Error context and cause chains in `std` | std | ADR | [roadmap, open question 4](../roadmap.md) |
 | 128-bit integers | specification, codegen | ADR | [roadmap, open question 5](../roadmap.md) |
 | The M:N scheduler for lightweight tasks | runtime | ADR refining ADR 0027 | [roadmap, open question 6](../roadmap.md) |
-| Registry hosting, versioning and `pub import` re-exports | package manager | ADR refining ADR 0032 | [roadmap, open question 7](../roadmap.md) |
-| Callbacks from C, variadic C functions, `union` | stage 1, runtime | ADR | [roadmap, open question 9](../roadmap.md) |
+| Variadic C calls and C `union` types | stage 1, runtime | workload and ADR refining ADR 0063 | [roadmap, open question 9](../roadmap.md) |
 | What 1.0 promises | specification | ADR superseding part of ADR 0037 | [compatibility policy](compatibility.md) |
 
 ## Rejected
