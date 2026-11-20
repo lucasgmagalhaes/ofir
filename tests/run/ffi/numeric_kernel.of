@@ -1,0 +1,72 @@
+// requires: stage1
+// c: numeric_kernel.c
+// A numerical library over the C boundary (ADR 0100): the matrices are
+// `List<f64>` buffers in row-major order, passed to a BLAS-shaped kernel
+// as a pointer, sizes and a leading dimension. C writes into the
+// program's buffer through `asMutPtr`; the buffer stays owned by Ofir.
+
+@link("numeric_kernel")
+extern "C" {
+    fn nk_dgemm(m: int, n: int, k: int, alpha: f64, a: *f64, lda: int, b: *f64, ldb: int,
+                beta: f64, c: *mut f64, ldc: int)
+}
+
+// The same product written in Ofir, over slices.
+fn matmul(a: &[f64], b: &[f64], c: &mut [f64], m: int, n: int, k: int) {
+    for i in 0..m {
+        for j in 0..n {
+            let sum = 0.0
+            for p in 0..k {
+                sum += a[i * k + p] * b[p * n + j]
+            }
+            c[i * n + j] = sum
+        }
+    }
+}
+
+fn show(name: str, c: &[f64], rows: int, cols: int, ld: int) {
+    let line = "{name}:"
+    for i in 0..rows {
+        for j in 0..cols {
+            line.push(" {c[i * ld + j]}")
+        }
+        if i + 1 < rows {
+            line.push(" |")
+        }
+    }
+    println(line)
+}
+
+fn main() {
+    // A is 2 x 3 and B is 3 x 2.
+    const a: List<f64> = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    const b: List<f64> = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+
+    let ours = List<f64>.filled(0.0, 4)
+    matmul(a.asSlice(), b.asSlice(), ours.asMutSlice(), 2, 2, 3)
+    show("ofir", ours.asSlice(), 2, 2, 2)
+
+    let theirs = List<f64>.filled(0.0, 4)
+    unsafe {
+        nk_dgemm(2, 2, 3, 1.0, a.asSlice().asPtr(), 3, b.asSlice().asPtr(), 2, 0.0,
+                 theirs.asMutSlice().asMutPtr(), 2)
+    }
+    show("c", theirs.asSlice(), 2, 2, 2)
+
+    // C into the left 2 x 2 block of a 2 x 3 buffer: a leading dimension
+    // of 3 leaves the third column alone. beta = 1 adds to what is there.
+    let block: List<f64> = [1.0, 1.0, -1.0, 1.0, 1.0, -1.0]
+    unsafe {
+        nk_dgemm(2, 2, 3, 0.5, a.asSlice().asPtr(), 3, b.asSlice().asPtr(), 2, 1.0,
+                 block.asMutSlice().asMutPtr(), 3)
+    }
+    show("block", block.asSlice(), 2, 3, 3)
+
+    let same = true
+    for i in 0..4 {
+        if ours[i] != theirs[i] {
+            same = false
+        }
+    }
+    println("same: {same}")
+}

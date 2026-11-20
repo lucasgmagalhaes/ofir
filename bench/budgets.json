@@ -14,6 +14,7 @@
     "binary_trees": {"maxInstructions": 18750000000, "gate": true},
     "fib": {"maxInstructions": 430000000, "gate": true},
     "map_count": {"maxInstructions": 172000000, "gate": true},
+    "matmul": {"maxInstructions": 485000000, "gate": true},
     "nbody": {"maxInstructions": 3240000000, "gate": true},
     "sort": {"maxInstructions": 415000000, "gate": true},
     "strings": {"maxInstructions": 247000000, "gate": true}

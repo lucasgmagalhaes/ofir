@@ -110,6 +110,7 @@ starts with the same word as the record's status line.
 | [0097](0097-package-discovery.md) | Package discovery and official packages | Proposed |
 | [0098](0098-glob-imports.md) | Glob imports | Proposed |
 | [0099](0099-gui-graphics-audio-media.md) | GUI, graphics, audio and media are packages over the C boundary | Proposed |
+| [0100](0100-scientific-data-computing.md) | Scientific and data computing are packages over f64 buffers | Proposed |
 
 ## Template
 
