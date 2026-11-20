@@ -11,6 +11,15 @@ struct Wrap {
     h: Handle
 }
 
+enum Holder {
+    One(Handle)
+    Empty
+}
+
+fn texts(a: [str; 2]) {
+    const _b = a.clone()           // error[E0322]: type `[str; 2]` cannot be cloned: declare a `clone` method, or give it only parts that can be cloned
+}
+
 fn dup<T>(x: T) T {
     return x.clone()             // error[E0322]: type `T` cannot be cloned: declare a `clone` method, or give it only parts that can be cloned
 }
@@ -21,5 +30,7 @@ fn main() {
     const l = [Handle{fd: 2}]
     const _b = l.clone()           // error[E0322]: type `List<Handle>` cannot be cloned: declare a `clone` method, or give it only parts that can be cloned
     const _c = (1, Handle{fd: 3}).clone()   // error[E0322]: type `(int, Handle)` cannot be cloned: declare a `clone` method, or give it only parts that can be cloned
+    const e = Holder.Empty
+    const _e = e.clone()           // error[E0322]: type `Holder` cannot be cloned: declare a `clone` method, or give it only parts that can be cloned
     const _d = 5.clone(1)          // error[E0302]: `clone` takes no arguments
 }
