@@ -98,6 +98,8 @@ check-fuzz: stage1
 	$(STAGE_ENV) $(PYTHON) tools/fuzz_frontend.py --compiler $(BUILD)/stage1/ofir$(EXE) --count 100 --seed 2
 	$(STAGE_ENV) $(PYTHON) tools/fuzz_programs.py --compiler $(BUILD)/stage0/ofir$(EXE) \
 	    --stage1 $(BUILD)/stage1/ofir$(EXE) --count 20 --seed 1
+	$(STAGE_ENV) $(PYTHON) tools/diff_programs.py --compiler $(BUILD)/stage0/ofir$(EXE) \
+	    --stage1 $(BUILD)/stage1/ofir$(EXE) --count 10 --seed 1
 
 # libFuzzer on the stage 0 front end (roadmap 6.33i); needs clang. The
 # nightly workflow .github/workflows/fuzz.yml runs it for ten minutes a target.
