@@ -326,10 +326,14 @@ void check_lang_layout(Checker *c, const Def *lang, TypeId type) {
         bool ok = info && info->count == 3 && type_eq(info->types[0], bytes) &&
                   info->types[1].id == TID_INT && info->types[2].id == TID_INT;
         if (!ok) {
+            // GCOVR_EXCL_START: only std declares `@lang` types, with these layouts
             check_error(c, "E0806", lang->span,
                         "`@lang(\"str\")` must declare `ptr: *u8`, `len: int`, `cap: int`");
+            // GCOVR_EXCL_STOP
         }
     } else if (info && info->count > 0) {
+        // GCOVR_EXCL_START: only std declares `@lang` types, with these layouts
         check_error(c, "E0806", lang->span, "a `@lang` numeric type declares no fields");
+        // GCOVR_EXCL_STOP
     }
 }

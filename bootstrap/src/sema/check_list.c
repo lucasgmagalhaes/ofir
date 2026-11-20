@@ -160,8 +160,10 @@ void check_list_layout(Checker *c, const Def *def) {
     const StructInfo *info = def->fields;
     const Ty *ptr = info && info->count == 3 ? type_get(c->types, info->types[0]) : NULL;
     if (!ptr || ptr->kind != TY_PTR || info->types[1].id != TID_INT) {
+        // GCOVR_EXCL_START: only std declares `@lang` types, with these layouts
         check_error(c, "E0806", def->span,
                     "`@lang(\"list\")` must declare `ptr: *mut T`, `len: int`, `cap: int`");
+        // GCOVR_EXCL_STOP
     }
 }
 
@@ -173,7 +175,7 @@ static FnDecl *list_method(Checker *c, const char *name) {
             return methods.items[i];
         }
     }
-    return NULL;
+    return NULL;   // GCOVR_EXCL_LINE: std's List declares asSlice
 }
 
 // A `List<T>` where a `&[T]` is expected (spec 2.12) becomes `list.asSlice()`.
@@ -187,7 +189,7 @@ bool coerce_to_slice(Checker *c, Expr *e, TypeId found, TypeId expected) {
     wanted = expected;
     FnDecl *as_slice = list_method(c, "asSlice");
     if (!as_slice) {
-        return false;
+        return false;   // GCOVR_EXCL_LINE: std's List declares asSlice
     }
     fn_signature(c, as_slice);
     Arena *arena = &c->sema->session->arena;

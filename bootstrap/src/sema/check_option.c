@@ -114,9 +114,11 @@ void check_wrapper_layout(Checker *c, DefId id) {
                       : variant_is(c, &info->variants[0], "Ok", 1) &&
                             variant_is(c, &info->variants[1], "Err", 1));
     if (!ok) {
+        // GCOVR_EXCL_START: only std declares `@lang` types, with these layouts
         check_error(c, "E0806", def->span, option ? "`@lang(\"option\")` must declare "
                     "`Some(T)` then `None`" : "`@lang(\"result\")` must declare `Ok(T)` then "
                     "`Err(E)`");
+        // GCOVR_EXCL_STOP
     }
 }
 
