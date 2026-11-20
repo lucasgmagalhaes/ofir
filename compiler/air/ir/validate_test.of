@@ -1,18 +1,18 @@
-// The tests of `air.validate` (stage 0: bootstrap/tests/test_air_validate.c).
+// The tests of `air.ir.validate` (stage 0: bootstrap/tests/test_air_validate.c).
 
-import air.air.AirBody
-import air.air.AirStmt
-import air.air.Rvalue
-import air.air.RuntimeFn
-import air.air.StmtKind
-import air.air.TermKind
-import air.air.branch
-import air.air.jump
-import air.air.noPath
-import air.air.opBool
-import air.air.opCopy
-import air.air.rvUse
-import air.air.terminator
+import air.ir.air.AirBody
+import air.ir.air.AirStmt
+import air.ir.air.Rvalue
+import air.ir.air.RuntimeFn
+import air.ir.air.StmtKind
+import air.ir.air.TermKind
+import air.ir.air.branch
+import air.ir.air.jump
+import air.ir.air.noPath
+import air.ir.air.opBool
+import air.ir.air.opCopy
+import air.ir.air.rvUse
+import air.ir.air.terminator
 import base.intern.Symbol
 import diag.noSpan
 import sema.core.types.UNIT
