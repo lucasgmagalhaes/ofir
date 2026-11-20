@@ -1,0 +1,8 @@
+// Two names at the same distance: the help names the one declared first
+// (did_you_mean_tie.fixed is this program with the fix applied).
+
+fn main() {
+    const count = 1
+    const cuonts = 2
+    println("{count} {cuonts}")   // error[E0200]: cannot find `cuont` in this scope
+}
