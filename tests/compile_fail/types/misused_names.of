@@ -1,5 +1,5 @@
 // Names used where they do not fit: type arguments on a type parameter,
-// `Self` outside a type, a call of a value, a field of a constant
+// `Self` outside a type, a call of a value or a constant, a field of a constant
 // tuple, a method that does not exist, a builtin as a value and a generic
 // type as a value.
 
@@ -7,6 +7,8 @@ struct Point {
     x: int,
     y: int,
 }
+
+const LIMIT: int = 1
 
 struct Holder {
     items: List<int>,
@@ -21,6 +23,7 @@ fn s(_a: Self) {   // error[E0200]: `Self` is only available inside a type
 fn main() {
     const k = 1
     k()   // error[E0311]: expression of type `int` is not a function
+    LIMIT()   // error[E0311]: expression of type `int` is not a function
     const pr = (Holder{items: [1]}, 2)
     pr.0.items.push(3)   // error[E0315]: this value cannot be modified: declare it with `let`
     Point.nothing()   // error[E0301]: no method `nothing` on type `Point`
