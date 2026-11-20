@@ -59,7 +59,7 @@ void print_float_g(FILE *out, double v) {
         size_t n = strlen(digits);
         size_t skip = 0;
         while (n - skip > 2 && digits[skip] == '0') {
-            skip++;
+            skip++;   // GCOVR_EXCL_LINE: glibc pads exponents to two digits, never more
         }
         memmove(digits, digits + skip, n - skip + 1);
     }
