@@ -86,7 +86,9 @@ void require_mutable(Checker *c, Expr *place) {
     } else if (e->kind == EXPR_IDENT && e->as.ident.res.kind == RES_DEF) {
         ok = sema_def(c->sema, (DefId){e->as.ident.res.index})->kind == DEF_GLOBAL;
     } else {
+        // GCOVR_EXCL_START: a name that resolves to nothing stops before checking
         ok = e->type.id == TID_ERROR;
+        // GCOVR_EXCL_STOP
     }
     if (!ok) {
         check_error(c, "E0315", e->span, "this value cannot be modified: declare it with `let`");
@@ -104,9 +106,11 @@ static TypeId param_type(Checker *c, BuiltinType t, TypeId self, TypeId target) 
     case BT_SELF: return self;
     case BT_INT: return type_id(TID_INT);
     case BT_TARGET: return target;
+    // GCOVR_EXCL_START: a BT_NONE parameter or result is never looked up
     case BT_NONE: return type_id(TID_UNIT);
+    // GCOVR_EXCL_STOP
     }
-    return type_id(TID_ERROR);
+    return type_id(TID_ERROR);   // GCOVR_EXCL_LINE: the switch covers every builtin type
 }
 
 // The integer type argument of `x.wrappingCast<T>()`.
@@ -134,7 +138,9 @@ static TypeId call_builtin(Checker *c, Expr *call, const BuiltinInfo *info, Type
     Expr *field = call->as.call.callee;
     field->as.field.res = (Res){RES_BUILTIN, info->method};
     if (info->self_mode == MODE_MUT) {
+        // GCOVR_EXCL_START: no built-in method takes `mut self`
         require_mutable(c, field->as.field.base);
+        // GCOVR_EXCL_STOP
     }
     if (info->receiver == RECV_PTR) {   // pointer arithmetic (spec 11.2)
         require_unsafe(c, call->span, "offsetting a raw pointer");
