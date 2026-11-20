@@ -1,0 +1,8 @@
+// requires: stage1
+pub fn name() str {
+    return "a"
+}
+
+pub fn only() str {
+    return "a"
+}
