@@ -233,6 +233,71 @@ use [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html), and UUID formats
 use [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562.html). Exact decimal and
 missing/null policies must survive both serialization and database adapters.
 
+## Record states
+
+One row per record, in order (ADR 0094). **pending**: nothing provides it
+yet. **partial**: the cited files cover part of it, and Missing says what
+is left. **done**: its completion criterion holds, a cited test shows it,
+and nothing is missing. Evidence paths are relative to the repository root
+and must exist. Update the row in the pull request that changes it.
+
+| ID | State | Evidence | Missing |
+|----|-------|----------|---------|
+| API-01 | partial | `std/io/index.of` `tests/run/system/unicode.of` | Reader, writer and seek contracts; buffered streams; copy helpers; short-I/O and EOF contracts |
+| API-02 | partial | `std/fs/index.of` `std/path/index.of` `std/path/index_test.of` `tests/run/system/fs.of` | File handles and open modes; seek; permissions; temporary files; atomic replacement; flush versus durable sync; large-file streaming |
+| API-03 | partial | `std/time/index.of` `tests/run/sync/deadlines.of` `tests/run/sync/deadline_clock.of` | `Duration` and `Instant` types; wall-clock timestamp type; checked conversions; injectable clocks |
+| API-04 | partial | `std/time/date.of` `std/time/date_test.of` | Calendar dates and times; UTC offsets; RFC 3339; timezone adapter |
+| API-05 | partial | `std/strings/utf8.of` `std/strings/utf8_test.of` | Unicode normalization policy; exact decimal; UUID |
+| API-06 | pending | - | - |
+| API-07 | pending | - | - |
+| API-08 | partial | `std/sync/index.of` `tests/run/tasks/shutdown.of` | Request scope; signals; resource startup and teardown; graceful drain with a deadline |
+| API-09 | partial | `std/random/index.of` `std/random/index_test.of` `runtime/src/os.c` | Entropy failure as an error (the runtime falls back to the clock); hashes and HMAC; constant-time comparison |
+| API-10 | pending | - | - |
+| API-11 | pending | - | - |
+| API-12 | partial | `std/sync/index.of` `std/task/index.of` `tests/run/sync/bounded.of` `tests/run/sync/mutex.of` | Bounded worker pools; integration with a service runtime; overload tests |
+| API-13 | partial | `std/json/index.of` `std/json/index_test.of` | Streaming parser and writer; size limits; explicit number policy |
+| API-14 | pending | - | - |
+| API-15 | partial | `std/encoding/index.of` `std/encoding/index_test.of` | URL and URI; percent encoding; query multimaps; media types; forms; multipart |
+| API-16 | partial | `std/compress/index.of` `std/compress/index_test.of` `std/checksum/index.of` | Compression; streaming adapters; negotiated compression |
+| API-17 | pending | - | - |
+| API-18 | pending | - | - |
+| API-19 | pending | - | - |
+| API-20 | pending | - | - |
+| API-21 | pending | - | - |
+| API-22 | pending | - | - |
+| API-23 | pending | - | - |
+| API-24 | pending | - | - |
+| API-25 | pending | - | - |
+| API-26 | pending | - | - |
+| API-27 | pending | - | - |
+| API-28 | pending | - | - |
+| API-29 | pending | - | - |
+| API-30 | pending | - | - |
+| API-31 | pending | - | - |
+| API-32 | pending | - | - |
+| API-33 | pending | - | - |
+| API-34 | pending | - | - |
+| API-35 | pending | - | - |
+| API-36 | pending | - | - |
+| API-37 | pending | - | - |
+| API-38 | pending | - | - |
+| API-39 | pending | - | - |
+| API-40 | pending | - | - |
+| API-41 | pending | - | - |
+| API-42 | pending | - | - |
+| API-43 | pending | - | - |
+| API-44 | pending | - | - |
+| API-45 | pending | - | - |
+| API-46 | pending | - | - |
+| API-47 | partial | `tools/check_publish.py` `tools/check_sbom.py` `tools/check_audit.py` `tools/check_build_profiles.py` | Published framework and driver packages; native-library discovery; an update and advisory policy for them |
+| API-48 | pending | - | - |
+| API-49 | pending | - | - |
+| API-50 | pending | - | - |
+| API-51 | pending | - | - |
+| API-52 | pending | - | - |
+| API-53 | pending | - | - |
+| API-54 | pending | - | - |
+
 ## Delivery gates and recommended order
 
 These are ecosystem milestones independent of language milestones M1-M5.
