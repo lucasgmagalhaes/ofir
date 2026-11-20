@@ -32,6 +32,7 @@ pub copy enum IoErrorKind {
 | `fn flush() Result<(), IoError>` | flush standard output | ✓ |
 | `enum Stream { Stdin, Stdout, Stderr }` | the standard streams | ✓ |
 | `fn isTerminal(stream: Stream) bool` | whether the stream is a terminal, not a file or a pipe | ✓ |
+| `fn terminalSize(stream: Stream) Option<TerminalSize>` | the `columns` and `rows` of the stream's terminal; `None` for a file or a pipe (ADR 0099) | ✓ |
 
 ## `std.fs`
 
