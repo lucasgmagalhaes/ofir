@@ -259,7 +259,7 @@ Properties:
   or shifting by a constant needs no check; a narrowing cast of a constant
   that does not fit keeps its check.
 - Both stages validate every body after lowering and again after check
-  folding, in every build (`air/air_validate.c`, `air/validate.of`): the body
+  folding, in every build (`air/air_validate.c`, `air/ir/validate.of`): the body
   has its return local, parameters and entry block, every block is
   terminated, every jump names a block and every operand a local of the
   body. A malformed body is a compiler bug: the compiler prints the body,
