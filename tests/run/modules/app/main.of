@@ -11,4 +11,6 @@ fn main() {
     const kind = shapes.Kind.Round
     println("{shapes.describe(kind)} {shapes.describe(Kind.Angular)}")
     println("{geometry.unitArea()}")
+    const shapes.Circle{radius} = c   // a pattern names a type of a module
+    println("{radius}")
 }
