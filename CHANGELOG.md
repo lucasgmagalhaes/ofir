@@ -290,6 +290,9 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Stage 0 crashed on a `match` over an enum that no code had named yet
+  (`match r { false => 0 }` with `r: Result<int, int>`); it computes the
+  variants and reports what stage 1 reports (found by libFuzzer).
 - Stage 0 leaked its doc comments when an encoding error stopped the
   parse after a `/** @module */` comment (found by libFuzzer).
 - Comparing two unit values (`u == ()`) emitted `icmp` on `void`, which
