@@ -1,6 +1,7 @@
 # Releasing
 
-The checklist for a release (ADR 0084). What a minor and a patch release
+The checklist for a release (ADR 0084), made by the release manager of
+[docs/maintaining.md](maintaining.md#releases). What a minor and a patch release
 may change is in docs/design/compatibility.md.
 
 ## A minor release (0.5.x to 0.6.0)
@@ -8,6 +9,7 @@ may change is in docs/design/compatibility.md.
 1. On `main`, set `VERSION` in `compiler/driver/version.of` and rename
    the `[Unreleased]` section of `CHANGELOG.md` to `[0.6.0] - <date>`.
    Every entry under "Changed" that breaks a program says how to migrate.
+   `SECURITY.md` supports `0.6.x` only (`tools/check_maintenance.py`).
 2. Copy the compatibility corpus: `tests/compat/0.6/` gets examples, run
    tests, a project with a dependency and a lock, a program that fails
    with its error code, and a test module, each with what the new

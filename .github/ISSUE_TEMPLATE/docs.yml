@@ -1,0 +1,18 @@
+name: Documentation
+description: The documentation is wrong, missing or unclear.
+labels: ["kind: docs"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: The file or section, e.g. docs/book/03-ownership.md.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is wrong or missing, and what it should say.
+    validations:
+      required: true

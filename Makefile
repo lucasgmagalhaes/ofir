@@ -46,6 +46,7 @@ check-docs:
 	$(PYTHON) tools/check_llvm_matrix.py
 	$(PYTHON) tools/check_api_plan.py
 	$(PYTHON) tools/check_book.py
+	$(PYTHON) tools/check_maintenance.py
 
 # No inline function or statement bodies (docs/style-guide.md, `fmt.inlineBlocks`).
 check-format:
@@ -190,6 +191,8 @@ test-stage1: stage1
 	    $(PYTHON) tools/check_build_profiles.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_publish.py --compiler $(BUILD)/stage1/ofir$(EXE)
+	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
+	    $(PYTHON) tools/check_search.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_sbom.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \

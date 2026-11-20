@@ -150,6 +150,23 @@ pub fn fileAtRev(dir: str, rev: str, path: str) Option<str> {
 }
 
 /**
+ * Every line of the files of a bare clone at `HEAD`, but those of the
+ * paths left out, in one run of git.
+ *
+ * @param dir the clone
+ * @param without the paths left out, such as `config.json`
+ * @returns the lines as `HEAD:<path>:<line>`, or `None` if git failed
+ */
+pub fn linesAt(dir: str, without: [str]) Option<str> {
+    let args: List<str> = ["-C", dir.clone(), "grep", "-I", "--no-color", "-e", "", "HEAD", "--",
+                           "."]
+    for path in without {
+        args.push(":(exclude){path}")
+    }
+    return git(args.asSlice()).ok()
+}
+
+/**
  * Whether a commit is an ancestor of another, or the same commit.
  *
  * @param dir a bare clone

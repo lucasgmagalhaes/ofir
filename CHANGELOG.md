@@ -12,6 +12,16 @@ project uses [Semantic Versioning](https://semver.org/).
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
   glob is E0208, and an unused glob is W0002. Stage 1 only.
+- Package discovery (ADR 0097): the manifest's `description`, `keywords`
+  and `repository` go, with `toolchain`, into the index line; `ofir
+  search <words>` finds packages of the index by name, description or
+  keywords; `docs/packages/official.md` has the criteria of official
+  packages.
+- Maintenance process (ADR 0096): `docs/maintaining.md` (triage, review,
+  releases, security handling, accounts, continuity), `SECURITY.md`,
+  issue and pull request templates and CODEOWNERS;
+  `tools/check_maintenance.py`, in `make check-docs`, keeps them
+  consistent.
 - The Ofir Book (ADR 0095): `docs/book/` teaches installation, the
   basics, ownership, errors, projects and tests; `tools/check_book.py`
   runs every program of it and checks its output or diagnostic, with

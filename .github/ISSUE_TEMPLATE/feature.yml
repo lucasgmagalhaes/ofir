@@ -1,0 +1,23 @@
+name: Feature
+description: A new capability of the language, std or tools.
+labels: ["kind: feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you cannot do, or cannot do well, today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would write, with an example.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways, and the roadmap steps or ADRs that are related.

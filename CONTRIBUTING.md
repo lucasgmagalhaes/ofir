@@ -10,6 +10,10 @@
 5. CI must be green before merging. Pull requests are merged without
    squashing, so every commit must build and make sense on its own.
 
+How issues and pull requests are triaged and reviewed is in
+[docs/maintaining.md](docs/maintaining.md). Report a vulnerability
+privately, as [SECURITY.md](SECURITY.md) says, not in an issue.
+
 ## Commit messages
 
 Format: `<type>(<optional scope>): <description>`, in English, imperative

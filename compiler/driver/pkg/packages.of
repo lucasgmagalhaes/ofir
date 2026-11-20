@@ -29,6 +29,7 @@ import driver.pkg.lock.lockMatches
 import driver.pkg.lock.readLock
 import driver.pkg.lock.sourceOf
 import driver.pkg.lock.writeLock
+import driver.pkg.metadata.metadataError
 import driver.pkg.resolve.Mode
 import driver.pkg.resolve.Resolution
 import driver.pkg.resolve.failureOf
@@ -300,7 +301,7 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
             const native = doc.at(["build", "native"]) >= 0
             const lints = doc.field(0, "lints") >= 0
             const audit = auditError(&doc).len() > 0 || trustError(&doc).len() > 0
-            const invalid = licenseError(&doc).len() > 0 || audit
+            const invalid = licenseError(&doc).len() > 0 || audit || metadataInvalid(&doc)
             if register && (doc.field(0, "dependencies") >= 0 || lints || native || invalid) {
                 return Option.Some((doc, map.add(path, text.clone())))
             }
@@ -312,6 +313,16 @@ fn readManifest(dir: str, register: bool, map: mut SourceMap,
             return Option.None
         }
     }
+}
+
+// Whether the manifest's discovery metadata is invalid (ADR 0097).
+fn metadataInvalid(doc: &JsonDoc) bool {
+    for key in ["description", "keywords", "repository"] {
+        if metadataError(doc, key).len() > 0 {
+            return true
+        }
+    }
+    return false
 }
 
 // What is wrong with the manifest's `license` (ADR 0081), or an empty string.
@@ -418,6 +429,12 @@ fn readDependencies(packages: mut List<Package>, p: int, r: &Resolution, mode: &
         const trust = trustError(&doc)
         if trust.len() > 0 {
             diags.error("E0910", spanOf(&doc, file, doc.field(0, "trust")), trust)
+        }
+        for key in ["description", "keywords", "repository"] {
+            const problem = metadataError(&doc, key)
+            if problem.len() > 0 {
+                diags.error("E0910", spanOf(&doc, file, doc.field(0, key)), problem)
+            }
         }
         checkOverrides(&doc, file, diags)
         const dev = doc.field(0, "devDependencies")
