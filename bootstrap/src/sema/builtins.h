@@ -43,7 +43,6 @@ typedef struct {
 
 // The method `name` for a receiver, or NULL.
 const BuiltinInfo *builtin_method(const Interner *names, Receiver receiver, Symbol name);
-const BuiltinInfo *builtin_info(BuiltinMethod method);
 
 typedef enum { BC_NONE, BC_MIN, BC_MAX, BC_NAN, BC_INFINITY, BC_EPSILON } BuiltinConst;
 
