@@ -104,7 +104,7 @@ Each task covers lexer → parser → checker → lowering → codegen → tests
 | 2.9 | Interpolation of all primitive types; shortest round-trip float formatting (spec 2.1) | M | **done**: `tests/run/basics/strings`, `numbers/methods` |
 | 2.10 | Structs: declaration, literals, field access and assignment, nested structs, `copy struct`, default field values, tuple structs | M | **done**: `tests/run/structs/*` pass |
 | 2.11 | Methods and associated functions declared inside structs and enums, `self` | M | **done** for structs (enums with 2.14): `tests/run/methods/*` pass |
-| 2.12 | Parameter modes (borrow, `mut`, `move`) for parameters and `self`, `for mut`, `[T]`/`str` view parameters; explicit `&T`/`&mut T` locals, auto-deref, `*` | M | **in progress**: modes of parameters and `self` done (`mut` by reference); `for mut` done; views, `&T` locals and `*` remain |
+| 2.12 | Parameter modes (borrow, `mut`, `move`) for parameters and `self`, `for mut`, `[T]`/`str` view parameters; explicit `&T`/`&mut T` locals, auto-deref, `*` | M | **done**: modes of parameters and `self` (`mut` by reference), `for mut`, `[T]`/`str` views (`tests/run/refs/slices`), `&T`/`&mut T` locals and `*` (`tests/run/refs/references`), in both stages |
 | 2.13 | Tuples and destructuring `const` | S | **done**: `tests/run/enums/patterns` |
 | 2.14 | Enums: layout, construction, `.Variant` shorthand | M | **done**: `tests/run/enums/*` |
 | 2.15 | `match`: decision trees, literal, range, variant, tuple, struct patterns, guards; Copy bindings through references | L | **done** with sequential arm tests (decision trees later, if profiles ask for them); `examples/shapes.of` runs since `List` (2.20) |
