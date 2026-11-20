@@ -22,7 +22,7 @@ static Operand const_operand(const ConstValue *v, TypeId type) {
     case CV_BOOL: return op_bool(v->b);
     case CV_STR: return (Operand){.kind = OPERAND_STR, .type = type, .as.str = v->s};
     }
-    return op_unit();
+    return op_unit();   // GCOVR_EXCL_LINE: the switch covers every constant kind
 }
 
 static Operand def_value(Lowerer *l, Expr *e, Def *def) {
@@ -30,14 +30,18 @@ static Operand def_value(Lowerer *l, Expr *e, Def *def) {
         return const_operand(def->value, e->type);
     }
     if (def->kind == DEF_VARIANT) {   // `None`
+        // GCOVR_EXCL_START: E0326: a bare variant name is rejected
         return build_variant(l, e->type, def->variant, (ArgList){0});
+        // GCOVR_EXCL_STOP
     }
     if (def->kind == DEF_GLOBAL) {
         return place_operand(lower_place(l, e), OPERAND_COPY, e->type);
     }
+    // GCOVR_EXCL_START: the checker rejects function values (E0901)
     diag_error(&l->sema->session->diags, "E0901", e->span,
                "global variables are not supported yet");
     return op_unit();
+    // GCOVR_EXCL_STOP
 }
 
 static Operand name(Lowerer *l, Expr *e) {
@@ -60,7 +64,9 @@ static Operand call(Lowerer *l, Expr *e) {
         return lower_constructor(l, e);
     }
     if (def->kind == DEF_VARIANT) {   // `Some(x)`
+        // GCOVR_EXCL_START: E0326: a variant call is a method-style EXPR_FIELD call
         return build_variant(l, e->type, def->variant, args);
+        // GCOVR_EXCL_STOP
     }
     if (def->kind == DEF_BUILTIN) {
         if (def->builtin == BUILTIN_PANIC) {
@@ -301,8 +307,10 @@ static Operand lower_kind(Lowerer *l, Expr *e) {
             return build_variant(l, e->type, e->as.field.res.index, (ArgList){0});
         }
         return e->as.field.res.kind == RES_FIELD ? lower_field_read(l, e) : lower_field(l, e);
+    // GCOVR_EXCL_START: E0326: a variant is named through its enum, an EXPR_FIELD
     case EXPR_VARIANT:
         return build_variant(l, e->type, e->as.variant.index, e->as.variant.args);
+    // GCOVR_EXCL_STOP
     case EXPR_TUPLE: return lower_tuple(l, e);
     case EXPR_MATCH: return lower_match(l, e);
     case EXPR_TUPLE_FIELD: return lower_field_read(l, e);
@@ -314,7 +322,9 @@ static Operand lower_kind(Lowerer *l, Expr *e) {
     case EXPR_IF: return lower_if(l, e);
     case EXPR_BLOCK: case EXPR_UNSAFE:
         return lower_block(l, e->as.block, type_is_value(e->type));
+    // GCOVR_EXCL_START: the checker rejects every other kind in a value
     default:
         return op_unit();   // () and the constructs the checker rejects
+    // GCOVR_EXCL_STOP
     }
 }
