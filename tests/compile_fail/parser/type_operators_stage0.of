@@ -1,0 +1,8 @@
+// requires: stage0
+// Stage 0 reads the type operators of stage 1 (spec 16.5) to reject them.
+
+type A = true   // error[E0100]: type operators are not supported by stage 0
+type C = int[str]   // error[E0100]: indexed access types are not supported by stage 0
+
+fn main() {
+}
