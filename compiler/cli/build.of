@@ -4,7 +4,7 @@
  * order (load, check, lower, generate), then the native toolchain.
  */
 
-import air.interp.interp.evalComptimes
+import air.interp.evalComptimes
 import air.ir.AirBody
 import air.ir.air_print.AirPrinter
 import air.ir.validate.validateBody
