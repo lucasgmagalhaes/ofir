@@ -438,6 +438,7 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.31c | Toolchain guide gaps (ADR 0095): `ofir new`, `ofir build`/`run`/`test` without a file (project mode) and a test name filter, then the book uses them; a site for the book; a playground once programs can run sandboxed | OFIR-80 | pending |
 | 6.31d | Maintenance process (ADR 0096): `docs/maintaining.md` has the maintainers, triage labels, review deadlines, release responsibility, security handling, accounts and continuity rules; `SECURITY.md`, issue and pull request templates and CODEOWNERS; `tools/check_maintenance.py` keeps them consistent | OFIR-81 | **done** |
 | 6.31e | Package discovery (ADR 0097): the manifest's `description`, `keywords` and `repository` (E0910 when invalid) go with `toolchain` into the index line; `ofir search` finds packages by name, description or keywords at their highest version that is not yanked, marking an incompatible toolchain; `docs/packages/official.md` has the criteria of official packages; `tools/check_search.py` | OFIR-82 | **done** |
+| 6.31f | GUI, graphics, audio and media (ADR 0099): no module in `std`; each is a package binding a C library, and a toolkit written in Ofir is rejected for accessibility; a C event loop that owns the loop, events and pixels drives an Ofir handler (`tests/run/ffi/event_loop.of`); `std.io.terminalSize` checked on a pseudo-terminal (`tools/check_terminal.py`); raw mode, key events and the alternate screen wait for a TUI workload | OFIR-83 | **done**: decided, packages |
 | 6.31 | Service ecosystem, learning, domain packages and maintenance | OFIR-79 to OFIR-86 | Scoped deliverables, maintained examples, owners and explicit optional decisions |
 | 6.32 | Code written by agents (ADR 0080): query and edit commands, contracts, effects; rules 7 and 8 (locality, one way) apply to every later language change | ADR 0080 | Each command checked by a tool script in `make test-stage1`; both stages agree |
 | 6.32a | Assignment evaluates the right side before the place (rule 9): `list[i] = f()` with `f` growing `list` is correct; spec 4.2, both stages | ADR 0080 | |
@@ -564,9 +565,9 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 
 ## Next steps
 
-1. Continue with OFIR-83; 6.30 (OFIR-72 to OFIR-78), 6.31a (OFIR-79), 6.31b
-   (OFIR-80), 6.31d (OFIR-81) and 6.31e (OFIR-82) are done; 6.31c holds the
-   rest of OFIR-80.
+1. Continue with OFIR-84; 6.30 (OFIR-72 to OFIR-78), 6.31a (OFIR-79), 6.31b
+   (OFIR-80), 6.31d (OFIR-81), 6.31e (OFIR-82) and 6.31f (OFIR-83) are done;
+   6.31c holds the rest of OFIR-80.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
    using the dependency and priority order in the

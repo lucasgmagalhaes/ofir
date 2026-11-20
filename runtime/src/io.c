@@ -14,6 +14,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/ioctl.h>
+#endif
+
 #define BUFFER_SIZE (64 * 1024)
 
 static uint8_t buffer[BUFFER_SIZE];
@@ -43,6 +49,35 @@ void ofir_write(int fd, const uint8_t *ptr, int64_t len) {
 // Whether a file descriptor is a terminal (std.io.isTerminal, ADR 0060).
 bool ofir_is_terminal(int64_t fd) {
     return isatty((int)fd) != 0;
+}
+
+// The size of the terminal of a file descriptor (std.io.terminalSize,
+// ADR 0099): the columns in the high 32 bits and the rows in the low 32,
+// or -1 when it is not a terminal or the size is unknown.
+int64_t ofir_terminal_size(int64_t fd) {
+    if (!isatty((int)fd)) {
+        return -1;
+    }
+#ifdef _WIN32
+    DWORD which = fd == 0 ? STD_INPUT_HANDLE : fd == 1 ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE;
+    CONSOLE_SCREEN_BUFFER_INFO info;
+    if (!GetConsoleScreenBufferInfo(GetStdHandle(which), &info)) {
+        return -1;
+    }
+    int64_t columns = info.srWindow.Right - info.srWindow.Left + 1;
+    int64_t rows = info.srWindow.Bottom - info.srWindow.Top + 1;
+#else
+    struct winsize size;
+    if (ioctl((int)fd, TIOCGWINSZ, &size) != 0) {
+        return -1;
+    }
+    int64_t columns = size.ws_col;
+    int64_t rows = size.ws_row;
+#endif
+    if (columns <= 0 || rows <= 0) {
+        return -1;
+    }
+    return (columns << 32) | rows;
 }
 
 static _Thread_local uint8_t line[1024];

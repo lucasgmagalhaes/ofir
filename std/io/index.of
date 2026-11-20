@@ -24,6 +24,7 @@ extern "C" {
     fn ofir_read_bytes(n: int, out: *mut Buffer) i32
     fn ofir_stdout_flush()
     fn ofir_is_terminal(fd: int) bool
+    fn ofir_terminal_size(fd: int) int
 }
 
 /**
@@ -270,4 +271,44 @@ pub fn isTerminal(stream: Stream) bool {
         Stream.Stderr => 2
     }
     return unsafe { ofir_is_terminal(fd) }
+}
+
+/**
+ * The size of a terminal, in character cells.
+ */
+pub struct TerminalSize {
+    /** The number of columns. */
+    pub columns: int
+    /** The number of rows. */
+    pub rows: int
+}
+
+/**
+ * The size of the terminal of a standard stream (ADR 0099).
+ *
+ * @param stream the stream
+ * @returns the size, or `None` when the stream is not a terminal or the
+ * system does not know its size
+ *
+ * @example
+ * ```ofir
+ * import std.io
+ *
+ * const width = match io.terminalSize(io.Stream.Stdout) {
+ *     Option.Some(size) => size.columns,
+ *     Option.None => 80
+ * }
+ * ```
+ */
+pub fn terminalSize(stream: Stream) Option<TerminalSize> {
+    const fd = match stream {
+        Stream.Stdin => 0,
+        Stream.Stdout => 1,
+        Stream.Stderr => 2
+    }
+    const packed = unsafe { ofir_terminal_size(fd) }
+    if packed < 0 {
+        return Option.None
+    }
+    return Option.Some(TerminalSize{columns: packed >> 32, rows: packed & 4294967295})
 }

@@ -1,0 +1,17 @@
+// std.io.terminalSize (ADR 0099): the test's output is piped, so standard
+// output and standard error have no terminal size; tools/check_terminal.py
+// runs a program on a pseudo-terminal of a known size.
+
+import std.io
+
+fn show(stream: io.Stream) str {
+    return match io.terminalSize(stream) {
+        Option.Some(size) => "{size.columns}x{size.rows}",
+        Option.None => "none"
+    }
+}
+
+fn main() {
+    println("stdout {show(io.Stream.Stdout)}")
+    println("stderr {show(io.Stream.Stderr)}")
+}

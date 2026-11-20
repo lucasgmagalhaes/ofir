@@ -17,6 +17,10 @@ project uses [Semantic Versioning](https://semver.org/).
   search <words>` finds packages of the index by name, description or
   keywords; `docs/packages/official.md` has the criteria of official
   packages.
+- GUI, graphics, audio and media (ADR 0099): they stay packages over the
+  C boundary; `std.io.terminalSize` gives the columns and rows of a
+  standard stream's terminal, and `tests/run/ffi/event_loop.of` drives
+  an Ofir handler from a C toolkit's event loop.
 - Maintenance process (ADR 0096): `docs/maintaining.md` (triage, review,
   releases, security handling, accounts, continuity), `SECURITY.md`,
   issue and pull request templates and CODEOWNERS;
