@@ -7,5 +7,15 @@ where
 {
 }
 
+struct Plain {
+    x: int
+
+    fn get(self) int where int: Eq {   // error[E0334]: `int` is not a type parameter of this declaration: only type parameters take bounds
+        return self.x
+    }
+}
+
 fn main() {
+    const p = Plain{x: 1}
+    const _g = p.get()
 }
