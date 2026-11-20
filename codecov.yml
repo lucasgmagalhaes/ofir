@@ -25,6 +25,14 @@ flags:
     paths:
       - compiler/
     carryforward: true
+  runtime:
+    paths:
+      - runtime/src/
+    carryforward: true
+  std:
+    paths:
+      - std/
+    carryforward: true
 
 ignore:
   - bootstrap/tests/

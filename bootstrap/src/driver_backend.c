@@ -86,9 +86,11 @@ typedef struct {
 static void validate(const Sink *sink, const AirBody *body, const char *pass) {
     char error[256];
     if (!air_validate_body(body, error, sizeof error)) {
+        // GCOVR_EXCL_START: a malformed body is a compiler bug, which no test reaches
         air_print_body(body, sink->sema, stderr);   // what the bug report needs
         fputs("note: this is a compiler bug; a report needs the AIR above\n", stderr);
         fatal("invalid AIR after %s: %s", pass, error);
+        // GCOVR_EXCL_STOP
     }
 }
 

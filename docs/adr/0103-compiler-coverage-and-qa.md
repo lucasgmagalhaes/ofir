@@ -27,6 +27,43 @@ or a bug that no test has reached.
 The C runtime (`runtime/src`) and `std` as test programs use it are not
 measured yet. Both are linked into programs, not into the compilers.
 
+## Amendment: the runtime and std (6.33b)
+
+The run tests and the std tests measure them. The runtime is built by
+clang with `--coverage`. A wrapper gives `--coverage` to each command
+that links a program, but not to `--emit` and cross builds, whose output
+the tests compare. The counters go to `TMPDIR`, where the compiler and
+the runner put the programs, and the test runner adds
+`OFIR_TEST_LDFLAGS` to the C programs it links against an Ofir library.
+gcovr keeps functions of the same name apart
+(`--merge-mode-functions=separate`): methods of different types share
+one. The first measurement:
+
+| Code | Lines | Functions | Branches |
+|------|------:|----------:|---------:|
+| Runtime (`runtime/src`, C) | 84.8% | 92.0% | 67.3% |
+| `std` | 86.7% | 97.9% | 56.3% |
+
+They are uploaded with the flags `runtime` and `std`.
+
+## Amendment: exclusions and floors (6.33c)
+
+An exclusion marker gives its reason after a colon, on the same line:
+`// GCOVR_EXCL_LINE: allocation failure aborts in ofir_alloc`. The
+same holds for `GCOVR_EXCL_START` and the branch markers; a `STOP`
+needs none.
+
+The floors are the line coverage of each directory one level under
+`bootstrap/src`, `compiler`, `runtime/src` and `std` (a file in the
+root counts in the root), per report, in `tools/coverage_floors.json`.
+`tools/coverage.py --check` (`make coverage-check`) reads the reports of
+a measurement and fails on a directory below its floor, on a directory
+without one, and on a marker without a reason; CI runs it after the
+uploads. A directory may be 0.5 points under its floor: gcc and clang
+versions count a few lines differently. One that is more than 0.5
+points above it is listed, and `--update-floors` raises the floors to
+the measured values; it never lowers one.
+
 ## Decision
 
 1. **`tools/coverage.py` measures both compilers.** Stage 0 is built by

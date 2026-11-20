@@ -607,6 +607,9 @@ def run_consumer(cfg: Config, path: Path, source: str, consumer: str) -> Result:
         args.append("--target=x86_64-w64-windows-gnu")
     if not shared:
         args += [runtime, "-lm", "-lpthread"]
+    # Extra link flags, such as `--coverage` for an instrumented runtime
+    # (tools/coverage.py).
+    args += os.environ.get("OFIR_TEST_LDFLAGS", "").split()
     proc = run_process(args + ["-o", str(exe)])
     if proc.returncode != 0:
         return Result(path, "fail", f"cannot build {consumer}\n" + describe(proc))

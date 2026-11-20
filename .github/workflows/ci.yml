@@ -116,8 +116,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # Coverage of both compilers (ADR 0103): `make coverage`, uploaded to
-  # Codecov with the flags stage0 and stage1 (codecov.yml).
+  # Coverage of both compilers, the runtime and std (ADR 0103): `make
+  # coverage`, uploaded to Codecov with a flag each (codecov.yml).
   coverage:
     name: coverage / ubuntu-24.04 / LLVM 21
     runs-on: ubuntu-24.04
@@ -163,6 +163,26 @@ jobs:
           flags: stage1
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+      - name: Upload the runtime to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: build/coverage/runtime.xml
+          flags: runtime
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      - name: Upload std to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: build/coverage/std.xml
+          flags: std
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      # After the uploads, so that a missed floor still shows on Codecov.
+      - name: Check the coverage floors
+        run: python3 tools/coverage.py --check
 
       - name: Keep the reports
         if: always()

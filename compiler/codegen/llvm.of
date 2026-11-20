@@ -882,7 +882,13 @@ fn operand(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, o: &Operand) 
         }
         OperandKind.Addr => Value{ty: "ptr".toOwned(), text: placeAddress(g, c, p, body, o.local,
                                                                           &o.path)}
-        OperandKind.Int => Value{ty: ty, text: intText(o.bits, intBits(c.types.get(o.ty).data))}
+        OperandKind.Int => {
+            const t = c.types.get(o.ty)
+            if t.kind == TyKind.Ptr {   // a constant `0 as *T` (spec 4.7)
+                return Value{ty: ty, text: "null".toOwned()}
+            }
+            Value{ty: ty, text: intText(o.bits, intBits(t.data))}
+        }
         OperandKind.Float => Value{ty: ty, text: floatText(o.float, c.types.get(o.ty).data == 32)}
         OperandKind.Bool => Value{ty: ty,
                                   text: if o.truth { "true".toOwned() } else { "false".toOwned() }}
