@@ -7,6 +7,7 @@
  */
 
 import base.intern.Interner
+import base.json.parseJsonc
 import base.span.SourceMap
 import diag.Diagnostics
 import diag.Format
@@ -16,7 +17,6 @@ import doc.page.Site
 import doc.page.comments
 import doc.page.indexPage
 import doc.page.modulePage
-import lsp.json.parseJsonc
 import std.fs
 import syntax.lexer.tokenize
 import syntax.parser.parse

@@ -1,0 +1,140 @@
+/**
+ * @module
+ * Floats as text the way C writes them, shared by the AIR printer and
+ * the constant traces of the checker.
+ */
+
+const HEX: str = "0123456789abcdef"
+
+// The decimal digits of a float's shortest form, without leading zeros, and
+// the exponent of the first: 1.5e-7 is ("15", -7).
+fn decimalDigits(text: str) (str, int) {
+    let mantissa = text.clone()
+    let exponent = 0
+    if const Option.Some(e) = text.find("e") {
+        mantissa = text.slice(0, e).toOwned()
+        exponent = match int.parse(text.sliceFrom(e + 1)) {
+            Result.Ok(n) => n
+            Result.Err(_) => 0
+        }
+    }
+    let digits = ""
+    let point = -1
+    for i in 0..mantissa.len() {
+        if mantissa[i] == b'.' {
+            point = digits.len()
+        } else {
+            digits.push(mantissa.slice(i, i + 1))
+        }
+    }
+    if point < 0 {
+        point = digits.len()
+    }
+    let lead = 0
+    for lead < digits.len() - 1 && digits[lead] == b'0' {
+        lead += 1
+    }
+    return (digits.sliceFrom(lead).toOwned(), exponent + point - lead - 1)
+}
+
+// Rounds a digit string to `n` digits, half up; the exponent grows on a carry.
+fn roundDigits(digits: str, exponent: int, n: int) (str, int) {
+    if digits.len() <= n {
+        return (digits.toOwned(), exponent)
+    }
+    let kept: List<u8> = []
+    for i in 0..n {
+        kept.push(digits[i])
+    }
+    if digits[n] >= b'5' {
+        let i = n - 1
+        for i >= 0 && kept[i] == b'9' {
+            kept[i] = b'0'
+            i -= 1
+        }
+        if i < 0 {
+            kept.insert(0, b'1')
+            const _ = kept.pop()
+            let out = ""
+            for j in 0..kept.len() {
+                out.push(HEX.slice((kept[j] - b'0') as int, (kept[j] - b'0') as int + 1))
+            }
+            return (out, exponent + 1)
+        }
+        kept[i] += 1
+    }
+    let out = ""
+    for j in 0..kept.len() {
+        out.push(HEX.slice((kept[j] - b'0') as int, (kept[j] - b'0') as int + 1))
+    }
+    return (out, exponent)
+}
+
+fn trimZeros(digits: str) str {
+    let end = digits.len()
+    for end > 1 && digits[end - 1] == b'0' {
+        end -= 1
+    }
+    return digits.slice(0, end).toOwned()
+}
+
+/**
+ * A float as C's `printf("%g")` writes it: 6 significant digits, fixed
+ * notation for exponents from -4 to 5, trailing zeros removed.
+ *
+ * @param value the float
+ * @returns its text
+ */
+pub fn formatG(value: float) str {
+    const text = "{value}"
+    if text == "NaN" {   // C writes the sign of a NaN too
+        return if value.isSignNegative() { "-nan" } else { "nan" }
+    }
+    if text == "inf" || text == "-inf" {
+        return text.toOwned()
+    }
+    const negative = text.startsWith("-")
+    const body = if negative { text.sliceFrom(1) } else { text.sliceFrom(0) }
+    let out = if negative { "-" } else { "" }
+    const parts = decimalDigits(body)
+    if parts.0 == "0" {
+        out.push("0")
+        return out
+    }
+    const rounded = roundDigits(parts.0, parts.1, 6)
+    const digits = trimZeros(rounded.0)
+    const x = rounded.1
+    if x < -4 || x >= 6 {
+        out.push(digits.slice(0, 1))
+        if digits.len() > 1 {
+            out.push(".")
+            out.push(digits.sliceFrom(1))
+        }
+        out.push(if x < 0 { "e-" } else { "e+" })
+        const magnitude = if x < 0 { -x } else { x }
+        if magnitude < 10 {
+            out.push("0")
+        }
+        out.push("{magnitude}")
+        return out
+    }
+    if x < 0 {
+        out.push("0.")
+        for _ in 0..(-x - 1) {
+            out.push("0")
+        }
+        out.push(digits)
+        return out
+    }
+    if digits.len() <= x + 1 {
+        out.push(digits)
+        for _ in 0..(x + 1 - digits.len()) {
+            out.push("0")
+        }
+        return out
+    }
+    out.push(digits.slice(0, x + 1))
+    out.push(".")
+    out.push(digits.sliceFrom(x + 1))
+    return out
+}

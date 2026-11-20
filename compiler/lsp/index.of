@@ -18,6 +18,9 @@
  * check every open document and gather the uses of the same declaration.
  */
 
+import base.json.JsonDoc
+import base.json.jsonString
+import base.json.parseJson
 import base.span.FileId
 import base.span.SourceFile
 import base.span.SourceMap
@@ -25,11 +28,8 @@ import base.span.Span
 import diag.Diagnostic
 import diag.NoteKind
 import diag.Severity
-import diag.jsonString
 import lsp.check.Checked
 import lsp.check.checkFile
-import lsp.json.JsonDoc
-import lsp.json.parseJson
 import sema.trace.CompletionKind
 import std.io
 import std.io.Stdin

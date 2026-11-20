@@ -1,4 +1,4 @@
-// The tests of `lsp.json`.
+// The tests of `base.json`.
 
 import std.testing.assert
 
@@ -77,4 +77,11 @@ fn failsAt(text: str) int {
 fn jsoncReportsWhereItFails() {
     assert(failsAt("\{\"a\": nope\}") == 6)
     assert(failsAt("[1 /* never closed") == 18)
+}
+
+@test
+fn jsonStringEscapes() {
+    assert(jsonString("a\"b\\c\nd\te") == "\"a\\\"b\\\\c\\nd\\te\"")
+    assert(jsonString("\x01\x1f") == "\"\\u0001\\u001f\"")
+    assert(jsonString("") == "\"\"")
 }

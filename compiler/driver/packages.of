@@ -13,6 +13,9 @@
  * taken. Every key a project declares maps to that name.
  */
 
+import base.json.JsonDoc
+import base.json.JsonKind
+import base.json.parseJsonc
 import base.span.FileId
 import base.span.SourceMap
 import base.span.Span
@@ -41,9 +44,6 @@ import driver.registry.defaultIndex
 import driver.semver.parseRequirement
 import driver.spdx.checkLicense
 import driver.toolchain.checkToolchain
-import lsp.json.JsonDoc
-import lsp.json.JsonKind
-import lsp.json.parseJsonc
 import std.fs
 
 /**

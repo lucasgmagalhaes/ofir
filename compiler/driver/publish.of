@@ -6,14 +6,14 @@
  * git repository: each change is a commit, which the user pushes.
  */
 
-import diag.jsonString
+import base.json.jsonString
+import base.json.parseJson
+import base.json.parseJsonc
 import driver.lock.checksum
 import driver.registry.indexPath
 import driver.resolve.registryVersion
 import driver.semver.parseVersion
 import driver.spdx.checkLicense
-import lsp.json.parseJson
-import lsp.json.parseJsonc
 import std.fs
 import std.os
 

@@ -4,6 +4,8 @@
  * project builds with.
  */
 
+import base.json.JsonKind
+import base.json.parseJsonc
 import base.span.SourceMap
 import base.span.Span
 import diag.Diagnostics
@@ -11,8 +13,6 @@ import driver.semver.Version
 import driver.semver.parseVersion
 import driver.semver.satisfies
 import driver.version.VERSION
-import lsp.json.JsonKind
-import lsp.json.parseJsonc
 import std.fs
 import std.os
 

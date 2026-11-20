@@ -103,6 +103,7 @@ starts with the same word as the record's status line.
 | [0090](0090-representative-applications.md) | Representative applications | Proposed |
 | [0091](0091-reliable-fast-ci.md) | Reliable, fast CI | Proposed |
 | [0092](0092-build-and-tool-security.md) | Build and hosted-tool security | Proposed |
+| [0093](0093-compiler-layers.md) | Layers of the stage 1 compiler | Proposed |
 
 ## Template
 
