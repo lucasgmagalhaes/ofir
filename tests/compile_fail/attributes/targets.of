@@ -1,0 +1,37 @@
+// The names of the targets an attribute does not apply to, and the
+// argument checks of `@cfg` and `@tag` (spec 12.1).
+
+@test   // error[E0808]: the attribute `@test` does not apply to an import
+import std.testing.assert
+
+@lang("x")   // error[E0808]: the attribute `@lang` does not apply to a function
+fn f() {
+}
+
+@test   // error[E0808]: the attribute `@test` does not apply to an enum
+enum E {
+    A,
+}
+
+@test   // error[E0808]: the attribute `@test` does not apply to an extern block
+extern "C" {
+    fn puts(s: *u8) i32
+}
+
+@test   // error[E0808]: the attribute `@test` does not apply to a global variable
+let G: int = 0
+
+@test   // error[E0808]: the attribute `@test` does not apply to a type alias
+type Alias = int
+
+@cfg(debug, release)   // error[E0809]: invalid arguments for `@cfg`: write `@cfg(condition)`
+fn g() {
+}
+
+@tag("a")   // error[E0809]: invalid arguments for `@tag`: write `@tag("key", "value")`
+struct S {
+    x: int,
+}
+
+fn main() {
+}
