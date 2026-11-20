@@ -60,7 +60,8 @@ def mutate(rng: random.Random, text: str) -> str:
 def crashes(compiler: str, case: Path, emit: str, out: Path) -> bool:
     try:
         run = subprocess.run([compiler, "build", str(case), emit, "-o", str(out / "case")],
-                             capture_output=True, text=True, timeout=60)
+                             capture_output=True, text=True, errors="replace",
+                             timeout=60)
     except subprocess.TimeoutExpired:
         return True
     return run.returncode not in (0, 1) or "Sanitizer" in run.stderr or \
