@@ -1,0 +1,60 @@
+// requires: stage1
+// c: event_loop.c
+// A program driven by a C toolkit's event loop (ADR 0099), the shape of
+// GUI, audio and game libraries: the toolkit owns the loop and calls an
+// Ofir handler with user data, an event it owns and the pixels it owns;
+// the handler keeps its state in Ofir and stops the loop by returning 1.
+
+@repr(C)
+struct Event {
+    kind: i32
+    key: i32
+    width: i32
+    height: i32
+}
+
+@link("event_loop")
+extern "C" {
+    fn tk_run(handler: extern "C" fn(*mut u8, *Event, *mut u32) i32, data: *mut u8) int
+}
+
+struct App {
+    width: int
+    height: int
+    color: u32
+    frames: int
+    log: str
+}
+
+extern "C" fn handle(data: *mut u8, event: *Event, pixels: *mut u32) i32 {
+    const app = unsafe { &mut *(data as *mut App) }
+    const e = unsafe { *event }
+    if e.kind == 0 {
+        app.width = e.width as int
+        app.height = e.height as int
+        app.log.push("resize {app.width}x{app.height}; ")
+    } else if e.kind == 1 {
+        if e.key == 113 {
+            app.log.push("quit")
+            return 1
+        }
+        app.color = if e.key == 114 { 1 } else { 2 }
+        app.log.push("key {e.key}; ")
+    } else if e.kind == 2 {
+        for i in 0..app.width * app.height {
+            unsafe {
+                *pixels.add(i) = 0xff000000 | app.color
+            }
+        }
+        app.frames += 1
+        app.log.push("frame; ")
+    }
+    return 0
+}
+
+fn main() {
+    let app = App{width: 0, height: 0, color: 0, frames: 0, log: ""}
+    const result = unsafe { tk_run(handle, &mut app as *mut App as *mut u8) }
+    println(app.log)
+    println("{app.frames} frames, {result / 1000} events, pixel sum {result % 1000}")
+}
