@@ -10,9 +10,10 @@ const SHIFTED = 1 << 40
 const NEGATIVE = -WIDTH / 3
 const READY = WIDTH > 10 && NAME == "Ofir"
 const LAST: u8 = 255
+const SMALL: i8 = -5
 
 fn main() {
-    println("{AREA} {SCALE} {NAME} {BIG} {MASK} {SHIFTED} {NEGATIVE} {READY}")
+    println("{AREA} {SCALE} {NAME} {BIG} {MASK} {SHIFTED} {NEGATIVE} {READY} {SMALL}")
     for i in 250..=LAST {
         print("{i} ")
     }
