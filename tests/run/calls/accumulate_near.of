@@ -113,8 +113,64 @@ fn looped(n: int) int {
     return i + looped(n - 1)
 }
 
+// An argument is passed by address.
+fn bump(x: mut int) {
+    x = x + 1
+}
+
+fn byAddress(n: int) int {
+    let k = n
+    bump(k)
+    if n == 0 {
+        return k
+    }
+    return n + byAddress(n - 1)
+}
+
+// A size is taken in the body.
+fn sized(n: int) int {
+    if n == 0 {
+        return sizeOf<int>()
+    }
+    return n + sized(n - 1)
+}
+
+// The addition after the call does not add its result.
+fn apart(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    return apart(n - 1) + (n + n)
+}
+
+// The sum is copied around a loop that never returns.
+fn spin(n: int) int {
+    if n == 0 {
+        return 0
+    }
+    let r = n + spin(n - 1)
+    for {
+        const q = r
+        r = q
+    }
+}
+
+// A condition from before the call is tested after the sum.
+fn early(n: int) int {
+    const big = n > 5
+    if n == 0 {
+        return 0
+    }
+    const r = n + early(n - 1)
+    if big {
+        return 0
+    }
+    return r
+}
+
 fn main() {
     println("{viaRef(4)} {withText(4)} {withField(4)} {traced(3)} {capped(4)}")
     println("{other(4)} {minus(5)} {doubled(5)} {negative(4)}")
     println("{fromField(Pair{a: 3, b: 0}, 4)} {looped(4)}")
+    println("{byAddress(3)} {sized(3)} {apart(3)} {spin(0)} {early(3)}")
 }
