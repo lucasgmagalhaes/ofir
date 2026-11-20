@@ -6,11 +6,12 @@ runtime, library and tooling prerequisites are tracked there without duplicating
 implementation tasks. General-purpose readiness also requires non-service workloads.
 
 Status: **proposed backlog**, initial survey against `4b1da75` on 2026-11-04;
-API-50–54 added as operational follow-ups on 2026-11-19.
+API-50–54 added as operational follow-ups on 2026-11-19; starting point and
+record states reconciled on 2026-11-20 (OFIR-79, ADR 0094).
 This is an implementation plan, not a normative standard-library API.
 Module/package names below describe intended homes; none is promised as an
-existing import. Every API task below is **pending**, including extensions
-to modules that already provide a smaller API.
+existing import. The state of each record is in [Record states](#record-states),
+checked by `tools/check_api_plan.py`; no record is done yet.
 
 The goal is to build, test and operate HTTP/REST services in Ofir: accept
 requests, validate data, access storage, call other services, and diagnose
@@ -25,13 +26,13 @@ the initial service stack are explicit extensions, not universal requirements.
 | Ownership and errors | [Ownership](../spec/05-ownership.md), [errors](../spec/06-errors.md), `Option`/`Result` in `std/core` | Shared-resource and cancellation conventions; causal error chains |
 | Collections and text | [std/core](../../std/core/index.of), [std.strings](../../std/strings/index.of) | Public codecs, Unicode validation/normalization and bounded streaming buffers |
 | I/O | [std.io](../../std/io/index.of): `IoError`, stdin, runtime buffers | General readers/writers, seeking, buffered streams and short-read/write contracts |
-| Filesystem | [std.fs](../../std/fs/index.of): whole-file read/write, exists, canonicalize, create/remove, directory listing | Owned file handles, metadata, paths, temporary files, atomic replacement and large-file streaming |
+| Filesystem | [std.fs](../../std/fs/index.of): whole-file read/write/append, copy, rename, metadata, create/remove, directory listing; [std.path](../../std/path/index.of) | Owned file handles, seeking, permissions, temporary files, atomic replacement and large-file streaming |
 | Processes and configuration | [std.os](../../std/os/index.of): args, env, run, cwd, executable path | Typed configuration, signals, supervised processes and graceful service lifecycle |
-| Concurrency | [Chapter 14](../spec/14-concurrency.md), roadmap 6.1: planned threads/channels, `Send`/`Sync`, mutexes and `Arc` | Implement and validate these before a concurrent server or shared connection pool |
-| Time | [Compiler clock helper](../../bootstrap/src/base/clock.h) is internal C code | No public duration, monotonic clock, date/time or timezone module |
-| Networking and data exchange | No public modules for these in `std/` at the surveyed revision | Sockets, DNS, TLS, HTTP, JSON, forms and compression |
+| Concurrency | [Chapter 14](../spec/14-concurrency.md), roadmap 6.1: [std.task](../../std/task/index.of) and [std.sync](../../std/sync/index.of) (channels, `Mutex`, `RwLock`, `Arc`, atomics, `WaitGroup`, `CancelToken`), `Send`/`Sync` | Worker pools, overload and cancellation integrated with a service runtime |
+| Time | [std.time](../../std/time/index.of): monotonic `now`, `unixNanos`, `sleep`, `Deadline`; leap years and month lengths | No `Duration`/`Instant` types, injectable clock, calendar date/time, RFC 3339 or timezones |
+| Networking and data exchange | [std.json](../../std/json/index.of) (value tree, depth limit), [std.encoding](../../std/encoding/index.of) (hex, base64), [std.compress](../../std/compress/index.of) (bounded inflate, gunzip) | Sockets, DNS, TLS, HTTP, URLs, forms, streaming codecs and compression output |
 | Persistence and operations | No public database, logging, metrics or tracing modules in `std/` | Drivers, transactions, observability and production examples |
-| Package distribution | Roadmap 6.5; [manifest/toolchain design](toolchain.md) | Dependency resolution, reproducible lockfiles, native-library packaging |
+| Package distribution | Roadmap 6.5 and 6.29: lockfile, registry publishing, native inputs, SBOM, advisories (ADRs 0076 to 0079 and 0081 to 0084) | No framework or driver package published yet |
 
 The [system reference](../std/system.md) already describes `File`, readers,
 writers and path helpers beyond the implemented subset. Extend those
@@ -232,26 +233,106 @@ use [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html), and UUID formats
 use [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562.html). Exact decimal and
 missing/null policies must survive both serialization and database adapters.
 
+## Record states
+
+One row per record, in order (ADR 0094). **pending**: nothing provides it
+yet. **partial**: the cited files cover part of it, and Missing says what
+is left. **done**: its completion criterion holds, a cited test shows it,
+and nothing is missing. Evidence paths are relative to the repository root
+and must exist. Update the row in the pull request that changes it.
+
+| ID | State | Evidence | Missing |
+|----|-------|----------|---------|
+| API-01 | partial | `std/io/index.of` `tests/run/system/unicode.of` | Reader, writer and seek contracts; buffered streams; copy helpers; short-I/O and EOF contracts |
+| API-02 | partial | `std/fs/index.of` `std/path/index.of` `std/path/index_test.of` `tests/run/system/fs.of` | File handles and open modes; seek; permissions; temporary files; atomic replacement; flush versus durable sync; large-file streaming |
+| API-03 | partial | `std/time/index.of` `tests/run/sync/deadlines.of` `tests/run/sync/deadline_clock.of` | `Duration` and `Instant` types; wall-clock timestamp type; checked conversions; injectable clocks |
+| API-04 | partial | `std/time/date.of` `std/time/date_test.of` | Calendar dates and times; UTC offsets; RFC 3339; timezone adapter |
+| API-05 | partial | `std/strings/utf8.of` `std/strings/utf8_test.of` | Unicode normalization policy; exact decimal; UUID |
+| API-06 | pending | - | - |
+| API-07 | pending | - | - |
+| API-08 | partial | `std/sync/index.of` `tests/run/tasks/shutdown.of` | Request scope; signals; resource startup and teardown; graceful drain with a deadline |
+| API-09 | partial | `std/random/index.of` `std/random/index_test.of` `runtime/src/os.c` | Entropy failure as an error (the runtime falls back to the clock); hashes and HMAC; constant-time comparison |
+| API-10 | pending | - | - |
+| API-11 | pending | - | - |
+| API-12 | partial | `std/sync/index.of` `std/task/index.of` `tests/run/sync/bounded.of` `tests/run/sync/mutex.of` | Bounded worker pools; integration with a service runtime; overload tests |
+| API-13 | partial | `std/json/index.of` `std/json/index_test.of` | Streaming parser and writer; size limits; explicit number policy |
+| API-14 | pending | - | - |
+| API-15 | partial | `std/encoding/index.of` `std/encoding/index_test.of` | URL and URI; percent encoding; query multimaps; media types; forms; multipart |
+| API-16 | partial | `std/compress/index.of` `std/compress/index_test.of` `std/checksum/index.of` | Compression; streaming adapters; negotiated compression |
+| API-17 | pending | - | - |
+| API-18 | pending | - | - |
+| API-19 | pending | - | - |
+| API-20 | pending | - | - |
+| API-21 | pending | - | - |
+| API-22 | pending | - | - |
+| API-23 | pending | - | - |
+| API-24 | pending | - | - |
+| API-25 | pending | - | - |
+| API-26 | pending | - | - |
+| API-27 | pending | - | - |
+| API-28 | pending | - | - |
+| API-29 | pending | - | - |
+| API-30 | pending | - | - |
+| API-31 | pending | - | - |
+| API-32 | pending | - | - |
+| API-33 | pending | - | - |
+| API-34 | pending | - | - |
+| API-35 | pending | - | - |
+| API-36 | pending | - | - |
+| API-37 | pending | - | - |
+| API-38 | pending | - | - |
+| API-39 | pending | - | - |
+| API-40 | pending | - | - |
+| API-41 | pending | - | - |
+| API-42 | pending | - | - |
+| API-43 | pending | - | - |
+| API-44 | pending | - | - |
+| API-45 | pending | - | - |
+| API-46 | pending | - | - |
+| API-47 | partial | `tools/check_publish.py` `tools/check_sbom.py` `tools/check_audit.py` `tools/check_build_profiles.py` | Published framework and driver packages; native-library discovery; an update and advisory policy for them |
+| API-48 | pending | - | - |
+| API-49 | pending | - | - |
+| API-50 | pending | - | - |
+| API-51 | pending | - | - |
+| API-52 | pending | - | - |
+| API-53 | pending | - | - |
+| API-54 | pending | - | - |
+
 ## Delivery gates and recommended order
 
 These are ecosystem milestones independent of language milestones M1-M5.
 They do not silently expand the language 1.0 release promise.
 
-1. **API-F: foundations.** API-01/02/03/06/08/09/10/12/13/15 have portable
-   contracts and passing targeted tests. Pure codec, time and filesystem work
-   can begin while 6.1 and interfaces are still in progress.
-2. **API-L: local REST service.** API-F plus API-07/17/18/19/22/23/24/29/30/33/42/45
-   and the local API-49 example. Exercise CRUD, validation errors, migration
-   failure, streamed file upload, request deadlines and graceful shutdown.
-   This gate is suitable for local development; it does not certify deployment.
-3. **API-P: production candidate.** API-L plus API-04/05/11/14/16/25/26/27/28/31/32/
-   43/44/46/47/48 and the production API-49 variant. Run the reference workload
-   under failures, load and restart; publish resource/latency results and
-   supported platform/provider versions. Add API-36 when cache/distributed
-   session or quota storage is part of that deployment.
+Each gate adds the records of its row to the gate it builds on. Every record
+is in exactly one gate, except API-49, whose local example is in API-L and
+whose production variant is in API-P. A gate is **reached** when it and the
+gate it builds on have every record done ([Record states](#record-states));
+until then it is **open**. `tools/check_api_plan.py` checks the table.
+
+| Gate | Builds on | Records | State |
+|------|-----------|---------|-------|
+| API-F | - | API-01 API-02 API-03 API-06 API-08 API-09 API-10 API-12 API-13 API-15 | open |
+| API-L | API-F | API-07 API-17 API-18 API-19 API-22 API-23 API-24 API-29 API-30 API-33 API-42 API-45 API-49 | open |
+| API-P | API-L | API-04 API-05 API-11 API-14 API-16 API-25 API-26 API-27 API-28 API-31 API-32 API-43 API-44 API-46 API-47 API-48 API-49 | open |
+| API-X | - | API-20 API-21 API-34 API-35 API-36 API-37 API-38 API-39 API-40 API-41 API-50 API-51 API-52 API-53 API-54 | - |
+
+1. **API-F: foundations.** Portable contracts and passing targeted tests.
+   Pure codec, time and filesystem work can begin while interfaces are still
+   in progress.
+2. **API-L: local REST service.** The local API-49 example exercises CRUD,
+   validation errors, migration failure, streamed file upload, request
+   deadlines and graceful shutdown. This gate is suitable for local
+   development; it does not certify deployment.
+3. **API-P: production candidate.** The production API-49 variant runs the
+   reference workload under failures, load and restart, and publishes
+   resource/latency results and supported platform/provider versions. A
+   deployment adds API-36 when cache, distributed session or quota storage
+   is part of it, and selects the operational follow-ups API-50 to API-54 it
+   needs.
 4. **API-X: optional extensions.** HTTP/2 and HTTP/3, additional drivers, ORM,
    object storage, jobs, realtime and other protocol/provider packages are
    accepted separately with their own contract and interoperability tests.
+   API-X has no state.
 
 A local service can use explicit codecs/routes and direct SQLite connections.
 Auto-derivation, dynamic dispatch, ORM and async are not hidden dependencies

@@ -8,6 +8,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Service ecosystem records (ADR 0094): the API plan gives each of its 54
+  records a state with its evidence and lists its gates in a table;
+  `tools/check_api_plan.py`, in `make check-docs`, checks the roadmap
+  ranges, the dependencies between gates and that a gate is reached only
+  when every record of it is done.
 - Build and hosted-tool security (ADR 0092): a fetched package whose
   path dependency, root or native file leaves its checkout is E0924; a
   URL holding a credential is E0925; each cached object has a SHA-256
