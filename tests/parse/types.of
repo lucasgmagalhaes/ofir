@@ -2,7 +2,6 @@ fn types(
     a: int,
     b: &mut List<str>,
     c: [u8; 4],
-    n: [u8; N * 2],
     d: (),
     e: (int,),
     f: (int, str),
