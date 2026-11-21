@@ -1,0 +1,25 @@
+// requires: stage1
+// A name in an array length is a constant of type `int` (spec 8.7), with a
+// value in range.
+
+fn f() int {
+    return 1
+}
+
+const NEG: int = -3
+const BIG: int = 5000000000
+const BAD: int = "x"   // error[E0300]: mismatched types: expected int, found str
+const UNTYPED: f.Thing = 1   // error[E0901]: nested module paths in types are not supported yet
+
+fn main() {
+    const _a: [int; f] = [1]   // error[E0362]: `f` is not a constant: an array length is an integer constant or a const parameter (spec 8.7)
+    const _b: [int; nope] = [1]   // error[E0200]: cannot find `nope` in this scope
+    const _c: [int; NEG] = [1]   // error[E0362]: an array length cannot be negative: found -3
+    const _d: [int; 5000000000] = [1]   // error[E0366]: the array length `5000000000` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _e: [int; nope + 1] = [1]   // error[E0200]: cannot find `nope` in this scope
+    const _f: [int; 4294967295 * 2] = [1]   // error[E0366]: the array length `4294967295 * 2` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _g: [int; BIG] = [1]   // error[E0366]: the array length `5000000000` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _h: [int; BAD] = [1]
+    const _j: [int; UNTYPED] = [1]
+    const _i: f.Thing = 1   // error[E0901]: nested module paths in types are not supported yet
+}
