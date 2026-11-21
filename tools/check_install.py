@@ -151,6 +151,14 @@ def main():
         if out.returncode == 0 or "E0923" not in out.stderr \
                 or f"install.sh --use {other}" not in out.stderr:
             fail(f"an unmet toolchain is not E0923 with the version to use:\n{out.stderr}")
+        # Entries that are not versions, or not in the range, are passed over.
+        stray = prefix / "toolchains" / "stray"
+        stray.mkdir()
+        (project / "ofir.json").write_text(manifest % ">=99.0.0")
+        out = run([str(exe), "build", "src/main.of"], project, clean, ok=False)
+        stray.rmdir()
+        if out.returncode == 0 or "install a version in" not in out.stderr:
+            fail(f"a range no installed version is in has no help to install:\n{out.stderr}")
         (project / "ofir.json").write_text(manifest % "soon")
         out = run([str(exe), "build", "src/main.of"], project, clean, ok=False)
         if out.returncode == 0 or "E0910" not in out.stderr:
