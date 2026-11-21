@@ -138,7 +138,7 @@ pub fn checkVariantShorthand(c: mut Checker, p: Program, e: &Expr, expected: int
             return build(c, p, e, given, id, index, expected, expected)
         }
         _ => {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: expr_check passes only a variant
         }
     }
 }
