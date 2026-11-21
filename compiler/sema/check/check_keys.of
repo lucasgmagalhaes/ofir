@@ -439,13 +439,30 @@ pub fn checkKeyBound(c: mut Checker, p: Program, params: &Generics, i: int, args
         return
     }
     const bound = c.types.subst(params.keys[i], args.clone())
-    if bound == ERROR || included(c, arg, bound) {
+    if bound == ERROR {
+        keyofBaseError(c, params.keys[i], args, span)
+        return
+    }
+    if included(c, arg, bound) {
         return
     }
     const owner = params.owner.len()
     const name = if i < owner { params.owner[i] } else { params.fnParams[i - owner] }
     c.error("E0332", span, "the key `{c.typeName(arg)}` is not in the bound "
             + "`{c.typeName(bound)}` of `{c.paramText(name)}`")
+}
+
+// E0340 for a bound `keyof T` whose `T` is not a struct or tuple in `args`.
+fn keyofBaseError(c: mut Checker, bound: int, args: List<int>, span: Span) {
+    const t = c.types.get(bound)
+    if t.kind != TyKind.KeyOf {
+        return
+    }
+    const base = c.types.subst(t.inner, args)
+    if base != ERROR {
+        c.error("E0340", span, "`keyof` needs a struct or tuple type, found "
+                + "`{c.typeName(base)}`")
+    }
 }
 
 // The fields of a struct type, computed for `keyof T` resolved after
