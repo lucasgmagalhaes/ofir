@@ -13,12 +13,10 @@ static DefId add_def(Sema *sema, Def def) {
 }
 
 void resolve_error(Resolver *r, const char *code, Span span, const char *format, ...) {
-    char message[256];
     va_list args;
     va_start(args, format);
-    vsnprintf(message, sizeof message, format, args);
+    diag_errorv(&r->sema->session->diags, code, span, format, args);
     va_end(args);
-    diag_error(&r->sema->session->diags, code, span, "%s", message);
 }
 
 StrView resolver_name(const Resolver *r, Symbol name) {
