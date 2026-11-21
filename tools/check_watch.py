@@ -148,6 +148,36 @@ def check_watch(compiler, work):
     print("watch: watch ok")
 
 
+def check_watch_roots(compiler, work):
+    # A file without a directory, then no file: both watch the current
+    # directory, past hidden files, skipped directories and a deep tree.
+    work.mkdir()
+    (work / "main.of").write_text('fn main() {\n    println("one")\n}\n')
+    (work / ".hidden.of").write_text("")
+    (work / "build").mkdir()
+    deep = work.joinpath(*["d"] * 34)
+    deep.mkdir(parents=True)
+    (deep / "x.of").write_text("")
+    env = dict(os.environ, OFIR_WATCH_RUNS="1")
+    for args in [["run", "main.of"], ["check"]]:
+        result = subprocess.run([compiler, *args, "--watch"], cwd=work, env=env,
+                                capture_output=True, text=True, timeout=600)
+        if "[watch] finished" not in result.stderr:
+            fail(f"watch {args}: {result.returncode} {result.stderr[-2000:]}")
+    # A limit that is not a number is no limit: the watch waits.
+    env = dict(os.environ, OFIR_WATCH_RUNS="x")
+    child = subprocess.Popen([compiler, "run", "main.of", "--watch"], cwd=work, env=env,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    line = ""
+    while "[watch] waiting" not in line:
+        line = child.stderr.readline()
+        if line == "":
+            fail("a watch without a limit stopped")
+    child.kill()
+    child.communicate()
+    print("watch: roots ok")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--compiler", default="build/stage1/ofir")
@@ -159,6 +189,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         check_repl_env(compiler, Path(tmp))
         check_watch(compiler, Path(tmp))
+        check_watch_roots(compiler, Path(tmp) / "roots")
     return 0
 
 
