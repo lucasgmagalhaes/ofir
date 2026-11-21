@@ -5,6 +5,11 @@ struct Raw {
     p: *int,
 }
 
+enum Holder {
+    Empty
+    Full(Raw)
+}
+
 fn needSend<T: Send>(_: T) {
 }
 
@@ -30,6 +35,10 @@ fn main() {
     needSync(&s)   // error[E0332]: `&Raw` does not satisfy the bound `Sync`
     const u: IntOrStr = 1
     needSend(u)   // a union is `Send` when its members are
+    const a: [int; 3] = [1, 2, 3]
+    needSend(a)
+    needSend((1, unsafe { raw() }))   // error[E0332]: the type `(int, Raw)` does not satisfy the bound `Send` of `T`
+    needSend(Holder.Empty)   // error[E0332]: the type `Holder` does not satisfy the bound `Send` of `T`
     const _ = f
     const _ = h
 }
