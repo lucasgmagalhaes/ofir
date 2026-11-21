@@ -224,6 +224,8 @@ test-stage1: stage1
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_packages.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
+	    $(PYTHON) tools/check_resolver.py --compiler $(BUILD)/stage1/ofir$(EXE)
+	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_modules.py --compiler $(BUILD)/stage1/ofir$(EXE)
 	OFIR_STD=$(abspath std) OFIR_RUNTIME=$(abspath $(BUILD))/libofir_rt.a \
 	    $(PYTHON) tools/check_sbom.py --compiler $(BUILD)/stage1/ofir$(EXE)
