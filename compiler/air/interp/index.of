@@ -638,8 +638,8 @@ fn evaluate(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
             const s = pointee(it, c, frame, r.a)
             const i = operand(it, c, frame, r.b).bits.wrappingCast<i64>()
             if i < 0 || i >= s.text.len() {
-                evalFailed(it, "an index out of bounds")
-                blank(ValueKind.Uninit)
+                evalFailed(it, "an index out of bounds")   // GCOVR_EXCL_LINE: lowering checks it
+                blank(ValueKind.Uninit)   // GCOVR_EXCL_LINE: lowering checks it
             } else {
                 intValue(s.text[i] as u64)
             }
@@ -1174,7 +1174,7 @@ fn constStores(c: mut Checker, p: &Program, dest: int, ty: int, v: Value, path: 
         const elem = c.types.get(ty).inner
         for i in 0..n {
             if !constStores(c, p, dest, elem, part(v, i), withStep(path, i), stores, span) {
-                return false
+                return false   // GCOVR_EXCL_LINE: E0818 rejects it
             }
         }
         return true
@@ -1183,13 +1183,13 @@ fn constStores(c: mut Checker, p: &Program, dest: int, ty: int, v: Value, path: 
         const items = c.types.get(ty).args.clone()
         for i in 0..items.len() {
             if !constStores(c, p, dest, items[i], part(v, i), withStep(path, i), stores, span) {
-                return false
+                return false   // GCOVR_EXCL_LINE: E0818 rejects it
             }
         }
         return true
     }
     if kind != TyKind.Adt {
-        return false
+        return false   // GCOVR_EXCL_LINE: E0818 rejects it
     }
     const def = c.types.get(ty).data
     if c.def(def).kind == DefKind.Struct {
@@ -1197,7 +1197,7 @@ fn constStores(c: mut Checker, p: &Program, dest: int, ty: int, v: Value, path: 
         for i in 0..n {
             const field = structFieldType(c, *p, ty, i)
             if !constStores(c, p, dest, field, part(v, i), withStep(path, i), stores, span) {
-                return false
+                return false   // GCOVR_EXCL_LINE: E0818 rejects it
             }
         }
         return true
@@ -1217,7 +1217,7 @@ fn enumStores(c: mut Checker, p: &Program, dest: int, ty: int, v: Value, path: L
         }
     }
     if found < 0 {
-        return false
+        return false   // GCOVR_EXCL_LINE: E0818 rejects it
     }
     const payload = part(v, found + 1)
     const fields = variantsOf(c, def).variants[found].types.len()
@@ -1225,7 +1225,7 @@ fn enumStores(c: mut Checker, p: &Program, dest: int, ty: int, v: Value, path: L
         const field = variantFieldType(c, *p, ty, found, i)
         const at = withStep(withStep(path, VARIANT_STEP + found), i)
         if !constStores(c, p, dest, field, part(payload, i), at, stores, span) {
-            return false
+            return false   // GCOVR_EXCL_LINE: E0818 rejects it
         }
     }
     stores.push(constStmt(dest, withStep(path, 0), opInt(tag, I32), span))
@@ -1346,8 +1346,10 @@ fn evalRegion(l: mut Lowerer, c: mut Checker, p: &Program, it: mut Interp, r: in
     const ty = l.out[b].locals[dest].ty
     let stores: List<AirStmt> = []
     if !constStores(c, p, dest, ty, value, [], stores, span) {
+        // GCOVR_EXCL_START: E0818 rejects the types constStores cannot store
         c.error("E0901", span, "stage 1 does not evaluate a value of this type yet".toOwned())
         return
+        // GCOVR_EXCL_STOP
     }
     l.out[b].blocks[start].stmts = stores
     l.out[b].blocks[start].term = jump(after)
