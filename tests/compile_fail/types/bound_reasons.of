@@ -1,0 +1,59 @@
+// requires: stage1
+// Why a type does not satisfy an interface bound (spec 9.2, 9.7).
+
+interface Named {
+    fn name(self) str
+}
+
+interface Sized {
+    fn size(self) int
+}
+
+interface Both {
+    Named
+    Sized
+}
+
+interface Gen<T> {
+    fn get(self) T
+}
+
+struct N {
+    fn name(self) str {
+        return "n"
+    }
+}
+
+fn needNamed<T: Named>(x: T) {}
+
+fn needSized<T: Sized>(x: T) {}
+
+fn needGenF<T: Gen<float>>(x: T) {}
+
+fn needBoth<T: Both>(x: T) {}
+
+fn viaBoth<T: Both>(x: T) {
+    needNamed(x)
+}
+
+fn viaNamed<T: Named>(x: T) {
+    needSized(x)   // error[E0332]: the type `T` does not satisfy the bound `Sized` of `T`: it is not bounded by it
+}
+
+fn viaGen<T: Gen<int>>(x: T) {
+    needGenF(x)   // error[E0332]: the type `T` does not satisfy the bound `Gen<float>` of `T`: it is not bounded by it
+}
+
+fn viaBothGen<T: Both>(x: T) {
+    needGenF(x)   // error[E0332]: the type `T` does not satisfy the bound `Gen<float>` of `T`: it is not bounded by it
+}
+
+fn main() {
+    const n = N{}
+    const d: &dyn Named = &n
+    d.nope()   // error[E0301]: no method `nope` on type `dyn Named`
+    needSized(*d)   // error[E0332]: the type `dyn Named` does not satisfy the bound `Sized` of `T`: it is not one of its interfaces
+    needNamed(5)   // error[E0332]: the type `int` does not satisfy the bound `Named` of `T`: missing method `name`
+    const x = 5
+    x.nope()   // error[E0301]: no method `nope` on type `int`
+}
