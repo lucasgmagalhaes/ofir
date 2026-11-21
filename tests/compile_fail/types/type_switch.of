@@ -38,6 +38,13 @@ fn unsized(s: &dyn Shape) int {
     }
 }
 
+fn unknown(s: &dyn Shape) int {
+    return match s {
+        _: Nope => 1            // error[E0200]: cannot find type `Nope` in this scope
+        _ => 0
+    }
+}
+
 fn notDyn(x: int) int {
     return match x {
         n: int => n             // error[E0300]: mismatched types: a type test pattern for a value of type int
