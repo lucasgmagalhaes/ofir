@@ -1,7 +1,7 @@
 // requires: stage1
 // Compile-time code does not make function values or closures, or format
-// with a precision or a radix, yet (spec 15.5, E0901); a slice of an array
-// works.
+// with a precision or a radix, cast an int other than 0 to a pointer or read
+// the bytes of a str, yet (spec 15.5, E0901); a slice of an array works.
 
 fn one() int {
     return 1
@@ -34,11 +34,22 @@ fn radix(n: int) str {
     return "{n:x}"
 }
 
+fn address() int {
+    const _p = unsafe { 5 as *int }
+    return 1
+}
+
+fn comma() int {
+    return "a,b".find(",").unwrapOr(9)
+}
+
 fn main() {
     const a = comptime fnValue()   // error[E0901]: stage 1 does not evaluate this operation at compile time yet
     const b = comptime closure(2)   // error[E0901]: stage 1 does not evaluate this operation at compile time yet
     const c = comptime slice()
     const d = comptime fixed(1.5)   // error[E0901]: stage 1 does not evaluate `ofir_str_push_fixed` at compile time yet
     const e = comptime radix(255)   // error[E0901]: stage 1 does not evaluate a read of this value at compile time yet
-    println("{a} {b} {c} {d} {e}")
+    const f = comptime address()   // error[E0901]: stage 1 does not evaluate this cast at compile time yet
+    const g = comptime comma()   // error[E0901]: stage 1 does not evaluate a read of this value at compile time yet
+    println("{a} {b} {c} {d} {e} {f} {g}")
 }
