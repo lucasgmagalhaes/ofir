@@ -137,7 +137,7 @@ fn fetch(v: Value, path: List<int>, at: int) Value {
     }
     const k = slot(path[at])
     if v.kind != ValueKind.Agg || k >= v.items.len() {
-        return blank(ValueKind.Uninit)
+        return blank(ValueKind.Uninit)   // GCOVR_EXCL_LINE: a field path is the type's
     }
     return fetch(v.items[k], path, at + 1)
 }
@@ -692,7 +692,7 @@ fn push(it: mut Interp, c: mut Checker, frame: int, target: Operand, text: str) 
     const place = Place{frame: p.frame, local: p.local, path: p.path.clone()}
     let s = read(it, place)
     if s.kind != ValueKind.Str {
-        s = strValue("")
+        s = strValue("")   // GCOVR_EXCL_LINE: a str place holds a str
     }
     s.text.push(text)
     write(it, place, s)
