@@ -188,7 +188,7 @@ pub struct TypeTable {
     pending: List<int>   // the known `Mapped` types with no struct yet
     undecided: List<int>   // the non-`bool` conditions `subst` met
     badLengths: List<int>   // the out of range array lengths `subst` met
-    longest: int   // the most elements of a tuple
+    longest: int   // the most elements of a tuple or tuple struct
 
     /**
      * A table with the built-in types, in the order of their ids.
@@ -793,6 +793,9 @@ pub struct TypeTable {
     pub fn setFields(mut self, def: int, fields: move KeyFields) {
         for self.fields.len() <= def {
             self.fields.push(Option.None)
+        }
+        if fields.isTuple && fields.types.len() > self.longest {
+            self.longest = fields.types.len()   // its keys are tuple keys
         }
         self.fields[def] = Option.Some(fields)
     }
