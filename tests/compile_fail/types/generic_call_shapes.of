@@ -1,0 +1,22 @@
+
+// requires: stage1
+// Argument shapes at generic call sites: a constructor takes its
+// arguments by position, and a tuple meets `Eq` or `Ord` only when
+// every element does.
+
+struct Wrap<T>(T)
+
+fn eq<T: Eq>(_x: T) {
+}
+
+fn ord<T: Ord>(_x: T) {
+}
+
+fn main() {
+    const _a = Wrap(1, 2)   // error[E0302]: wrong number of arguments: expected 1, found 2
+    const _b = Wrap(x: 1)   // error[E0306]: this callee has no named parameters: pass the argument by position
+    const _c = Option.Some(1, 2)   // error[E0302]: wrong number of arguments: expected 1, found 2
+    const _d = Option.Some(value: 1)   // error[E0306]: this callee has no named parameters: pass the argument by position
+    eq((1, main))   // error[E0332]: the type `(int, fn())` does not satisfy the bound `Eq` of `T`
+    ord((1, main))   // error[E0332]: the type `(int, fn())` does not satisfy the bound `Ord` of `T`
+}
