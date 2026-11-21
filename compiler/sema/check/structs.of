@@ -221,18 +221,25 @@ pub fn variantFieldType(c: mut Checker, p: Program, ty: int, v: int, i: int) int
  * @returns true if it does
  */
 pub fn hasInteriorMutability(c: mut Checker, p: Program, ty: int) bool {
+    let seen: List<int> = []
+    return interiorIn(c, p, ty, &mut seen)
+}
+
+// `seen`: the structs and enums being looked into, which a recursive type
+// (E0318) reaches again; they hold no `UnsafeCell` there.
+fn interiorIn(c: mut Checker, p: Program, ty: int, seen: &mut List<int>) bool {
     const kind = c.types.kind(ty)
     if kind == TyKind.Tuple {
         const parts = c.types.get(ty).args.clone()
         for i in 0..parts.len() {
-            if hasInteriorMutability(c, p, parts[i]) {
+            if interiorIn(c, p, parts[i], seen) {
                 return true
             }
         }
         return false
     }
     if kind == TyKind.Array {
-        return hasInteriorMutability(c, p, c.types.get(ty).inner)
+        return interiorIn(c, p, c.types.get(ty).inner, seen)
     }
     if kind != TyKind.Adt {
         return false
@@ -241,12 +248,18 @@ pub fn hasInteriorMutability(c: mut Checker, p: Program, ty: int) bool {
     if def == c.r.langItems[6] {
         return true
     }
+    for i in 0..seen.len() {
+        if seen[i] == ty {
+            return false
+        }
+    }
+    seen.push(ty)
     if c.def(def).kind == DefKind.Struct {
         if !structFields(c, p, def) {
             return false
         }
         for i in 0..fieldsOf(c, def).types.len() {
-            if hasInteriorMutability(c, p, structFieldType(c, p, ty, i)) {
+            if interiorIn(c, p, structFieldType(c, p, ty, i), seen) {
                 return true
             }
         }
@@ -257,7 +270,7 @@ pub fn hasInteriorMutability(c: mut Checker, p: Program, ty: int) bool {
     }
     for v in 0..variantCount(c, def) {
         for i in 0..variantFieldCount(c, def, v) {
-            if hasInteriorMutability(c, p, variantFieldType(c, p, ty, v, i)) {
+            if interiorIn(c, p, variantFieldType(c, p, ty, v, i), seen) {
                 return true
             }
         }
