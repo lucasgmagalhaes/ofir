@@ -1,0 +1,39 @@
+module
+  interface Mapper
+    type_params T
+    fn map
+      self
+      param value: T
+      returns T
+  interface Both
+    type_params T
+    embed Mapper<T>
+  struct Point
+    asserts Eq
+    field x: int
+  enum Tone
+    asserts Eq
+    variant Low
+    variant High
+  fn old
+    attr deprecated(<expr>)
+    body
+  fn spawnWith
+    param _f: fn() + Send
+    body
+  fn pick
+    param n: int?
+    returns int
+    body
+      return
+        match
+          ident n
+          arm mut m @ Option.Some(_)
+            block
+              assign =
+                ident m
+                field None
+                  ident Option
+              lit 0
+          arm _
+            lit 1
