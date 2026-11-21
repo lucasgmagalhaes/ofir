@@ -1,0 +1,23 @@
+// requires: stage1
+// A default method of the second interface a struct asserts (spec 9.4).
+
+interface A {
+    fn a(self) int
+}
+
+interface B {
+    fn b(self) int {
+        return 2
+    }
+}
+
+struct C: A + B {
+    fn a(self) int {
+        return 1
+    }
+}
+
+fn main() {
+    const c = C{}
+    print("{c.a()} {c.b()}")
+}
