@@ -454,10 +454,14 @@ fn findWord(text: str, start: int, end: int, word: str, last: bool) int {
 // What hover shows of a declaration: its first line without the body, or
 // the line it is on when the declaration is only the name (a local).
 fn signature(file: &SourceFile, decl: Span, word: str) str {
-    const line = file.lineCol(decl.start).line
+    let line = file.lineCol(decl.start).line
+    const last = file.lineCol(decl.end).line
+    for line < last && file.lineText(line).trim().startsWith("@") {
+        line += 1   // the attributes before the declaration
+    }
     const first = file.lineText(line)
     let text = first.trim()
-    if file.lineCol(decl.end).line == line && file.text.slice(decl.start, decl.end) != word {
+    if last == file.lineCol(decl.start).line && file.text.slice(decl.start, decl.end) != word {
         text = file.text.slice(decl.start, decl.end)
     }
     if text.endsWith(" \{") {
