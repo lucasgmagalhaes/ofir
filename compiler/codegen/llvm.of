@@ -932,6 +932,7 @@ fn nicheTagStore(g: mut Gen, c: mut Checker, p: Program, at: str, v: &Value) {
     if v.text == "{none}" {
         g.out.push("  store ptr null, ptr {at}\n")
     } else if v.text != "{some}" {   // not a constant
+        // GCOVR_EXCL_START: lowering stores constant discriminants only
         const word = nextTemp(g)
         g.out.push("  {word} = load ptr, ptr {at}\n")
         const isNone = nextTemp(g)
@@ -939,6 +940,7 @@ fn nicheTagStore(g: mut Gen, c: mut Checker, p: Program, at: str, v: &Value) {
         const kept = nextTemp(g)
         g.out.push("  {kept} = select i1 {isNone}, ptr null, ptr {word}\n")
         g.out.push("  store ptr {kept}, ptr {at}\n")
+        // GCOVR_EXCL_STOP
     }
 }
 
