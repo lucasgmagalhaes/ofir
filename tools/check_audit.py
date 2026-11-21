@@ -8,7 +8,10 @@
 - a yanked version in the lock is a warning;
 - `--offline` reads the cached index, `--message-format=json` prints the
   match as a JSON diagnostic, an invalid `audit` is E0910 and an unknown
-  argument exits with 2.
+  argument exits with 2;
+- a git package is noted, an index that cannot be read fails, advisory
+  lines that are not JSON or have invalid `versions` are passed over, and
+  `audit` without a manifest exits with 2.
 
     python3 tools/check_audit.py --compiler build/stage1/ofir
 """
@@ -73,14 +76,14 @@ def main():
             return subprocess.run([compiler, *words], cwd=cwd, env=env, capture_output=True,
                                   text=True, timeout=600)
 
-        def advise(*entries):
-            lines = "".join(json.dumps(dict(ADVISORY, **e)) + "\n" for e in entries)
+        def advise(*entries, raw=""):
+            lines = raw + "".join(json.dumps(dict(ADVISORY, **e)) + "\n" for e in entries)
             write(index / "advisories" / "gr" / "ee" / "greet", lines)
             git("add", ".")
             git("commit", "-q", "-m", "advisories")
 
-        def audit(*words, status):
-            result = ofir(app, "audit", *words)
+        def audit(*words, status, where=None):
+            result = ofir(where or app, "audit", *words)
             if result.returncode != status:
                 fail(f"`audit {' '.join(words)}` exited with {result.returncode}, not "
                      f"{status}:\n{result.stdout}{result.stderr}")
@@ -131,6 +134,13 @@ def main():
             fail(f"`--offline` fetched the index:\n{offline}")
         if audit(status=1).count("error[E0920]") != 2:
             fail("two advisories do not give two matches")
+        advise({"versions": ">=0.0.0"})
+        if "no version fixes it yet" not in audit(status=1):
+            fail("an advisory on every version names a fix")
+        advise({"versions": "soon"}, raw="not json\n")
+        if "has invalid `versions`: `soon`" not in audit(status=0):
+            fail("an advisory with invalid versions is not noted")
+        advise({}, {"id": "OFIR-2026-0003", "versions": "<1.0.0 || =1.0.0"})
 
         ignore = ', "audit": {"ignore": ["OFIR-2026-0001", "OFIR-2026-0003"]}'
         write(app / "ofir.json", manifest.replace("AUDIT", ignore))
@@ -150,6 +160,26 @@ def main():
             fail(f"an invalid `audit` is not E0910:\n{invalid}")
         write(app / "ofir.json", manifest.replace("AUDIT", ""))
         audit("--fix", status=2)
+
+        repo = tmp / "local"   # a git package has no advisories
+        write(repo / "ofir.json", '{"name": "local", "build": {"kind": "lib"}}\n')
+        write(repo / "src" / "index.of", LIB)
+        for words in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "x"], ["tag", "v0.1.0"]):
+            subprocess.run(["git", "-C", str(repo), *words], env=env, check=True,
+                           capture_output=True)
+        local = f'"local": {{"git": "{repo.as_posix()}", "version": "^0.1"}}'
+        write(app / "ofir.json", manifest.replace('"greet"', local + ', "greet"')
+              .replace("AUDIT", ""))
+        if ofir(app, "fetch").returncode != 0:
+            fail("cannot fetch the app with a git package")
+        if "comes from git" not in audit(status=1):
+            fail("a git package is not noted")
+        shutil.move(index, tmp / "moved")
+        if "cannot read the index" not in audit(status=1):
+            fail("an index that cannot be read does not fail")
+        if audit("--offline", status=1).count("cannot read") != 0:
+            fail("`--offline` reads the index")
+        audit(status=2, where=tmp)
     print("audit: ok")
 
 
