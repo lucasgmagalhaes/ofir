@@ -1,0 +1,11 @@
+// requires: stage1
+// CRLF line endings: a multi-line string drops the carriage returns (spec 2.6).
+
+fn main() {
+    const s = """
+        a
+        b
+        """
+    print(s)
+    println("{s.len()}")
+}
