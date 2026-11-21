@@ -170,6 +170,22 @@ def check_vendor(compiler, tmp):
     copy = work / "vendor" / "text"
     if not (copy / "ofir.json").exists() or (copy / ".git").exists():
         fail("the package was not copied without `.git`")
+    again = run([compiler, "vendor", "--offline", "third_party"], work, home).stdout
+    if '"text": {"path": "third_party/text"}' not in again:
+        fail(f"vendor into a named directory printed {again!r}")
+    run([compiler, "vendor", "--offline", "third_party"], work, home)
+    if not (work / "third_party" / "text" / "ofir.json").exists():
+        fail("vendoring over an earlier copy lost the package")
+    for words, message in [(["--bad"], "unexpected argument `--bad`"),
+                           (["a", "b"], "unexpected argument `b`")]:
+        bad = run([compiler, "vendor", *words], work, home, ok=False)
+        if bad.returncode != 2 or message not in bad.stderr:
+            fail(f"vendor {' '.join(words)}: {bad.returncode} {bad.stderr[-2000:]}")
+    bare = tmp / "vendor-bare"
+    bare.mkdir()
+    bad = run([compiler, "vendor"], bare, home, ok=False)
+    if bad.returncode != 2 or "needs an `ofir.json`" not in bad.stderr:
+        fail(f"vendor without a manifest: {bad.returncode} {bad.stderr[-2000:]}")
     write(work / "ofir.json", manifest("app", "exe", [
         ("dependencies", [("text", text)]),
         ("overrides", [("text", '{"path": "vendor/text"}')])]))
