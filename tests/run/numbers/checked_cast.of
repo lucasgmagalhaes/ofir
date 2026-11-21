@@ -1,4 +1,5 @@
-// `x.checkedCast<T>()`: None when the value does not fit in T.
+// `x.checkedCast<T>()`: None when the value does not fit in T; a widening
+// cast always fits.
 fn main() {
     const a = 300.checkedCast<u8>()
     const b = 200.checkedCast<u8>()
@@ -6,4 +7,9 @@ fn main() {
     println("{a.isNone()} {b.unwrap()} {c.isSome()} {(-5).checkedCast<i8>() ?? 0}")
     const big: u64 = 18446744073709551615
     println("{big.checkedCast<int>().isNone()} {127.checkedCast<i8>().unwrap()}")
+    println("{widen(7)}")
+}
+
+fn widen(n: u32) u64 {
+    return n.checkedCast<u64>().unwrap()
 }
