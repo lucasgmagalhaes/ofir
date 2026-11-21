@@ -46,6 +46,8 @@ NOTE_RE = re.compile(r"^\s*//\s*note:\s*(.*?)\s*$")
 REQUIRES_RE = re.compile(r"^//\s*requires:\s*(\S+)", re.MULTILINE)
 # Extra compiler flags of a run or codegen test, e.g. `// flags: --release`.
 FLAGS_RE = re.compile(r"^//\s*flags:\s*(.+)$", re.MULTILINE)
+# A test compiled without the standard library, `// std: none`.
+NO_STD_RE = re.compile(r"^//\s*std:\s*none\s*$", re.MULTILINE)
 # The exit status a run test expects instead of 0: a number, or `abort` for a
 # process ended by SIGABRT (on Windows status 3, or 0xC0000409 from the UCRT's
 # fast fail), e.g. `// status: 3`.
@@ -134,10 +136,16 @@ def out_path(cfg: Config, path: Path) -> Path:
 
 def test_env(cfg: Config, path: Path) -> dict[str, str]:
     """The environment of a compiler run: each test has its own package
-    cache (`$OFIR_HOME`), so that tests running at once do not share one."""
+    cache (`$OFIR_HOME`), so that tests running at once do not share one, and
+    `// std: none` gives it an empty standard library."""
     rel = path.relative_to(cfg.tests_dir).as_posix().replace("/", "_")
     index = Path(__file__).resolve().parents[2] / "build" / "registry-fixtures" / "index"
-    return {**os.environ, "OFIR_HOME": str(cfg.tmp / "home" / rel), "OFIR_REGISTRY": str(index)}
+    env = {**os.environ, "OFIR_HOME": str(cfg.tmp / "home" / rel), "OFIR_REGISTRY": str(index)}
+    if path.suffix == ".of" and NO_STD_RE.search(path.read_text()):
+        empty = cfg.tmp / "no-std"   # `// std: none`: a standard library with no modules
+        empty.mkdir(parents=True, exist_ok=True)
+        env["OFIR_STD"] = str(empty)
+    return env
 
 
 def c_tools() -> tuple[str, str]:
