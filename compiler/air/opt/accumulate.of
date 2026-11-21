@@ -31,7 +31,6 @@ import air.ir.jump
 import air.ir.noPath
 import air.ir.opCopy
 import air.ir.opInt
-import air.ir.opUnit
 import air.ir.rvUse
 import air.ir.rvalue
 import air.ir.terminator
@@ -118,7 +117,7 @@ fn countReads(body: &AirBody, reads: mut List<int>) bool {
 fn returns(body: &AirBody, start: int, from: int) bool {
     let local = start
     let block = from
-    for steps in 0..body.blocks.len() + 1 {
+    for _steps in 0..body.blocks.len() + 1 {
         const b = &body.blocks[block]
         for i in 0..b.stmts.len() {
             const s = &b.stmts[i]
