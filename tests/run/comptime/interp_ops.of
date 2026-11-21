@@ -31,6 +31,14 @@ comptime fn checkedCasts(n: int) str {
     return "{c:?} {d:?}"
 }
 
+comptime fn division(a: u32, b: u32, x: int, y: int) str {
+    const q = "{a / b} {a % b} {x / y} {x % y} {x / -1} {x % -1}"
+    const z = x.saturatingCast<u8>()
+    const w = x.saturatingCast<u64>()
+    const v = (0 - x * 10).saturatingCast<i8>()
+    return "{q} {z} {w} {v} {(a as u64).saturatingCast<u8>()}"
+}
+
 comptime fn floats(x: float) str {
     return "{x.sqrt()} {(0.0 - x).abs()} {x.floor()} {x.ceil()} {x.min(2.0)} {x.max(2.0)}"
 }
@@ -54,6 +62,7 @@ const UNARY: str = comptime unary(5, true, 1.5, 2.5)
 const CASTS: str = comptime casts(250.75, 200, 7)
 const SATURATING: str = comptime saturating(300)
 const CHECKED: str = comptime checkedCasts(300)
+const DIVISION: str = comptime division(17, 5, -17, 5)
 const FLOATS: str = comptime floats(6.25)
 const STRINGS: str = comptime strings()
 
@@ -62,6 +71,7 @@ fn main() {
     println(CASTS)
     println(SATURATING)
     println(CHECKED)
+    println(DIVISION)
     println(FLOATS)
     println(STRINGS)
 }
