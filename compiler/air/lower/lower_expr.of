@@ -359,7 +359,7 @@ fn placePath(c: mut Checker, e: &Expr, path: mut List<int>) int {
         ExprKind.Field(base, _, _) => {
             const field = fieldOf(c, e)
             if field < 0 {
-                return -1
+                return -1   // GCOVR_EXCL_LINE: `Enum.Variant` is never moved or assigned to
             }
             const local = placePath(c, &*base, path)
             if path.len() < 7 {
@@ -1568,8 +1568,10 @@ fn coercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
     if forwarded || consumed || l.tempScopes.len() == 0 || !needsDrop(l, c, p, ty) {
         return opCopy(dest, ty)
     }
+    // GCOVR_EXCL_START: a slice borrows the list: it needs no drop
     l.temps.push(Temp{local: dest, ty: ty})
     return opCopy(dest, ty)
+    // GCOVR_EXCL_STOP
 }
 
 // `&mut list` where a `&mut [T]` is expected: `list.asMutSlice()` on the
@@ -1656,8 +1658,10 @@ fn dynCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, base: &Expr, id
            args: List<Arg>) Operand {
     const n = derefCount(c, base)
     if n == 0 {
+        // GCOVR_EXCL_START: a `dyn` value is always behind a reference
         l.fail("this `dyn` call")
         return unit()
+        // GCOVR_EXCL_STOP
     }
     const iface = c.types.get(adjustedType(c, base)).data
     const slots = dynMethods(c, p, iface)
@@ -2267,7 +2271,7 @@ const DEFAULT_BUDGET: int = 10000000   // spec 15.5
 // `@comptimeBudget(n)` on it, else the default.
 fn comptimeBudget(c: mut Checker, p: Program, def: int) int {
     if def <= 0 {
-        return DEFAULT_BUDGET
+        return DEFAULT_BUDGET   // GCOVR_EXCL_LINE: glue and test mains have no `comptime`
     }
     const decl = fnOf(p, c.loc(def))
     const Option.Some(at) = findAttribute(c.r, decl.attributes, "comptimeBudget") else {
