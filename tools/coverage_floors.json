@@ -19,8 +19,8 @@
     "compiler/driver": 87.5,
     "compiler/fmt": 87.0,
     "compiler/lsp": 90.6,
-    "compiler/sema": 96.3,
-    "compiler/syntax": 99.5
+    "compiler/sema": 97.5,
+    "compiler/syntax": 99.6
   },
   "runtime": {
     "runtime/src": 84.8
@@ -54,7 +54,7 @@
       "bootstrap/src": 88.2,
       "bootstrap/src/air": 91.1,
       "bootstrap/src/base": 82.1,
-      "bootstrap/src/codegen": 93.8,
+      "bootstrap/src/codegen": 93.9,
       "bootstrap/src/diag": 91.9,
       "bootstrap/src/sema": 89.3,
       "bootstrap/src/syntax": 89.2
