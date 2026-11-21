@@ -67,7 +67,7 @@ pub fn fieldDeclAt(p: Program, at: Loc, i: int) &FieldDecl {
     return match itemOf(p, at).kind {
         ItemKind.Struct(_, _, _, _, fields, _) => &fields[i]
         _ => {
-            panic("fieldDeclAt: not a struct")
+            panic("fieldDeclAt: not a struct")   // GCOVR_EXCL_LINE: its callers pass a struct
         }
     }
 }
@@ -150,7 +150,7 @@ pub fn fieldsOf(c: Checker, id: int) &StructInfo {
     return match c.info[id].fields {
         Option.Some(info) => &*info
         Option.None => {
-            panic("fieldsOf: not computed")
+            panic("fieldsOf: not computed")   // GCOVR_EXCL_LINE: callers run structFields first
         }
     }
 }
