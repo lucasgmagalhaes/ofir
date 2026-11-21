@@ -13,6 +13,10 @@ fn shorthandCall() Shape {
     return .Circle(1.0)           // error[E0326]: a variant is named through its enum: write `Shape.Circle`
 }
 
+fn shorthandMissing() Shape {
+    return .Square                // error[E0320]: no variant `Square` in `Shape`   // error[E0326]: a variant is named through its enum: write `Shape.Square`
+}
+
 fn shorthandPattern(s: Shape) int {
     return match s {
         .Circle(_) => 1           // error[E0326]: a variant is named through its enum: write `Shape.Circle`
