@@ -8,6 +8,7 @@ struct Point {
 
 type BadType<T> = { [K in keyof T]: Nope }   // error[E0200]: cannot find type `Nope` in this scope
 type Partial<T> = { [K in keyof T]?: T[K] }
+type Filter<T, C> = { [K in keyof T if C]: T[K] }
 type Only<C> = { [K in keyof Point if C]: int }   // error[E0344]: the condition of a conditional type is not decided for `C`
 
 fn f<T>(a: &BadType<T>) {
@@ -18,6 +19,14 @@ fn other<T, U, K: keyof T>(a: &Partial<U>, k: K) {
 }
 
 fn only<C>(a: &Only<C>) {
+}
+
+fn count<T, C>(a: &Filter<T, C>) int {
+    let n = 0
+    comptime for _k in keyof Filter<T, C> {
+        n += 1
+    }
+    return n
 }
 
 fn main() {
