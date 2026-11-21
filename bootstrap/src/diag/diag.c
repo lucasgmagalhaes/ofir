@@ -53,6 +53,11 @@ void diag_error(Diagnostics *diags, const char *code, Span span, const char *for
     va_end(args);
 }
 
+void diag_errorv(Diagnostics *diags, const char *code, Span span, const char *format,
+                 va_list args) {
+    add(diags, make(SEVERITY_ERROR, code, span), format, args);
+}
+
 void diag_warning(Diagnostics *diags, const char *code, Span span, const char *format, ...) {
     va_list args;
     va_start(args, format);

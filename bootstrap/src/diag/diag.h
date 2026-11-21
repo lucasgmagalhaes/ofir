@@ -8,6 +8,7 @@
 #include "base/source.h"
 #include "base/vec.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 
 typedef enum {
@@ -54,6 +55,9 @@ void diags_free(Diagnostics *diags);
 
 void diag_error(Diagnostics *diags, const char *code, Span span, const char *format, ...)
     __attribute__((format(printf, 4, 5)));
+// `diag_error` with its arguments in a `va_list`.
+void diag_errorv(Diagnostics *diags, const char *code, Span span, const char *format,
+                 va_list args) __attribute__((format(printf, 4, 0)));
 void diag_warning(Diagnostics *diags, const char *code, Span span, const char *format, ...)
     __attribute__((format(printf, 4, 5)));
 
