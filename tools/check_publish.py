@@ -155,6 +155,47 @@ def main():
         bad = ofir(lib, "publish", ok=False)
         if bad.returncode == 0 or "E0910" not in bad.stderr or "`Nope`" not in bad.stderr:
             fail(f"an invalid license is not E0910:\n{bad.stderr}")
+
+        # The command lines and the states that stop a command before it starts.
+        def usage(words, message, code=2, cwd=lib, environ=env):
+            result = subprocess.run([compiler, *words], cwd=cwd, env=environ,
+                                    capture_output=True, text=True, timeout=600)
+            if result.returncode != code or message not in result.stderr:
+                fail(f"{' '.join(words)}: not exit {code} with {message!r}:\n"
+                     f"{result.returncode} {result.stderr}")
+
+        library("1.3.0", deps='{"one": "^1", "two": "^2"}')
+        dry = ofir(lib, "publish", "--dry-run").stdout
+        if "would publish greet 1.3.0" not in dry:
+            fail(f"a dry run with registry dependencies: {dry}")
+        library("1.3.0")
+        usage(["package", "x"], "unexpected argument `x` for `package`")
+        usage(["publish", "--x"], "unexpected argument `--x` for `publish`")
+        usage(["yank", "--x"], "unexpected argument `--x` for `yank`")
+        usage(["yank"], "`yank` needs a version")
+        usage(["publish", "--index", str(tmp)], "is not a clone of an index")
+        usage(["yank", "1.3.0", f"--index={tmp}"], "is not a clone of an index")
+        usage(["publish"], "is a URL", environ=dict(env, OFIR_REGISTRY="https://example.com/i"))
+        local = {k: v for k, v in env.items() if k != "OFIR_REGISTRY"}
+        usage(["publish"], "give a clone of the index", environ=local)
+        empty = tmp / "empty"
+        empty.mkdir()
+        usage(["yank", "1.0.0"], "needs an `ofir.json` with a `name`", cwd=empty)
+        usage(["package"], "needs an `ofir.json` in the current directory", 1, empty)
+        write(empty / "ofir.json", "{\n")
+        usage(["publish"], "`ofir.json` is not valid JSONC", 1, empty)
+
+        # An index file with a line that is not JSON and no final newline,
+        # and an index whose downloads are not `file://` URLs.
+        entry.write_text(entry.read_text() + "not json")
+        write(index / "config.json", '{"download": "https://example.com/{name}"}\n')
+        git("commit", "-q", "-am", "remote downloads")
+        published = ofir(lib, "publish", f"--index={index}").stdout
+        if "upload " not in published:
+            fail(f"a publish to a remote download URL: {published}")
+        ofir(lib, "yank", "--index", str(index), "1.3.0")
+        if '"version": "1.3.0"' not in entry.read_text() or "not json" not in entry.read_text():
+            fail(f"the index after the yank:\n{entry.read_text()}")
     print("publish: ok")
 
 
