@@ -40,6 +40,9 @@ UNLOWERED_UNION = ("import std.mem.cell.Cell\n\nstruct A {\n    n: Cell<int>\n}\
                    "fn show(u: U) int {\n    return match u {\n"
                    "        e: (A | B) => peek(&e)\n        _ => 0\n    }\n}\n\n"
                    "fn main() {\n    print(\"{show(A{n: Cell.new(3)})}\")\n}\n")
+# A `move` closure: its AIR has a body and a drop body.
+CLOSURE = ('fn main() {\n    const s = "hi".toOwned()\n'
+           '    const f = move () int => s.len()\n    print("{f()}")\n}\n')
 
 
 class Checker:
@@ -100,6 +103,10 @@ def exit_statuses(c: Checker) -> None:
                       "-o", str(c.tmp / "unlowered_union"))
     c.expect("a type test that borrows a union of members" in result.stderr,
              "build of an unlowered union binding: E0901 names it", result.stderr)
+    result = c.status(0, "the AIR of a closure", "build", c.write("closure.of", CLOSURE),
+                      "--emit=air")
+    c.expect("fn main.c" in result.stdout and ".drop {" in result.stdout,
+             "the AIR of a closure: its body and its drop", result.stdout[:2000])
 
 
 def check_builds_nothing(c: Checker) -> None:
