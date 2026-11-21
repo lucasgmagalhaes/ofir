@@ -309,7 +309,7 @@ pub fn checkName(c: mut Checker, p: Program, res: Res, span: Span) int {
 // the instance unless `node` is -1.
 fn constParamValue(c: mut Checker, name: Symbol, node: int) int {
     const Option.Some(param) = typeParameter(c, name) else {
-        return ERROR
+        return ERROR   // GCOVR_EXCL_LINE: a resolved const parameter is in scope
     }
     if node >= 0 {
         c.constUses.insert(c.module() * 4294967296 + node, param)
