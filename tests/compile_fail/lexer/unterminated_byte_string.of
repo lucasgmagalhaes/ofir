@@ -1,0 +1,5 @@
+// requires: stage1
+// A byte string ends at the end of its line.
+fn main() {
+    const b = b"open   // error[E0002]: unterminated string literal
+}

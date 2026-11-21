@@ -1,0 +1,5 @@
+// requires: stage1
+// A multi-line string that the file ends in (the annotations are its text).
+fn main() {
+    const s = """   // error[E0007]: the text of a multi-line string starts on the line after // error[E0002]: unterminated string literal
+        body
