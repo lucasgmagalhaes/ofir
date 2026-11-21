@@ -1,0 +1,6 @@
+// requires: stage1
+// A tuple is Hash when each of its elements is (spec 2).
+
+fn main() {
+    const t: Map<(int, float), int> = Map.new()   // error[E0332]: the type `(int, float)` does not satisfy the bound `Hash` of `K`
+}
