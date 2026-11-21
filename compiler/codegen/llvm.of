@@ -736,7 +736,7 @@ fn placeAddress(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, local: i
 fn isCFunction(c: Checker, p: Program, id: int) bool {
     const def = c.def(id)
     if def.kind != DefKind.Fn || def.item < 0 {
-        return false
+        return false   // GCOVR_EXCL_LINE: codegen only names fn defs of items
     }
     const isExtern = match itemOf(p, c.loc(id)).kind {
         ItemKind.Extern(_, _) => true
@@ -749,7 +749,7 @@ fn isCFunction(c: Checker, p: Program, id: int) bool {
 fn hints(c: Checker, p: Program, id: int) str {
     const def = c.def(id)
     if def.kind != DefKind.Fn || def.item < 0 {
-        return ""
+        return ""   // GCOVR_EXCL_LINE: codegen only emits fn defs of items
     }
     const decl = fnOf(p, c.loc(id))
     let text = ""
