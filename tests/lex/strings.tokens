@@ -30,4 +30,6 @@
 7:12 byte 255
 7:20 byte 39
 7:25 newline
-8:1 eof
+8:1 str "utf-8 edges: ࠀ 𐀀 􀀀"
+8:29 newline
+9:1 eof
