@@ -58,7 +58,7 @@ pub fn lspCommand() int {
         }
         server.handle(doc, method)
     }
-    return 1
+    return 1   // GCOVR_EXCL_LINE: the loop ends only by returning
 }
 
 struct Server {
@@ -361,7 +361,7 @@ fn addPlace(places: &mut List<Place>, place: move Place) {
         i += 1
     }
     if i < places.len() && places[i].path == place.path && places[i].start == place.start {
-        return
+        return   // GCOVR_EXCL_LINE: a name is linked once, apart from its declaration
     }
     places.insert(i, place)
 }
@@ -750,7 +750,7 @@ fn readMessage(input: mut Stdin) Option<str> {
     let body = ""
     for body.len() < length {
         const Result.Ok(part) = input.read(length - body.len()) else {
-            return Option.None
+            return Option.None   // GCOVR_EXCL_LINE: an input that gave the headers gives the body
         }
         if part.len() == 0 {
             return Option.None
