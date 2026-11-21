@@ -1,0 +1,19 @@
+
+// A struct that contains itself by value, passed as a parameter: the
+// check for interior mutability of a parameter stops at the type it is
+// already looking into, so only E0318 is reported.
+
+struct Loop {
+    next: Loop   // error[E0318]: a type cannot contain itself by value; use Box<T> or a collection
+}
+
+enum Chain {
+    Link(Chain)   // error[E0318]: a type cannot contain itself by value; use Box<T> or a collection
+    End
+}
+
+fn give(_l: Loop, _c: Chain) {
+}
+
+fn main() {
+}
