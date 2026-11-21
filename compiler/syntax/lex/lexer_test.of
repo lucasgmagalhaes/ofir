@@ -5,6 +5,7 @@ import base.span.FileId
 import diag.Diagnostics
 import std.testing.assert
 import syntax.lex.token.TokenKind
+import syntax.lex.token.TokenValue
 
 fn expectKinds(src: str, expected: [TokenKind]) {
     let names = Interner.new()
@@ -62,4 +63,16 @@ fn rangesAreNotFloats() {
 fn contextualKeywordsAreIdentifiers() {
     expectKinds("type move ref where", [TokenKind.Ident, TokenKind.Ident, TokenKind.Ident,
                                         TokenKind.Ident, TokenKind.Eof])
+}
+
+@test
+fn multiLineStringsDropTheCarriageReturns() {
+    let names = Interner.new()
+    let diags = Diagnostics.new()
+    const tokens = tokenize("\"\"\"\r\n    a\r\n    b\r\n    \"\"\"", FileId(0), names, diags)
+    assert(!diags.hasErrors())
+    match tokens[0].value {
+        TokenValue.Str(text) => assert(text == "a\nb\n")
+        _ => assert(false)
+    }
 }
