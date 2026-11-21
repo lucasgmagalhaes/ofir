@@ -91,6 +91,8 @@ fn toPat(c: mut Checker, p: Program, pattern: &Pattern) Pat {
                         if fields[f].name.0 == names[i].0 {
                             if const Option.Some(inner) = fields[f].pattern {
                                 found = toPat(c, p, &inner)
+                            } else if const Res.Def(_) = c.res(fields[f].id.0) {
+                                found = Pat.Opaque   // `W{None}`: E0326
                             }
                         }
                     }
