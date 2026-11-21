@@ -334,7 +334,7 @@ fn checkFieldCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, name: S
     c.setType(field.id.0, ty)
     c.fieldCalls[c.module()].insert(field.id.0, 1)
     if c.types.kind(ty) != TyKind.Fn {
-        return skipArgs(c, p, args)
+        return skipArgs(c, p, args)   // GCOVR_EXCL_LINE: `fnFieldOf` found a fn field
     }
     return checkArgsOf(c, p, call.span, args, ty)
 }
