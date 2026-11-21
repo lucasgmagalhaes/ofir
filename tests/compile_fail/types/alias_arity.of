@@ -4,3 +4,8 @@ type Number = int
 fn missing(x: Pair) {} // error[E0302]: wrong number of type arguments for `Pair`: expected 1, found 0
 fn extra(x: Pair<int, str>) {} // error[E0302]: wrong number of type arguments for `Pair`: expected 1, found 2
 fn plain(x: Number<int>) {} // error[E0302]: wrong number of type arguments for `Number`: expected 0, found 1
+
+// A function type around a bad argument count reports only the count, not a mismatch.
+fn wrapped() {
+    const f: fn(Pair<int, str>) int = 5 // error[E0302]: wrong number of type arguments for `Pair`: expected 1, found 2
+}
