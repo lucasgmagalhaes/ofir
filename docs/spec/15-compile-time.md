@@ -64,7 +64,8 @@ be a struct, or narrowed to one by `comptime if meta.isStruct<T>()` (15.3);
 (16.6), `meta.fieldsOf<T>()` or `meta.variantsOf<T>()`. Its body is
 type-checked once, with the loop variable standing for an implicit key
 parameter `K: keyof T` (16.2), and expanded once per field of each instance,
-in declaration order, with `K` bound to that field. `break` and `continue`
+in declaration order, with `K` bound to that field; over `keyof T`, an
+instance where `T` is not a struct or tuple is E0340. `break` and `continue`
 are not allowed in it.
 
 `comptime if` keeps only the branch whose condition is true for the
