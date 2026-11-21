@@ -61,3 +61,16 @@ fn immutableField() {
 fn notInteger() {
     const n: int = Wrapper(3)    // error[E0300]: mismatched types: expected int, found Wrapper
 }
+
+struct Holder<T> {
+    item: T
+    n: int
+}
+
+fn shorthandMismatch() {
+    const x = "a"
+    const _p = Point{x, y: 1}             // error[E0300]: mismatched types: expected int, found str
+    const n = "b"
+    const _b = Holder{item: 1, n}         // error[E0300]: mismatched types: expected int, found str
+    const _c = Holder<int>{item: 1, n}    // error[E0300]: mismatched types: expected int, found str
+}
