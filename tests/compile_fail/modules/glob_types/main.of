@@ -6,4 +6,11 @@ import b.*
 fn take(t: Thing) {}   // error[E0207]: `Thing` is ambiguous
 fn path(t: Thing.Inner) {}   // error[E0207]: `Thing` is ambiguous
 
+fn pattern(v: int) int {
+    return match v {
+        Thing{..} => 0   // error[E0207]: `Thing` is ambiguous
+        _ => 1
+    }
+}
+
 fn main() {}
