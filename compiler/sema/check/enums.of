@@ -11,6 +11,7 @@ import sema.check.Loc
 import sema.check.itemOf
 import sema.check.typeGenericsOf
 import sema.check.check_ref.checkStorable
+import sema.check.check_types.checkDeferredBounds
 import sema.check.check_types.ownerType
 import sema.check.check_types.resolveType
 import sema.check.const_eval.constEval
@@ -139,6 +140,7 @@ pub fn enumVariants(c: mut Checker, p: Program, id: int) bool {
     const outer = c.enterGenerics(typeGenericsOf(c, p, id))
     c.selfType = ownerType(c, p, id)
     c.info[id].checking = true
+    c.resolving.push(id)
     let info = EnumInfo{variants: [], hasPayload: false}
     let next = 0
     for i in 0..declared.1 {
@@ -148,11 +150,13 @@ pub fn enumVariants(c: mut Checker, p: Program, id: int) bool {
         info.variants.push(v)
     }
     c.info[id].checking = false
+    c.resolving.pop()
     c.enterGenerics(outer)
     c.selfType = savedSelf
     c.enter(saved)
     checkDiscriminants(c, p, c.loc(id), &info)
     c.info[id].variants = Option.Some(Box.new(info))
+    checkDeferredBounds(c, p)
     return true
 }
 

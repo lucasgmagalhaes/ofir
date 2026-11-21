@@ -14,6 +14,7 @@ import sema.check.typeGenericsOf
 import sema.check.check_generic.paramBounds
 import sema.check.check_generic.reportBadLengths
 import sema.check.check_ref.checkStorable
+import sema.check.check_types.checkDeferredBounds
 import sema.check.check_types.ownerType
 import sema.check.check_types.resolveType
 import sema.check.enums.enumVariants
@@ -335,6 +336,7 @@ pub fn structFields(c: mut Checker, p: Program, id: int) bool {
     const outer = c.enterGenerics(typeGenericsOf(c, p, id))
     c.selfType = if c.def(id).lang { c.def(id).primitive } else { ownerType(c, p, id) }
     c.info[id].checking = true
+    c.resolving.push(id)
     let info = StructInfo{names: [], types: [], defaults: [], isTuple: declared.2,
                           isCopy: declared.0}
     for i in 0..declared.3 {
@@ -356,6 +358,7 @@ pub fn structFields(c: mut Checker, p: Program, id: int) bool {
         }
     }
     c.info[id].checking = false
+    c.resolving.pop()
     c.enterGenerics(outer)
     c.selfType = savedSelf
     c.enter(saved)
@@ -371,6 +374,7 @@ pub fn structFields(c: mut Checker, p: Program, id: int) bool {
                                         types: info.types.clone()})
     }
     c.info[id].fields = Option.Some(Box.new(info))
+    checkDeferredBounds(c, p)
     return true
 }
 
