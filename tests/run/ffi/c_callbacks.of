@@ -2,7 +2,7 @@
 // c: c_callbacks.c
 // C function pointers (spec 11.3, ADR 0063): `qsort` with an Ofir
 // comparator, a callback with a user-data pointer, a pointer called from
-// Ofir, and a buffer C fills.
+// Ofir, a C function as a pointer, and a buffer C fills.
 
 @link("c_callbacks")
 extern "C" {
@@ -11,6 +11,10 @@ extern "C" {
     fn c_negate() extern "C" fn(i32) i32
     fn c_apply(f: extern "C" fn(i32, bool) i32, v: i32) i32
     fn c_fill(out: *mut i64, len: i64)
+}
+
+extern "C" {
+    fn abs(x: i32) i32
 }
 
 extern "C" fn byValue(a: *u8, b: *u8) i32 {
@@ -61,6 +65,8 @@ fn main() {
     println("{r}")
     const f: extern "C" fn(i32, bool) i32 = pick
     println("{unsafe { f(3, true) }} {unsafe { c_apply(f, 8) }}")
+    const g: extern "C" fn(i32) i32 = abs
+    println("{unsafe { g(-6) }}")
     let buf: List<i64> = [0, 0, 0, 0]
     unsafe {
         c_fill(buf.asMutSlice().asMutPtr(), 4)
