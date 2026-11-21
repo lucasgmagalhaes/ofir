@@ -422,7 +422,7 @@ fn postfixType(p: mut Parser, ops: bool) TypeExpr {
         } else if ops && p.accept(TokenKind.LBracket) {
             steps += 1
             if !p.nest() {
-                break
+                break   // GCOVR_EXCL_LINE: the operand nests deeper and fails first
             }
             const key = Box.new(parseType(p))
             p.expect(TokenKind.RBracket, "`]` to close the key")
@@ -455,7 +455,7 @@ fn keyTerm(p: mut Parser) TypeExpr {
         p.advance()
         steps += 1
         if !p.nest() {
-            break
+            break   // GCOVR_EXCL_LINE: the operand nests deeper and fails first
         }
         const right = Box.new(postfixType(p, true))
         t = newType(p, TypeKind.KeyOp(op, Box.new(t), right), start)
@@ -474,7 +474,7 @@ fn typeIn(p: mut Parser, ops: bool) TypeExpr {
         p.advance()
         steps += 1
         if !p.nest() {
-            break
+            break   // GCOVR_EXCL_LINE: the operand nests deeper and fails first
         }
         const start = t.span
         const right = Box.new(keyTerm(p))
