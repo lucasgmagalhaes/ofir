@@ -43,6 +43,36 @@ def fail(message):
     sys.exit(1)
 
 
+# Imports, attributes, comments and quotes in entries; `:show`, `:reset`,
+# and an entry that the input ends inside.
+SESSION_MORE = """\
+import std.strings
+
+@cold fn three() int {   // a comment with a { brace
+    return 3
+}
+println("a \\" ( {three()}")
+:show
+:reset
+three()
+fn open() {
+"""
+
+
+def check_repl_more(compiler):
+    result = subprocess.run([compiler, "repl"], input=SESSION_MORE, capture_output=True,
+                            text=True, timeout=600)
+    if result.returncode != 0:
+        fail(f"repl exited with {result.returncode}: {result.stderr[-2000:]}")
+    for want in ['a " ( 3\n', "1 | import std.strings\n", "| @cold fn three() int {"]:
+        if want not in result.stdout:
+            fail(f"repl printed {result.stdout!r}, without {want!r}\n"
+                 f"{result.stderr[-2000:]}")
+    if "three" not in result.stderr:
+        fail(f"`:reset` kept `three`: {result.stderr[-2000:]}")
+    print("watch: repl session ok")
+
+
 def check_repl(compiler):
     result = subprocess.run([compiler, "repl"], input=SESSION, capture_output=True,
                             text=True, timeout=600)
@@ -87,6 +117,7 @@ def main():
     args = parser.parse_args()
     compiler = str(Path(args.compiler).resolve())
     check_repl(compiler)
+    check_repl_more(compiler)
     with tempfile.TemporaryDirectory() as tmp:
         check_watch(compiler, Path(tmp))
     return 0
