@@ -484,6 +484,7 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
     const result = inferApply(c, &inf, ret)
     reportUndecided(c, span)
     reportBadLengths(c, span)
+    reportBadKeys(c, span)
     return result
 }
 
@@ -499,6 +500,20 @@ pub fn reportUndecided(c: mut Checker, span: Span) {
     for i in 0..found.len() {
         c.error("E0344", span, "a condition must be `true` or `false`, found "
                 + "`{c.typeName(found[i])}`")
+    }
+}
+
+/**
+ * E0340 for the instances of mapped types an instantiation left with keys
+ * that are not a key type, as `Keys<int>` over `keyof T`.
+ *
+ * @param c the checker
+ * @param span the use
+ */
+fn reportBadKeys(c: mut Checker, span: Span) {
+    const found = c.types.takeBadKeys()
+    for i in 0..found.len() {
+        c.error("E0340", span, "the keys of `{c.typeName(found[i])}` are not a key type")
     }
 }
 

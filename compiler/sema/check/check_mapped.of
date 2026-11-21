@@ -231,6 +231,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
     }
     const keyType = c.types.subst(tpl.keys, args.clone())
     if c.types.kind(keyType) != TyKind.Key {
+        c.types.noteBadKeys(mapped)
         return failed(c, mapped)
     }
     let info = StructInfo{names: [], types: [], defaults: [], isTuple: false, isCopy: false}
@@ -241,8 +242,12 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         let fieldArgs = args.clone()
         fieldArgs.push(c.types.keys([names[i]]))
         if tpl.filter >= 0 {
-            const test = c.types.get(c.types.subst(tpl.filter, fieldArgs.clone()))
+            const testType = c.types.subst(tpl.filter, fieldArgs.clone())
+            const test = c.types.get(testType)
             if test.kind != TyKind.Bool || test.data == 0 {
+                if testType != ERROR {   // `subst` noted a condition it gave ERROR
+                    c.types.noteUndecided(testType)
+                }
                 return failed(c, mapped)
             }
             if test.data == 2 {

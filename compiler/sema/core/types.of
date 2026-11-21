@@ -188,6 +188,7 @@ pub struct TypeTable {
     pending: List<int>   // the known `Mapped` types with no struct yet
     undecided: List<int>   // the non-`bool` conditions `subst` met
     badLengths: List<int>   // the out of range array lengths `subst` met
+    badKeys: List<int>   // the `Mapped` types whose keys are not a key type
     longest: int   // the most elements of a tuple or tuple struct
 
     /**
@@ -198,7 +199,7 @@ pub struct TypeTable {
     pub fn new() TypeTable {
         let table = TypeTable{types: [], slots: List.filled(0, 256), fields: [],
                               indexNames: [], expanded: [], pending: [],
-                              undecided: [], badLengths: [], longest: 0}
+                              undecided: [], badLengths: [], badKeys: [], longest: 0}
         table.intern(TyKind.Error, 0, 0, [])
         table.intern(TyKind.Unit, 0, 0, [])
         table.intern(TyKind.Never, 0, 0, [])
@@ -783,6 +784,36 @@ pub struct TypeTable {
      */
     pub fn takeBadLengths(mut self) List<int> {
         return mem.replace(self.badLengths, [])
+    }
+
+    /**
+     * Records a condition that is neither `true` nor `false`, as `subst`
+     * does: a mapped type filter of an instance.
+     *
+     * @param ty its type
+     */
+    pub fn noteUndecided(mut self, ty: int) {
+        self.undecided.push(ty)
+    }
+
+    /**
+     * Records an instance of a mapped type whose keys are not a key type,
+     * as `Keys<int>` over `keyof T`.
+     *
+     * @param mapped the `Mapped` type
+     */
+    pub fn noteBadKeys(mut self, mapped: int) {
+        self.badKeys.push(mapped)
+    }
+
+    /**
+     * The instances `noteBadKeys` recorded since the last call: E0340 at
+     * the use.
+     *
+     * @returns their `Mapped` types, in order
+     */
+    pub fn takeBadKeys(mut self) List<int> {
+        return mem.replace(self.badKeys, [])
     }
 
     /**
