@@ -11,6 +11,12 @@ fn keyed<T>(_value: T, _key: keyof T) {}
 
 fn main() {
     keyed((1, 2), .0)
+    keyed(Late{x: 1}, .x)
     keyed(Color.Red, 5)   // error[E0340]: `keyof` needs a struct or tuple type, found `Color`
     keyed(3, 5)   // error[E0340]: `keyof` needs a struct or tuple type, found `int`
+}
+
+// Declared after `Color`, so `Color` has an empty fields slot.
+struct Late {
+    x: int
 }
