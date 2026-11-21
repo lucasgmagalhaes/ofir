@@ -220,7 +220,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         }
     }
     if c.mappedTpls.get(alias).isNone() {
-        return failed(c, mapped)
+        return failed(c, mapped)   // GCOVR_EXCL_LINE: a `Mapped` type always has a template
     }
     const tpl = *c.mappedTpls.get(alias).unwrap()
     const cacheKey = (tpl.span.file.0, tpl.span.start, c.types.tuple(args.clone()))
@@ -312,7 +312,7 @@ pub fn substType(c: mut Checker, ty: int, args: [int]) int {
 pub fn mappedIndexType(c: mut Checker, base: int, key: int, bound: int) int {
     const alias = c.types.get(base).data
     if c.mappedTpls.get(alias).isNone() {
-        return 0
+        return 0   // GCOVR_EXCL_LINE: a `Mapped` type always has a template
     }
     const tpl = *c.mappedTpls.get(alias).unwrap()
     const args = c.types.get(base).args.clone()
@@ -342,7 +342,7 @@ fn reduceIndex(c: mut Checker, ty: int) int {
             const field = tpl.field
             return reduceIndex(c, c.types.subst(field, fieldArgs))
         }
-        return ty
+        return ty   // GCOVR_EXCL_LINE: a `Mapped` type always has a template
     }
     const keepsInner = kind == TyKind.Tuple || kind == TyKind.Adt || kind == TyKind.Dyn ||
                        kind == TyKind.Mapped || kind == TyKind.Index
