@@ -1,0 +1,15 @@
+// requires: stage1
+// `comptime for` over `keyof T` in an instance where `T` is not a struct or
+// tuple (spec 16.1): it has no keys to go over.
+
+fn count<T>(_value: &T) int {
+    let n = 0
+    comptime for _key in keyof T {   // error[E0340]: `keyof` needs a struct or tuple type, found `int`
+        n += 1
+    }
+    return n
+}
+
+fn main() {
+    println("{count(&(1, 2))} {count(&3)}")
+}

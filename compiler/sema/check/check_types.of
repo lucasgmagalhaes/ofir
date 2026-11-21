@@ -29,6 +29,7 @@ import sema.check.check_mapped.checkAliasBounds
 import sema.check.check_mapped.mappedType
 import sema.check.check_ref.checkInstanceStorable
 import sema.check.check_unsafe.cCompatible
+import sema.check.const_eval.ConstKind
 import sema.check.const_eval.byComptimeMessage
 import sema.check.expr_check.checkConst
 import sema.check.interfaces.dynIncompatible
@@ -113,7 +114,7 @@ pub fn ownerTypeOf(c: mut Checker, p: Program, m: int, index: int) int {
  */
 pub fn ownerType(c: mut Checker, p: Program, id: int) int {
     if c.def(id).item < 0 {   // a type the checker made: a union
-        return c.types.adt(id, [])
+        return c.types.adt(id, [])   // GCOVR_EXCL_LINE: a union has no methods or literals
     }
     return ownerTypeOf(c, p, c.def(id).module, c.def(id).item)
 }
@@ -304,7 +305,11 @@ fn constArg(c: mut Checker, p: Program, id: int, span: Span) int {
         return ERROR
     }
     return match c.info[id].value {
-        Option.Some(v) => c.types.value(v.bits.wrappingCast<i64>())
+        Option.Some(v) => if v.kind == ConstKind.Int {
+            c.types.value(v.bits.wrappingCast<i64>())
+        } else {
+            ERROR   // its value is not of its type: E0300, reported with it
+        }
         Option.None => ERROR
     }
 }
@@ -435,7 +440,8 @@ fn namedType(c: mut Checker, p: Program, id: int, args: List<TypeExpr>, span: Sp
         DefKind.TypeAlias => resolveAlias(c, p, id, args, span)
         DefKind.Struct | DefKind.Enum => {
             if c.def(id).lang {
-                return c.def(id).primitive   // a `@lang` body names its primitive
+                // a `@lang` body names its primitive
+                return c.def(id).primitive   // GCOVR_EXCL_LINE: a @lang struct is no module member
             }
             let types: List<int> = []
             for i in 0..args.len() {

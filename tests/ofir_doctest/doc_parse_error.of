@@ -1,0 +1,12 @@
+// A doc test that does not parse fails `ofir test` before any test runs:
+// the error goes to the standard error, nothing to the standard output.
+
+/**
+ * ```ofir
+ * const = 1
+ * const ok = 2
+ * ```
+ */
+pub fn one() int {
+    return 1
+}

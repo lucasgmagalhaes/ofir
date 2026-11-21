@@ -27,6 +27,13 @@ fn partial(value: A | B) int {
     }
 }
 
+fn unknown(value: A | B) int {
+    return match value {
+        _: Nope => 1   // error[E0200]: cannot find type `Nope` in this scope
+        _ => 0
+    }
+}
+
 fn subUnion(value: A | B) int {
     return match value {
         _: (A | C) => 1   // error[E0352]: `C` is not a member of the union `A | B`

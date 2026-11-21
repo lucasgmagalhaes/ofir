@@ -96,7 +96,7 @@ pub fn digitValue(c: u8) int {
  */
 pub fn cut(src: str, lo: int, hi: int) str {
     if lo < 0 || hi < lo || hi > src.len() {
-        return src.slice(lo, hi)   // panics with the range
+        return src.slice(lo, hi)   // GCOVR_EXCL_LINE: the lexer cuts only in range
     }
     return unsafe { src.sliceUnchecked(lo, hi) }
 }

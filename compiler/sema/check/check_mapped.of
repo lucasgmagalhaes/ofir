@@ -187,7 +187,7 @@ fn aliasKeys(c: mut Checker, p: Program) {
     for i in 0..preds.len() {
         const index = boundedParam(&preds[i].ty, c.generics.owner, [])
         if index < 0 {
-            continue
+            continue   // GCOVR_EXCL_LINE: an alias bound is on its own parameter
         }
         for j in 0..preds[i].bounds.len() {
             if isKeyBound(&preds[i].bounds[j]) {
@@ -209,7 +209,7 @@ fn aliasKeys(c: mut Checker, p: Program) {
 pub fn expandMapped(c: mut Checker, mapped: int) int {
     const known = c.types.expandedOf(mapped)
     if known != 0 {
-        return known
+        return if known < 0 { ERROR } else { known }
     }
     const alias = c.types.get(mapped).data
     let args = c.types.get(mapped).args.clone()
@@ -220,7 +220,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         }
     }
     if c.mappedTpls.get(alias).isNone() {
-        return ERROR
+        return failed(c, mapped)   // GCOVR_EXCL_LINE: a `Mapped` type always has a template
     }
     const tpl = *c.mappedTpls.get(alias).unwrap()
     const cacheKey = (tpl.span.file.0, tpl.span.start, c.types.tuple(args.clone()))
@@ -231,7 +231,8 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
     }
     const keyType = c.types.subst(tpl.keys, args.clone())
     if c.types.kind(keyType) != TyKind.Key {
-        return ERROR
+        c.types.noteBadKeys(mapped)
+        return failed(c, mapped)
     }
     let info = StructInfo{names: [], types: [], defaults: [], isTuple: false, isCopy: false}
     const names = c.types.keyNames(keyType)
@@ -241,9 +242,13 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         let fieldArgs = args.clone()
         fieldArgs.push(c.types.keys([names[i]]))
         if tpl.filter >= 0 {
-            const test = c.types.get(c.types.subst(tpl.filter, fieldArgs.clone()))
+            const testType = c.types.subst(tpl.filter, fieldArgs.clone())
+            const test = c.types.get(testType)
             if test.kind != TyKind.Bool || test.data == 0 {
-                return ERROR
+                if testType != ERROR {   // `subst` noted a condition it gave ERROR
+                    c.types.noteUndecided(testType)
+                }
+                return failed(c, mapped)
             }
             if test.data == 2 {
                 continue
@@ -265,6 +270,13 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
     const ty = c.types.adt(id, [])
     c.types.setExpanded(mapped, ty)
     return ty
+}
+
+// Records that `mapped` has no struct, so `subst` gives ERROR for it from now
+// on instead of making it pending again.
+fn failed(c: mut Checker, mapped: int) int {
+    c.types.setExpanded(mapped, -1)
+    return ERROR
 }
 
 /**
@@ -300,7 +312,7 @@ pub fn substType(c: mut Checker, ty: int, args: [int]) int {
 pub fn mappedIndexType(c: mut Checker, base: int, key: int, bound: int) int {
     const alias = c.types.get(base).data
     if c.mappedTpls.get(alias).isNone() {
-        return 0
+        return 0   // GCOVR_EXCL_LINE: a `Mapped` type always has a template
     }
     const tpl = *c.mappedTpls.get(alias).unwrap()
     const args = c.types.get(base).args.clone()
@@ -330,7 +342,7 @@ fn reduceIndex(c: mut Checker, ty: int) int {
             const field = tpl.field
             return reduceIndex(c, c.types.subst(field, fieldArgs))
         }
-        return ty
+        return ty   // GCOVR_EXCL_LINE: a `Mapped` type always has a template
     }
     const keepsInner = kind == TyKind.Tuple || kind == TyKind.Adt || kind == TyKind.Dyn ||
                        kind == TyKind.Mapped || kind == TyKind.Index
@@ -447,7 +459,7 @@ pub fn checkAliasBounds(c: mut Checker, p: Program, id: int, span: Span) bool {
     for i in 0..preds.len() {
         const index = boundedParam(&preds[i].ty, c.generics.owner, [])
         if index < 0 || index >= c.generics.aliasArgs.len() {
-            continue
+            continue   // GCOVR_EXCL_LINE: an alias bound is on its own parameter
         }
         const arg = c.generics.aliasArgs[index]
         if arg == ERROR || c.types.get(arg).hasParam {

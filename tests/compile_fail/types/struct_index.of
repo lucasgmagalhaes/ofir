@@ -1,0 +1,12 @@
+// A struct is indexed only by a key of it, not by an int or a str (spec 16).
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn main() {
+    const p = Point{x: 1, y: 2}
+    const f = p[1] // error[E0313]: type `Point` cannot be indexed
+    const g = p["x"] // error[E0313]: type `Point` cannot be indexed // error[E0300]: mismatched types: expected int, found str
+}

@@ -324,7 +324,8 @@ fn keyBound(c: mut Checker, p: Program, t: &TypeExpr, g: &Generics) int {
     const ty = resolveType(c, p, t)
     c.enterGenerics(saved)
     const kind = c.types.kind(ty)
-    const bound = if kind == TyKind.Key || kind == TyKind.KeyOf { ty } else { 0 }
+    const keyLike = kind == TyKind.Key || kind == TyKind.KeyOf || kind == TyKind.KeyOp
+    const bound = if keyLike { ty } else { 0 }
     c.boundArgs.insert(key, bound)
     return bound
 }
@@ -343,7 +344,7 @@ pub fn boundArgs(c: mut Checker, p: Program, t: &TypeExpr, g: &Generics) int {
     const list = match t.kind {
         TypeKind.Path(_, args) => args.clone()
         _ => {
-            return UNIT
+            return UNIT   // GCOVR_EXCL_LINE: the callers pass a bound that names an interface
         }
     }
     if list.len() == 0 {
@@ -382,7 +383,7 @@ pub fn interfaceDef(c: Checker, item: &Item) int {
             return id
         }
     }
-    return 0
+    return 0   // GCOVR_EXCL_LINE: every interface item has a definition
 }
 
 /**
@@ -807,9 +808,10 @@ pub struct Checker {
         }
     }
 
-    // An operand of a `ValueOp`: a nested operation in parentheses.
+    // An operand of a `ValueOp` or a `KeyOp`: a nested operation in parentheses.
     fn appendOperand(self, out: mut str, ty: int, qualified: bool) {
-        const nested = self.types.get(ty).kind == TyKind.ValueOp
+        const kind = self.types.get(ty).kind
+        const nested = kind == TyKind.ValueOp || kind == TyKind.KeyOp
         if nested {
             out.push("(")
         }
@@ -932,9 +934,9 @@ pub struct Checker {
                 out.push(">")
             }
             TyKind.KeyOp => {
-                self.appendType(out, t.args[0], qualified)
+                self.appendOperand(out, t.args[0], qualified)
                 out.push(if t.data == 1 { " & " } else { " - " })
-                self.appendType(out, t.args[1], qualified)
+                self.appendOperand(out, t.args[1], qualified)
             }
             TyKind.Cond => {
                 out.push("if ")
@@ -1053,7 +1055,7 @@ pub fn fnOf(p: Program, def: Loc) &FnDecl {
         ItemKind.Extern(_, fns) => &fns[def.member]
         ItemKind.Interface(_, _, methods) => &methods[def.member]
         _ => {
-            panic("fnOf: not a function")
+            panic("fnOf: not a function")   // GCOVR_EXCL_LINE: a function's Loc is a function's
         }
     }
 }
@@ -1362,6 +1364,9 @@ pub fn checkDeclBounds(c: mut Checker, p: Program, preds: List<WherePred>) {
         }
         for j in 0..pred.bounds.len() {
             const iface = interfaceOf(c, &pred.bounds[j])
+            if const TypeKind.Path(segments, _) = pred.bounds[j].kind {
+                c.r.noteImportUse(segments[0])   // an import used only in a bound is used
+            }
             if boundBit(c, &pred.bounds[j]) == 0 && iface == 0 && !isKeyBound(&pred.bounds[j]) {
                 c.error("E0333", pred.bounds[j].span, "`{typeText(&pred.bounds[j], c.r.names)}` "
                         + "is not an interface")

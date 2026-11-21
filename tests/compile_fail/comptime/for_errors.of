@@ -1,0 +1,48 @@
+// requires: stage1
+// What `comptime for` goes over (spec 15.3, 16.6), and the members of its
+// variable.
+
+import std.meta
+
+struct Point {
+    x: int
+}
+
+enum Color {
+    Red
+}
+
+fn fields(p: &Point) {
+    comptime for field in meta.fieldsOf<Point>() {
+        const _ = field.size()   // error[E0301]: no method `size` on the variable of a `comptime for`: it has `attribute(key)` and `get(value)`
+        const _ = field.attribute(1)   // error[E0300]: `field.attribute` takes a string literal: `field.attribute("json")`
+        const _ = field.get(p)
+    }
+}
+
+fn variants(c: Color) {
+    comptime for v in meta.variantsOf<Color>() {
+        const _ = v.matches(c, c)   // error[E0302]: `variant.matches` takes one value
+    }
+}
+
+fn main() {
+    comptime for _key in keyof int {   // error[E0340]: `keyof` needs a struct or tuple type, found `int`
+    }
+    comptime for _key in int {   // error[E0340]: `comptime for` needs a key type, found `int`
+    }
+    comptime for _key in Undefined {   // error[E0200]: cannot find type `Undefined` in this scope
+    }
+    comptime for _f in meta.fieldsOf<int, int>() {   // error[E0302]: `meta.fieldsOf` takes one type argument
+    }
+    comptime for _f in meta.variantsOf<int, int>() {   // error[E0302]: `meta.variantsOf` takes one type argument
+    }
+    comptime for _f in meta.fieldsOf<Nope>() {   // error[E0200]: cannot find type `Nope` in this scope
+    }
+    comptime for _f in meta.variantsOf<Nope>() {   // error[E0200]: cannot find type `Nope` in this scope
+    }
+    comptime for _f in 3 {   // error[E0300]: `comptime for` goes over `keyof T`, a key type, `meta.fieldsOf<T>()` or `meta.variantsOf<T>()`
+    }
+    fields(&Point{x: 1})
+    variants(Color.Red)
+}

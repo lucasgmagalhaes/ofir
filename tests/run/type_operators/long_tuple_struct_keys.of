@@ -1,0 +1,22 @@
+// requires: stage1
+// The keys of a tuple struct of 34 fields (spec 16.1): more than the 32
+// tuple keys recorded at first.
+
+struct Big(int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)
+
+fn count<T>(_v: &T) int {
+    let n = 0
+    comptime for _k in keyof T {
+        n += 1
+    }
+    return n
+}
+
+fn get<T, K: keyof T>(v: &T, k: K) &T[K] {
+    return &v[k]
+}
+
+fn main() {
+    const b = Big(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33)
+    println("{count(&b)} {get(&b, .33)}")
+}

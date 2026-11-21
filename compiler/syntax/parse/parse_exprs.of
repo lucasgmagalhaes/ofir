@@ -89,7 +89,7 @@ fn castExpr(p: mut Parser) Expr {
     for p.accept(TokenKind.As) {
         steps += 1
         if !p.nest() {
-            break
+            break   // GCOVR_EXCL_LINE: the operand nests deeper and fails first
         }
         const start = e.span
         const to = parseSimpleType(p)
@@ -112,8 +112,8 @@ fn binaryExpr(p: mut Parser, min: int) Expr {
         p.pos += found.2
         steps += 1
         if !p.nest() {   // a chain is as deep as it is long
-            p.depth -= steps
-            return lhs
+            p.depth -= steps   // GCOVR_EXCL_LINE: the operand nests deeper and fails first
+            return lhs   // GCOVR_EXCL_LINE: the operand nests deeper and fails first
         }
         p.skipNewlines()   // an operator at the end of a line continues it
         const rhs = binaryExpr(p, found.0 + 1)

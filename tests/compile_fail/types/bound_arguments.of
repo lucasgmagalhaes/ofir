@@ -1,0 +1,30 @@
+// requires: stage1
+// A tuple, a never value and str passed for a bounded type parameter.
+
+interface Named {
+    fn name(self) str
+}
+
+interface Lenable {
+    fn len(mut self) int
+}
+
+interface Getter {
+    fn get<U>(self) int
+}
+
+struct G: Getter {   // error[E0335]: the type `G` does not satisfy `Getter`: method `get` has a different signature
+    fn get(self) int {
+        return 1
+    }
+}
+
+fn needNamed<T: Named>(x: T) {}
+
+fn needLen<T: Lenable>(x: T) {}
+
+fn main() {
+    needNamed((1, 2))   // error[E0332]: the type `(int, int)` does not satisfy the bound `Named` of `T`: missing method `name`
+    needNamed(panic("x"))   // error[E0330]: cannot infer the type parameter `T`: write the type arguments, as in `f<int>(x)`
+    needLen("abc")   // error[E0332]: the type `str` does not satisfy the bound `Lenable` of `T`: method `len` has a different signature
+}

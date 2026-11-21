@@ -1,0 +1,15 @@
+// requires: stage1
+// A field name and its value on two lines: the help line has no fix, since
+// the name is in neither the value nor the start of its line.
+
+struct Point {
+    xpos: int
+    ypos: int
+}
+
+fn main() {
+    const p = Point{xpos: 1, ypoz:   // error[E0308]: missing field `ypos` in `Point`
+        2}   // error[E0316]: no field `ypoz` on this struct
+    // note: did you mean `ypos`?
+    println("{p.xpos}")
+}

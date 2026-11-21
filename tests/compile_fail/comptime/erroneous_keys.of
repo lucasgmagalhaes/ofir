@@ -1,0 +1,16 @@
+// requires: stage1
+// An index key with an error, and a comptime for over the keys of a type
+// that has none (spec 16).
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn main() {
+    const p = Point{x: 1, y: 2}
+    const d = p[1 + "a"]   // error[E0313]: type `Point` cannot be indexed   // error[E0300]: mismatched types: expected str, found int   // error[E0300]: mismatched types: expected int, found str
+    comptime for k in keyof int {   // error[E0340]: `keyof` needs a struct or tuple type, found `int`
+        const e = p[k]
+    }
+}

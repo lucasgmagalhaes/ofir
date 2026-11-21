@@ -1,0 +1,16 @@
+// requires: stage1
+// An import used only in a bound is used (W0002): the module of a qualified
+// interface and an imported interface.
+
+import shapes
+import shapes.Shape as Figure
+import std.core.iter   // warning[W0002]: unused import `iter`
+
+fn total<T: shapes.Shape>(_v: &T) {
+}
+
+fn other<T>(_v: &T) where T: Figure {
+}
+
+fn main() {
+}

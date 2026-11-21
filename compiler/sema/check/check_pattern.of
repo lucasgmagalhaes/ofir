@@ -152,6 +152,11 @@ fn structPattern(c: mut Checker, p: Program, pat: &Pattern, path: List<Symbol>, 
                 const fieldType = structFieldType(c, p, ty, index)
                 if const Option.Some(inner) = fields[i].pattern {
                     checkPattern(c, p, &inner, fieldType)
+                } else if const Res.Def(variant) = c.res(fields[i].id.0) {   // `W{None}`
+                    const none: List<Pattern> = []
+                    const noPath: List<Symbol> = []
+                    const name = c.def(variant).name
+                    variantPattern(c, p, pat, noPath, name, none, false, fieldType)
                 } else {
                     shorthand(c, fields[i].id.0, fieldType)
                 }
@@ -162,7 +167,7 @@ fn structPattern(c: mut Checker, p: Program, pat: &Pattern, path: List<Symbol>, 
             }
         }
         _ => {
-            return
+            return   // GCOVR_EXCL_LINE: its caller passes a struct pattern
         }
     }
 }

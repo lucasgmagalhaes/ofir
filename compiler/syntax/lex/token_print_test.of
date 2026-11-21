@@ -1,0 +1,16 @@
+// The tests of `syntax.lex.token_print` (spec 12.2).
+
+import std.testing.assert
+
+@test
+fn formatGWritesTheShortestDigits() {
+    assert(formatG(1.5) == "1.5")
+    assert(formatG(0.0) == "0")
+    assert(formatG(100000000000.0) == "1e+11")
+}
+
+@test
+fn formatGKeepsTheSign() {
+    assert(formatG(-1.5) == "-1.5")
+    assert(formatG(-0.00001) == "-1e-05")
+}

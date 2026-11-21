@@ -170,4 +170,5 @@ A check whose tool is missing prints `unavailable (reason), skipped`; with
    `// requires: unix` skips a test on Windows, `// requires: windows`
    everywhere else). A
    `// flags: ...` line adds compiler flags to a run or codegen test, e.g.
-   `// flags: --release`.
+   `// flags: --release`. A `// std: none` line compiles a test with an empty
+   standard library (`$OFIR_STD`), for the paths that need it.

@@ -2206,6 +2206,42 @@ fn tagEnd(g: mut Gen, c: Checker, held: move str, span: Span) {
     tagLines(g, held, pos.line, pos.column)
 }
 
+// `tagEnd`, but at no line in a block no path reaches (the `unreachable`
+// after a `return`), which gcov would count as a line never run.
+fn tagBlock(g: mut Gen, c: Checker, held: move str, span: Span, dead: bool) {
+    if dead {
+        tagLines(g, held, 0, 0)
+    } else {
+        tagEnd(g, c, held, span)
+    }
+}
+
+// Which blocks of `body` a path from the entry block reaches.
+fn reachedBlocks(body: &AirBody) List<bool> {
+    let reached = List.filled(false, body.blocks.len())
+    let work: List<int> = [0]
+    reached[0] = true
+    let i = 0
+    for i < work.len() {
+        const t = &body.blocks[work[i]].term
+        i += 1
+        let next: List<int> = []
+        if t.kind == TermKind.Goto || t.kind == TermKind.Assert || t.kind == TermKind.Branch {
+            next.push(t.target)
+        }
+        if t.kind == TermKind.Branch {
+            next.push(t.other)
+        }
+        for n in next {
+            if !reached[n] {
+                reached[n] = true
+                work.push(n)
+            }
+        }
+    }
+    return reached
+}
+
 // Appends the instructions collected since `tagStart` to `held`, each at
 // `row` and `column`; row 0 is no line, as for the prologue, so that a
 // debugger stops after it.
@@ -2361,17 +2397,19 @@ fn genBody(g: mut Gen, c: mut Checker, p: Program, body: &AirBody) {
     if g.scope != 0 {
         tagLines(g, prologue, 0, 0)
     }
+    const reached = if g.scope != 0 { reachedBlocks(body) } else { List.filled(true, 0) }
     for b in 0..body.blocks.len() {
         g.out.push("bb{b}:\n")
         const block = &body.blocks[b]
+        const dead = g.scope != 0 && !reached[b]
         for i in 0..block.stmts.len() {
             const held = tagStart(g)
             statement(g, c, p, body, &block.stmts[i])
-            tagEnd(g, c, held, block.stmts[i].span)
+            tagBlock(g, c, held, block.stmts[i].span, dead)
         }
         const held = tagStart(g)
         terminator(g, c, p, body, &block.term, b)
-        tagEnd(g, c, held, block.at)
+        tagBlock(g, c, held, block.at, dead)
     }
     g.out.push("\}\n\n")
 }

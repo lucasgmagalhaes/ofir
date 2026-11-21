@@ -1,0 +1,33 @@
+// requires: stage1
+// `for` over a union, a type parameter and a type whose `next` is generic.
+
+type U = int | float
+
+struct Gen {
+    fn next<V>(mut self) Option<V> {
+        return Option.None
+    }
+}
+
+interface Sized {
+    fn size(self) int
+}
+
+fn plain<T>(x: T) {
+    for y in x {   // error[E0300]: mismatched types: `for` needs a range, a list, a slice, a map or an iterator, found T
+    }
+}
+
+fn sized<T: Sized>(x: T) {
+    for y in x {   // error[E0300]: mismatched types: `for` needs a range, a list, a slice, a map or an iterator, found T
+    }
+}
+
+fn main() {
+    const u: U = 1
+    for x in u {   // error[E0300]: mismatched types: `for` needs a range, a list, a slice, a map or an iterator, found float | int
+    }
+    let g = Gen{}
+    for x in g {   // error[E0300]: mismatched types: `for` needs a range, a list, a slice, a map or an iterator, found Gen
+    }
+}

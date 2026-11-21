@@ -11,6 +11,7 @@
  */
 
 import base.intern.Symbol
+import base.span.Span
 import sema.check.BOUND_COPY
 import sema.check.COMPTIME_ATTRIBUTE
 import sema.check.COMPTIME_INDEX
@@ -90,7 +91,8 @@ pub fn checkComptimeFor(c: mut Checker, p: Program, s: &Stmt, name: Symbol, iter
     c.generics.bounds.push(BOUND_COPY)
     c.generics.ifaces.push([])
     c.generics.ifaceArgs.push([])
-    c.generics.keys.push(range.0)
+    const isParam = range.0 != ERROR && c.types.kind(range.0) == TyKind.Param
+    c.generics.keys.push(if isParam { paramKey(c, range.0) } else { range.0 })
     if local >= 0 {
         c.localTypes[local] = param
     }
@@ -132,8 +134,8 @@ fn iterated(c: mut Checker, p: Program, iterable: &Expr) (int, int) {
                         + "`{c.typeName(key)}`")
                 return (ERROR, 0)
             }
-            const t = c.types.get(bound)
-            return (bound, if t.kind == TyKind.KeyOf { t.inner } else { 0 })
+            const t = c.types.get(bound)   // the loop goes over the keys of `K`, not its bound
+            return (key, if t.kind == TyKind.KeyOf { t.inner } else { 0 })
         }
         _ => {}
     }
@@ -220,7 +222,7 @@ fn metaTypeArgs(call: &Expr) List<TypeExpr> {
     const callee = match call.kind {
         ExprKind.Call(f, _) => &*f
         _ => {
-            return []
+            return []   // GCOVR_EXCL_LINE: callers pass a meta call
         }
     }
     return match callee.kind {
@@ -315,7 +317,7 @@ pub fn comptimeMethod(c: mut Checker, p: Program, e: &Expr, callee: &Expr,
     const parts = match callee.kind {
         ExprKind.Field(base, method, _) => (loopOf(c, &*base), method, base.id.0)
         _ => {
-            return -1
+            return -1   // GCOVR_EXCL_LINE: the caller checks for a field
         }
     }
     if parts.0 < 0 {
@@ -387,6 +389,24 @@ pub fn jumpLeavesComptime(c: Checker) bool {
 }
 
 /**
+ * E0340 for a `comptime for` over `keyof T` in an instance where `T` is not
+ * a struct or tuple (spec 16.1), which has no keys to go over.
+ *
+ * @param c the checker
+ * @param span the loop
+ * @param info the loop
+ * @param targs the instance's type arguments
+ */
+pub fn checkComptimeBase(c: mut Checker, span: Span, info: ComptimeInfo, targs: List<int>) {
+    if info.variants || info.base == 0 || substType(c, info.bound, targs.clone()) != ERROR {
+        return
+    }
+    const base = substType(c, info.base, targs.clone())
+    c.error("E0340", span, "`keyof` needs a struct or tuple type, found "
+            + "`{c.typeName(base)}`")
+}
+
+/**
  * The keys a `comptime for` goes over in an instance, in declaration order.
  *
  * @param c the checker
@@ -399,9 +419,12 @@ pub fn comptimeKeys(c: mut Checker, p: Program, info: ComptimeInfo,
     if info.variants {
         return variantNames(c, p, info, targs)
     }
+    if c.types.hasIndexNames() {
+        useIndexNames(c)   // the keys of a tuple longer than those recorded
+    }
     const bound = substType(c, info.bound, targs.clone())
     if c.types.kind(bound) != TyKind.Key {
-        return []
+        return []   // `keyof int`: E0340 when lowered
     }
     let names = c.types.keyNames(bound)
     const base = if info.base == 0 { 0 } else { substType(c, info.base, targs.clone()) }
@@ -435,10 +458,10 @@ fn variantNames(c: mut Checker, p: Program, info: ComptimeInfo, targs: List<int>
     let names: List<int> = []
     const base = substType(c, info.base, targs.clone())
     if c.types.get(base).hasParam {
-        return names
+        return names   // GCOVR_EXCL_LINE: instances have no parameters
     }
     const Option.Some(id) = enumOf(c, p, base) else {
-        return names
+        return names   // GCOVR_EXCL_LINE: the checker rejects a non-enum (E0364)
     }
     const variants = variantsOf(c, id)
     for i in 0..variants.variants.len() {
@@ -461,7 +484,7 @@ pub fn comptimeIndex(c: mut Checker, p: Program, info: ComptimeInfo, targs: List
     }
     const name = c.types.get(targs[info.param]).data
     if c.types.kind(targs[info.param]) != TyKind.Key || name < 0 {
-        return -1
+        return -1   // GCOVR_EXCL_LINE: the loop key is a single key
     }
     const names = comptimeKeys(c, p, info, targs)
     for i in 0..names.len() {
@@ -469,7 +492,7 @@ pub fn comptimeIndex(c: mut Checker, p: Program, info: ComptimeInfo, targs: List
             return i
         }
     }
-    return -1
+    return -1   // GCOVR_EXCL_LINE: the loop key is one of its keys
 }
 
 /**
@@ -510,7 +533,7 @@ pub fn comptimeInt(c: mut Checker, p: Program, e: &Expr, targs: List<int>) int {
     const info = match c.comptimeInfo.get(comptimeKey(c, e.id.0)) {
         Option.Some(found) => *found
         Option.None => {
-            return -1
+            return -1   // GCOVR_EXCL_LINE: the checker accepts only these (E0363)
         }
     }
     return comptimeIndex(c, p, info, targs)
@@ -542,7 +565,7 @@ pub fn comptimeAttribute(c: mut Checker, p: Program, info: ComptimeInfo,
         c.types.keyPosition(base, targs[info.param])
     }
     if position < 0 {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: the variant is one of its type's
     }
     const attributes = if info.variants {
         &variantDeclAt(p, c.loc(id), position).attributes

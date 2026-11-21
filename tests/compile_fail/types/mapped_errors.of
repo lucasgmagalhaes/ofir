@@ -1,0 +1,20 @@
+// requires: stage1
+// Errors in the keys, the filter and the fields of a mapped type (spec 16.4).
+
+struct Point {
+    x: float
+    y: int
+}
+
+type BadKeys = { [K in Point[.z]]: int }   // error[E0341]: `Point` has no field `.z`
+type BadFilter = { [K in keyof Point if int]: int }   // error[E0344]: a condition must be `true` or `false`, found `int`
+type Nested = { [K in .a | .b]: { [P in K]: int } }
+type Field<T> = { [K in .a]: T }   // error[E0901]: mapped types over type parameters are not supported yet
+
+fn generic<T>(f: Field<T>) {}
+
+fn main() {
+    const b: BadKeys = 1
+    const f: BadFilter = 1
+    const n: Nested = 1   // error[E0300]: mismatched types: expected Nested, found int
+}

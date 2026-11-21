@@ -1,0 +1,8 @@
+// requires: stage1
+// The message of `comptime panic` is a string literal (spec 15.3, E0363).
+
+fn main() {
+    const s = "x"
+    comptime panic(42)   // error[E0363]: the message of `comptime panic` must be a string literal
+    comptime panic("a {s}")   // error[E0363]: the message of `comptime panic` can interpolate only compile-time `str` values, such as `meta.nameOf<T>()`
+}

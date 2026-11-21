@@ -1,0 +1,23 @@
+// A field, a constant or a variant that a type does not have, and a struct
+// indexed by a type parameter.
+
+struct Point {
+    x: int
+    y: int
+}
+
+struct Holder {
+    n: int
+}
+
+fn byParam<K>(p: Point, k: K) int {
+    return p[k]   // error[E0313]: type `Point` cannot be indexed   // error[E0300]: mismatched types: expected int, found K
+}
+
+fn main() {
+    const h = Holder{n: 1}
+    const a = h.n(2)   // error[E0301]: no method `n` on type `Holder`
+    const b = str.MAX   // error[E0301]: no constant `MAX` on type `str`
+    const c = Point.Foo   // error[E0320]: no variant `Foo` in `Point`
+    const p = Point{x: 1, y: 2}
+}

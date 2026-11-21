@@ -1,0 +1,8 @@
+// std: none
+// Types that need the standard library (spec 2.6, 2.12): E0901 without it.
+
+fn optional(x: int?) {}   // error[E0901]: optional types (`T?`) without std are not supported yet
+fn view(x: &mut [int]) {}   // error[E0901]: mutable slices `&mut [T]` are not supported yet
+fn items(x: [int]) {}   // error[E0901]: slices without the standard library are not supported yet
+
+fn main() {}

@@ -1,0 +1,17 @@
+// requires: stage1
+// `[v; len]` as an array whose length is an expression (spec 8.7).
+
+struct S {
+    n: int
+}
+
+fn f<const N: int>() {
+    const a: [int; N] = [0; N + 1]   // error[E0300]: mismatched types: expected `[int; N]`, found an array of `N + 1` elements
+    const b: [int; N] = [0; N / 0]   // error[E0300]: mismatched types: expected `[int; N]`, found an array of `N / 0` elements
+    const e: [int; N] = [0; N + 5000000000]   // error[E0366]: the array length `5000000000` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const d: [S; N] = [S{n: 1}; N]   // error[E0901]: arrays of a type that is not Copy are not supported yet
+}
+
+fn main() {
+    f<2>()
+}

@@ -312,9 +312,11 @@ static TypeId generic_value(Checker *c, Expr *e) {
 // `(a, b)`: each element takes the matching element of the expected type.
 static TypeId tuple(Checker *c, Expr *e, TypeId expected) {
     uint32_t count = e->as.elems.len;
-    const Ty *hint = type_get(c->types, expected);
     TypeId *types = ARENA_ARRAY(&c->sema->session->arena, TypeId, count + 1);
     for (uint32_t i = 0; i < count; i++) {
+        // Fetched again for each element: checking one interns types, which
+        // can move the table.
+        const Ty *hint = type_get(c->types, expected);
         bool hinted = hint->kind == TY_TUPLE && hint->arg_count == count;
         types[i] = check_expr(c, e->as.elems.items[i], hinted ? hint->args[i] : NO_TYPE);
     }

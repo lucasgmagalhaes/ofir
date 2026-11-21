@@ -5,3 +5,4 @@
 "nested {"inner {z}"}"
 "{a}{b}"
 b'a' b'\n' b'\xff' b'\''
+"utf-8 edges: ࠀ 𐀀 􀀀"

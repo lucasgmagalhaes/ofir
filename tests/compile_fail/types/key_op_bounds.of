@@ -1,0 +1,24 @@
+// requires: stage1
+// A key outside a bound that is a key operation (spec 16.2): E0332.
+
+struct P {
+    x: int
+    y: int
+}
+
+struct Q {
+    x: int
+}
+
+fn both<T, U, K: keyof T & keyof U>(_a: &T, _b: &U, _key: K) int {
+    return 1
+}
+
+fn notY<T, K: keyof T - .y>(_a: &T, _key: K) int {
+    return 2
+}
+
+fn main() {
+    println("{both(&P{x: 2, y: 1}, &Q{x: 1}, .y)}")   // error[E0332]: the key `.y` is not in the bound `.x` of `K`
+    println("{notY(&P{x: 1, y: 2}, .y)}")   // error[E0332]: the key `.y` is not in the bound `.x` of `K`
+}

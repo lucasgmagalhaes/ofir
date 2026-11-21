@@ -1,0 +1,52 @@
+// requires: stage1
+// Forms the AST printer writes rarely: a `Send` function type, interface
+// type parameters and embedding, interface assertions on a struct and an
+// enum, an `@` binding with `mut`, a unary attribute argument that is
+// not `-`, an interpolation with a format specifier, and a negative const
+// argument.
+
+interface Mapper<T> {
+    fn map(self, value: T) T
+}
+
+interface Both<T> {
+    Mapper<T>
+}
+
+struct Point: Eq {
+    x: int
+}
+
+enum Tone: Eq {
+    Low
+    High
+}
+
+@deprecated(!true)
+fn old() {
+}
+
+fn spawnWith(_f: fn() + Send) {
+}
+
+fn pick(n: int?) int {
+    return match n {
+        mut m @ Option.Some(_) => {
+            m = Option.None
+            0
+        }
+        _ => 1
+    }
+}
+
+fn padded(n: int) string {
+    return "{n:5}"
+}
+
+fn offset<const N: int>() int {
+    return N
+}
+
+fn back() int {
+    return offset<-1>()
+}

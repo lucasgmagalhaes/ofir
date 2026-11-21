@@ -1,0 +1,61 @@
+// requires: stage1
+// `infer` placeholders substituted when an instance decides a conditional
+// type (spec 16.5): in tuples, references, functions and arrays, in a
+// generic struct's fields, and with the instance's own type parameters.
+
+struct P {
+    x: int
+}
+
+type Parts<T> = if T is List<infer U> { (U, &U, List<U>) } else { int }
+type Ret<T> = if T is List<infer U> { fn(U) U } else { int }
+type Arr<T> = if T is List<infer U> { [U; 2] } else { int }
+type Deref<T> = if T is &List<infer U> { U } else { bool }
+type Wrap<T> = if Option<T> is Option<infer U> { (U, int) } else { bool }
+type Pair<T, V> = if T is List<infer U> { (U, V) } else { int }
+type SameKeys<T, V> = if keyof T is keyof V { int } else { bool }
+
+struct Box<T> {
+    v: Parts<T>
+    w: Wrap<T>
+}
+
+fn twice(x: int) int {
+    return x * 2
+}
+
+fn parts<T>(p: &Parts<List<T>>) int {
+    return 1
+}
+
+fn ret<T>(f: Ret<List<T>>, a: Arr<List<T>>, d: Deref<&T>) int {
+    return 2
+}
+
+fn boxed<U>(b: &Box<List<U>>) int {
+    const w = &b.w
+    const v = &b.v
+    return w.1 + v.2.len()
+}
+
+fn pair<T, V>(x: &Pair<List<T>, V>) int {
+    return 3
+}
+
+fn pairOuter<V>(x: &Pair<List<int>, V>) int {
+    return pair<int, V>(x)
+}
+
+fn same<T, V>(x: SameKeys<T, V>) int {
+    return 4
+}
+
+fn main() {
+    const n = 3
+    const p: Parts<List<int>> = (1, &n, [2])
+    const e: Deref<&List<str>> = "s"
+    println("{parts<int>(&p)} {ret<int>(twice, [1, 5], true)} {e}")
+    const b = Box<List<int>>{v: (1, &n, [2, 3]), w: ([3], 4)}
+    const r: Pair<List<int>, str> = (1, "a")
+    println("{boxed<int>(&b)} {pairOuter<str>(&r)} {same<P, P>(2)}")
+}
