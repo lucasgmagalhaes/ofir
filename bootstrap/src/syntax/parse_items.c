@@ -223,6 +223,7 @@ static void free_tokens(TokenStream *ts) {
     }
     VEC_FREE(ts->chunks);
     VEC_FREE(ts->staged);
+    VEC_FREE(ts->docs);   // left over when an encoding error stops the parse
     lexer_free(&ts->lexer);
 }
 
