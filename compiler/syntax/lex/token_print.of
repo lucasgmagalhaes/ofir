@@ -88,8 +88,8 @@ pub fn formatG(value: float) str {
     let sign = ""
     let text = shortest.sliceFrom(0)
     if text.startsWith("-") {
-        sign = "-"
-        text = text.sliceFrom(1)
+        sign = "-"   // GCOVR_EXCL_LINE: a float literal is never negative
+        text = text.sliceFrom(1)   // GCOVR_EXCL_LINE: a float literal is never negative
     }
     let exponent = 0
     let mantissa = text.sliceFrom(0)
