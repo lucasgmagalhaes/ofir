@@ -396,8 +396,8 @@ fn binary(it: mut Interp, c: mut Checker, frame: int, r: Rvalue) Value {
 // `x / y` or `x % y`.
 fn divide(it: mut Interp, x: u64, y: u64, signed: bool, quotient: bool) u64 {
     if y == 0 {
-        evalFailed(it, "division by zero")
-        return 0
+        evalFailed(it, "division by zero")   // GCOVR_EXCL_LINE: lowering asserts y != 0
+        return 0   // GCOVR_EXCL_LINE: lowering asserts y != 0
     }
     if !signed {
         return if quotient { x / y } else { x % y }
@@ -532,8 +532,8 @@ fn cast(it: mut Interp, c: mut Checker, v: Value, from: int, to: int) Value {
     if target == TyKind.Int {
         if source == TyKind.Float {
             if floatCastFails(c, v.float, to) {
-                evalFailed(it, "a cast out of range")
-                return blank(ValueKind.Uninit)
+                evalFailed(it, "a cast out of range")   // GCOVR_EXCL_LINE: a CastFails check runs first
+                return blank(ValueKind.Uninit)   // GCOVR_EXCL_LINE: a CastFails check runs first
             }
             return intValue(floatToInt(c, v.float, to))
         }
