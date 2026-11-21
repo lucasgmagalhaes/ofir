@@ -1,0 +1,7 @@
+// requires: stage1
+// A function pointer type has the ABI `"C"` only (spec 11.3).
+fn g(_p: extern "Rust" fn(int) int) {   // error[E0100]: expected `"C"`, the only ABI of a function pointer type, found a string
+}
+
+fn main() {
+}
