@@ -1,0 +1,30 @@
+// requires: stage1
+// A value widened to a union with interior mutability, passed by address
+// (spec 5.8, 17.3): the argument is a temporary of the union type.
+
+import std.mem.cell.Cell
+
+struct Counter {
+    hits: Cell<int>
+}
+
+struct Fixed {
+    n: int
+}
+
+type Source = Counter | Fixed
+
+fn read(s: Source) int {
+    return match s {
+        c: Counter => c.hits.get()
+        f: Fixed => f.n
+    }
+}
+
+fn main() {
+    println("{read(Counter{hits: Cell.new(3)})}")
+    println("{read(Fixed{n: 4})}")
+    const c = Counter{hits: Cell.new(5)}
+    c.hits.set(6)
+    println("{read(c)}")
+}
