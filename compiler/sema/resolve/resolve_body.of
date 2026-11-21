@@ -36,7 +36,7 @@ import syntax.ast.Stmt
 import syntax.ast.StmtKind
 
 fn declareLocal(r: mut Resolver, name: Symbol, span: Span, mutable: bool) int {
-    if r.scope.inCurrentBlock(name) {
+    if r.text(name) != "_" && r.scope.inCurrentBlock(name) {   // `_` repeats
         r.error("E0201", span, "`{r.text(name)}` is defined more than once in this scope")
     }
     const id = r.locals.len()
