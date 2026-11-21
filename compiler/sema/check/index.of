@@ -133,6 +133,18 @@ pub struct Generics {
  *
  * @returns the empty generics
  */
+/**
+ * A bound check on the type arguments `args` of the struct or enum `def`,
+ * named in a field of `owner` while a type they name had its fields being
+ * resolved: the check waits for those fields.
+ */
+pub struct DeferredBound {
+    pub owner: int
+    pub def: int
+    pub args: List<int>
+    pub span: Span
+}
+
 pub fn noGenerics() Generics {
     return Generics{owner: [], fnParams: [], bounds: [], ifaces: [], ifaceArgs: [],
                     aliasArgs: [], keys: []}
@@ -592,6 +604,10 @@ pub struct Checker {
      * deferred on a type parameter (spec 16.5). */
     pub condDepth: int
     pub deferDepth: int
+    /** The structs and enums whose fields are being resolved, outermost first. */
+    pub resolving: List<int>
+    /** The bound checks waiting for the fields of a type in `resolving`. */
+    pub deferredBounds: List<DeferredBound>
     /** The generic enum of the union types of each number of members (spec 17.6). */
     pub unions: Map<int, int>
     /** The number of members of each union's enum, by its `DefId`. */
@@ -1133,7 +1149,7 @@ pub fn newChecker(p: Program, r: move Resolver) Checker {
                    mapped: Map.new(), mappedTpls: Map.new(),
                    mappedArgs: Map.new(), inferNames: [], inferring: false, aliasStack: [],
                    aliasSpans: [], aliasConds: [], aliasDefers: [], condDepth: 0, deferDepth: 0,
-                   unions: Map.new(),
+                   resolving: [], deferredBounds: [], unions: Map.new(),
                    unionDefs: Map.new(), comptimeInfo: Map.new(), comptimeLoops: []}
 }
 
