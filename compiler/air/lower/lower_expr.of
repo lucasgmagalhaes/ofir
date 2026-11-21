@@ -2706,6 +2706,12 @@ pub fn lowerCast(l: mut Lowerer, c: Checker, value: move Operand, to: int, span:
 // The runtime function for one part, with the part widened to its argument
 // type (int64_t, uint64_t, double, float, bool or a str pointer).
 fn partFn(l: mut Lowerer, c: Checker, part: mut Operand, print: bool) RuntimeFn {
+    if c.types.kind(part.ty) == TyKind.Ref {   // a type parameter bound to a reference
+        const inner = c.types.get(part.ty).inner
+        const place = Place{local: toLocal(l, part.clone()), fields: [], deref: true}
+        part = placeOperand(&place, OperandKind.Copy, inner)
+        return partFn(l, c, part, print)
+    }
     const t = c.types.get(part.ty)
     if t.kind == TyKind.Int {
         const signed = t.data <= 3
@@ -2983,6 +2989,7 @@ fn lowerPrint(l: mut Lowerer, c: mut Checker, p: Program, arg: &Expr, newline: b
             }
             for i in 0..parts.len() {
                 let part = lowerExpr(l, c, p, &parts[i])
+                part.ty = narrowedType(l, c, part.ty)
                 if unionMembers(c, part.ty).len() > 0 {
                     pushUnion(l, c, p, -1, part, true)
                     continue
@@ -2993,6 +3000,7 @@ fn lowerPrint(l: mut Lowerer, c: mut Checker, p: Program, arg: &Expr, newline: b
         }
         _ => {
             let part = lowerExpr(l, c, p, arg)
+            part.ty = narrowedType(l, c, part.ty)
             const f = partFn(l, c, part, true)
             emitRuntime(l, f, [part], -1)
         }
