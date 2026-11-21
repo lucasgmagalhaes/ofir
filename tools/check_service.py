@@ -168,6 +168,57 @@ def interrupted_builds(c: Checker) -> None:
              "every cached object is a whole object file")
 
 
+LIB = "pub fn add(a: int, b: int) int {\n    return a + b\n}\n"
+
+
+def records(c: Checker) -> None:
+    good, lib = c.write("recorded.of", GOOD), c.write("recorded_lib.of", LIB)
+    c.status(0, "a record of LLVM IR", "build", good, "--emit=llvm", "--release",
+             "-o", str(c.tmp / "recorded"), "--record=llvm.json")
+    record = json.loads((c.tmp / "llvm.json").read_text())
+    c.expect(record["artifacts"][0]["path"] == "recorded.ll"
+             and record["flags"] == ["--release", "-O2", "--emit=llvm"],
+             "a record of LLVM IR: the .ll and the flags", json.dumps(record)[:2000])
+    c.status(0, "a record of a library", "build", lib, "--lib=shared", "--coverage",
+             "-o", str(c.tmp / "librecorded"), "--record=lib.json")
+    record = json.loads((c.tmp / "lib.json").read_text())
+    c.expect([a["path"] for a in record["artifacts"]] == ["librecorded", "recorded_lib.h"]
+             and "--lib=shared" in record["flags"] and "--coverage" in record["flags"],
+             "a record of a library: the library, its header and the flags",
+             json.dumps(record)[:2000])
+    c.status(1, "a record that cannot be written", "build", good, "-o",
+             str(c.tmp / "recorded"), f"--record={c.tmp / 'missing' / 'record.json'}")
+
+
+def native_failures(c: Checker) -> None:
+    lib, good = c.write("native_lib.of", LIB), c.write("native_good.of", GOOD)
+    c.status(0, "a static library named after its input", "build", lib, "--lib=static")
+    c.expect((c.tmp / "libnative_lib.a").exists(), "a static library: libnative_lib.a")
+    c.status(0, "a shared library named after its input", "build", lib, "--lib=shared")
+    c.expect((c.tmp / "libnative_lib.so").exists(), "a shared library: libnative_lib.so")
+
+    def failing(what: str, message: str, env: dict[str, str], *args: str) -> None:
+        result = subprocess.run([c.compiler, *args], capture_output=True, text=True, env=env,
+                                cwd=c.tmp, timeout=300)
+        c.expect(result.returncode == 1 and message in result.stderr, what,
+                 f"{result.returncode}\n{result.stderr[-2000:]}")
+
+    out = str(c.tmp / "native_out")
+    failing("an archiver that fails", "cannot archive the objects",
+            dict(c.env, OFIR_AR="false"), "build", lib, "--lib=static", "-o", out + ".a")
+    failing("a clang that fails", "clang failed to compile",
+            dict(c.env, OFIR_CLANG="false"), "build", good, "-o", out)
+    failing("a clang that cannot run", "cannot run",
+            dict(c.env, OFIR_CLANG=str(c.tmp / "no-clang")), "build", good, "-o", out)
+    failing("a target without its runtime", "make runtime TARGET=",
+            c.env, "build", good, "--target=aarch64-apple-darwin", "-o", out)
+    beside = Path(c.compiler).parent.parent
+    if not any((beside / p / "libofir_rt.a").exists() for p in (".", "lib/ofir")):
+        failing("no runtime library", "cannot find the runtime library",
+                {k: v for k, v in c.env.items() if k != "OFIR_RUNTIME"},
+                "build", good, "-o", out)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compiler", required=True)
@@ -182,6 +233,8 @@ def main() -> int:
         check_builds_nothing(c)
         metadata(c)
         interrupted_builds(c)
+        records(c)
+        native_failures(c)
         return 0 if c.ok else 1
 
 
