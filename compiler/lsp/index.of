@@ -481,7 +481,7 @@ fn docComment(file: &SourceFile, line: int) str {
         return ""
     }
     let top = first
-    for top > 1 && !file.lineText(top).trim().startsWith("/**") {
+    for top > 1 && !file.lineText(top).trim().startsWith("/*") {
         top -= 1
     }
     if !file.lineText(top).trim().startsWith("/**") {
