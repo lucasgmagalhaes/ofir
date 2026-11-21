@@ -1,0 +1,5 @@
+@lang("result")   // error[E0806]: `@lang("result")` must declare `Ok(T)` then `Err(E)`
+pub enum Result<T, E> {
+    Err(E)
+    Ok(T)
+}
