@@ -1,0 +1,12 @@
+// panic: stop
+// An argument after one that never returns is not read: the list stays
+// unmoved.
+
+fn sum(_a: int, s: [int]) int {
+    return s.len()
+}
+
+fn main() {
+    const list = [1, 2]
+    const _n = sum(panic("stop"), list)
+}
