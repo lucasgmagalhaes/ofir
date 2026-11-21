@@ -2,3 +2,7 @@
 pub fn name() str {
     return "b"
 }
+
+pub fn size() int {
+    return 2
+}
