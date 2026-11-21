@@ -433,6 +433,7 @@ fn arrayHint(c: mut Checker, inf: &Infer, param: int, arg: &Expr) int {
 pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
                         params: List<int>, ret: int, inf: mut Infer, expected: int,
                         callee: int) int {
+    const _stale = c.types.takeBadKeyofs()   // met outside a call, as in a `comptime for`
     const slots = genericSlots(c, p, callId, span, args, params.len(), callee)
     inferFrom(c, inf, ret, expected)
     for i in 0..args.len() {
@@ -505,7 +506,8 @@ pub fn reportUndecided(c: mut Checker, span: Span) {
 
 /**
  * E0340 for the instances of mapped types an instantiation left with keys
- * that are not a key type, as `Keys<int>` over `keyof T`.
+ * that are not a key type, as `Keys<int>` over `keyof T`, and for the
+ * `keyof` it made of a type that is not a struct or tuple, as `keyof Color`.
  *
  * @param c the checker
  * @param span the use
@@ -514,6 +516,11 @@ fn reportBadKeys(c: mut Checker, span: Span) {
     const found = c.types.takeBadKeys()
     for i in 0..found.len() {
         c.error("E0340", span, "the keys of `{c.typeName(found[i])}` are not a key type")
+    }
+    const bases = c.types.takeBadKeyofs()
+    for i in 0..bases.len() {
+        c.error("E0340", span, "`keyof` needs a struct or tuple type, found "
+                + "`{c.typeName(bases[i])}`")
     }
 }
 
