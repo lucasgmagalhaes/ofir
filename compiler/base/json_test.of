@@ -85,3 +85,31 @@ fn jsonStringEscapes() {
     assert(jsonString("\x01\x1f") == "\"\\u0001\\u001f\"")
     assert(jsonString("") == "\"\"")
 }
+
+// The text of a JSON string, or "?" if it does not parse.
+fn decoded(text: str) str {
+    const Option.Some(doc) = parseJson(text) else {
+        return "?".toOwned()
+    }
+    return doc.text(0)
+}
+
+@test
+fn decodesEveryEscape() {
+    assert(decoded("\"\\t\\r\\b\\f\\/\"") == "\t\r\x08\x0c/")
+    assert(decoded("\"\\u00E9\"") == "é")
+    assert(decoded("\"\\ud83d\\u0041\"") == "\u{FFFD}")   // a high surrogate, then no low one
+    assert(decoded("\"\\ude00\"") == "\u{FFFD}")   // an unpaired low surrogate
+    assert(decoded("\"ab\\") == "?")
+    assert(decoded("\"\\x\"") == "?")
+    assert(decoded("\"\\u12") == "?")
+    assert(decoded("\"\\u12G4\"") == "?")
+}
+
+@test
+fn rejectsMisplacedSeparators() {
+    assert(parseJson("[,1]").isNone())
+    assert(parseJson("\{\"a\" 1\}").isNone())
+    assert(parseJson("\{\"a\": , \"b\": 1\}").isNone())
+    assert(failsAt("[1 /x]") >= 0)
+}
