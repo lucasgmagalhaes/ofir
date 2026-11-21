@@ -69,7 +69,7 @@ pub fn variantDeclAt(p: Program, at: Loc, i: int) &Variant {
     return match itemOf(p, at).kind {
         ItemKind.Enum(_, _, variants, _) => &variants[i]
         _ => {
-            panic("variantDeclAt: not an enum")
+            panic("variantDeclAt: not an enum")   // GCOVR_EXCL_LINE: its callers pass an enum
         }
     }
 }
@@ -168,7 +168,7 @@ pub fn variantsOf(c: Checker, id: int) &EnumInfo {
     return match c.info[id].variants {
         Option.Some(info) => &*info
         Option.None => {
-            panic("variantsOf: not computed")
+            panic("variantsOf: not computed")   // GCOVR_EXCL_LINE: callers run enumVariants first
         }
     }
 }
