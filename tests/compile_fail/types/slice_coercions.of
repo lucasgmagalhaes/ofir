@@ -1,0 +1,17 @@
+// requires: stage1
+// A list or array coerces to a slice of the same element type only (spec 2.12).
+
+fn f(xs: &[float]) {}
+
+fn g(xs: &mut [float]) {}
+
+fn main() {
+    const a: List<int> = [1, 2]
+    f(&a)   // error[E0300]: mismatched types: expected Slice<float>, found &List<int>
+    let b: [int; 2] = [1, 2]
+    g(&mut b)   // error[E0300]: mismatched types: expected SliceMut<float>, found &mut [int; 2]
+    let n = 5
+    g(&mut n)   // error[E0300]: mismatched types: expected SliceMut<float>, found &mut int
+    let l: List<int> = [1]
+    g(&mut l)   // error[E0300]: mismatched types: expected SliceMut<float>, found &mut List<int>
+}
