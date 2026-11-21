@@ -61,6 +61,11 @@ enum Tree<K: Ord, V> {
 }
 ```
 
+A field may name its own type as a bounded type argument
+(`struct Node { kids: Wrap<Node> }` with `struct Wrap<T: Send>`): the bound
+is checked once the fields of `Node` are known, so `Node` is `Send` when
+every one of them is.
+
 ## 8.3 Methods on generic types
 
 The type parameters of a generic type are in scope in all of its methods:
