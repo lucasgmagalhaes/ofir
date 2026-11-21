@@ -13,4 +13,6 @@ fn main() {
     *b = Point{x: 3}             // error[E0315]: this value cannot be modified: declare it with `let`
     const n: int = *Box.new("s")   // error[E0300]: mismatched types: expected int, found str
     const q = b.ptr                // error[E0316]: no field `ptr` on type `Point`
+    const nested = Box.new(Box.new(Point{x: 1}))
+    nested.x = 4                   // error[E0315]: this value cannot be modified: declare it with `let`
 }
