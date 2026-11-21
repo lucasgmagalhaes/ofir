@@ -46,3 +46,11 @@ fn main() {
     const s: &dyn Shape = &p      // error[E0300]: mismatched types: expected &dyn Shape, found &Point: missing method `area`
     const q: &dyn Shape = &Square{side: 2}
 }
+
+fn takePointer(s: *dyn Shape) {
+}
+
+fn notAPointer() {
+    const b: Box<dyn Shape> = 5   // error[E0300]: mismatched types: expected Box<dyn Shape>, found int
+    takePointer(Square{side: 3})  // error[E0300]: mismatched types: expected *dyn Shape, found Square
+}
