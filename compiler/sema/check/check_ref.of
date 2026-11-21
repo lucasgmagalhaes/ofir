@@ -246,10 +246,44 @@ pub fn checkBorrowSource(c: mut Checker, p: Program, id: int, sig: int, selfType
                              !holdsRef(c, p, params[source])
 }
 
+// Whether `e` names a place: a binding, `self`, a dereference, or a field
+// or an element of one.
+fn isPlaceForm(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Ident(_) | ExprKind.SelfValue | ExprKind.Field(_, _, _) => true
+        ExprKind.TupleField(_, _) => true
+        ExprKind.Index(_, index) => !isRange(&*index)
+        ExprKind.Unary(op, _) => op == Op.Deref
+        _ => false
+    }
+}
+
+fn isRange(e: &Expr) bool {
+    return match e.kind {
+        ExprKind.Range(_, _, _) => true
+        _ => false
+    }
+}
+
+// Whether `e` is `base[i]` on a str, which copies the byte out.
+fn indexesStr(c: Checker, e: &Expr) bool {
+    if const ExprKind.Index(base, _) = e.kind {
+        let ty = c.typeOf(base.id.0)
+        for c.types.kind(ty) == TyKind.Ref {
+            ty = c.types.get(ty).inner
+        }
+        return ty == STR
+    }
+    return false
+}
+
 // Whether `&e` borrows a temporary, which ends with the statement: the
 // place reaches no binding, dereference or view (a reference, a pointer or
 // a `ref struct`) that outlives it.
 fn borrowsTemporary(c: Checker, p: Program, e: &Expr) bool {
+    if !isPlaceForm(e) || indexesStr(c, e) {
+        return true   // a new value, also a view or a byte of a str
+    }
     let at = e
     for {
         const ty = c.typeOf(at.id.0)
