@@ -119,7 +119,7 @@ pub fn methodAt(p: Program, owner: Loc, i: int) &FnDecl {
         ItemKind.Enum(_, _, _, methods) => &methods[i]
         ItemKind.Interface(_, _, methods) => &methods[i]
         _ => {
-            panic("methodAt: not a type")
+            panic("methodAt: not a type")   // GCOVR_EXCL_LINE: its owner is a type
         }
     }
 }
@@ -599,7 +599,7 @@ pub fn checkMethodCall(c: mut Checker, p: Program, call: &Expr, field: &Expr, ar
             return noMethod(c, p, field, name, args, selfType)
         }
         _ => {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: `call` passes a field
         }
     }
 }
