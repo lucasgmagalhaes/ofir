@@ -141,7 +141,7 @@ def test_env(cfg: Config, path: Path) -> dict[str, str]:
     rel = path.relative_to(cfg.tests_dir).as_posix().replace("/", "_")
     index = Path(__file__).resolve().parents[2] / "build" / "registry-fixtures" / "index"
     env = {**os.environ, "OFIR_HOME": str(cfg.tmp / "home" / rel), "OFIR_REGISTRY": str(index)}
-    if path.suffix == ".of" and NO_STD_RE.search(path.read_text()):
+    if path.suffix == ".of" and NO_STD_RE.search(path.read_text(errors="replace")):
         empty = cfg.tmp / "no-std"   # `// std: none`: a standard library with no modules
         empty.mkdir(parents=True, exist_ok=True)
         env["OFIR_STD"] = str(empty)
