@@ -1,0 +1,38 @@
+// requires: stage1
+// Explicit key arguments, key literals of a key type, and key parameters
+// passed on to another key bound (spec 16.1-16.3).
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn get<T, K: keyof T>(a: &T, k: K) int {
+    return 1
+}
+
+fn inner<K: keyof Point>(p: &Point, k: K) int {
+    return 1
+}
+
+fn known<K: keyof Point>(p: &Point, k: K) int {
+    return inner<K>(p, k)
+}
+
+fn unknown<T, K: keyof T>(p: &Point, k: K) int {
+    return inner<K>(p, k)   // error[E0332]: the key `K` is not in the bound `.x | .y` of `K`
+}
+
+fn both<T, K: .x & keyof T>(a: &T, k: K) {
+    const _v = &a[k]
+}
+
+fn main() {
+    const p = Point{x: 1, y: 2}
+    const _k: keyof Point = .z   // error[E0341]: the key type `.x | .y` has no key `.z`
+    const _a = get<Point, Nope>(&p, .x)   // error[E0200]: cannot find type `Nope` in this scope
+    const _b = get<Point, .x | .y>(&p, .x)   // error[E0343]: a key parameter takes a single key, not `.x | .y`
+    const _c = get<int, .x>(&1, .x)   // error[E0340]: `keyof` needs a struct or tuple type, found `int`
+    const _d = known(&p, .x)
+    const _e = unknown<Point, .x>(&p, .x)
+}
