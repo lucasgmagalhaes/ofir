@@ -1,0 +1,11 @@
+
+// requires: stage1
+// A loan of a nested tuple field conflicts with a use of that field, and
+// the message names the place by its field indices (spec 5.4).
+
+fn main() {
+    let t = ((1, 2), 3)
+    const r = &mut t.0.1
+    print("{t.0.1}")   // error[E0703]: cannot use `t.0.1` while it is borrowed as mutable by `r`
+    *r = 1
+}
