@@ -343,7 +343,7 @@ pub fn boundArgs(c: mut Checker, p: Program, t: &TypeExpr, g: &Generics) int {
     const list = match t.kind {
         TypeKind.Path(_, args) => args.clone()
         _ => {
-            return UNIT
+            return UNIT   // GCOVR_EXCL_LINE: the callers pass a bound that names an interface
         }
     }
     if list.len() == 0 {
@@ -382,7 +382,7 @@ pub fn interfaceDef(c: Checker, item: &Item) int {
             return id
         }
     }
-    return 0
+    return 0   // GCOVR_EXCL_LINE: every interface item has a definition
 }
 
 /**
@@ -1054,7 +1054,7 @@ pub fn fnOf(p: Program, def: Loc) &FnDecl {
         ItemKind.Extern(_, fns) => &fns[def.member]
         ItemKind.Interface(_, _, methods) => &methods[def.member]
         _ => {
-            panic("fnOf: not a function")
+            panic("fnOf: not a function")   // GCOVR_EXCL_LINE: a function's Loc is a function's
         }
     }
 }
