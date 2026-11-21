@@ -10,6 +10,7 @@
   `test` and `bench`;
 - a record of a build whose clang does not run and whose runtime is
   missing;
+- a run with no `TMPDIR` nor `TEMP`;
 - a benchmark that fails;
 - `explain` with no code, a malformed code and with no explanation;
   `help`.
@@ -117,6 +118,12 @@ def records(compiler: str, work: Path) -> None:
         fail("a runtime that is not found is recorded")
 
 
+def temps(compiler: str, work: Path) -> None:
+    (work / "main.of").write_text(MAIN)
+    env = {k: v for k, v in os.environ.items() if k not in ("TMPDIR", "TEMP")}
+    expect(ofir(compiler, work, "run", "main.of", status=0, env=env), "hi", "a run in /tmp")
+
+
 def benches(compiler: str, work: Path) -> None:
     (work / "bench.of").write_text(FAILING_BENCH)
     expect(ofir(compiler, work, "bench", "bench.of", status=1), "FAILED (exit status",
@@ -138,7 +145,8 @@ def main() -> None:
     parser.add_argument("--compiler", default="build/stage1/ofir")
     args = parser.parse_args()
     compiler = str(Path(args.compiler).resolve())
-    for check in (writes, records, benches, explains) + ((runners,) if os.name != "nt" else ()):
+    checks = (writes, records, temps, benches, explains)
+    for check in checks + ((runners,) if os.name != "nt" else ()):
         with tempfile.TemporaryDirectory() as tmp:
             check(compiler, Path(tmp))
     print("build-cli: ok")
