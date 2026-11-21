@@ -4,6 +4,11 @@ errors (ADR 0103, roadmap 6.33d).
 
 - the commands `version` and `help`, no command and an unknown one;
 - an unknown option, a missing input and a second input;
+- an input that does not exist or is a directory, a module path that is a
+  directory, an import path too long for a module, an empty `_test.of`
+  and a project file named `.of`;
+- an `OFIR_STD` that does not exist, for a program that imports nothing,
+  and the slice and optional types it then rejects;
 - the options `--stop-after=lex|parse|check`, `--message-format=human` and
   `--time-passes`;
 - a build without `-o`, named after the input in the current directory;
@@ -25,6 +30,17 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+NO_STD = """type Count = int
+
+fn f(_a: &[int], _b: int?, _c: Count, _d: Count) {
+}
+
+fn main() {
+    const _l = [1, 2]
+    const _r = [0; 3]
+}
+"""
 
 PROGRAM = """fn main() {
     const small = 1.0e-5
@@ -74,6 +90,33 @@ def main():
         c.expect("unknown option", ["build", "--frob", src], 2, "unknown option `--frob`")
         c.expect("no input", ["build"], 2, "`build` needs an input file")
         c.expect("two inputs", ["build", src, src], 2, "unexpected argument")
+        c.expect("input not found", ["build", str(tmp / "nope.of")], 1, "cannot read")
+        c.expect("input is a directory", ["build", str(tmp)], 1, "cannot read")
+        project = tmp / "proj"
+        (project / "lib.of").mkdir(parents=True)
+        (project / "ofir.json").write_text("{}\n")
+        (project / "main.of").write_text("import lib\n\nfn main() {\n}\n")
+        c.expect("module is a directory", ["build", str(project / "main.of")], 1,
+                 "cannot find module `lib`")
+        long_path = ".".join(["segment"] * 80)   # longer than any module path stage 0 builds
+        (project / "long.of").write_text(f"import {long_path}\n\nfn main() {{\n}}\n")
+        c.expect("import path too long", ["build", str(project / "long.of")], 1,
+                 "cannot find module `segment.segment")
+        (project / ".of").write_text("fn main() {\n}\n")
+        c.expect("project file named .of", ["build", ".of", "-o", "dot"], 0, cwd=project)
+        (tmp / "unit.of").write_text("fn main() {\n}\n")
+        (tmp / "unit_test.of").write_text("")
+        c.expect("empty test file", ["test", str(tmp / "unit.of")], 0, "0 tests",
+                 stream="stdout")
+        c.expect("no std directory", ["build", src, "--stop-after=check"], 0,
+                 env=dict(env, OFIR_STD=str(tmp / "no-std")))
+        no_std = tmp / "no_std.of"
+        no_std.write_text(NO_STD)
+        for name, text in (("slice", "slices without the standard library"),
+                           ("option", "optional types (`T?`) without std"),
+                           ("list", "list literals without the standard library")):
+            c.expect(f"no std, {name}", ["build", str(no_std), "--stop-after=check"], 1, text,
+                     env=dict(env, OFIR_STD=str(tmp / "no-std")))
         for stage in ("lex", "parse", "check"):
             c.expect(f"--stop-after={stage}", ["build", src, f"--stop-after={stage}",
                                               "--message-format=human"], 0)
@@ -82,7 +125,7 @@ def main():
         c.expect("float literal in the AST", ["build", src, "--emit=ast"], 0, "1e-05",
                  stream="stdout")
         c.expect("output named after the input", ["build", src], 0, cwd=tmp)
-        if not (tmp / "hello").exists():
+        if not (tmp / "hello").exists() and not (tmp / "hello.exe").exists():
             c.failures += 1
             print("FAIL output named after the input: no `hello` in the current directory")
 
@@ -108,7 +151,8 @@ def main():
         c.expect("unwritable output", ["build", src, "-o", str(tmp / "none" / "x")], 1,
                  "cannot write")
         c.expect("no temporary directory", ["run", src], 1, "cannot create the output path",
-                 env=dict(env, TMPDIR=str(tmp / "none")))
+                 env=dict(env, TMPDIR=str(tmp / "none"), TMP=str(tmp / "none"),
+                          TEMP=str(tmp / "none")))   # Windows reads TMP and TEMP
     print(f"stage 0 cli: {c.count} checks, {c.failures} failed")
     return 1 if c.failures else 0
 

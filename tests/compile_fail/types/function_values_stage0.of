@@ -1,0 +1,23 @@
+// requires: stage0
+// Stage 0 checks a call through a parameter of function type, but a
+// function cannot be passed as a value (stage 1 supports it, spec 10.3).
+
+fn apply(f: fn(int) int, x: int) int {
+    return f(x)
+}
+
+fn viaParam(f: fn() str) str {
+    return f()
+}
+
+fn viaField(fs: (fn() str, int)) str {
+    return fs.0()
+}
+
+fn twice(x: int) int {
+    return x * 2
+}
+
+fn main() {
+    println("{apply(twice, 2)}")   // error[E0901]: function values are not supported by stage 0
+}

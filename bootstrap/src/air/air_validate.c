@@ -76,7 +76,7 @@ static bool block_ok(Validator *v, size_t index) {
     case TERM_RETURN: case TERM_UNREACHABLE:
         return true;
     }
-    return true;
+    return true;   // GCOVR_EXCL_LINE: every terminator kind returns from its case
 }
 
 bool air_validate_body(const AirBody *body, char *error, size_t size) {

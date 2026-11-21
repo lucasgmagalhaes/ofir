@@ -1,0 +1,7 @@
+// `.clone()` on a tuple clones each element (spec 5.1): the list is copied,
+// not shared.
+fn main() {
+    const t = ([1], "a")
+    const u = t.clone()
+    println("{u.0[0]} {u.1} {t.0.len()}")
+}

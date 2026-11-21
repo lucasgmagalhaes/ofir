@@ -1,0 +1,7 @@
+// A `List<T>` given where a `&[T]` is declared is borrowed as a slice
+// (spec 2.12).
+fn main() {
+    const xs = [1, 2, 3]
+    const s: &[int] = xs
+    println("{s.len()} {s[2]} {xs.len()}")
+}

@@ -456,14 +456,14 @@ explicitly rather than treating this inventory as a new 1.0 commitment.
 | 6.33a | Coverage measurement: `tools/coverage.py` (`make coverage`) builds stage 0 with gcc `--coverage` and stage 1 with `--release --coverage`, runs the suites of `make test` with each and writes Cobertura per stage; a CI job uploads them to Codecov with the flags `stage0` and `stage1`; patch target 100% (`codecov.yml`) | ADR 0103 | **done**: stage 0 96.3% lines, stage 1 86.8% |
 | 6.33b | The runtime and `std` measured: `runtime/src` built with clang `--coverage` for the test programs, and the `std` lines those programs run, as the flags `runtime` and `std` | ADR 0103 | **done**: runtime 84.8% lines, `std` 86.7% |
 | 6.33c | Exclusions and the ratchet: `GCOVR_EXCL_*` markers with a reason on lines no input reaches; floors per directory in `tools/coverage_floors.json`, checked by `tools/coverage.py --check` in the CI job | ADR 0103 | **done** |
-| 6.33d | Stage 0 at 100% of reachable lines: the driver paths and `main.c` options, patterns (`check_pattern.c`) and constant evaluation (`const_eval.c`); each uncovered line a test, dead code removed or a bug fixed | ADR 0103 | |
+| 6.33d | Stage 0 at 100% of reachable lines: the driver paths and `main.c` options, patterns (`check_pattern.c`) and constant evaluation (`const_eval.c`); each uncovered line a test, dead code removed or a bug fixed | ADR 0103 | **done**: 100% of 11846 lines |
 | 6.33e | Stage 1 front end at 100%: `syntax`, `sema` (`const_eval.of`, `check_comptime_for.of`, `core/types.of`) and `diag`, with compile-fail cases for each uncovered diagnostic path | ADR 0103 | |
 | 6.33f | Stage 1 middle and back end at 100%: `air` (the interpreter first, 68.9%) and `codegen` | ADR 0103 | |
 | 6.33g | Stage 1 tooling at 100%: `driver` (`pkg/packages.of`, `pkg/publish.of`, `pkg/resolve.of`), `cli`, `lsp`, `fmt`, `doc` and `base/json.of` | ADR 0103 | |
-| 6.33h | Branch floors: the branch coverage of each directory gets a floor once its lines are at 100%, and climbs the same way | ADR 0103 | |
-| 6.33i | libFuzzer on stage 0: the lexer, the parser and the checker built with `-fsanitize=fuzzer,address,undefined`, a corpus from `tests/`, a scheduled CI job; each crash becomes a regression seed of `tools/fuzz_frontend.py` | ADR 0103 | |
-| 6.33j | Differential generated programs: a generator of well-typed programs over the whole language, whose output must agree between stage 0, stage 1, the AIR interpreter and the release build; minimized failures become run tests | ADR 0103 | |
-| 6.33k | Mutation testing: operators, conditions and constants of `compiler/` and `bootstrap/src` mutated one at a time, the tests run on each; a surviving mutant is a missing test, a report per directory | ADR 0103 | |
+| 6.33h | Branch floors: the branch coverage of each directory gets a floor once its lines are at 100%, and climbs the same way | ADR 0103 | **done**: stage 0 and `std/meta` have them; each stage 1 directory gets one as 6.33e to 6.33g bring its lines to 100% |
+| 6.33i | libFuzzer on stage 0: the lexer, the parser and the checker built with `-fsanitize=fuzzer,address,undefined`, a corpus from `tests/`, a scheduled CI job; each crash becomes a regression seed of `tools/fuzz_frontend.py` | ADR 0103 | **done**: `make libfuzz`, nightly; a leak and an exhaustiveness crash found and fixed |
+| 6.33j | Differential generated programs: a generator of well-typed programs over the whole language, whose output must agree between stage 0, stage 1, the AIR interpreter and the release build; minimized failures become run tests | ADR 0103 | **done**: `tools/diff_programs.py`, ten programs in `make check-fuzz`; 300 programs agree in all five modes |
+| 6.33k | Mutation testing: operators, conditions and constants of `compiler/` and `bootstrap/src` mutated one at a time, the tests run on each; a surviving mutant is a missing test, a report per directory | ADR 0103 | **done**: `make mutate` (`tools/mutate.py`), a seeded sample per directory of `bootstrap/src` and `compiler/`; the first run (2 per directory, 27 directories) killed 32 of 54 mutants (59%, 32 of 51 outside the `_test.of` files, now left alone); the survivors are listed in the PR and feed 6.33e-g |
 
 ### Next language decisions (proposed)
 
@@ -581,7 +581,7 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 ## Next steps
 
 1. Follow the order of [scope and capacity](design/scope.md): 6.32b, then
-   6.32f and 6.33d; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
+   6.32f and 6.33e; the rest of 6.24a waits for a program (ADR 0042). Every OFIR record (OFIR-01 to OFIR-86) has a decision;
    6.31c holds the rest of OFIR-80.
 2. Advance general-purpose std, tooling, packages and installation alongside
    the API foundation contracts in 6.11 and the JSON codec in 6.13,
@@ -595,9 +595,9 @@ These do not block Phases 0–4 and will be settled with an ADR when needed:
 4. Code written by agents (6.32, ADR 0080): start with 6.32b (6.32a is done),
    then the query commands (6.32c, 6.32d) before edits, contracts and effects.
 5. Quality assurance (6.33, ADR 0103): raise each area to 100% of its
-   reachable lines, stage 0 first (6.33d), triaging what is uncovered as a test,
-   dead code or a bug; fuzzing, generated programs and mutation testing
-   hunt the bugs the tests miss.
+   reachable lines, stage 0 first (6.33d, done), then stage 1 (6.33e),
+   triaging what is uncovered as a test, dead code or a bug; fuzzing,
+   generated programs and mutation testing hunt the bugs the tests miss.
 6. Reconcile language states (LANG-01) and decide stability, editions, pointer
    provenance and atomic semantics (LANG-02–08) before implementing dependent
    features; use measured workloads for LANG-16, LANG-19 and LANG-20.

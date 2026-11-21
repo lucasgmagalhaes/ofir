@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 void source_map_init(SourceMap *map, Arena *arena) {
     map->arena = arena;
@@ -58,9 +59,14 @@ FileId source_map_add(SourceMap *map, StrView path, StrView text) {
     return add_owned(map, path, copy);
 }
 
+bool source_is_file(const char *path) {
+    struct stat st;
+    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
 // Reads the whole file into the arena with a single allocation.
 bool source_map_load(SourceMap *map, const char *path, FileId *out) {
-    FILE *f = fopen(path, "rb");
+    FILE *f = source_is_file(path) ? fopen(path, "rb") : NULL;   // a directory opens too
     if (!f) {
         return false;
     }

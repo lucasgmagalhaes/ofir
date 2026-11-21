@@ -11,4 +11,6 @@ fn types(
     j: Option<Map<str, int>>?,
     k: *u8,
     l: std.io.File,
+    m: List<move fn() int>,
+    n: (int),
 ) {}

@@ -13,6 +13,14 @@ struct NotIter {
     n: int
 }
 
+struct NoOption {
+    n: int
+
+    fn next(mut self) int {
+        return self.n
+    }
+}
+
 fn main() {
     const fixed = Numbers{n: 3}
     for x in fixed {             // error[E0315]: this value cannot be modified: declare it with `let`
@@ -25,5 +33,9 @@ fn main() {
     const other = NotIter{n: 1}
     for y in other {             // error[E0300]: mismatched types: `for` needs a range, a list, a slice, a map or an iterator, found NotIter
         println("{y}")
+    }
+    let plain = NoOption{n: 1}
+    for z in plain {             // error[E0300]: mismatched types: `for` needs a range, a list, a slice, a map or an iterator, found NoOption
+        println("{z}")
     }
 }

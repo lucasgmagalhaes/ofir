@@ -64,6 +64,16 @@ versions count a few lines differently. One that is more than 0.5
 points above it is listed, and `--update-floors` raises the floors to
 the measured values; it never lowers one.
 
+## Amendment: branch floors (6.33h)
+
+A directory whose line floor is 100% also gets a branch floor, under
+`"branches"` in `tools/coverage_floors.json`: the share of the branches
+gcov and llvm-cov count in its lines that both ways took. `--check` fails
+on such a directory without a branch floor, or below it by more than 0.5
+points, and `--update-floors` adds and raises the branch floors the same
+way as the line floors. The branch floors start where the measurement
+is, and climb as tests reach the other side of each condition.
+
 ## Decision
 
 1. **`tools/coverage.py` measures both compilers.** Stage 0 is built by

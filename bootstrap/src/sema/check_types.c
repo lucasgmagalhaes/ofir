@@ -259,7 +259,7 @@ TypeId resolve_type(Checker *c, const TypeExpr *type) {
                                           .arg_count = 1, .args = &target});
     }
     }
-    return type_id(TID_ERROR);
+    return type_id(TID_ERROR);   // GCOVR_EXCL_LINE: the switch covers every type kind
 }
 
 TypeId fn_signature(Checker *c, FnDecl *fn) {

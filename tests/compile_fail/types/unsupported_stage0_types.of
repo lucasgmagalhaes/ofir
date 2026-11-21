@@ -1,0 +1,36 @@
+// requires: stage0
+// Types and calls that stage 0 rejects before stage 1 would (docs/bootstrap.md).
+
+import std.os
+
+enum Color { Red, Green, Blue }
+
+fn f(_s: dyn Color) {   // error[E0901]: `dyn` types are not supported yet
+}
+
+fn g(_s: os.a.B) {   // error[E0901]: nested module paths in types are not supported yet
+}
+
+fn generic<T>(x: T) T {
+    return x   // error[E0602]: cannot move out of `x`, which is borrowed: declare the parameter `move`, or call `.clone()`
+}
+
+fn mutStr() {
+    let s = "a"
+    const _r = &mut s   // error[E0901]: `&mut str` is not supported yet
+}
+
+fn nested(c: Color) {
+    match c {
+        x.y.Red => {}  // error[E0901]: nested module paths in patterns are not supported yet
+        _ => {}
+    }
+}
+
+fn named() {
+    const _g = generic(x: 1)   // error[E0901]: named arguments are not supported yet
+}
+
+fn main() {
+    const _c: Color = .Nope   // error[E0320]: no variant `Nope` in `Color` // error[E0326]: a variant is named through its enum: write `Color.Nope`
+}

@@ -227,7 +227,7 @@ static void compound(Printer *p, const Expr *e) {
         with_children(p, label, e->as.tuple_field.base, NULL);
         break;
     case EXPR_TRY: with_children(p, "try", e->as.inner, NULL); break;
-    default: break;
+    default: break;   // GCOVR_EXCL_LINE: every expression kind has its case
     }
 }
 

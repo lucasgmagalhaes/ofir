@@ -1,0 +1,11 @@
+// Unit values compare equal (spec 2.2): `()` has a single value.
+
+fn unit() {
+}
+
+fn main() {
+    let u = unit()
+    println("{u == ()} {u != ()} {() == u}")
+    u = unit()
+    println("{u == ()}")
+}

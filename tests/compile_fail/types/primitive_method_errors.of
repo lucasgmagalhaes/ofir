@@ -1,0 +1,9 @@
+// Calls of methods a primitive type does not have, and a built-in method
+// whose type argument does not resolve (spec 11.2).
+
+fn main() {
+    const x = 5
+    const _a = x.nope(1)   // error[E0301]: no method `nope` on type `int`
+    const _b = int.nope()   // error[E0301]: no method `nope` on type `int`
+    const _c = x.checkedCast<Nope>()   // error[E0200]: cannot find type `Nope` in this scope
+}

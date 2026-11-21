@@ -50,10 +50,11 @@ static uint32_t ctor_count(Ctx *x, TypeId type) {
         return 0;
     }
     const Def *def = sema_def(x->c->sema, (DefId){ty->data});
-    if (def->kind == DEF_ENUM) {
-        return def->variants ? def->variants->count : 0;
+    if (def->kind == DEF_ENUM) {   // an enum no code has named yet is computed here
+        const EnumInfo *info = enum_variants(x->c, (DefId){ty->data});
+        return info ? info->count : 0;
     }
-    return def->fields ? 1 : 0;
+    return struct_fields(x->c, (DefId){ty->data}) ? 1 : 0;
 }
 
 static uint32_t arity(Ctx *x, TypeId type, uint32_t ctor) {
@@ -64,8 +65,10 @@ static uint32_t arity(Ctx *x, TypeId type, uint32_t ctor) {
     if (ty->kind != TY_ADT) {
         return 0;   // bool, ()
     }
-    const Def *def = sema_def(x->c->sema, (DefId){ty->data});
-    return def->kind == DEF_ENUM ? def->variants->variants[ctor].count : def->fields->count;
+    DefId id = {ty->data};
+    return sema_def(x->c->sema, id)->kind == DEF_ENUM
+               ? enum_variants(x->c, id)->variants[ctor].count
+               : struct_fields(x->c, id)->count;
 }
 
 static TypeId field_type(Ctx *x, TypeId type, uint32_t ctor, uint32_t i) {
@@ -119,7 +122,7 @@ static const Pattern *field(Ctx *x, const Pattern *p, uint32_t i) {
     case PAT_TUPLE_STRUCT:
         return i < p->as.tuple_struct.args.len ? p->as.tuple_struct.args.items[i] : NULL;
     case PAT_STRUCT: return struct_field(x, p, i);
-    default: return NULL;
+    default: return NULL;   // GCOVR_EXCL_LINE: only constructors with fields are asked for one
     }
 }
 

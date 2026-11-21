@@ -43,7 +43,7 @@ static const TypeId *field_types(Gen *g, TypeId adt, int64_t v, uint32_t count) 
 // `@repr(C)`, `@packed`, `@lang` or without a declaration.
 static bool fixed_order(Gen *g, const Def *def) {
     if (!def->item) {
-        return true;
+        return true;   // GCOVR_EXCL_LINE: every struct and enum is declared by an item
     }
     AttributeList attributes = def->item->attributes;
     return find_attribute(g->sema, attributes, "repr") ||
@@ -100,7 +100,9 @@ static Layout layout(Gen *g, TypeId type) {
     case TY_FLOAT: return (Layout){ty->data / 8, ty->data / 8};
     case TY_STR: return (Layout){24, 8};
     case TY_REF: case TY_PTR: return (Layout){8, 8};
+    // GCOVR_EXCL_START: function values are rejected (E0901): none is laid out
     case TY_FN: return (Layout){16, 8};
+    // GCOVR_EXCL_STOP
     case TY_TUPLE: return fields_layout(g, ty->args, ty->arg_count);
     case TY_ADT: {
         const Def *def = sema_def(g->sema, (DefId){ty->data});

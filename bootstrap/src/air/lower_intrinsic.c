@@ -32,7 +32,7 @@ static const Intrinsic *find(StrView name) {
             return &INTRINSICS[i];
         }
     }
-    return NULL;
+    return NULL;   // GCOVR_EXCL_LINE: only std declares intrinsics, and lowering knows each
 }
 
 // `sizeOf<T>()` and `alignOf<T>()`: the type argument is substituted with
@@ -70,14 +70,18 @@ static bool constant_order(Lowerer *l, const Expr *e, uint32_t *variant) {
         return true;
     }
     if (e->kind == EXPR_VARIANT) {   // `.SeqCst`
+        // GCOVR_EXCL_START: E0326: a variant is named through its enum
         *variant = e->as.variant.index;
         return true;
+        // GCOVR_EXCL_STOP
     }
     if (e->kind == EXPR_IDENT && e->as.ident.res.kind == RES_DEF) {
         const Def *def = sema_def(l->sema, (DefId){e->as.ident.res.index});
         if (def->kind == DEF_VARIANT) {
+            // GCOVR_EXCL_START: E0326: a bare variant name is rejected
             *variant = def->variant;
             return true;
+            // GCOVR_EXCL_STOP
         }
     }
     return false;
@@ -142,8 +146,10 @@ Operand lower_intrinsic(Lowerer *l, Expr *call, FnDecl *fn) {
     }
     const Intrinsic *op = find(name);
     if (!op) {
+        // GCOVR_EXCL_START: only std declares intrinsics, and lowering knows each
         diag_error(&l->sema->session->diags, "E0805", fn->span, "unknown intrinsic");
         return op_unit();
+        // GCOVR_EXCL_STOP
     }
     ArgList args = call->as.call.args;
     Operand a = lower_expr(l, args.items[0].value);

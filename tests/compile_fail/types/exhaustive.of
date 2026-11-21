@@ -67,5 +67,19 @@ fn afterWildcard(b: bool) int {
     }
 }
 
+fn repeatedAlternatives(b: bool) int {
+    return match b {
+        true => 1
+        true | true => 2         // warning[W0004]: unreachable `match` arm: the arms before it match every value
+        false => 0
+    }
+}
+
+fn unknownScrutinee(n: int) int {
+    return match n.missing {     // error[E0316]: no field `missing` on type `int`
+        1 => 1
+    }
+}
+
 fn main() {
 }

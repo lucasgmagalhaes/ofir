@@ -1,0 +1,12 @@
+// A cast of a constant that fits needs no range check at run time; the
+// check is folded away and the dead temporaries of the function go with it,
+// even those that are not part of a check (a struct value never read).
+struct Point {
+    x: int
+}
+
+fn main() {
+    const b = 3 as u8
+    Point{x: 1}
+    println("{b}")
+}

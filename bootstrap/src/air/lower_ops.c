@@ -149,7 +149,9 @@ static bool cast_needs_check(const Ty *from, const Ty *to) {
         return true;
     }
     if (from->kind != TY_INT || from->data == to->data) {
+        // GCOVR_EXCL_START: equal types return before: int types differ in width or sign
         return false;
+        // GCOVR_EXCL_STOP
     }
     bool same_sign = is_signed(from) == is_signed(to);
     uint32_t from_bits = INT_BITS[from->data], to_bits = INT_BITS[to->data];

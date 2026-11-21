@@ -21,7 +21,9 @@ summary. Needs gcc, gcovr, `llvm-cov` and clang's profile runtime.
 `--check` reads those reports and fails when a directory's line coverage
 is below its floor in `tools/coverage_floors.json`, or when an exclusion
 marker gives no reason; `--update-floors` raises the floors to the
-current coverage. Neither measures: run them after a measurement.
+current coverage. A directory whose lines are at 100% also gets a branch
+floor, under `branches` (roadmap 6.33h), checked and raised the same way.
+Neither measures: run them after a measurement.
 
     python3 tools/coverage.py [--only stage0|stage1|programs] [--out build/coverage]
     python3 tools/coverage.py --check | --update-floors [--out build/coverage]
@@ -203,8 +205,12 @@ def directory(filename):
     return None
 
 
+BRANCHES = re.compile(r"\((\d+)/(\d+)\)")
+
+
 def measured(out):
-    """Line coverage per directory: {report: {directory: (covered, total)}}."""
+    """Coverage per directory: {report: {directory: (lines covered, lines,
+    branches covered, branches)}}."""
     result = {}
     for name in REPORTS:
         xml = out / f"{name}.xml"
@@ -216,11 +222,15 @@ def measured(out):
             lines = cls.find("lines")
             if group is None or lines is None:
                 continue
-            covered, total = dirs.get(group, (0, 0))
+            covered, total, bcovered, btotal = dirs.get(group, (0, 0, 0, 0))
             for line in lines.iter("line"):
                 total += 1
                 covered += int(line.get("hits", "0")) > 0
-            dirs[group] = (covered, total)
+                match = BRANCHES.search(line.get("condition-coverage", ""))
+                if line.get("branch") == "true" and match:
+                    bcovered += int(match.group(1))
+                    btotal += int(match.group(2))
+            dirs[group] = (covered, total, bcovered, btotal)
         result[name] = dirs
     return result
 
@@ -245,20 +255,29 @@ def exclusions():
     return errors
 
 
+def compare(what, label, now, floor, errors, raised):
+    if floor is None:
+        errors.append(f"{label}: no {what} floor (run --update-floors)")
+    elif now < floor - TOLERANCE:
+        errors.append(f"{label}: {what} {now}% is below the floor {floor}%")
+    elif now > floor + TOLERANCE:
+        raised.append(f"{label}: {what} {floor}% -> {now}%")
+
+
 def check(out):
     floors = json.loads(FLOORS.read_text())
+    branch_floors = floors.get("branches", {})
     errors = exclusions()
     raised = []
     for name, dirs in measured(out).items():
-        for group, (covered, total) in sorted(dirs.items()):
-            now = percent(covered, total)
+        for group, (covered, total, bcovered, btotal) in sorted(dirs.items()):
+            label = f"{name} {group}"
             floor = floors.get(name, {}).get(group)
-            if floor is None:
-                errors.append(f"{name} {group}: no floor (run --update-floors)")
-            elif now < floor - TOLERANCE:
-                errors.append(f"{name} {group}: lines {now}% is below the floor {floor}%")
-            elif now > floor + TOLERANCE:
-                raised.append(f"{name} {group}: {floor}% -> {now}%")
+            compare("lines", label, percent(covered, total), floor, errors, raised)
+            branch_floor = branch_floors.get(name, {}).get(group)
+            if floor == 100.0 or branch_floor is not None:   # lines done: branches next
+                compare("branches", label, percent(bcovered, btotal), branch_floor,
+                        errors, raised)
     if raised:
         print("coverage: floors that can be raised (--update-floors):")
         print("\n".join(f"  {line}" for line in raised))
@@ -271,10 +290,18 @@ def check(out):
 def update_floors(out):
     """The floors become the current coverage, but never go down."""
     floors = json.loads(FLOORS.read_text()) if FLOORS.exists() else {}
+    branch_floors = floors.pop("branches", {})
     for name, dirs in measured(out).items():
         old = floors.get(name, {})
-        floors[name] = {group: max(old.get(group, 0.0), percent(*counts))
+        floors[name] = {group: max(old.get(group, 0.0), percent(*counts[:2]))
                         for group, counts in sorted(dirs.items())}
+        old = branch_floors.get(name, {})
+        done = {group: max(old.get(group, 0.0), percent(*counts[2:]))
+                for group, counts in sorted(dirs.items())
+                if floors[name][group] == 100.0 or group in old}
+        if done:
+            branch_floors[name] = done
+    floors["branches"] = branch_floors
     FLOORS.write_text(json.dumps(floors, indent=2) + "\n")
     print(f"coverage: wrote {FLOORS.relative_to(ROOT)}")
     return 0

@@ -1268,6 +1268,10 @@ fn rvalue(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue,
             const float = c.types.kind(rv.a.ty) == TyKind.Float
             const op = if float { floatOp(rv.op) } else { intOp(rv.op, isSigned(c, rv.a.ty)) }
             const t = nextTemp(g)
+            if c.types.kind(rv.a.ty) == TyKind.Unit {   // every `()` is equal: compare two zeros
+                g.out.push("  {t} = {op} i1 0, 0\n")
+                return Value{ty: ty, text: t}
+            }
             g.out.push("  {t} = {op} {a.ty} {a.text}, {b.text}\n")
             return Value{ty: ty, text: t}
         }

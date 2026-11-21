@@ -13,6 +13,18 @@ fn max<T: Ord>(a: move T, b: move T) T {
 fn show<T: Debug>(a: T) {   // error[E0901]: the bound `Debug` is not supported by stage 0
 }
 
+fn same<T: Eq>(a: T, b: T) bool {
+    return a == b
+}
+
+fn conv<T: Into<int>>(_a: T) {   // error[E0901]: the bound `Into<int>` is not supported by stage 0
+}
+
+fn never() bool {
+    return same(panic("a"), panic("b"))   // error[E0330]: cannot infer the type parameter `T`: write the type arguments, as in `f<int>(x)`
+}
+
 fn main() {
     const p = max(Point{x: 1}, Point{x: 2}) // error[E0901]: the bound `Ord` of `T` on `Point` is not supported by stage 0
+    const e = same((1, [1]), (1, [2]))      // error[E0901]: the bound `Eq` of `T` on `(int, List<int>)` is not supported by stage 0
 }

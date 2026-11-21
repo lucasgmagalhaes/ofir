@@ -1,0 +1,5 @@
+module
+  fn f
+    param _n: [u8; <expr>]
+    param _m: dyn Debug
+    body

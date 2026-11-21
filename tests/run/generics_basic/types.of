@@ -78,6 +78,8 @@ fn main() {
     const w = Wrap(Wrap("nested"))
     const Wrap(inner) = w
     println(inner.0)
+    const explicit = Wrap<u8>(255)
+    println("{explicit.0}")
 
     println("{find((4, 5, 6), 6).getOr(-1)} {find((4, 5, 6), 9).getOr(-1)}")
     const none: Opt<str> = Opt.None

@@ -1,0 +1,18 @@
+// A tuple field is a field like another, and a fixed array of copy values
+// is itself a copy: `a` is still usable after `b = a` (spec 2.7).
+
+struct T {
+    p: (int, int)
+}
+
+fn arr(a: [int; 3]) int {
+    const b = a
+    const _c = b
+    const _d = a
+    return 0
+}
+
+fn main() {
+    const t = T{p: (1, 2)}
+    println("{t.p.0} {t.p.1}")
+}

@@ -17,7 +17,9 @@
 TypeId concrete_type(Lowerer *l, TypeId type) {
     const Ty *targs = type_get(l->types, l->body->targs);
     if (is_glue(l->body->def)) {
+        // GCOVR_EXCL_START: glue bodies hold only drops and calls, which take no type
         return type;   // glue is lowered for a concrete type
+        // GCOVR_EXCL_STOP
     }
     return type_subst(l->types, type, targs->args, targs->arg_count);
 }
@@ -118,7 +120,9 @@ static Place field_place(Lowerer *l, Place base, uint32_t step, uint32_t field) 
     uint32_t len = base.path.len + (step ? 2 : 1);
     uint32_t *fields = ARENA_ARRAY(&l->sema->session->arena, uint32_t, len);
     for (uint32_t i = 0; i < base.path.len; i++) {
+        // GCOVR_EXCL_START: glue drops fields of the dereferenced parameter, an empty path
         fields[i] = base.path.fields[i];
+        // GCOVR_EXCL_STOP
     }
     if (step) {
         fields[base.path.len] = step;

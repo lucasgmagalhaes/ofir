@@ -26,7 +26,26 @@ project uses [Semantic Versioning](https://semver.org/).
   new tests cover constant evaluation, pattern mismatches, the
   expressions stage 0 rejects, attribute targets, escapes and extern
   ABIs; five unused functions are removed and internal errors excluded;
-  stage 0 is at 98.4% of its lines.
+  stage 0 is at 100% of its reachable lines, and its floors with it.
+- Branch floors (ADR 0103, 6.33h): a directory at 100% of its lines
+  also has a branch coverage floor in `tools/coverage_floors.json`, which
+  `make coverage-check` enforces and `--update-floors` raises.
+- Differential generated programs (ADR 0103, 6.33j):
+  `tools/diff_programs.py` generates programs of structs, enums, tuples,
+  lists, strings, loops and calls and compares their output on stage 0
+  dev and release, stage 1 dev and release and the AIR interpreter
+  (`comptime`); a difference is minimized into a run test. `make
+  check-fuzz` runs ten programs.
+- Mutation testing (ADR 0103, 6.33k): `make mutate` (`tools/mutate.py`)
+  mutates the comparisons, logical operators, `+` and `-` and the
+  constants of `bootstrap/src` and `compiler/` one at a time, rebuilds the
+  compiler and runs the tests on each, and reports the killed and surviving
+  mutants per directory.
+- libFuzzer on stage 0 (ADR 0103, 6.33i): `make libfuzz`
+  (`tools/libfuzz.py`) builds the lexer, the parser and the checker with
+  `-fsanitize=fuzzer,address,undefined` (`bootstrap/fuzz/frontend.c`),
+  seeds a corpus from `tests/` and `std/` and minimizes each finding into
+  a seed of `tests/fuzz/frontend`; a nightly workflow runs it.
 - Glob imports (ADR 0098): `import a.b.*` brings every public member of
   the module, after the named imports and only into names they leave
   free; a name two globs bring is E0207 when used, `pub` or `as` on a
@@ -285,6 +304,13 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Stage 0 crashed on a `match` over an enum that no code had named yet
+  (`match r { false => 0 }` with `r: Result<int, int>`); it computes the
+  variants and reports what stage 1 reports (found by libFuzzer).
+- Stage 0 leaked its doc comments when an encoding error stopped the
+  parse after a `/** @module */` comment (found by libFuzzer).
+- Comparing two unit values (`u == ()`) emitted `icmp` on `void`, which
+  is not LLVM IR; both stages compare two constant zeros.
 - A constant null pointer (`const NULL: *u8 = 0 as *u8`) used as a value
   emitted `ptr 0`, which is not LLVM IR; both stages emit `null`.
 - `ofir build --emit=ast` of stage 0 no longer crashes on a range

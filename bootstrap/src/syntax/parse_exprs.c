@@ -87,9 +87,11 @@ static Expr *cast(Parser *p) {
     int steps = 0;
     while (accept(p, TOK_KW_AS)) {
         steps++;
+        // GCOVR_EXCL_START: the type after `as` nests one deeper and fails first
         if (!nest(p)) {
             break;
         }
+        // GCOVR_EXCL_STOP
         Expr *c = new_expr(p, EXPR_CAST, e->span);
         c->as.cast.value = e;
         c->as.cast.type = parse_simple_type(p);
@@ -115,10 +117,12 @@ static Expr *binary_expr(Parser *p, Level min) {
         }
         p->pos += (size_t)count;
         steps++;
+        // GCOVR_EXCL_START: the operand after an operator nests one deeper and fails first
         if (!nest(p)) {   // a chain is as deep as it is long
             p->depth -= steps;
             return lhs;
         }
+        // GCOVR_EXCL_STOP
         skip_newlines(p);   // an operator at the end of a line continues it
         Expr *rhs = binary_expr(p, lv + 1);
         lhs = binary(p, op, lhs, rhs);

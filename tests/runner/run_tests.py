@@ -38,7 +38,8 @@ SUITES = ["lex", "parse", "run", "compile_fail", "panic", "borrow", "codegen", "
 TIMEOUT_SECONDS = 20
 PANIC_EXIT_STATUS = 101
 
-ANNOTATION_RE = re.compile(r"//\s*(error|warning)\[([EW]\d{4})\]:\s*(.*?)\s*$")
+ANNOTATION_RE = re.compile(
+    r"//\s*(error|warning)\[([EW]\d{4})\]:\s*(.*?)\s*(?=//\s*(?:error|warning)\[|$)")
 DIAGNOSTIC_RE = re.compile(r"^(.*?):(\d+):(\d+): (error|warning)\[([EW]\d{4})\]: (.*)$")
 # A note of the diagnostic annotated last, on a line of its own (stage 1).
 NOTE_RE = re.compile(r"^\s*//\s*note:\s*(.*?)\s*$")
@@ -332,8 +333,7 @@ def parse_annotations(source: str, file: str = "") -> list[tuple[int, Diagnostic
     for number, text in enumerate(source.splitlines(), start=1):
         if TOP_LEVEL_FN_RE.match(text):
             current_fn = number
-        m = ANNOTATION_RE.search(text)
-        if m:
+        for m in ANNOTATION_RE.finditer(text):
             annotations.append((current_fn, Diagnostic(number, m.group(1), m.group(2), m.group(3),
                                                        file)))
     return annotations
@@ -401,9 +401,9 @@ def parse_notes(source: str) -> list[tuple[int, str, str]]:
     notes = []
     last = None
     for number, text in enumerate(source.splitlines(), start=1):
-        m = ANNOTATION_RE.search(text)
-        if m:
-            last = (number, m.group(2))
+        matches = list(ANNOTATION_RE.finditer(text))
+        if matches:
+            last = (number, matches[-1].group(2))
             continue
         n = NOTE_RE.match(text)
         if n and last:

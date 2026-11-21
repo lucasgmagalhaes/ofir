@@ -275,9 +275,11 @@ static void walk(Moves *m, Expr *e, State *s) {
         moves_expr(m, e->as.repeat.value, s, USE_READ);
         moves_expr(m, e->as.repeat.count, s, USE_READ);
         break;
+    // GCOVR_EXCL_START: E0326 rejects an unqualified variant
     case EXPR_VARIANT:
         each_arg(m, e->as.variant.args, NULL, USE_MOVE, s);
         break;
+    // GCOVR_EXCL_STOP
     // The value of an `if`, a `match` or a block is a new value, which its
     // user consumes or drops: the last expression of each branch is moved
     // into it, whatever the use (spec 5.1).
