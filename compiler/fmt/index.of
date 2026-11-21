@@ -165,7 +165,7 @@ fn sameTokens(before: str, after: str) bool {
         if j < old.len() && old[j].kind == t.kind && sameText(before, old[j], text) {
             j += 1
         } else if !added {
-            return false
+            return false   // GCOVR_EXCL_LINE: the formatter keeps every token
         }
     }
     return j == old.len()
