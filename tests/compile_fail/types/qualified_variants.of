@@ -45,3 +45,14 @@ fn bareLet(r: Result<int, str>) int {
     }
     return 0
 }
+
+struct Holder {
+    None: Option<int>
+}
+
+fn shorthandField(h: Holder) int {
+    return match h {
+        Holder{None} => 0         // error[E0326]: a variant is named through its enum: write `Option.None`
+        _ => 1
+    }
+}

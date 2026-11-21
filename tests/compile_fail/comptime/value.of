@@ -5,8 +5,28 @@ fn numbers() List<int> {
     return [1, 2]
 }
 
+struct W<T> {
+    v: T
+}
+
+enum Held {
+    Items(List<int>)
+    Empty
+}
+
+fn held() Held {
+    return Held.Empty
+}
+
+// More than 32 types deep: not plain data.
+fn deep() W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<int>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {
+    return W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: W{v: 1}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+}
+
 fn main() {
     const a = comptime numbers()   // error[E0818]: the value of a `comptime` expression cannot be a `List<int>`: it must be a number, `bool`, `str`, array, tuple, struct or enum of those
     const b = comptime (1, numbers())   // error[E0818]: the value of a `comptime` expression cannot be a `(int, List<int>)`: it must be a number, `bool`, `str`, array, tuple, struct or enum of those
+    const c = comptime held()   // error[E0818]: the value of a `comptime` expression cannot be a `Held`: it must be a number, `bool`, `str`, array, tuple, struct or enum of those
+    const d = comptime deep()   // error[E0818]: the value of a `comptime` expression cannot be a `W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<W<int>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>`: it must be a number, `bool`, `str`, array, tuple, struct or enum of those
     println("{a.len()} {b.0}")
 }

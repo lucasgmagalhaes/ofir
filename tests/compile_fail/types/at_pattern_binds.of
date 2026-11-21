@@ -1,0 +1,18 @@
+// requires: stage1
+// The pattern after `name @` binds no names, also in struct fields (spec 4.5).
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn main() {
+    const p = Point{x: 1, y: 2}
+    match p {
+        a @ Point{x: 1, y: 2} => println("{a.x}")
+        b @ Point{x: 1, y: v} => println("{b.x} {v}")   // error[E0502]: the pattern after `b @` cannot bind names
+        c @ Point{x, y: 3} => println("{c.x} {x}")   // error[E0502]: the pattern after `c @` cannot bind names
+        _ => {}
+    }
+    const Point{x: _, y: Option.None} = p   // error[E0501]: this pattern does not match every value: use `match` or `if const`   // error[E0300]: mismatched types: an enum variant pattern for a value of type int
+}

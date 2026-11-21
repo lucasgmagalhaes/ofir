@@ -134,19 +134,19 @@ fn implementedBound(e: &Expr) Option<TypeExpr> {
     const callee = match e.kind {
         ExprKind.Call(f, _) => &*f
         _ => {
-            return Option.None
+            return Option.None   // GCOVR_EXCL_LINE: its callers pass a call
         }
     }
     return match callee.kind {
         ExprKind.Field(_, _, typeArgs) => if typeArgs.len() == 2 {
             Option.Some(typeArgs[1].clone())
         } else {
-            Option.None
+            Option.None   // GCOVR_EXCL_LINE: E0302 leaves no type arguments
         }
         ExprKind.Generic(_, typeArgs) => if typeArgs.len() == 2 {
             Option.Some(typeArgs[1].clone())
         } else {
-            Option.None
+            Option.None   // GCOVR_EXCL_LINE: E0302 leaves no type arguments
         }
         _ => Option.None
     }
@@ -181,7 +181,7 @@ pub fn predicateHolds(c: mut Checker, p: Program, e: &Expr, name: str, ty: int) 
         return if name == "isStruct" { kind == DefKind.Struct } else { kind == DefKind.Enum }
     }
     const Option.Some(bound) = implementedBound(e) else {
-        return false
+        return false   // GCOVR_EXCL_LINE: E0302 leaves no type arguments
     }
     const bit = boundBit(c, &bound)
     if bit != 0 {
@@ -420,7 +420,7 @@ fn narrowCall(c: mut Checker, p: Program, e: &Expr, n: mut Narrowing) {
     }
     const index = c.types.get(args[0]).data
     if index >= n.bits.len() {
-        return
+        return   // GCOVR_EXCL_LINE: its parameter is in scope
     }
     const name = metaCall(c, p, e)
     const derived = BOUND_CLONE | BOUND_COPY | BOUND_DEBUG
@@ -436,7 +436,7 @@ fn narrowCall(c: mut Checker, p: Program, e: &Expr, n: mut Narrowing) {
         n.bits[index] = BOUND_ENUM
     } else if name == "implements" {
         const Option.Some(bound) = implementedBound(e) else {
-            return
+            return   // GCOVR_EXCL_LINE: E0302 leaves no type arguments
         }
         n.bits[index] = boundBit(c, &bound)
         const iface = interfaceOf(c, &bound)
@@ -457,7 +457,7 @@ pub fn narrow(c: mut Checker, n: &Narrowing) Generics {
     const saved = c.generics.clone()
     for i in 0..n.bits.len() {
         if i >= c.generics.bounds.len() {
-            break
+            break   // GCOVR_EXCL_LINE: one entry per parameter in scope
         }
         c.generics.bounds[i] = c.generics.bounds[i] | n.bits[i]
         for k in 0..n.ifaces[i].len() {
@@ -605,7 +605,7 @@ fn comptimeAdt(c: mut Checker, p: Program, ty: int, depth: int) bool {
     const def = c.types.get(ty).data
     if c.def(def).kind == DefKind.Struct {
         if !structFields(c, p, def) {
-            return false
+            return false   // GCOVR_EXCL_LINE: its fields are typed before
         }
         for i in 0..fieldsOf(c, def).types.len() {
             if !comptimeValueType(c, p, structFieldType(c, p, ty, i), depth + 1) {
@@ -616,7 +616,7 @@ fn comptimeAdt(c: mut Checker, p: Program, ty: int, depth: int) bool {
     }
     if c.def(def).kind == DefKind.Enum {
         if !enumVariants(c, p, def) {
-            return false
+            return false   // GCOVR_EXCL_LINE: its variants are typed before
         }
         for v in 0..variantsOf(c, def).variants.len() {
             for i in 0..variantsOf(c, def).variants[v].types.len() {
@@ -627,7 +627,7 @@ fn comptimeAdt(c: mut Checker, p: Program, ty: int, depth: int) bool {
         }
         return true
     }
-    return false
+    return false   // GCOVR_EXCL_LINE: an Adt is a struct or enum
 }
 
 /**

@@ -1,0 +1,38 @@
+// requires: stage1
+// Embedded methods that differ in type parameters, and a type argument
+// inferred from the methods of str, which a `mut self` method does not give.
+
+interface A {
+    fn get(self) int
+}
+
+interface B {
+    fn get<U>(self) int
+}
+
+interface C {
+    A
+    B   // error[E0328]: conflicting methods: method `get` of `B` has another signature than the one of `A`
+}
+
+interface Sized<T> {
+    fn len(self) T
+}
+
+interface Muts<T> {
+    fn len(mut self) T
+}
+
+fn count<S: Sized<T>, T>(s: S) T {
+    return s.len()
+}
+
+fn countMut<S: Muts<T>, T>(s: S) T {
+    panic("not called")
+}
+
+fn main() {
+    const n = count("abc")
+    const m = countMut("abc")   // error[E0330]: cannot infer the type parameter `T`: write the type arguments, as in `f<int>(x)`
+    print("{n} {m}")
+}

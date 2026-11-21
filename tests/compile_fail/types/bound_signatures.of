@@ -1,0 +1,44 @@
+// requires: stage1
+// A method satisfies an interface only with the same self, type parameters and types.
+
+interface Named {
+    fn name(self) str
+}
+
+interface Gen {
+    fn get(self) int
+}
+
+interface Static {
+    fn make() int
+}
+
+struct M {
+    fn name(mut self) str {
+        return "m"
+    }
+}
+
+struct G {
+    fn get<U>(self) int {
+        return 0
+    }
+}
+
+struct S {
+    fn make(self) int {
+        return 0
+    }
+}
+
+fn needNamed<T: Named>(x: T) {}
+
+fn needGen<T: Gen>(x: T) {}
+
+fn needStatic<T: Static>(x: T) {}
+
+fn main() {
+    needNamed(M{})   // error[E0332]: the type `M` does not satisfy the bound `Named` of `T`: method `name` has a different signature
+    needGen(G{})   // error[E0332]: the type `G` does not satisfy the bound `Gen` of `T`: method `get` has a different signature
+    needStatic(S{})   // error[E0332]: the type `S` does not satisfy the bound `Static` of `T`: method `make` has a different signature
+}

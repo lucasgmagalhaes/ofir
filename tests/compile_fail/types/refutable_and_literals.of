@@ -12,6 +12,12 @@ enum Shape {
     Dot,
 }
 
+type Figure = Shape
+
+struct Holder {
+    None: int,
+}
+
 fn main() {
     const t = (1, 2)
     const (_a, 1) = t   // error[E0501]: this pattern does not match every value: use `match` or `if const`
@@ -19,4 +25,9 @@ fn main() {
     const Point{x: 1, y: _y} = p   // error[E0501]: this pattern does not match every value: use `match` or `if const`
     const _n = Named{a: 1}   // error[E0310]: `Named` is not a struct with named fields
     const _s = Shape{a: 1}   // error[E0310]: `Shape` is not a struct with named fields
+    const _f = Figure{a: 1}   // error[E0310]: `Figure` is not a struct with named fields
+    const o: Option<int> = Option.None
+    const None = o   // error[E0326]: a variant is named through its enum: write `Option.None`   // error[E0501]: this pattern does not match every value: use `match` or `if const`
+    const h = Holder{None: 1}
+    const Holder{None} = h   // error[E0300]: mismatched types: an enum variant pattern for a value of type int   // error[E0501]: this pattern does not match every value: use `match` or `if const`
 }

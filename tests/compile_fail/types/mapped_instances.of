@@ -1,0 +1,22 @@
+// requires: stage1
+// Instances of generic mapped aliases that cannot expand (spec 16.4): they
+// used to loop forever.
+
+struct Point {
+    x: float
+    y: int
+}
+
+type Keys<T> = { [K in keyof T]: T[K] }
+type Pick<T, C> = { [K in keyof T if C]: T[K] }
+
+fn keys<T>(a: &Keys<T>) {
+}
+
+fn pick<T, C>(a: &Pick<T, C>) {
+}
+
+fn main() {
+    keys<int>(panic("x"))   // error[E0340]: the keys of `Keys<int>` are not a key type
+    pick<Point, int>(panic("x"))   // error[E0344]: a condition must be `true` or `false`, found `int`
+}

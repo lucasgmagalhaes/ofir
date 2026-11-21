@@ -1,0 +1,14 @@
+// std: none
+// Expressions that need the standard library (spec 2.11, 6.4): errors without it.
+
+struct Count {
+    n: int
+}
+
+fn main() {
+    const a = [1, 2]   // error[E0901]: list literals without the standard library are not supported yet
+    const b = [0; 3]   // error[E0901]: list literals without the standard library are not supported yet
+    const c = Count{n: 3}
+    for x in c {   // error[E0300]: mismatched types: `for` needs a range, a list, a slice, a map or an iterator, found Count
+    }
+}

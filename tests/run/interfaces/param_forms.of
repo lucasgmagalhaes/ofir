@@ -1,0 +1,71 @@
+// requires: stage1
+// Interface parameters inside other types, and in enum and interface methods.
+
+interface Shape {
+    fn area(self) int
+}
+
+struct Sq {
+    n: int
+
+    fn area(self) int {
+        return self.n * self.n
+    }
+}
+
+enum Pick {
+    A
+    B
+
+    fn plain(self) int {
+        return 0
+    }
+
+    fn with(self, s: &Shape) int {
+        return s.area()
+    }
+}
+
+interface Holder {
+    fn hold(self, s: Shape) int
+}
+
+struct H {
+    fn hold(self, s: Sq) int {
+        return s.area()
+    }
+}
+
+fn arr(a: [Shape; 2]) int {
+    return a[0].area() + a[1].area()
+}
+
+fn opt(o: Shape?) int {
+    return match o {
+        Option.Some(s) => s.area()
+        Option.None => 0
+    }
+}
+
+fn tup(t: (int, Shape)) int {
+    return t.0 + t.1.area()
+}
+
+fn sl(s: &[Shape]) int {
+    return s[0].area()
+}
+
+fn pt(p: *Shape) int {
+    return 0
+}
+
+fn useHolder(h: Holder) int {
+    return h.hold(Sq{n: 1})
+}
+
+fn main() {
+    println("{Pick.A.with(&Sq{n: 2})} {Pick.B.plain()}")
+    println("{opt(Option.Some(Sq{n: 3}))} {tup((1, Sq{n: 2}))}")
+    const xs = [Sq{n: 4}]
+    println("{sl(&xs)}")
+}

@@ -1,0 +1,67 @@
+// requires: stage1
+// `comptime if` narrowing through `&&` and `||` of `meta.implements`, and the
+// predicate imported by name (spec 15.3).
+
+import std.meta
+import std.meta.implements
+
+interface Named {
+    fn name(self) str
+}
+
+interface Sized {
+    fn size(self) int
+}
+
+struct P {
+    fn name(self) str {
+        return "p"
+    }
+
+    fn size(self) int {
+        return 2
+    }
+}
+
+fn both<T>(x: T) str {
+    comptime if meta.implements<T, Named>() && meta.implements<T, Sized>() {
+        return "{x.name()} {x.size()}"
+    }
+    return "no"
+}
+
+fn either<T>(x: T) str {
+    comptime if meta.implements<T, Named>() || meta.implements<T, Named>() {
+        return x.name()
+    }
+    return "no"
+}
+
+fn mixed<T>(x: T) str {
+    comptime if meta.implements<T, Named>() || meta.implements<T, Sized>() {
+        return "one"
+    }
+    return "no"
+}
+
+fn concrete<T>(x: T) str {
+    comptime if meta.isInteger<T>() && meta.isInteger<int>() {
+        return "int"
+    }
+    return "no"
+}
+
+fn named<T>(x: T) str {
+    comptime if implements<T, Named>() {
+        return "named"
+    }
+    return "other"
+}
+
+fn main() {
+    println("{both(P{})} {both(1)}")
+    println("{either(P{})} {either(1)}")
+    println("{mixed(P{})} {mixed(1)}")
+    println("{concrete(1)} {concrete(P{})}")
+    println("{named(P{})} {named(1)} {implements<int, Eq>()}")
+}

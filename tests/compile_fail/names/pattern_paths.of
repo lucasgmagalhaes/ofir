@@ -1,0 +1,21 @@
+// Paths in patterns that name nothing, or a nested module path.
+
+struct Point {
+    x: int
+    y: int
+}
+
+struct Pair(int, int)
+
+fn main() {
+    const p = Point{x: 1, y: 2}
+    match p {
+        a.b.Point{x: _, ..} => {}   // error[E0901]: nested module paths in patterns are not supported yet
+    }
+    match p {
+        Nope{x: _, ..} => {}   // error[E0200]: cannot find `Nope` in this scope
+    }
+    match Pair(1, 2) {
+        Nope(_, _) => {}   // error[E0200]: cannot find `Nope` in this scope
+    }
+}

@@ -1,0 +1,30 @@
+// requires: stage1
+// The keys of a tuple struct in generic bodies (spec 16.1) and a conditional
+// type decided false per instance (spec 16.5).
+
+type IsInt<T> = if T is int { true } else { false }
+type Pick2<T> = if IsInt<T> { (T, T) } else { T }
+
+struct Pt(int, str)
+
+fn show<T>(x: move Pick2<T>) Pick2<T> {
+    return x
+}
+
+fn count<T>(_v: &T) int {
+    let n = 0
+    comptime for _k in keyof T {
+        n += 1
+    }
+    return n
+}
+
+fn pick<T, K: keyof T>(_v: &T, _k: K) int {
+    return 1
+}
+
+fn main() {
+    const (a, b) = show<int>((1, 2))
+    println("{a} {b} {show<bool>(true)}")
+    println("{count(&Pt(1, "a"))} {pick(&Pt(1, "a"), .1)}")
+}

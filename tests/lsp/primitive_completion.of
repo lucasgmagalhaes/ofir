@@ -1,0 +1,7 @@
+// A completion after `n.` on an int offers its methods (`abs`, `pow`, ...).
+
+fn main() {
+    const n = 5
+    const m = n.x
+    print("{m}")
+}
