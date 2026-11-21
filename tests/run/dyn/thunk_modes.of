@@ -1,0 +1,62 @@
+// requires: stage1
+// A vtable thunk converts arguments when the interface and the concrete
+// method pass them differently: a unit param is skipped, a generic param
+// holding a `Cell` is loaded, and a `mut` param is spilled to a slot.
+
+import std.mem.cell.Cell
+
+interface Bump {
+    fn bump(self, c: &Cell<int>, u: ()) int
+}
+
+interface Take {
+    fn take(self, x: Cell<int>) int
+}
+
+interface Add {
+    fn add(self, x: int) int
+}
+
+struct One {
+    n: int
+
+    fn bump(self, c: &Cell<int>, u: ()) int {
+        c.set(c.get() + self.n)
+        return c.get()
+    }
+}
+
+struct Holder<T> {
+    n: int
+
+    fn take(self, x: T) int {
+        return self.n
+    }
+}
+
+struct Adder {
+    n: int
+
+    fn add(self, x: mut int) int {
+        x = x + self.n
+        return x
+    }
+}
+
+fn bumped(b: &dyn Bump, c: &Cell<int>) int {
+    return b.bump(c, ())
+}
+
+fn taken(t: &dyn Take) int {
+    return t.take(Cell.new(4))
+}
+
+fn added(a: &dyn Add) int {
+    return a.add(3)
+}
+
+fn main() {
+    const c = Cell.new(1)
+    const h: Holder<Cell<int>> = Holder { n: 5 }
+    println("{bumped(&One { n: 2 }, &c)} {taken(&h)} {added(&Adder { n: 4 })}")
+}
