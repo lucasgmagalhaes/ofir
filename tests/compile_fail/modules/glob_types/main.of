@@ -1,0 +1,9 @@
+// requires: stage1
+// A type name two glob imports bring is ambiguous (spec 7.2).
+import a.*
+import b.*
+
+fn take(t: Thing) {}   // error[E0207]: `Thing` is ambiguous
+fn path(t: Thing.Inner) {}   // error[E0207]: `Thing` is ambiguous
+
+fn main() {}
