@@ -400,6 +400,9 @@ pub fn comptimeKeys(c: mut Checker, p: Program, info: ComptimeInfo,
     if info.variants {
         return variantNames(c, p, info, targs)
     }
+    if c.types.hasIndexNames() {
+        useIndexNames(c)   // the keys of a tuple longer than those recorded
+    }
     const bound = substType(c, info.bound, targs.clone())
     if c.types.kind(bound) != TyKind.Key {
         return []   // GCOVR_EXCL_LINE: a key bound substitutes to a key type

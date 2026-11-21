@@ -74,22 +74,25 @@ pub fn keyofType(c: mut Checker, p: Program, inner: &TypeExpr, span: Span) int {
 
 /**
  * Records the symbols of the tuple keys, for `keyof T` and `T[K]` resolved
- * after substitution; only programs with key parameters intern them.
+ * after substitution; only programs with key parameters intern them. Called
+ * again, it adds those of tuples longer than the keys recorded.
  *
  * @param c the checker
  */
 pub fn useIndexNames(c: mut Checker) {
-    if c.types.hasIndexNames() {
+    const longest = c.types.longestTuple()
+    const count = if longest > INDEX_KEYS { longest } else { INDEX_KEYS }
+    if c.types.indexNameCount() >= count {
         return
     }
     let names: List<int> = []
-    for i in 0..INDEX_KEYS {
+    for i in 0..count {
         names.push(c.r.names.intern("{i}").0)
     }
     c.types.setIndexNames(names)
 }
 
-// The tuple keys a key parameter can name: those of a tuple of 32 elements.
+// The fewest tuple keys recorded: those of a tuple of 32 elements.
 const INDEX_KEYS: int = 32
 
 /**
@@ -421,6 +424,9 @@ pub fn checkKeyBound(c: mut Checker, p: Program, params: &Generics, i: int, args
                      span: Span) {
     for j in 0..args.len() {
         ensureFields(c, p, args[j])
+    }
+    if c.types.hasIndexNames() {
+        useIndexNames(c)   // the keys of a tuple longer than those recorded
     }
     const arg = args[i]
     const isKey = c.types.kind(arg) == TyKind.Key
