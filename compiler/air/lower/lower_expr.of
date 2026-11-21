@@ -907,7 +907,9 @@ pub fn stdFn(c: mut Checker, p: Program, module: str, name: str) int {
             }
         }
     }
+    // GCOVR_EXCL_START: std defines every name the lowering asks for
     panic("lowering: the standard library has no `{module}.{name}`")
+    // GCOVR_EXCL_STOP
 }
 
 /**
@@ -1851,7 +1853,9 @@ fn langMethod(c: Checker, p: Program, owner: int, name: str) int {
             return c.r.tables[c.def(owner).module].fnDefs[decl.id.0]
         }
     }
+    // GCOVR_EXCL_START: List defines every method the lowering asks for
     panic("lowering: std/core/list.of has no `{name}`")
+    // GCOVR_EXCL_STOP
 }
 
 // Calls `List<elem>.name(args)`; `dest` receives the result unless -1.
@@ -2066,7 +2070,9 @@ pub fn variantNamed(c: mut Checker, p: Program, ty: int, name: str) int {
             return i
         }
     }
+    // GCOVR_EXCL_START: the lowering asks only for variants std defines
     panic("lowering: std defines no variant `{name}`")
+    // GCOVR_EXCL_STOP
 }
 
 fn payload(place: &Place, variant: int, field: int, ty: int) Operand {
@@ -3222,8 +3228,10 @@ fn lowerForRange(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt, range:
     match range.kind {
         ExprKind.Range(lo, hi, inclusive) => {
             if lo.isNone() || hi.isNone() {
+                // GCOVR_EXCL_START: the checker rejects a `for` over an open range (E0901)
                 l.fail("open ranges")
                 return
+                // GCOVR_EXCL_STOP
             }
             let counter = 0
             let end = 0
