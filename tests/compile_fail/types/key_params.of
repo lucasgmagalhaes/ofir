@@ -38,4 +38,5 @@ fn main() {
     const _ = get(&p, k)   // error[E0343]: a key must be known at compile time: pass a key literal, as `.x`, or a key parameter
     const _ = get(&p, .z)   // error[E0332]: the key `.z` is not in the bound `.x | .y | .id` of `K`
     const _ = coord(&p, .id)   // error[E0332]: the key `.id` is not in the bound `.x | .y` of `K`
+    const _ = get(&3, .x)   // error[E0340]: `keyof` needs a struct or tuple type, found `int`
 }
