@@ -571,11 +571,11 @@ pub fn coerceToSlice(c: mut Checker, p: Program, e: &Expr, found: int, expected:
         return false
     }
     const Option.Some(asSlice) = c.r.names.find("asSlice") else {
-        return false
+        return false   // GCOVR_EXCL_LINE: the std declares `List.asSlice`
     }
     const list = c.r.langItems[1]
     if !hasMethod(c, p, list, asSlice) {
-        return false
+        return false   // GCOVR_EXCL_LINE: the std declares `List.asSlice`
     }
     c.sliceCoercions[c.module()].insert(e.id.0, if borrowed { -1 - elem } else { elem })
     c.setType(e.id.0, expected)
@@ -612,7 +612,7 @@ fn coerceToMutSlice(c: mut Checker, p: Program, e: &Expr, found: int, expected: 
         return false
     }
     const Option.Some(asMutSlice) = c.r.names.find("asMutSlice") else {
-        return false
+        return false   // GCOVR_EXCL_LINE: the std declares `List.asMutSlice`
     }
     if inner != elem || !hasMethod(c, p, c.r.langItems[1], asMutSlice) {
         return false
