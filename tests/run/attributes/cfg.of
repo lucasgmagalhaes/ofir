@@ -67,6 +67,47 @@ extern "C" {
     fn GetTickCount() u32
 }
 
+enum Mode {
+    Fast
+    Slow
+
+    @cfg(os == "windows")
+    fn label(self) str {
+        return "windows"
+    }
+
+    @cfg(os != "windows")
+    fn label(self) str {
+        return "unix"
+    }
+}
+
+interface Named {
+    @cfg(os == "windows")
+    fn drive(self) str
+
+    fn name(self) str
+}
+
+struct File {
+    n: str
+
+    fn name(self) str {
+        return self.n.clone()
+    }
+}
+
+fn nameOf(x: &dyn Named) str {
+    return x.name()
+}
+
+extern "C" {
+    @cfg(os == "windows")
+    fn GetTickCount64() u64
+
+    fn abs(x: i32) i32
+}
+
 fn main() {
     println(family())
     println("{KNOWN_ARCH} {mode()}")
@@ -74,4 +115,8 @@ fn main() {
     println("{matches}")
     const c = Config{name: "etc", root: "/"}
     println(c.path())
+    println(Mode.Fast.label())
+    println(nameOf(&File{n: "x"}))
+    const three = unsafe { abs(-3) }
+    println("{three}")
 }
