@@ -408,7 +408,7 @@ pub fn fieldIndex(info: &StructInfo, name: Symbol) int {
  */
 pub fn checkStructLayouts(c: mut Checker, p: Program, id: int) {
     if c.info[id].fields.isNone() {
-        return
+        return   // GCOVR_EXCL_LINE: the caller computes the fields first
     }
     if c.def(id).lang {
         const ty = c.def(id).primitive
