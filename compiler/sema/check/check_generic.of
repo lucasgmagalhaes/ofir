@@ -181,6 +181,21 @@ fn hasInner(c: Checker, ty: int) bool {
 }
 
 /**
+ * `inferFrom` for the type `found` of an argument (or field) of type `param`.
+ *
+ * @param c the checker
+ * @param inf the inference
+ * @param param the parameter's type
+ * @param found the argument's
+ */
+pub fn inferFromArg(c: mut Checker, inf: mut Infer, param: int, found: int) {
+    if found == ERROR && c.types.get(param).hasParam {
+        inf.poisoned = true   // the argument's error is reported already
+    }
+    inferFrom(c, inf, param, found)
+}
+
+/**
  * Binds the parameters in `pattern` by matching it against `actual`.
  *
  * @param c the checker
@@ -190,9 +205,6 @@ fn hasInner(c: Checker, ty: int) bool {
  */
 pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
     const pt = c.types.get(pattern).clone()
-    if pt.hasParam && actual == ERROR {
-        inf.poisoned = true
-    }
     if !pt.hasParam || actual == ERROR || actual == NEVER {
         return
     }
@@ -466,7 +478,7 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
             checkKeyArg(c, arg, found)
         }
         if !boxed {
-            inferFrom(c, inf, param, found)
+            inferFromArg(c, inf, param, found)
         }
     }
     inferFromBounds(c, p, inf)
