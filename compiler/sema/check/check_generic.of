@@ -722,7 +722,7 @@ pub fn checkBounds(c: mut Checker, p: Program, params: &Generics, args: List<int
     const owner = params.owner.len()
     for i in 0..params.bounds.len() {
         if i >= args.len() {
-            return
+            return   // GCOVR_EXCL_LINE: the argument count is checked first
         }
         const bits = params.bounds[i]
         if !constArgFits(c, params, i, args[i], span) {
