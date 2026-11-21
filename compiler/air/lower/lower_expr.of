@@ -573,8 +573,10 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Closure(params, _, body, isMove) => lowerClosure(l, c, p, e, params, &*body,
                                                                   isMove, ty)
         _ => {
+            // GCOVR_EXCL_START: the checker rejects ranges and types as values
             l.fail("this expression")
             unit()
+            // GCOVR_EXCL_STOP
         }
     }
 }
@@ -620,8 +622,10 @@ fn name(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, ty: int) Operand {
     if kind == DefKind.Global {
         return placeOperand(&globalPlace(l, c, id), OperandKind.Copy, ty)
     }
+    // GCOVR_EXCL_START: the checker rejects other names as values (E0310, E0901)
     c.error("E0901", e.span, "global variables are not supported yet".toOwned())
     return unit()
+    // GCOVR_EXCL_STOP
 }
 
 // `const X = comptime f()` (spec 15.1): its initializer, run by the
@@ -729,7 +733,7 @@ fn intrinsicOp(name: str) Option<(RvalueKind, Op, FloatFn)> {
             })
         }
     }
-    return Option.None
+    return Option.None   // GCOVR_EXCL_LINE: std declares only known intrinsics
 }
 
 // The atomic intrinsics of std.mem.atomic (ADR 0042), in `AtomicOp` order.
@@ -754,7 +758,9 @@ fn constantOrder(c: Checker, e: &Expr) int {
             -1
         }
         ExprKind.Ident(_) => match c.res(e.id.0) {
+            // GCOVR_EXCL_START: std names an ordering as `Ordering.X` or `.X`
             Res.Def(id) => if c.def(id).kind == DefKind.Variant { c.def(id).member } else { -1 }
+            // GCOVR_EXCL_STOP
             _ => -1
         }
         _ => -1
@@ -852,8 +858,10 @@ fn lowerIntrinsic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, id: int,
         return hashValue(l, c, p, value, concreteType(l, c, callTypeArg(c, e)))
     }
     const Option.Some(op) = intrinsicOp(name) else {
+        // GCOVR_EXCL_START: std declares only the intrinsics the lowering knows
         c.error("E0805", fnOf(p, c.loc(id)).span, "unknown intrinsic".toOwned())
         return unit()
+        // GCOVR_EXCL_STOP
     }
     const a = lowerExpr(l, c, p, &args[0].value)
     const b = if args.len() > 1 { lowerExpr(l, c, p, &args[1].value) } else { unit() }
