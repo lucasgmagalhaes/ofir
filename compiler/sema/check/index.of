@@ -1363,6 +1363,9 @@ pub fn checkDeclBounds(c: mut Checker, p: Program, preds: List<WherePred>) {
         }
         for j in 0..pred.bounds.len() {
             const iface = interfaceOf(c, &pred.bounds[j])
+            if const TypeKind.Path(segments, _) = pred.bounds[j].kind {
+                c.r.noteImportUse(segments[0])   // an import used only in a bound is used
+            }
             if boundBit(c, &pred.bounds[j]) == 0 && iface == 0 && !isKeyBound(&pred.bounds[j]) {
                 c.error("E0333", pred.bounds[j].span, "`{typeText(&pred.bounds[j], c.r.names)}` "
                         + "is not an interface")
