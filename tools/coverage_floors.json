@@ -9,58 +9,63 @@
     "bootstrap/src/syntax": 100.0
   },
   "stage1": {
-    "compiler": 83.7,
-    "compiler/air": 87.7,
-    "compiler/base": 81.7,
-    "compiler/cli": 79.5,
-    "compiler/codegen": 91.4,
-    "compiler/diag": 88.7,
-    "compiler/doc": 87.5,
-    "compiler/driver": 81.7,
-    "compiler/fmt": 81.0,
-    "compiler/lsp": 84.8,
-    "compiler/sema": 87.6,
-    "compiler/syntax": 90.0
+    "compiler": 93.5,
+    "compiler/air": 94.1,
+    "compiler/base": 89.7,
+    "compiler/cli": 84.5,
+    "compiler/codegen": 97.7,
+    "compiler/diag": 100.0,
+    "compiler/doc": 93.5,
+    "compiler/driver": 87.5,
+    "compiler/fmt": 87.0,
+    "compiler/lsp": 90.6,
+    "compiler/sema": 96.3,
+    "compiler/syntax": 99.5
   },
   "runtime": {
     "runtime/src": 84.8
   },
   "std": {
-    "std/arena": 79.4,
-    "std/checksum": 92.4,
-    "std/cli": 92.0,
-    "std/collections": 89.7,
-    "std/compress": 87.5,
-    "std/core": 84.3,
-    "std/encoding": 91.3,
-    "std/fmt": 93.0,
-    "std/fs": 75.2,
-    "std/io": 42.3,
-    "std/json": 93.2,
-    "std/math": 90.5,
-    "std/mem": 86.3,
+    "std/arena": 100.0,
+    "std/checksum": 100.0,
+    "std/cli": 99.0,
+    "std/collections": 99.2,
+    "std/compress": 94.3,
+    "std/core": 95.7,
+    "std/encoding": 99.1,
+    "std/fmt": 99.0,
+    "std/fs": 92.4,
+    "std/io": 49.2,
+    "std/json": 98.0,
+    "std/math": 96.2,
+    "std/mem": 99.2,
     "std/meta": 100.0,
-    "std/os": 76.5,
-    "std/path": 89.3,
-    "std/random": 91.7,
-    "std/strings": 91.2,
-    "std/sync": 83.7,
-    "std/task": 81.1,
-    "std/testing": 87.0,
-    "std/time": 88.2
+    "std/os": 87.8,
+    "std/path": 96.6,
+    "std/random": 98.7,
+    "std/strings": 98.8,
+    "std/sync": 98.2,
+    "std/task": 88.4,
+    "std/testing": 94.8,
+    "std/time": 96.0
   },
   "branches": {
     "stage0": {
       "bootstrap/src": 88.2,
-      "bootstrap/src/air": 91.0,
+      "bootstrap/src/air": 91.1,
       "bootstrap/src/base": 82.1,
       "bootstrap/src/codegen": 93.8,
       "bootstrap/src/diag": 91.9,
-      "bootstrap/src/sema": 89.2,
+      "bootstrap/src/sema": 89.3,
       "bootstrap/src/syntax": 89.2
     },
     "std": {
+      "std/arena": 64.2,
+      "std/checksum": 73.3,
       "std/meta": 50.0
+    },
+    "stage1": {
+      "compiler/diag": 66.8
     }
   }
 }
