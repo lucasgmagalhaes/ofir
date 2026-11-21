@@ -11,7 +11,8 @@
 - a record of a build whose clang does not run and whose runtime is
   missing;
 - a benchmark that fails;
-- `explain` with a malformed code and with no explanation.
+- `explain` with no code, a malformed code and with no explanation;
+  `help`.
 
     python3 tools/check_build_cli.py --compiler build/stage1/ofir
 """
@@ -123,6 +124,8 @@ def benches(compiler: str, work: Path) -> None:
 
 
 def explains(compiler: str, work: Path) -> None:
+    expect(ofir(compiler, work, "explain", status=2), "needs one code", "no code")
+    expect(ofir(compiler, work, "help", status=0), "usage: ofir", "help")
     expect(ofir(compiler, work, "explain", "E12x4", status=2), "is not an error code",
            "a malformed code")
     env = dict(os.environ, OFIR_ERRORS=str(work))
