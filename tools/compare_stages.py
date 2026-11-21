@@ -41,6 +41,8 @@ ONE_STAGE = re.compile(r"^//\s*requires:\s*stage[01]\b", re.MULTILINE)
 
 # A test compiled without the standard library (`// std: none`, as the runner).
 NO_STD = re.compile(r"^//\s*std:\s*none\s*$", re.MULTILINE)
+# A project test with a standard library of its own (`// std: <dir>`).
+STD_DIR = re.compile(r"^//\s*std:\s*(?!none\s*$)(\S+)\s*$", re.MULTILINE)
 
 
 # E0100's message: stage 0 rejects a feature that stage 1 may implement.
@@ -84,6 +86,8 @@ def emit(compiler: str, path: Path, option: str, command: str = "build") -> tupl
         env = ENV
         if path.exists() and NO_STD.search(path.read_text(errors="replace")):
             env = dict(ENV, OFIR_STD=tmp)   # an empty directory: no std modules
+        elif path.name == "main.of" and (m := STD_DIR.search(path.read_text(errors="replace"))):
+            env = dict(ENV, OFIR_STD=str(path.parent / m.group(1)))
         if option != "--emit=llvm":
             return run([compiler, command, str(path), option, "-o", "/dev/null"], env=env)
         exe = Path(tmp) / "out"
