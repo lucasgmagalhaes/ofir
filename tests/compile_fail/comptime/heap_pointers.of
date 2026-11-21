@@ -1,7 +1,8 @@
 // requires: stage1
 // Compile-time code frees and copies only blocks of its own heap, and
 // does not compare bytes with `memcmp` yet (spec 15.5, E0901); a read
-// through a null pointer fails the build (E0816).
+// through a null pointer fails the build (E0816), and the arguments of a
+// heap call are compile-time values (E0815).
 
 fn nullRead() int {
     const p = unsafe { 0 as *int }
@@ -44,5 +45,9 @@ fn main() {
     const a = comptime freeStack()   // error[E0901]: stage 1 does not evaluate this pointer at compile time yet
     const b = comptime copyStack()   // error[E0901]: stage 1 does not evaluate this pointer at compile time yet
     const c = comptime compare()   // error[E0901]: stage 1 does not evaluate `memcmp` at compile time yet
-    println("{n} {a} {b} {c}")
+    const q = unsafe { ofir_alloc(1) }
+    comptime (unsafe { ofir_free(q) })   // error[E0815]: compile-time code cannot read `q`: its value exists only at run time
+    const size = 1
+    const d = comptime (unsafe { memcpy(ofir_alloc(1), ofir_alloc(1), size) == ofir_alloc(1) })   // error[E0815]: compile-time code cannot read `size`: its value exists only at run time
+    println("{n} {a} {b} {c} {d}")
 }
