@@ -2,7 +2,7 @@
 """Mutation testing of the compilers (roadmap 6.33k, ADR 0103).
 
 Copies the tracked files to a work tree (build/mutation/tree), then mutates
-the sources of `bootstrap/src` (stage 0) and `compiler/` (stage 1) one
+the sources of `bootstrap/src` (stage 0) and `compiler/` (stage 1, not its `_test.of`) one
 change at a time: a comparison, `&&` and `||`, `+` and `-`, the constants
 0 and 1, and `true` and `false`. For each mutant the compiler it belongs
 to is rebuilt and the tests run with it (for stage 0 also
@@ -96,7 +96,7 @@ def all_mutants(dirs: list[str]) -> dict[str, list[Mutant]]:
     for top, suffixes in SOURCES.items():
         for path in sorted((ROOT / top).rglob("*")):
             rel = str(path.relative_to(ROOT))
-            if path.suffix not in suffixes or "/fuzz/" in rel:
+            if path.suffix not in suffixes or "/fuzz/" in rel or rel.endswith("_test.of"):
                 continue
             if dirs and not any(rel.startswith(d.rstrip("/") + "/") for d in dirs):
                 continue
