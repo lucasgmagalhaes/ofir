@@ -9,18 +9,18 @@
     "bootstrap/src/syntax": 100.0
   },
   "stage1": {
-    "compiler": 93.5,
-    "compiler/air": 97.2,
-    "compiler/base": 89.7,
-    "compiler/cli": 84.5,
-    "compiler/codegen": 97.9,
+    "compiler": 100.0,
+    "compiler/air": 100.0,
+    "compiler/base": 100.0,
+    "compiler/cli": 100.0,
+    "compiler/codegen": 100.0,
     "compiler/diag": 100.0,
-    "compiler/doc": 93.5,
-    "compiler/driver": 87.5,
-    "compiler/fmt": 87.0,
-    "compiler/lsp": 90.6,
+    "compiler/doc": 100.0,
+    "compiler/driver": 100.0,
+    "compiler/fmt": 100.0,
+    "compiler/lsp": 100.0,
     "compiler/sema": 100.0,
-    "compiler/syntax": 99.9
+    "compiler/syntax": 100.0
   },
   "runtime": {
     "runtime/src": 84.8
