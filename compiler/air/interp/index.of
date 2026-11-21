@@ -513,7 +513,7 @@ fn maxBits(c: mut Checker, to: int) u64 {
         return (one << (t - 1) as u64) - 1
     }
     if t == 64 {
-        return ONES
+        return ONES   // GCOVR_EXCL_LINE: no source is wider than u64 (spec 2, ADR 0047)
     }
     return (one << t as u64) - 1
 }
@@ -570,6 +570,7 @@ fn castFailsValue(c: mut Checker, v: Value, from: int, to: int) Value {
 }
 
 fn saturate(c: mut Checker, v: Value, from: int, to: int) Value {
+    // GCOVR_EXCL_START: `saturatingCast` takes an integer receiver (E0301)
     if c.types.kind(from) == TyKind.Float {
         const x = v.float
         if x.isNan() {
@@ -580,6 +581,7 @@ fn saturate(c: mut Checker, v: Value, from: int, to: int) Value {
         }
         return intValue(floatToInt(c, x, to))
     }
+    // GCOVR_EXCL_STOP
     if castFails(c, from, to, v.bits) {
         const negative = isSigned(c, from) && v.bits.wrappingCast<i64>() < 0
         return intValue(if negative { minBits(c, to) } else { maxBits(c, to) })
