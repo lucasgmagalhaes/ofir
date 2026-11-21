@@ -1,0 +1,17 @@
+// `_` names nothing, so it may repeat in one scope (spec 3.1).
+
+fn first(_: int, _: int) int {
+    return 1
+}
+
+fn main() {
+    const list = [10, 20, 30]
+    let n = 0
+    for _, _ in list {
+        n += 1
+    }
+    for i, _ in list {
+        n += i
+    }
+    println("{n} {first(1, 2)}")
+}
