@@ -12,7 +12,9 @@
   prints the build holds `--offline` with an empty `$OFIR_HOME`; it stops
   on a manifest error and on a copy it cannot remove or write;
 - the members of a workspace share the lock and the `overrides` of its
-  root, and a member's own `overrides` are not read.
+  root, and a member's own `overrides` are not read;
+- `fetch --offline` and `update <name>` hold the lock, and `fetch`
+  without a manifest gives 2.
 
     python3 tools/check_sources.py --compiler build/stage1/ofir
 """
@@ -273,6 +275,26 @@ def check_workspace(compiler, tmp):
     print("sources: workspaces ok")
 
 
+def check_fetch(compiler, tmp):
+    work = tmp / "fetch"
+    text = f'{{"git": "{(FIXTURES / "text").as_posix()}", "version": "^1.0"}}'
+    write(work / "ofir.json", manifest("app", "exe", [("dependencies", [("text", text)])]))
+    write(work / "main.of", "fn main() {\n}\n")
+    home = tmp / "home-fetch"
+    run([compiler, "fetch"], work, home)
+    lock = (work / "ofir.lock").read_text()
+    for words in (["fetch", "--offline"], ["update", "text", "--offline"]):
+        run([compiler, *words], work, home)
+        if (work / "ofir.lock").read_text() != lock:
+            fail(f"{' '.join(words)} changed the lock")
+    bare = tmp / "fetch-bare"
+    bare.mkdir()
+    bad = run([compiler, "fetch"], bare, home, ok=False)
+    if bad.returncode != 2 or "needs an `ofir.json`" not in bad.stderr:
+        fail(f"fetch without a manifest: {bad.returncode} {bad.stderr[-2000:]}")
+    print("sources: fetching ok")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--compiler", default="build/stage1/ofir")
@@ -287,6 +309,7 @@ def main():
         check_vendor(compiler, Path(tmp))
         check_vendor_failures(compiler, Path(tmp))
         check_workspace(compiler, Path(tmp))
+        check_fetch(compiler, Path(tmp))
     return 0
 
 
