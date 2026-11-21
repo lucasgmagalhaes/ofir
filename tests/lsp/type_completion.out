@@ -1,0 +1,5 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]},"hoverProvider":true,"referencesProvider":true,"renameProvider":true},"serverInfo":{"name":"ofir"}}}
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[]}}
+{"jsonrpc":"2.0","id":2,"result":{"isIncomplete":false,"items":[{"label":"Builder","kind":22}]}}
+{"jsonrpc":"2.0","id":3,"result":{"isIncomplete":false,"items":[{"label":"str","kind":22},{"label":"strings","kind":9},{"label":"struct","kind":14}]}}
+{"jsonrpc":"2.0","id":99,"result":null}

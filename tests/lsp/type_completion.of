@@ -1,0 +1,5 @@
+import std.strings
+
+fn take(a: strings.Builder, b: strings.Utf8Error) {}
+
+fn main() {}
