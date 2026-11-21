@@ -1,0 +1,19 @@
+// requires: stage1
+// A `comptime if` whose condition is false moves only in its `else` branch
+// (spec 15.3).
+
+import std.meta
+
+fn take(l: List<int>) int {
+    return l.len()
+}
+
+fn main() {
+    const l = [1, 2]
+    const n = comptime if meta.isStruct<int>() {
+        0
+    } else {
+        take(l)
+    }
+    println("{n}")
+}
