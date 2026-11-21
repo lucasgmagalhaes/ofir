@@ -26,6 +26,7 @@ import os
 import random
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from collections import defaultdict
@@ -115,7 +116,8 @@ def copy_tree(tree: Path):
         if target.exists() and target.read_bytes() == source.read_bytes():
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
+        shutil.copyfile(source, target)   # a new mtime, so that make rebuilds it
+        shutil.copymode(source, target)
 
 
 class Runner:
@@ -200,6 +202,8 @@ def main() -> int:
         for d, ms in sorted(by_dir.items()):
             print(f"{d}: {len(ms)} mutants")
         return 0
+    # A SIGTERM restores the mutated file too (the `finally` below).
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(1))
     rng = random.Random(opts.seed)
     sample = {d: rng.sample(ms, min(opts.per_dir, len(ms))) for d, ms in sorted(by_dir.items())}
     out = opts.out.resolve()
