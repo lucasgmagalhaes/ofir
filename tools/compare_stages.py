@@ -60,8 +60,10 @@ def executable(path: str) -> str:
 # Mutants only stage 1 handles: a `name @ pattern` binding (ADR 0043), a
 # copy of a std file exporting a runtime symbol, E0819 outside std (spec 11),
 # and a key literal type (`&.x`, `: .x`; spec 16), also when the name after the
-# `.` is missing: stage 1 reports it there, stage 0 at the `.`.
-ONE_STAGE_MUTANT = re.compile(r'\w@\w|@export\("ofir_|[&:]\s*\.(?!\.)')
+# `.` is missing: stage 1 reports it there, stage 0 at the `.`; and a format
+# specifier (`"{x:spec}"`, spec 1.7), which only stage 1 lexes.
+ONE_STAGE_MUTANT = re.compile(r'\w@\w|@export\("ofir_|[&:]\s*\.(?!\.)'
+                              r'|"[^"\n]*\{[^"\n]*:[^\s}"]+\}')
 
 
 # The fuzzing seeds (ADR 0086): malformed inputs whose recovery may differ.
