@@ -1,0 +1,23 @@
+// requires: stage1
+// A struct asserts, and an interface embeds, interfaces only (spec 9.3).
+
+struct D {}
+
+interface Greet {
+    fn hi(self) int {
+        return 1
+    }
+}
+
+struct C: D + Greet {   // error[E0333]: `D` is not an interface
+}
+
+interface E {
+    D   // error[E0333]: `D` is not an interface
+    Greet
+}
+
+fn main() {
+    const c = C{}
+    println("{c.hi()}")
+}
