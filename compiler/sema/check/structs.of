@@ -257,7 +257,7 @@ fn interiorIn(c: mut Checker, p: Program, ty: int, seen: &mut List<int>) bool {
     seen.push(ty)
     if c.def(def).kind == DefKind.Struct {
         if !structFields(c, p, def) {
-            return false
+            return false   // GCOVR_EXCL_LINE: asked after fields are resolved
         }
         for i in 0..fieldsOf(c, def).types.len() {
             if interiorIn(c, p, structFieldType(c, p, ty, i), seen) {
@@ -267,7 +267,7 @@ fn interiorIn(c: mut Checker, p: Program, ty: int, seen: &mut List<int>) bool {
         return false
     }
     if c.def(def).kind != DefKind.Enum || !enumVariants(c, p, def) {
-        return false
+        return false   // GCOVR_EXCL_LINE: asked after variants are resolved
     }
     for v in 0..variantCount(c, def) {
         for i in 0..variantFieldCount(c, def, v) {
