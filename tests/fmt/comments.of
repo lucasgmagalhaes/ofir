@@ -1,0 +1,24 @@
+fn f(
+    a: int,
+    b: int  // last
+) int {
+    return (a
+        + b)
+}
+
+/* block
+   comment without star
+*/
+fn g() {
+    const x = [
+        1,
+        2   /* c */
+    ]
+    const y = (1 +
+        2)
+    const z = call(1,
+        2
+        // trailing
+    )
+    print("{x.len()} {y} {z}")
+}
