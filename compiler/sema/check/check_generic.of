@@ -80,6 +80,8 @@ pub struct Infer {
     pub args: List<int>
     /** Whether each is known. */
     pub known: List<bool>
+    /** Whether an argument had the error type: E0330 would only cascade. */
+    pub poisoned: bool = false
 }
 
 /**
@@ -188,6 +190,9 @@ fn hasInner(c: Checker, ty: int) bool {
  */
 pub fn inferFrom(c: mut Checker, inf: mut Infer, pattern: int, actual: int) {
     const pt = c.types.get(pattern).clone()
+    if pt.hasParam && actual == ERROR {
+        inf.poisoned = true
+    }
     if !pt.hasParam || actual == ERROR || actual == NEVER {
         return
     }
@@ -358,7 +363,8 @@ fn impliedArgs(c: mut Checker, p: Program, ty: int, iface: int) int {
 }
 
 /**
- * Reports E0330 for each parameter still unknown.
+ * Reports E0330 for each parameter still unknown, unless an argument had the
+ * error type: its error is reported already.
  *
  * @param c the checker
  * @param inf the inference
@@ -371,8 +377,10 @@ pub fn inferFinish(c: mut Checker, inf: mut Infer, span: Span) {
         }
         const owner = inf.params.owner.len()
         const name = if i < owner { inf.params.owner[i] } else { inf.params.fnParams[i - owner] }
-        c.error("E0330", span, "cannot infer the type parameter `{c.paramText(name)}`: write the "
-                + "type arguments, as in `f<int>(x)`")
+        if !inf.poisoned {
+            c.error("E0330", span, "cannot infer the type parameter `{c.paramText(name)}`: "
+                    + "write the type arguments, as in `f<int>(x)`")
+        }
         inf.args[i] = ERROR
         inf.known[i] = true
     }
