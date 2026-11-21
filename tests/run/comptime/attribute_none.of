@@ -1,0 +1,47 @@
+// requires: stage1
+// `attribute(key)` with no such tag (spec 15.4): a field tagged with another
+// key, a mapped struct, a key type with no struct, and a variant.
+
+import std.meta
+
+struct P {
+    @tag("json", "ex")
+    x: int
+    @tag("other", "why")
+    y: int
+}
+
+type Copy<T> = { [K in keyof T]: T[K] }
+
+type Ends = .x | .y
+
+enum E {
+    A
+}
+
+fn mapped() {
+    comptime for field in meta.fieldsOf<Copy<P>>() {
+        println("{field.name} {field.attribute("json") ?? "none"}")
+    }
+}
+
+fn keys() {
+    comptime for key in keyof P {
+        println("{key.attribute("json") ?? "none"}")
+    }
+    comptime for key in Ends {
+        println("{key.attribute("json") ?? "none"}")
+    }
+}
+
+fn variants() {
+    comptime for v in meta.variantsOf<E>() {
+        println("{v.name} {v.attribute("json") ?? "none"}")
+    }
+}
+
+fn main() {
+    mapped()
+    keys()
+    variants()
+}
