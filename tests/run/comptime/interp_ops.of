@@ -58,6 +58,10 @@ comptime fn strings() str {
     return "{parts} | {more} | {cut} | {cases} | [{u}]"
 }
 
+comptime fn units() ((), int) {
+    return ((), 2)
+}
+
 const UNARY: str = comptime unary(5, true, 1.5, 2.5)
 const CASTS: str = comptime casts(250.75, 200, 7)
 const SATURATING: str = comptime saturating(300)
@@ -65,6 +69,7 @@ const CHECKED: str = comptime checkedCasts(300)
 const DIVISION: str = comptime division(17, 5, -17, 5)
 const FLOATS: str = comptime floats(6.25)
 const STRINGS: str = comptime strings()
+const UNITS: ((), int) = comptime units()
 
 fn main() {
     println(UNARY)
@@ -74,4 +79,5 @@ fn main() {
     println(DIVISION)
     println(FLOATS)
     println(STRINGS)
+    println("{UNITS.1}")
 }
