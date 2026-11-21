@@ -555,7 +555,9 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Variant(_, args, _) => if c.types.kind(ty) == TyKind.Key {
             opUnit(ty)   // a key has no value (spec 16.2)
         } else {
+            // GCOVR_EXCL_START: E0326 rejects it
             buildVariant(l, c, p, ty, c.members[c.module()][e.id.0], args)
+            // GCOVR_EXCL_STOP
         }
         ExprKind.Array(elems) => if isArray(c, ty) { arrayLiteral(l, c, p, elems, ty) } else {
             listLiteral(l, c, p, elems, ty)
@@ -605,8 +607,10 @@ fn name(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, ty: int) Operand {
         return constOperand(c, id, ty)
     }
     if kind == DefKind.Variant {   // `None`
+        // GCOVR_EXCL_START: E0326 rejects it
         const none: List<Arg> = []
         return buildVariant(l, c, p, ty, c.def(id).member, none)
+        // GCOVR_EXCL_STOP
     }
     if kind == DefKind.Fn {   // a function value with no environment
         let rv = rvalue(RvalueKind.FnValue, Op.Add, unit(), unit())
@@ -676,7 +680,9 @@ fn nameCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
         return aggregateOf(l, c, p, values, c.typeOf(e.id.0))
     }
     if kind == DefKind.Variant {   // `Some(x)`
+        // GCOVR_EXCL_START: E0326 rejects it
         return buildVariant(l, c, p, c.typeOf(e.id.0), c.def(id).member, args)
+        // GCOVR_EXCL_STOP
     }
     if kind == DefKind.Builtin {
         const which = c.def(id).primitive
