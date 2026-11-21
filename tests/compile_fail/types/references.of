@@ -43,6 +43,45 @@ fn element(w: &Wrapped) &int {
     }
 }
 
+// A temporary ends with its statement, and so before the caller could use
+// a borrow of it; a reference or a view on the way reaches the caller's data.
+struct Pair {
+    left: int
+    right: int
+}
+
+fn makePair(n: int) Pair {
+    return Pair{left: n, right: n}
+}
+
+fn sum(r: &int) &int {
+    return &(*r + 1)             // error[E0702]: cannot return a reference to a temporary value, which ends with the function
+}
+
+fn literal(r: &int) &int {
+    return &5                    // error[E0702]: cannot return a reference to a temporary value, which ends with the function
+}
+
+fn fieldOfCall(r: &int) &int {
+    return &makePair(*r).left    // error[E0702]: cannot return a reference to a temporary value, which ends with the function
+}
+
+fn someOfTemporary(r: &int) Option<&int> {
+    return Option.Some(&(*r * 2))   // error[E0702]: cannot return a reference to a temporary value, which ends with the function
+}
+
+fn eitherTemporary(r: &int, first: bool) &int {
+    return if first {
+        &(*r + 1)                // error[E0702]: cannot return a reference to a temporary value, which ends with the function
+    } else {
+        r
+    }
+}
+
+fn throughView(xs: List<int>) &int {
+    return &xs.slice(0, 1)[0]
+}
+
 fn main() {
     const n = 1
     const r = &mut n               // error[E0315]: this value cannot be modified: declare it with `let`
