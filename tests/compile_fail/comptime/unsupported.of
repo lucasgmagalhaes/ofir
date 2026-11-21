@@ -1,0 +1,33 @@
+// requires: stage1
+// Compile-time code does not make function values or closures yet
+// (spec 15.5, E0901); a slice of an array works.
+
+fn one() int {
+    return 1
+}
+
+fn apply(f: fn(int) int, x: int) int {
+    return f(x)
+}
+
+fn fnValue() int {
+    const f = one
+    return f()
+}
+
+fn closure(n: int) int {
+    return apply(x => x + n, 1)
+}
+
+fn slice() int {
+    const a = [1, 2, 3]
+    const s: &[int] = &a
+    return s.len()
+}
+
+fn main() {
+    const a = comptime fnValue()   // error[E0901]: stage 1 does not evaluate this operation at compile time yet
+    const b = comptime closure(2)   // error[E0901]: stage 1 does not evaluate this operation at compile time yet
+    const c = comptime slice()
+    println("{a} {b} {c}")
+}
