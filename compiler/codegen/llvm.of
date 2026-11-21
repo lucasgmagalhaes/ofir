@@ -940,8 +940,8 @@ fn nicheTagStore(g: mut Gen, c: mut Checker, p: Program, at: str, v: &Value) {
         const kept = nextTemp(g)
         g.out.push("  {kept} = select i1 {isNone}, ptr null, ptr {word}\n")
         g.out.push("  store ptr {kept}, ptr {at}\n")
-        // GCOVR_EXCL_STOP
     }
+    // GCOVR_EXCL_STOP
 }
 
 fn intOp(op: Op, signed: bool) str {
