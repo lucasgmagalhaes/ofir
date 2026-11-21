@@ -10,7 +10,9 @@
 - a package without a `license` is E0919 and one with an invalid SPDX
   expression is E0910; the license is recorded in the index (ADR 0081);
 - `ofir yank` keeps a yanked version out of `ofir update`, and `--undo`
-  brings it back.
+  brings it back;
+- an archive or index file that cannot be written, `git` or `tar` that
+  fails and a package that cannot be copied stop with 1.
 
     python3 tools/check_publish.py --compiler build/stage1/ofir
 """
@@ -145,6 +147,9 @@ def main():
 
         library("1.2.0", name="Greet")
         refused(["publish"], "package name")
+        for name in ("a_b", "a" * 65):
+            library("1.2.0", name=name)
+            refused(["publish"], "package name")
         library("1.2")
         refused(["publish"], "`X.Y.Z`")
         library("1.2.0", deps='{"other": {"path": "../other"}}')
@@ -196,6 +201,50 @@ def main():
         ofir(lib, "yank", "--index", str(index), "1.3.0")
         if '"version": "1.3.0"' not in entry.read_text() or "not json" not in entry.read_text():
             fail(f"the index after the yank:\n{entry.read_text()}")
+
+        # Failures while publishing: the archive, the index file, `git`, `tar`
+        # and the copy of the package.
+        write(tmp / "afile", "")
+        write(index / "config.json", f'{{"download": "file://{tmp}/afile/x/{{name}}.tar.gz"}}\n')
+        library("2.0.0")
+        usage(["publish"], "cannot copy the archive", 1)
+        write(index / "config.json", "{\n")
+        write(index / "ze", "")
+        library("2.0.0", name="zebra")
+        usage(["publish"], "cannot write", 1)
+        (index / "ze").unlink()
+        write(index / ".gitignore", "ze/\n")
+        usage(["publish"], "`git` failed", 1)
+        (index / ".gitignore").unlink()
+        hook = index / ".git" / "hooks" / "pre-commit"
+        write(hook, "#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        library("2.0.1", name="zebra")
+        usage(["publish"], "`git` failed", 1)
+        library("1.0.0")
+        usage(["yank", "1.0.0"], "`git` failed", 1)
+        hook.unlink()
+        tools = tmp / "tools"
+        tools.mkdir()
+        write(tools / "rm", "#!/bin/sh\nexit 0\n")   # `tar` is missing
+        (tools / "rm").chmod(0o755)
+        usage(["publish", "--dry-run"], "cannot run `tar`", 1,
+              environ=dict(env, PATH=str(tools)))
+        write(tools / "tar", "#!/bin/sh\necho boom >&2\nexit 1\n")
+        (tools / "tar").chmod(0o755)
+        usage(["publish", "--dry-run"], "`tar` failed: boom", 1,
+              environ=dict(env, PATH=str(tools)))
+        os.symlink(tmp / "nowhere", lib / "src" / "dangling")
+        usage(["publish", "--dry-run"], "cannot copy the package", 1)
+        (lib / "src" / "dangling").unlink()
+        (lib / "src" / "sub").mkdir()
+        os.symlink(tmp / "nowhere", lib / "src" / "sub" / "dangling")
+        usage(["publish", "--dry-run"], "cannot copy the package", 1)
+        shutil.rmtree(lib / "src" / "sub")
+        shutil.rmtree(lib / "build", ignore_errors=True)
+        write(lib / "build" / "package", "")
+        usage(["publish", "--dry-run"], "cannot copy the package", 1)
+        usage(["yank", "1.0.0"], "needs an `ofir.json` with a `name`", cwd=empty)
     print("publish: ok")
 
 
