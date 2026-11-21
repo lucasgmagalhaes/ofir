@@ -1,0 +1,14 @@
+// requires: stage1
+// A key parameter bounded by `keyof T`, called with a `T` that is not a
+// struct or tuple (spec 16.1): `keyof int` has no keys.
+
+struct Point { x: int }
+
+fn pick<T, K: keyof T>(_value: &T, _key: K) int {
+    return 1
+}
+
+fn main() {
+    println("{pick(&Point{x: 1}, .x)}")
+    println("{pick(&3, .x)}")   // error[E0340]: `keyof` needs a struct or tuple type, found `int`
+}
