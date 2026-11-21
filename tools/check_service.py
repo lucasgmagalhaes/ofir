@@ -12,6 +12,7 @@ by SIGINT at any point leaves a cache from which the next build succeeds.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import signal
@@ -166,6 +167,15 @@ def interrupted_builds(c: Checker) -> None:
     magic = (b"\x7fELF", b"\xcf\xfa\xed\xfe", b"MZ", b"\x64\x86", b"\x64\xaa")
     c.expect(len(objects) > 0 and all(p.read_bytes()[:4].startswith(magic) for p in objects),
              "every cached object is a whole object file")
+    for path in objects:   # an object with the right magic number that does not link
+        bad = b"\x7fELF" + b"\0" * 60
+        path.write_bytes(bad)
+        path.with_suffix(".sum").write_text(hashlib.sha256(bad).hexdigest())
+    rebuilt = c.run("build", str(APP), "-o", str(exe))
+    ran = subprocess.run([str(exe)], capture_output=True, text=True) \
+        if rebuilt.returncode == 0 else None
+    c.expect(ran is not None and ran.stdout == APP_OUT,
+             "bad cached objects: compiled again", rebuilt.stdout + rebuilt.stderr)
 
 
 LIB = "pub fn add(a: int, b: int) int {\n    return a + b\n}\n"
