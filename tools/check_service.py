@@ -229,6 +229,41 @@ def native_failures(c: Checker) -> None:
                 "build", good, "-o", out)
 
 
+LINKED = ('@link("m")\nextern "C" {\n    fn cos(x: f64) f64\n}\n\n'
+          'fn main() {\n    const x = unsafe { cos(0.0) }\n    print("{x}")\n}\n')
+
+
+def cross_targets(c: Checker) -> None:
+    """The flags of other targets, seen through a clang that logs them."""
+    log, fake = c.tmp / "fake.log", c.tmp / "fake-clang"
+    fake.write_text(f'#!/bin/sh\necho "$@" >> "{log}"\nout=""\nprev=""\n'
+                    'for a in "$@"; do\n    [ "$prev" = "-o" ] && out="$a"\n'
+                    '    prev="$a"\ndone\n[ -n "$out" ] && : > "$out"\nexit 0\n')
+    fake.chmod(0o755)
+    linked = c.write("linked.of", LINKED)
+    runtimes = c.tmp / "runtimes"   # the clang never reads them
+    for target in ("x86_64-w64-windows-gnu", "aarch64-apple-darwin"):
+        (runtimes / target).mkdir(parents=True)
+        (runtimes / target / "libofir_rt.a").write_bytes(b"")
+    env = dict(c.env, OFIR_CLANG=str(fake), OFIR_SYSROOT=str(c.tmp / "root"),
+               OFIR_RUNTIME=str(runtimes / "libofir_rt.a"))
+    cases = [(["--target=x86_64-w64-windows-gnu"], "linked",
+              ["-lpthread", "-Wl,--no-insert-timestamp", f"--sysroot={c.tmp / 'root'}", "-lm"]),
+             (["--target=aarch64-apple-darwin", "--trim-paths"], "linked", ["-Wl,-S"]),
+             (["--target=x86_64-w64-windows-gnu", "--lib=shared"], "liblinked.dll", ["-shared"]),
+             (["--target=aarch64-apple-darwin", "--lib=shared"], "liblinked.dylib", ["-fPIC"])]
+    for flags, output, words in cases:
+        log.unlink(missing_ok=True)
+        result = subprocess.run([c.compiler, "build", "--no-cache", *flags, linked],
+                                capture_output=True, text=True, env=env, cwd=c.tmp,
+                                timeout=300)
+        calls = log.read_text().split() if log.exists() else []
+        c.expect(result.returncode == 0 and (c.tmp / output).exists()
+                 and all(w in calls for w in words),
+                 f"a build for {' '.join(flags)}: {output} and {' '.join(words)}",
+                 f"{result.returncode}\n{result.stderr[-2000:]}\n{' '.join(calls)[-2000:]}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compiler", required=True)
@@ -245,6 +280,7 @@ def main() -> int:
         interrupted_builds(c)
         records(c)
         native_failures(c)
+        cross_targets(c)
         return 0 if c.ok else 1
 
 
