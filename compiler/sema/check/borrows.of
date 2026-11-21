@@ -127,12 +127,12 @@ pub fn sameLoans(a: &State, b: &State) bool {
     }
     for i in 0..a.loans.len() {
         if !hasLoan(b, &a.loans[i]) {
-            return false
+            return false   // GCOVR_EXCL_LINE: a join only adds loans, so equal counts are equal sets
         }
     }
     for i in 0..a.conflicts.len() {
         if !hasConflict(b, &a.conflicts[i]) {
-            return false
+            return false   // GCOVR_EXCL_LINE: a join only adds conflicts, so equal counts match
         }
     }
     return true
