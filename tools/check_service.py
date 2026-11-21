@@ -30,6 +30,9 @@ BAD = "fn main() {\n    const x: int = true\n}\n"
 EXIT3 = "import std.os\n\nfn main() {\n    os.exit(3)\n}\n"
 PANIC = 'fn main() {\n    panic("boom")\n}\n'
 FAILING_TEST = "@test\nfn wrong() {\n    assert(1 == 2)\n}\n"
+# A shorthand field that names a global: a shape the lowering does not take.
+UNLOWERED = ("struct S {\n    n: int\n}\n\nconst n: int = 4\n\n"
+             "fn main() {\n    const s = S{n}\n    print(\"{s.n}\")\n}\n")
 
 
 class Checker:
@@ -81,6 +84,10 @@ def exit_statuses(c: Checker) -> None:
     c.status(3, "run passes the program's status", "run", c.write("exit3.of", EXIT3))
     c.status(101, "run of a panicking program", "run", c.write("panic.of", PANIC))
     c.status(1, "a failing test", "test", c.write("failing_test.of", FAILING_TEST))
+    result = c.status(1, "build of an unlowered shape", "build",
+                      c.write("unlowered.of", UNLOWERED), "-o", str(c.tmp / "unlowered"))
+    c.expect("E0901" in result.stderr and "this shorthand field" in result.stderr,
+             "build of an unlowered shape: E0901 names it", result.stderr)
 
 
 def check_builds_nothing(c: Checker) -> None:
