@@ -3,7 +3,7 @@
 // native `str` methods in `comptime` code (spec 15.5).
 
 comptime fn unary(n: int, b: bool, x: float, y: f32) str {
-    return "{-n} {!b} {-x} {-y} {!n} {!(n as u8)}"
+    return "{-n} {!b} {-x} {-y} {!n} {!(n as u8)} {-n >> 1} {(n as u8) >> 1}"
 }
 
 comptime fn casts(x: float, n: int, u: u8) str {
