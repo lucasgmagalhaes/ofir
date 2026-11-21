@@ -9,7 +9,8 @@
 - an override replaces a dependency everywhere in the graph, and its
   package is not locked;
 - `ofir vendor` copies the locked packages, and with the overrides it
-  prints the build holds `--offline` with an empty `$OFIR_HOME`;
+  prints the build holds `--offline` with an empty `$OFIR_HOME`; it stops
+  on a manifest error and on a copy it cannot remove or write;
 - the members of a workspace share the lock and the `overrides` of its
   root, and a member's own `overrides` are not read.
 
@@ -195,6 +196,49 @@ def check_vendor(compiler, tmp):
     print("sources: vendoring ok")
 
 
+def check_vendor_failures(compiler, tmp):
+    """`ofir vendor` stops on a manifest error and on a copy it cannot
+    remove or write; links stand in for the files it cannot handle."""
+    work = tmp / "vendor-fail"
+    text = f'{{"git": "{(FIXTURES / "text").as_posix()}", "version": "^1.0"}}'
+    write(work / "ofir.json", manifest("app", "exe", [("dependencies", [("text", text)])]))
+    home = tmp / "home-vendor-fail"
+    run([compiler, "vendor"], work, home)
+
+    def refused(message, *words):
+        bad = run([compiler, "vendor", "--offline", *words], work, home, ok=False)
+        if bad.returncode != 1 or message not in bad.stderr:
+            fail(f"vendor {' '.join(words)}: {bad.returncode} {bad.stderr[-2000:]}")
+
+    write(work / "taken", "")   # a file where the directory goes
+    refused("cannot copy `text` into `taken/text`", "taken")
+    if os.name != "nt":
+        kept = tmp / "kept"
+        write(kept / "a.txt", "a")
+        link = work / "vendor" / "text" / "linked"
+        link.symlink_to(kept, target_is_directory=True)   # removing it leaves the link
+        refused("cannot remove `vendor/text`")
+        link.unlink()
+        repo = tmp / "linked-repo"   # a package with a link to nothing, which it cannot copy
+        library(repo.parent, repo.name, version_fn("1"))
+        (repo / "src" / "sub").mkdir()
+        (repo / "src" / "sub" / "dangling").symlink_to(tmp / "nowhere")
+        env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t",
+                   GIT_COMMITTER_EMAIL="t@t")
+        for words in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "x"], ["tag", "v0.1.0"]):
+            subprocess.run(["git", "-C", str(repo), *words], env=env, check=True)
+        linked = f'{{"git": "{repo.as_posix()}", "version": "^0.1"}}'
+        write(work / "ofir.json", manifest("app", "exe", [("dependencies", [("linked", linked)])]))
+        bad = run([compiler, "vendor"], work, home, ok=False)
+        if bad.returncode != 1 or "cannot copy `linked` into `vendor/linked`" not in bad.stderr:
+            fail(f"vendor of a link to nothing: {bad.returncode} {bad.stderr[-2000:]}")
+    write(work / "ofir.json", '{\n  "name": "app",\n  "dependencies": []\n}\n')
+    bad = run([compiler, "vendor"], work, home, ok=False)
+    if bad.returncode != 1 or "error" not in bad.stderr:
+        fail(f"vendor with a bad manifest: {bad.returncode} {bad.stderr[-2000:]}")
+    print("sources: vendoring failures ok")
+
+
 def check_workspace(compiler, tmp):
     work = tmp / "workspace"
     text = f'{{"git": "{(FIXTURES / "text").as_posix()}", "version": "^1.0"}}'
@@ -241,6 +285,7 @@ def main():
         check_os(compiler, Path(tmp))
         check_overrides(compiler, Path(tmp))
         check_vendor(compiler, Path(tmp))
+        check_vendor_failures(compiler, Path(tmp))
         check_workspace(compiler, Path(tmp))
     return 0
 
