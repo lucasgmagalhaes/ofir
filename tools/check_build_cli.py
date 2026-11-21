@@ -10,7 +10,7 @@
   `test` and `bench`;
 - a record of a build whose clang does not run and whose runtime is
   missing;
-- a run with no `TMPDIR` nor `TEMP`;
+- a run with `TMPDIR` and with no `TMPDIR` nor `TEMP`;
 - a benchmark that fails;
 - `explain` with no code, a malformed code and with no explanation;
   `help`.
@@ -122,6 +122,9 @@ def temps(compiler: str, work: Path) -> None:
     (work / "main.of").write_text(MAIN)
     env = {k: v for k, v in os.environ.items() if k not in ("TMPDIR", "TEMP")}
     expect(ofir(compiler, work, "run", "main.of", status=0, env=env), "hi", "a run in /tmp")
+    (work / "t").mkdir()
+    env["TMPDIR"] = str(work / "t")
+    expect(ofir(compiler, work, "run", "main.of", status=0, env=env), "hi", "a run in TMPDIR")
 
 
 def benches(compiler: str, work: Path) -> None:
