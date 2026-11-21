@@ -6,6 +6,11 @@ const SHIFT = 1 << 64               // error[E0802]: shift amount out of range i
 const CAST = 300 as u8              // error[E0802]: value out of range for the target type of `as`
 const CALL = SMALL + helper()       // error[E0801]: a constant may only use literals, constants and operators
 const NEG = -(-9223372036854775807 - 1)   // error[E0802]: integer overflow in a constant
+const NARROW: i8 = 127 + 1          // error[E0802]: integer overflow in a constant
+const WIDE: i64 = 9223372036854775807 + 1   // error[E0802]: integer overflow in a constant
+const UWIDE: u64 = 18446744073709551615 + 1   // error[E0802]: integer overflow in a constant
+const NEGATIVE: i8 = -1 * 2 + i8.MAX   // a narrow negative value is sign-extended
+const LOW: i16 = i16.MIN + 1
 
 fn helper() u8 {
     return 1
