@@ -132,7 +132,7 @@ pub fn enumVariants(c: mut Checker, p: Program, id: int) bool {
         return true
     }
     if c.info[id].checking {
-        return false
+        return false   // GCOVR_EXCL_LINE: checkNotRecursive reports a cycle before asking
     }
     const declared = declaredFlags(p, c.loc(id))
     const saved = c.enter(c.def(id).module)
