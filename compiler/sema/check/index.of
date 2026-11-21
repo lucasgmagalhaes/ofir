@@ -84,6 +84,8 @@ pub struct DefInfo {
     pub typed: bool
     /** Being computed: a cycle guard. */
     pub checking: bool
+    /** Its derived bounds are being decided: a cycle guard. */
+    pub deriving: bool
     /** A struct's fields, once computed. */
     pub fields: Option<Box<StructInfo>>
     /** An enum's variants, once computed. */
@@ -1061,7 +1063,8 @@ pub fn fnOf(p: Program, def: Loc) &FnDecl {
 }
 
 pub fn emptyInfo() DefInfo {
-    return DefInfo{ty: ERROR, typed: false, checking: false, fields: Option.None,
+    return DefInfo{ty: ERROR, typed: false, checking: false, deriving: false,
+                   fields: Option.None,
                    variants: Option.None,
                    value: Option.None, returnsBorrow: false, borrowSource: -1, sourceByRef: false,
                    cellParams: 0, byComptime: false}
