@@ -181,7 +181,7 @@ pub fn dynIncompatible(c: mut Checker, p: Program, iface: int) str {
  */
 pub fn paramHas(c: mut Checker, p: Program, param: int, iface: int, args: int) bool {
     if param >= c.generics.ifaces.len() {
-        return false
+        return false   // GCOVR_EXCL_LINE: a parameter type only exists in its own generics
     }
     const bounds = c.generics.ifaces[param].clone()
     for i in 0..bounds.len() {
@@ -210,7 +210,7 @@ pub fn paramHas(c: mut Checker, p: Program, param: int, iface: int, args: int) b
  */
 pub fn paramBoundArgs(c: Checker, param: int, iface: int) int {
     if param >= c.generics.ifaces.len() {
-        return UNIT
+        return UNIT   // GCOVR_EXCL_LINE: a parameter type only exists in its own generics
     }
     for i in 0..c.generics.ifaces[param].len() {
         if c.generics.ifaces[param][i] == iface {
@@ -264,7 +264,7 @@ pub fn interfaceText(c: Checker, iface: int, args: int) str {
  */
 pub fn paramMethodOwner(c: mut Checker, p: Program, param: int, name: Symbol) int {
     if param >= c.generics.ifaces.len() {
-        return 0
+        return 0   // GCOVR_EXCL_LINE: a parameter type only exists in its own generics
     }
     const bounds = c.generics.ifaces[param].clone()
     for i in 0..bounds.len() {
@@ -484,7 +484,7 @@ pub fn embedsInterface(c: mut Checker, p: Program, iface: int, target: int) bool
  */
 pub fn paramDefaultClash(c: mut Checker, p: Program, param: int, name: Symbol) str {
     if param >= c.generics.ifaces.len() {
-        return ""
+        return ""   // GCOVR_EXCL_LINE: a parameter type only exists in its own generics
     }
     const bounds = c.generics.ifaces[param].clone()
     return defaultClash(c, p, bounds, name)

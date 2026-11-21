@@ -127,7 +127,7 @@ pub fn sameLoans(a: &State, b: &State) bool {
     }
     for i in 0..a.loans.len() {
         if !hasLoan(b, &a.loans[i]) {
-            return false   // GCOVR_EXCL_LINE: a join only adds loans, so equal counts are equal sets
+            return false   // GCOVR_EXCL_LINE: a join only adds loans, equal counts mean equal sets
         }
     }
     for i in 0..a.conflicts.len() {
@@ -144,7 +144,7 @@ fn hasLoan(s: &State, loan: &Loan) bool {
             return true
         }
     }
-    return false
+    return false   // GCOVR_EXCL_LINE: equal counts after a join mean equal sets
 }
 
 fn hasConflict(s: &State, conflict: &Conflict) bool {
@@ -153,7 +153,7 @@ fn hasConflict(s: &State, conflict: &Conflict) bool {
             return true
         }
     }
-    return false
+    return false   // GCOVR_EXCL_LINE: equal counts after a join mean equal sets
 }
 
 /**

@@ -334,7 +334,7 @@ pub fn iteratorItem(c: mut Checker, p: Program, ty: int) Option<int> {
 fn boundIteratorItem(c: mut Checker, p: Program, ty: int) Option<int> {
     const param = c.types.get(ty).data
     if param >= c.generics.ifaces.len() {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: every parameter in scope has a bounds entry
     }
     const bounds = c.generics.ifaces[param].clone()
     for i in 0..bounds.len() {

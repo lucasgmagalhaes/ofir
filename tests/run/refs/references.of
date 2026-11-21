@@ -43,6 +43,20 @@ fn longest(team: Team) &str {
     return best
 }
 
+// A borrow that a parameter holds, returned through a dereference.
+fn inner(r: & &int) &int {
+    return *r
+}
+
+fn innerOf(r: & &int, first: bool) &int {
+    return if first { *r } else { *r }
+}
+
+// A byte of a borrowed `str` lives with the caller's string.
+fn firstByte(s: &str) &u8 {
+    return &s[0]
+}
+
 fn main() {
     let n = 1
     const r = &n
@@ -74,4 +88,8 @@ fn main() {
         *slot = 21
     }
     println("{xs[1]}")
+    const seven = 7
+    const rs = &seven
+    println("{*inner(&rs)} {*innerOf(&rs, false)}")
+    println("{*firstByte("abc")}")
 }

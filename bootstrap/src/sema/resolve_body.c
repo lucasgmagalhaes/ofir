@@ -15,7 +15,7 @@ static void resolve_stmts(Resolver *r, StmtList stmts);
 
 static LocalId declare_local(Resolver *r, Symbol name, Span span, bool mutable) {
     Scope *scope = &r->sema->scope;
-    if (scope_in_current_block(scope, name)) {
+    if (name.id != r->wildcard.id && scope_in_current_block(scope, name)) {   // `_` repeats
         resolve_error(r, "E0201", span, "`" SV_FMT "` is defined more than once in this scope",
                       SV_ARG(resolver_name(r, name)));
     }

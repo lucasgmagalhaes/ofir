@@ -49,7 +49,7 @@ fn fnLines(c: Checker, out: mut str, owner: str, decl: &FnDecl) {
         return
     }
     const Option.Some(locals) = c.r.tables[0].fnLocals.get(decl.id.0) else {
-        return
+        return   // GCOVR_EXCL_LINE: the resolver records the locals of every function
     }
     for i in 0..locals.len() {
         out.push("  local {i} {c.text(locals[i].name)}: {c.typeName(types[i])}\n")

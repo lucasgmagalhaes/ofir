@@ -344,6 +344,20 @@ project uses [Semantic Versioning](https://semver.org/).
 - A channel's last sender going while its receiver is being dropped no
   longer frees the channel under the receiver (a use after free that
   could corrupt the heap).
+- A function could return a borrow of a temporary (`return &(*r + 1)`,
+  `&make().field`, `Some(&5)`): it pointed to memory that ends with the
+  function. Both stages report E0702.
+- A call whose argument has the error type no longer reports E0330
+  ("cannot infer the type parameter") on top of the argument's error, and
+  a value checked against a type that mentions an error reports no E0300.
+- `_` may repeat in one scope (`fn f(_: int, _: int)`, nested
+  `for _ in`), in both stages.
+- Stage 1 reports E0340 for `keyof T` when a call instantiates `T` with a
+  type that is not a struct or tuple, instead of accepting it.
+- Stage 1 no longer recurses without end on a recursive struct (E0318)
+  when it looks for interior mutability or derives bounds, checks a
+  bound on a field that names its own type once the fields are known,
+  and names the union in E0301 for a method called on a union.
 
 ## [0.5.0] - 2026-11-06
 

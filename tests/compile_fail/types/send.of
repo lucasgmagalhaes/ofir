@@ -5,11 +5,23 @@ struct Raw {
     p: *int,
 }
 
+enum Holder {
+    Empty
+    Full(Raw)
+}
+
 fn needSend<T: Send>(_: T) {
 }
 
 fn needSync<T: Sync>(_: T) {
 }
+
+// The closure is checked before `t` gives `T`.
+fn runWith<T>(f: fn(T, int) int + Send, t: T) int {
+    return f(t, 1)
+}
+
+type IntOrStr = int | str
 
 unsafe fn raw() Raw {
     return Raw{p: 0 as *int}
@@ -26,6 +38,13 @@ fn main() {
     needSend(unsafe { raw() })   // error[E0332]: `Raw` does not satisfy the bound `Send`
     const s = unsafe { raw() }
     needSync(&s)   // error[E0332]: `&Raw` does not satisfy the bound `Sync`
+    const u: IntOrStr = 1
+    needSend(u)   // a union is `Send` when its members are
+    const a: [int; 3] = [1, 2, 3]
+    needSend(a)
+    needSend((1, unsafe { raw() }))   // error[E0332]: the type `(int, Raw)` does not satisfy the bound `Send` of `T`
+    needSend(Holder.Empty)   // error[E0332]: the type `Holder` does not satisfy the bound `Send` of `T`
+    runWith((x: str, y: str) int => 1, "a")   // error[E0300]: mismatched types: expected fn(str, int) int + Send, found fn(str, str) int
     const _ = f
     const _ = h
 }

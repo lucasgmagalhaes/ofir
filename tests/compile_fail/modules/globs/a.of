@@ -6,3 +6,7 @@ pub fn name() str {
 pub fn only() str {
     return "a"
 }
+
+pub fn size() int {
+    return 1
+}

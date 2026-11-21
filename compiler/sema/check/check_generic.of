@@ -80,6 +80,8 @@ pub struct Infer {
     pub args: List<int>
     /** Whether each is known. */
     pub known: List<bool>
+    /** Whether an argument had the error type: E0330 would only cascade. */
+    pub poisoned: bool = false
 }
 
 /**
@@ -176,6 +178,21 @@ fn hasInner(c: Checker, ty: int) bool {
     const kind = c.types.kind(ty)
     return kind == TyKind.Ref || kind == TyKind.Ptr || kind == TyKind.Slice ||
            kind == TyKind.Array || kind == TyKind.Fn
+}
+
+/**
+ * `inferFrom` for the type `found` of an argument (or field) of type `param`.
+ *
+ * @param c the checker
+ * @param inf the inference
+ * @param param the parameter's type
+ * @param found the argument's
+ */
+pub fn inferFromArg(c: mut Checker, inf: mut Infer, param: int, found: int) {
+    if found == ERROR && c.types.get(param).hasParam {
+        inf.poisoned = true   // the argument's error is reported already
+    }
+    inferFrom(c, inf, param, found)
 }
 
 /**
@@ -358,7 +375,8 @@ fn impliedArgs(c: mut Checker, p: Program, ty: int, iface: int) int {
 }
 
 /**
- * Reports E0330 for each parameter still unknown.
+ * Reports E0330 for each parameter still unknown, unless an argument had the
+ * error type: its error is reported already.
  *
  * @param c the checker
  * @param inf the inference
@@ -371,8 +389,10 @@ pub fn inferFinish(c: mut Checker, inf: mut Infer, span: Span) {
         }
         const owner = inf.params.owner.len()
         const name = if i < owner { inf.params.owner[i] } else { inf.params.fnParams[i - owner] }
-        c.error("E0330", span, "cannot infer the type parameter `{c.paramText(name)}`: write the "
-                + "type arguments, as in `f<int>(x)`")
+        if !inf.poisoned {
+            c.error("E0330", span, "cannot infer the type parameter `{c.paramText(name)}`: "
+                    + "write the type arguments, as in `f<int>(x)`")
+        }
         inf.args[i] = ERROR
         inf.known[i] = true
     }
@@ -433,6 +453,7 @@ fn arrayHint(c: mut Checker, inf: &Infer, param: int, arg: &Expr) int {
 pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, args: List<Arg>,
                         params: List<int>, ret: int, inf: mut Infer, expected: int,
                         callee: int) int {
+    const _stale = c.types.takeBadKeyofs()   // met outside a call, as in a `comptime for`
     const slots = genericSlots(c, p, callId, span, args, params.len(), callee)
     inferFrom(c, inf, ret, expected)
     for i in 0..args.len() {
@@ -457,7 +478,7 @@ pub fn checkGenericArgs(c: mut Checker, p: Program, callId: int, span: Span, arg
             checkKeyArg(c, arg, found)
         }
         if !boxed {
-            inferFrom(c, inf, param, found)
+            inferFromArg(c, inf, param, found)
         }
     }
     inferFromBounds(c, p, inf)
@@ -505,7 +526,8 @@ pub fn reportUndecided(c: mut Checker, span: Span) {
 
 /**
  * E0340 for the instances of mapped types an instantiation left with keys
- * that are not a key type, as `Keys<int>` over `keyof T`.
+ * that are not a key type, as `Keys<int>` over `keyof T`, and for the
+ * `keyof` it made of a type that is not a struct or tuple, as `keyof Color`.
  *
  * @param c the checker
  * @param span the use
@@ -514,6 +536,11 @@ fn reportBadKeys(c: mut Checker, span: Span) {
     const found = c.types.takeBadKeys()
     for i in 0..found.len() {
         c.error("E0340", span, "the keys of `{c.typeName(found[i])}` are not a key type")
+    }
+    const bases = c.types.takeBadKeyofs()
+    for i in 0..bases.len() {
+        c.error("E0340", span, "`keyof` needs a struct or tuple type, found "
+                + "`{c.typeName(bases[i])}`")
     }
 }
 

@@ -1,0 +1,9 @@
+// A type that mentions an unknown name is an error type: values checked
+// against it report no mismatch on top of the first error.
+
+fn main() {
+    const _b: Box<Nope> = Box.new(1)   // error[E0200]: cannot find type `Nope` in this scope
+    const _o: Option<Nope> = Option.Some(1)   // error[E0200]: cannot find type `Nope` in this scope
+    const _t: (int, Nope) = (1, 2)   // error[E0200]: cannot find type `Nope` in this scope
+    const _r: &[Nope] = &[1]   // error[E0200]: cannot find type `Nope` in this scope
+}

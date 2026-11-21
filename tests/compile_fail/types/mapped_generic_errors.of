@@ -9,6 +9,8 @@ struct Point {
 type BadType<T> = { [K in keyof T]: Nope }   // error[E0200]: cannot find type `Nope` in this scope
 type Partial<T> = { [K in keyof T]?: T[K] }
 type Filter<T, C> = { [K in keyof T if C]: T[K] }
+type Always<T> = { [K in keyof T if int is int]: T[K] }   // a decided filter
+type BadTest<T> = { [K in keyof T if Option<int, int> is int]: T[K] }   // error[E0302]: wrong number of type arguments for `Option`: expected 1, found 2
 type Only<C> = { [K in keyof Point if C]: int }   // error[E0344]: the condition of a conditional type is not decided for `C`
 
 fn f<T>(a: &BadType<T>) {
@@ -16,6 +18,12 @@ fn f<T>(a: &BadType<T>) {
 
 fn other<T, U, K: keyof T>(a: &Partial<U>, k: K) {
     const _v = a[k]   // error[E0341]: the keys of `K` may not be keys of `Partial<U>`: bound it by `keyof Partial<U>`
+}
+
+fn always<T>(a: &Always<T>) {
+}
+
+fn badTest<T>(a: &BadTest<T>) {
 }
 
 fn only<C>(a: &Only<C>) {

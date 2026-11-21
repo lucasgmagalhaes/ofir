@@ -170,7 +170,7 @@ fn fieldsDerive(c: mut Checker, p: Program, ty: int, bit: int) bool {
     const id = c.types.get(ty).data
     if c.def(id).kind == DefKind.Struct {
         if !structFields(c, p, id) {
-            return false
+            return false   // GCOVR_EXCL_LINE: bounds on a type being resolved wait for its fields
         }
         const count = fieldsOf(c, id).types.len()
         for i in 0..count {
@@ -181,7 +181,7 @@ fn fieldsDerive(c: mut Checker, p: Program, ty: int, bit: int) bool {
         return true
     }
     if enumOf(c, p, ty).isNone() {
-        return false
+        return false   // GCOVR_EXCL_LINE: bounds on a type being resolved wait for its fields
     }
     const count = variantsOf(c, id).variants.len()
     for v in 0..count {
@@ -385,7 +385,7 @@ fn debuggableIn(c: mut Checker, p: Program, ty: int, seen: &mut List<int>) bool 
     const id = c.types.get(ty).data
     if c.def(id).kind == DefKind.Struct {
         if !structFields(c, p, id) {
-            return false
+            return false   // GCOVR_EXCL_LINE: bounds on a type being resolved wait for its fields
         }
         const count = fieldsOf(c, id).types.len()
         for i in 0..count {
@@ -396,7 +396,7 @@ fn debuggableIn(c: mut Checker, p: Program, ty: int, seen: &mut List<int>) bool 
         return true
     }
     if enumOf(c, p, ty).isNone() {
-        return false
+        return false   // GCOVR_EXCL_LINE: bounds on a type being resolved wait for its fields
     }
     const count = variantsOf(c, id).variants.len()
     for v in 0..count {

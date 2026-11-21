@@ -1036,7 +1036,7 @@ pub copy struct Loc {
  */
 pub fn itemOf(p: Program, def: Loc) &Item {
     if def.item < 0 {   // a type the checker made
-        return &p.synthetic
+        return &p.synthetic   // GCOVR_EXCL_LINE: callers ask for declarations in source
     }
     return &p.modules[def.module].module.items[def.item]
 }
@@ -1418,7 +1418,7 @@ fn checkItem(c: mut Checker, p: Program, index: int) {
         ItemKind.Fn(decl) => {
             const def = c.r.tables[c.module()].fnDefs[decl.id.0]
             if def == 0 {
-                return
+                return   // GCOVR_EXCL_LINE: the resolver declares every function it keeps
             }
             if decl.abi.len() > 0 {   // `extern "C" fn` with a body, called from C
                 checkCSignature(c, p, def)

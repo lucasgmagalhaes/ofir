@@ -1,4 +1,4 @@
-// `for` over a range and the places of `=` that stage 0 and stage 1 reject.
+// `for` over a range, the places of `=` and the borrows that stage 0 and stage 1 reject.
 
 fn pair() (int, int) {
     return (1, 2)
@@ -18,4 +18,9 @@ fn main() {
     pair().0 = 3   // error[E0901]: assigning to elements is not supported yet
     open()
     floats()
+}
+
+fn mutStr() {
+    let s = "a"
+    const _r = &mut s   // error[E0901]: `&mut str` is not supported yet
 }

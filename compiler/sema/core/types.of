@@ -189,6 +189,7 @@ pub struct TypeTable {
     undecided: List<int>   // the non-`bool` conditions `subst` met
     badLengths: List<int>   // the out of range array lengths `subst` met
     badKeys: List<int>   // the `Mapped` types whose keys are not a key type
+    badKeyofs: List<int>   // the types `keyof` met that are not a struct or tuple
     longest: int   // the most elements of a tuple or tuple struct
 
     /**
@@ -199,7 +200,8 @@ pub struct TypeTable {
     pub fn new() TypeTable {
         let table = TypeTable{types: [], slots: List.filled(0, 256), fields: [],
                               indexNames: [], expanded: [], pending: [],
-                              undecided: [], badLengths: [], badKeys: [], longest: 0}
+                              undecided: [], badLengths: [], badKeys: [], badKeyofs: [],
+                              longest: 0}
         table.intern(TyKind.Error, 0, 0, [])
         table.intern(TyKind.Unit, 0, 0, [])
         table.intern(TyKind.Never, 0, 0, [])
@@ -558,7 +560,11 @@ pub struct TypeTable {
             items.push(self.subst(arg, args))
         }
         if kind == TyKind.KeyOf && !self.types[inner].hasParam {
-            return self.keyofFields(inner, data)
+            const keys = self.keyofFields(inner, data)
+            if keys == ERROR && inner != ERROR {
+                self.badKeyofs.push(inner)   // E0340 at the use
+            }
+            return keys
         }
         if kind == TyKind.Index && !self.types[inner].hasParam && !self.types[items[0]].hasParam {
             return self.indexFields(inner, items[0])
@@ -814,6 +820,16 @@ pub struct TypeTable {
      */
     pub fn takeBadKeys(mut self) List<int> {
         return mem.replace(self.badKeys, [])
+    }
+
+    /**
+     * The types that `subst` met under `keyof` since the last call and that
+     * are not a struct or tuple, as `keyof Color`: E0340 at the use.
+     *
+     * @returns the types, in order
+     */
+    pub fn takeBadKeyofs(mut self) List<int> {
+        return mem.replace(self.badKeyofs, [])
     }
 
     /**

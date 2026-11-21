@@ -27,6 +27,11 @@ fn loose<T, K: .x>(value: &T, key: K) float {
     return value[key]   // error[E0341]: the keys of `K` may not be keys of `T`: bound it by `keyof T`
 }
 
+// An unbounded parameter passed as a key leaves the result `T[K]` unresolved.
+fn unbounded<J>(p: &Point, j: J) {
+    const _ = get(p, j)   // error[E0332]: the type `J` does not satisfy the bound `Copy` of `K`   // error[E0343]: a key must be known at compile time: pass a key literal, as `.x`, or a key parameter
+}
+
 fn main() {
     const p = Point{x: 1.0, y: 2.0, id: 3}
     const k: .x = .x

@@ -378,8 +378,40 @@ static bool weakens_pointer(Checker *c, TypeId found, TypeId expected) {
            type_eq(f->inner, x->inner);
 }
 
+// Whether an error type occurs in `type`: a mismatch with it follows an
+// error already reported.
+static bool mentions_error(Checker *c, TypeId type) {
+    const Ty *t = type_get(c->types, type);
+    switch (t->kind) {
+    case TY_ERROR:
+        return true;
+    case TY_REF:
+    case TY_PTR:
+    case TY_SLICE:
+    case TY_ARRAY:
+        return mentions_error(c, t->inner);
+    case TY_FN:
+        if (mentions_error(c, t->inner)) {
+            return true;
+        }
+        break;
+    case TY_TUPLE:
+    case TY_ADT:
+        break;
+    default:
+        return false;
+    }
+    for (uint32_t i = 0; i < t->arg_count; i++) {
+        if (mentions_error(c, t->args[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void require_type(Checker *c, const Expr *e, TypeId found, TypeId expected) {
-    if (!types_compatible(found, expected) && !weakens_pointer(c, found, expected)) {
+    if (!types_compatible(found, expected) && !weakens_pointer(c, found, expected) &&
+        !mentions_error(c, found) && !mentions_error(c, expected)) {
         char expected_name[64];
         snprintf(expected_name, sizeof expected_name, "%s", type_name(c, expected));
         check_error(c, "E0300", e->span, "mismatched types: expected %s, found %s",

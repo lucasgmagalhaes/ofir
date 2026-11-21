@@ -8,4 +8,5 @@ pub import a.*     // error[E0208]: a glob import cannot be `pub`
 fn main() {
     println(only())
     println(name())   // error[E0207]: `name` is ambiguous
+    println("{size()}")   // error[E0207]: `size` is ambiguous
 }
