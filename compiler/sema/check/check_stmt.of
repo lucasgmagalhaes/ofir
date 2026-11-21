@@ -79,7 +79,7 @@ fn letStmt(c: mut Checker, p: Program, s: &Stmt) int {
             return unitUnlessNever(found)
         }
         _ => {
-            return UNIT
+            return UNIT   // GCOVR_EXCL_LINE: checkStmt passes only a `let`
         }
     }
 }
@@ -104,7 +104,7 @@ fn varStmt(c: mut Checker, p: Program, s: &Stmt) int {
             return unitUnlessNever(found)
         }
         _ => {
-            return UNIT
+            return UNIT   // GCOVR_EXCL_LINE: checkStmt passes only a `var`
         }
     }
 }
@@ -253,7 +253,7 @@ fn forStmt(c: mut Checker, p: Program, s: &Stmt) int {
             }
         }
         _ => {
-            return UNIT
+            return UNIT   // GCOVR_EXCL_LINE: checkStmt passes only a `for`
         }
     }
 }
@@ -444,7 +444,7 @@ pub fn checkIf(c: mut Checker, p: Program, e: &Expr, expected: int, asValue: boo
             return join(c, other.span, expected, thenType, otherType)
         }
         _ => {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: callers pass only an `if`
         }
     }
 }
@@ -528,7 +528,7 @@ pub fn checkMatch(c: mut Checker, p: Program, e: &Expr, expected: int, asValue: 
             return if asValue { result } else { unitUnlessNever(result) }
         }
         _ => {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: callers pass only a `match`
         }
     }
 }
