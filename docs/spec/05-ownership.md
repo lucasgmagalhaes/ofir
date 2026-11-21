@@ -338,7 +338,9 @@ containing one) that borrows from **one** parameter:
 - otherwise from its only borrowed parameter of a non-Copy type.
 
 With no such parameter, or with several candidates, returning a borrow is an
-error.
+error. A borrow of a local of the function, or of a temporary such as
+`&(a + b)` or `&make().field`, ends with the function and cannot be returned
+either (E0702).
 
 ```ofir
 // in List<T>:  fn first(self) Option<&T> { ... }
