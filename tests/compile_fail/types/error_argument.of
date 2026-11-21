@@ -1,0 +1,12 @@
+// An argument of the error type tells inference nothing, and the call
+// reports no E0330 on top of the argument's own error.
+
+struct Sq {
+    side: int
+}
+
+fn main() {
+    const z = Sq{side: 3}
+    const _a = Box.new(z.missing)   // error[E0316]: no field `missing` on type `Sq`
+    const _o = Option.Some(z.other)   // error[E0316]: no field `other` on type `Sq`
+}
