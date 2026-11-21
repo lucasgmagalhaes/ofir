@@ -1,0 +1,22 @@
+// requires: stage1
+// `{r}` for a reference to a Display type prints its pointee.
+struct P {
+    x: int
+
+    fn format(self, out: mut str) {
+        out.push("P{self.x}")
+    }
+}
+
+fn show<T: Display>(v: T) str {
+    return "<{v}>"
+}
+
+fn main() {
+    const p = P{x: 3}
+    const r = &p
+    const s = "{r} {&p}"
+    println(s)
+    println(show(r))
+    println(show(&r))
+}
