@@ -1,0 +1,20 @@
+// requires: stage1
+// `print` and `println` of a type parameter bounded by `Display`, bound to
+// numbers, `bool`, `str` and references to them (spec 9.9).
+fn show<T: Display>(x: T) {
+    println("{x}")
+    print("[{x}]\n")
+    println("<{x}>")
+}
+
+fn main() {
+    const x = 7
+    show(x)
+    show(&x)
+    const r = &x
+    show(&r)
+    show(true)
+    show(&2.5)
+    show("hi")
+    show(&"hi")
+}
