@@ -11,6 +11,8 @@ fn needSend<T: Send>(_: T) {
 fn needSync<T: Sync>(_: T) {
 }
 
+type IntOrStr = int | str
+
 unsafe fn raw() Raw {
     return Raw{p: 0 as *int}
 }
@@ -26,6 +28,8 @@ fn main() {
     needSend(unsafe { raw() })   // error[E0332]: `Raw` does not satisfy the bound `Send`
     const s = unsafe { raw() }
     needSync(&s)   // error[E0332]: `&Raw` does not satisfy the bound `Sync`
+    const u: IntOrStr = 1
+    needSend(u)   // a union is `Send` when its members are
     const _ = f
     const _ = h
 }
