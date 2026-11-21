@@ -90,7 +90,8 @@ pub fn checkComptimeFor(c: mut Checker, p: Program, s: &Stmt, name: Symbol, iter
     c.generics.bounds.push(BOUND_COPY)
     c.generics.ifaces.push([])
     c.generics.ifaceArgs.push([])
-    c.generics.keys.push(range.0)
+    const isParam = range.0 != ERROR && c.types.kind(range.0) == TyKind.Param
+    c.generics.keys.push(if isParam { paramKey(c, range.0) } else { range.0 })
     if local >= 0 {
         c.localTypes[local] = param
     }
@@ -132,8 +133,8 @@ fn iterated(c: mut Checker, p: Program, iterable: &Expr) (int, int) {
                         + "`{c.typeName(key)}`")
                 return (ERROR, 0)
             }
-            const t = c.types.get(bound)
-            return (bound, if t.kind == TyKind.KeyOf { t.inner } else { 0 })
+            const t = c.types.get(bound)   // the loop goes over the keys of `K`, not its bound
+            return (key, if t.kind == TyKind.KeyOf { t.inner } else { 0 })
         }
         _ => {}
     }
