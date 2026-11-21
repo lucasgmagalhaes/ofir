@@ -8,4 +8,5 @@ fn plain(x: Number<int>) {} // error[E0302]: wrong number of type arguments for 
 // A function type around a bad argument count reports only the count, not a mismatch.
 fn wrapped() {
     const f: fn(Pair<int, str>) int = 5 // error[E0302]: wrong number of type arguments for `Pair`: expected 1, found 2
+    const g: &Pair<int, str> = 5 // error[E0302]: wrong number of type arguments for `Pair`: expected 1, found 2
 }
