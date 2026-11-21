@@ -39,6 +39,9 @@ ENV = dict(os.environ, OFIR_STD=str(ROOT / "std"))
 # Tests for one stage only: stage 1 checks more, stage 0 rejects more.
 ONE_STAGE = re.compile(r"^//\s*requires:\s*stage[01]\b", re.MULTILINE)
 
+# A test compiled without the standard library (`// std: none`, as the runner).
+NO_STD = re.compile(r"^//\s*std:\s*none\s*$", re.MULTILINE)
+
 
 # E0100's message: stage 0 rejects a feature that stage 1 may implement.
 STAGE0_LIMIT = b"not supported by stage 0"
@@ -69,19 +72,23 @@ def comparable(path: Path) -> bool:
     return not ONE_STAGE.search(path.read_text(errors="replace"))
 
 
-def run(argv: list, timeout: int = 60) -> tuple:
-    result = subprocess.run(argv, capture_output=True, timeout=timeout, env=ENV)
+def run(argv: list, timeout: int = 60, env: dict = ENV) -> tuple:
+    result = subprocess.run(argv, capture_output=True, timeout=timeout, env=env)
     return result.returncode, result.stdout, result.stderr
 
 
 def emit(compiler: str, path: Path, option: str, command: str = "build") -> tuple:
     """`ofir <command> <path> <option>`; `--emit=llvm` writes `<output>.ll`,
     read as the output."""
-    if option != "--emit=llvm":
-        return run([compiler, command, str(path), option, "-o", "/dev/null"])
     with tempfile.TemporaryDirectory() as tmp:
+        env = ENV
+        if path.exists() and NO_STD.search(path.read_text(errors="replace")):
+            env = dict(ENV, OFIR_STD=tmp)   # an empty directory: no std modules
+        if option != "--emit=llvm":
+            return run([compiler, command, str(path), option, "-o", "/dev/null"], env=env)
         exe = Path(tmp) / "out"
-        status, _, stderr = run([compiler, command, str(path), option, "-o", str(exe)])
+        argv = [compiler, command, str(path), option, "-o", str(exe)]
+        status, _, stderr = run(argv, env=env)
         ll = exe.with_name("out.ll")
         return status, ll.read_bytes() if ll.exists() else b"", stderr
 
