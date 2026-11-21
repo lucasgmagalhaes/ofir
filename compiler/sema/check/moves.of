@@ -600,7 +600,7 @@ fn jumpTarget(m: Moves, stmt: &Stmt) int {
             }
         }
     }
-    return -1
+    return -1   // GCOVR_EXCL_LINE: E0323 stops the move check of the function
 }
 
 fn isRange(stmt: &Stmt) bool {
