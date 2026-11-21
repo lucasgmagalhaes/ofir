@@ -577,7 +577,9 @@ pub fn lowerDebugGlue(l: mut Lowerer, c: mut Checker, p: Program, targs: int) {
         emitGoto(l, done)
         switchTo(l, done)
     } else {
-        debugValue(l, c, p, opCopy(1, ty), ty, &out)   // GCOVR_EXCL_LINE: only an ADT or a tuple gets the glue
+        // GCOVR_EXCL_START: only an ADT or a tuple gets the glue
+        debugValue(l, c, p, opCopy(1, ty), ty, &out)
+        // GCOVR_EXCL_STOP
     }
     finishGlue(l, c, p)
 }
