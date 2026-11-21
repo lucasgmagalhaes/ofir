@@ -31,6 +31,11 @@ fn widen(u: IntOrStr) IntOrBool {
     return u   // error[E0300]: mismatched types: expected bool | int, found int | str
 }
 
+// A union has no methods: the message names the union.
+fn call(u: IntOrStr) {
+    u.foo()   // error[E0301]: no method `foo` on type `int | str`
+}
+
 fn aliases(a: A, b: B, d: D) {
 }
 
