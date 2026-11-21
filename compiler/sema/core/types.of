@@ -888,7 +888,7 @@ pub struct TypeTable {
     // The first `count` tuple keys, or ERROR.
     fn indexKeys(mut self, count: int) int {
         if count > self.indexNames.len() {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: useIndexNames records the longest tuple
         }
         let names: List<int> = []
         for i in 0..count {
@@ -996,7 +996,7 @@ pub struct TypeTable {
         }
         const def = self.types[base].data
         if kind != TyKind.Adt || def >= self.fields.len() {
-            return -1
+            return -1   // GCOVR_EXCL_LINE: callers pass a resolved struct or tuple
         }
         return match self.fields[def] {
             Option.Some(f) => if f.isTuple {
@@ -1015,7 +1015,7 @@ pub struct TypeTable {
                 return i
             }
         }
-        return -1
+        return -1   // GCOVR_EXCL_LINE: the key is in the bound `keyof T`
     }
 
     /**
@@ -1067,7 +1067,7 @@ fn position(names: List<int>, name: int) int {
             return i
         }
     }
-    return -1
+    return -1   // GCOVR_EXCL_LINE: the key is in the bound `keyof T`
 }
 
 /**
