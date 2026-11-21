@@ -18,7 +18,9 @@ let buffer: List<u8>      // must be assigned before its first use
   without a value (`let x: int`) is allowed only if every path assigns it
   before its first use. There are no implicit zero values.
 - A name may shadow a name from an enclosing scope, but not one declared in
-  the same scope.
+  the same scope. `_` names nothing: it may stand for any number of
+  parameters or loop variables of one scope (`fn f(_: int, _: int)`,
+  `for _, _ in list`).
 
 ## 3.2 Constants
 
