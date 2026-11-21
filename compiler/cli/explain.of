@@ -34,7 +34,7 @@ fn places() List<str> {
         dirs.push(dir)
     }
     const Result.Ok(exe) = os.executablePath() else {
-        return dirs
+        return dirs   // GCOVR_EXCL_LINE: the running compiler always finds its own path
     }
     let slash = -1
     for i in 0..exe.len() {
