@@ -187,7 +187,7 @@ fn aliasKeys(c: mut Checker, p: Program) {
     for i in 0..preds.len() {
         const index = boundedParam(&preds[i].ty, c.generics.owner, [])
         if index < 0 {
-            continue
+            continue   // GCOVR_EXCL_LINE: an alias bound is on its own parameter
         }
         for j in 0..preds[i].bounds.len() {
             if isKeyBound(&preds[i].bounds[j]) {
@@ -459,7 +459,7 @@ pub fn checkAliasBounds(c: mut Checker, p: Program, id: int, span: Span) bool {
     for i in 0..preds.len() {
         const index = boundedParam(&preds[i].ty, c.generics.owner, [])
         if index < 0 || index >= c.generics.aliasArgs.len() {
-            continue
+            continue   // GCOVR_EXCL_LINE: an alias bound is on its own parameter
         }
         const arg = c.generics.aliasArgs[index]
         if arg == ERROR || c.types.get(arg).hasParam {
