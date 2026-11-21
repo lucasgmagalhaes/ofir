@@ -91,7 +91,9 @@ fn countReads(body: &AirBody, reads: mut List<int>) bool {
         for i in 0..block.stmts.len() {
             const s = &block.stmts[i]
             if s.destPath.fields.len() > 0 || s.destPath.deref {
+                // GCOVR_EXCL_START: the locals are scalars: no field or deref destination
                 return false
+                // GCOVR_EXCL_STOP
             }
             if s.kind == StmtKind.Call {
                 for a in 0..s.args.len() {
@@ -106,7 +108,9 @@ fn countReads(body: &AirBody, reads: mut List<int>) bool {
         }
         const t = &block.term
         if !read(reads, &t.cond) || !read(reads, &t.index) || !read(reads, &t.len) {
+            // GCOVR_EXCL_START: the locals are scalars: no address is taken
             return false
+            // GCOVR_EXCL_STOP
         }
     }
     return true
@@ -173,7 +177,9 @@ fn findSite(c: mut Checker, body: &AirBody, reads: List<int>, b: int) Option<Sit
     const cond = &block.term.cond
     if sum == 0 || cond.kind != OperandKind.Copy || cond.local != flag || !whole(cond) ||
         reads[result] != 1 || reads[flag] != 1 || reads[sum] != 1 {
+        // GCOVR_EXCL_START: the lowering reads the call, sum and flag temporaries once
         return Option.None
+        // GCOVR_EXCL_STOP
     }
     const aIsCall = isCallOf(&rv.a, result)
     if aIsCall == isCallOf(&rv.b, result) {
@@ -190,7 +196,9 @@ fn findSite(c: mut Checker, body: &AirBody, reads: List<int>, b: int) Option<Sit
     } else if x.kind == OperandKind.Copy && whole(&x) {
         negative = sign
     } else {
+        // GCOVR_EXCL_START: with scalar locals a term is a constant or a whole copy
         return Option.None
+        // GCOVR_EXCL_STOP
     }
     if !returns(body, sum, block.term.target) {
         return Option.None
@@ -294,11 +302,15 @@ fn iterate(l: &Loop, body: mut AirBody, block: int, args: List<Operand>, head: i
 fn retarget(t: mut Terminator, from: int, to: int) {
     if t.kind == TermKind.Goto || t.kind == TermKind.Branch || t.kind == TermKind.Assert {
         if t.target == from {
+            // GCOVR_EXCL_START: no block jumps to the entry: a loop starts in a new block
             t.target = to
+            // GCOVR_EXCL_STOP
         }
     }
     if t.kind == TermKind.Branch && t.other == from {
+        // GCOVR_EXCL_START: no block jumps to the entry: a loop starts in a new block
         t.other = to
+        // GCOVR_EXCL_STOP
     }
 }
 
