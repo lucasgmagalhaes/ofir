@@ -8,6 +8,8 @@
 - a run for another target goes through OFIR_RUNNER (ADR 0066), here with a
   stand-in clang, and a runner that cannot start gives E0902 for `run`,
   `test` and `bench`;
+- a record of a build whose clang does not run and whose runtime is
+  missing;
 - a benchmark that fails;
 - `explain` with a malformed code and with no explanation.
 
@@ -15,7 +17,9 @@
 """
 
 import argparse
+import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -95,6 +99,23 @@ def runners(compiler: str, work: Path) -> None:
                "error[E0902]: cannot run", f"{command} with a runner that cannot start")
 
 
+def records(compiler: str, work: Path) -> None:
+    (work / "main.of").write_text(MAIN)
+    env = dict(os.environ, OFIR_CLANG=str(work / "no-clang"), OFIR_RUNTIME=str(work / "no-rt"))
+    ofir(compiler, work, "build", "main.of", "--emit=llvm", "--record=r.json", status=0, env=env)
+    record = json.loads((work / "r.json").read_text())
+    if record["clang"] != "" or record["runtime"] != "":
+        fail(f"a clang that does not run or a missing runtime is recorded: {record}")
+    alone = work / "bin" / "ofir"   # a copy with no runtime beside it
+    alone.parent.mkdir()
+    shutil.copy(compiler, alone)
+    env = {k: v for k, v in env.items() if k != "OFIR_RUNTIME"}
+    ofir(str(alone), work, "build", "main.of", "--emit=llvm", "--record=r.json", status=0,
+         env=env)
+    if json.loads((work / "r.json").read_text())["runtime"] != "":
+        fail("a runtime that is not found is recorded")
+
+
 def benches(compiler: str, work: Path) -> None:
     (work / "bench.of").write_text(FAILING_BENCH)
     expect(ofir(compiler, work, "bench", "bench.of", status=1), "FAILED (exit status",
@@ -114,7 +135,7 @@ def main() -> None:
     parser.add_argument("--compiler", default="build/stage1/ofir")
     args = parser.parse_args()
     compiler = str(Path(args.compiler).resolve())
-    for check in (writes, benches, explains) + ((runners,) if os.name != "nt" else ()):
+    for check in (writes, records, benches, explains) + ((runners,) if os.name != "nt" else ()):
         with tempfile.TemporaryDirectory() as tmp:
             check(compiler, Path(tmp))
     print("build-cli: ok")
