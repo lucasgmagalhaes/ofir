@@ -344,7 +344,7 @@ fn isList(c: Checker, ty: int) bool {
  * @returns its place
  */
 pub fn lowerPlace(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Place {
-    if coerced(c, e) {   // a call: its value is a temporary
+    if coerced(c, e) || unionSourceType(c, e) >= 0 {   // its value is a temporary
         return localPlace(toLocal(l, lowerExpr(l, c, p, e)))
     }
     return lowerPlaceAt(l, c, p, e, derefCount(c, e))
