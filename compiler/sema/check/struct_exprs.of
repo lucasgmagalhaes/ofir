@@ -361,7 +361,7 @@ pub fn checkStructLiteral(c: mut Checker, p: Program, e: &Expr, expected: int) i
             return ty
         }
         _ => {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: callers pass struct literals
         }
     }
 }
