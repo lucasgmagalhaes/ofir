@@ -1,0 +1,67 @@
+// requires: stage1
+// flags: --lib=static
+// consumer: lib_header2.c
+// The header of a library (ADR 0064) with C function pointers of no and of
+// two parameters, pointers to pointers, to arrays and to types C cannot
+// name, a `@link` library, and `@repr(C)` structs C sees only by name.
+
+@link("m")
+extern "C" {
+    fn cos(x: f64) f64
+}
+
+@repr(C)
+struct Pair {
+    a: i32
+    b: i32
+}
+
+// A `@repr(C)` struct with a field C has no type for: declared, not defined.
+@repr(C)
+struct Holder {
+    items: List<int>
+}
+
+struct Plain {
+    n: int
+}
+
+// A `@repr(C)` struct with an array field.
+@repr(C)
+struct Grid {
+    cells: [i32; 4]
+}
+
+@repr(C)
+struct Boxed<T> {
+    value: T
+}
+
+enum Mode {
+    On
+    Off
+}
+
+extern "C" fn h2_call(f: extern "C" fn() i32, g: extern "C" fn(i32, i32) i32) i32 {
+    return unsafe { f() + g(2, 3) }
+}
+
+extern "C" fn h2_first(pp: **Pair, out: *mut *mut i32) i32 {
+    const p = unsafe { **pp }
+    return p.a
+}
+
+extern "C" fn h2_opaque(plain: *Plain, holder: *Holder, cells: *[i32; 4]) i32 {
+    return 1
+}
+
+// Through two pointers C sees the pointee: a struct without `@repr(C)`, a
+// generic struct and an enum have no C name.
+extern "C" fn h2_named(grid: **Grid, plain: **Plain, boxed: **Boxed<i32>, mode: **Mode) i32 {
+    const g = unsafe { **grid }
+    return g.cells[2]
+}
+
+extern "C" fn h2_cos(x: f64) f64 {
+    return unsafe { cos(x) }
+}
