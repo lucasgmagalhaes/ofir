@@ -7,6 +7,13 @@ where
 {
 }
 
+fn generic<T>(_a: T)
+where
+    List<T>: Eq,   // error[E0334]: `List<T>` is not a type parameter of this declaration: only type parameters take bounds
+    &T: Eq,   // error[E0334]: `&T` is not a type parameter of this declaration: only type parameters take bounds
+{
+}
+
 struct Plain {
     x: int
 

@@ -1,0 +1,41 @@
+// requires: stage1
+// Named functions as values: the shapes stage 1 does not take yet, and
+// owned function values passed where the signature differs (spec 10.2).
+
+fn generic<T>(x: T) {
+}
+
+unsafe fn danger() {
+}
+
+fn mutate(x: mut int) {
+}
+
+fn first(x: &int) &int {
+    return x
+}
+
+extern "C" {
+    fn abs(x: i32) i32
+}
+
+fn take(f: fn(int) int) {
+}
+
+fn takeTwo(f: fn(int, int) int) {
+}
+
+fn takeFloat(f: fn(float) int) {
+}
+
+fn main() {
+    const _a = generic   // error[E0901]: generic functions as values are not supported yet
+    const _b = abs   // error[E0901]: methods and external functions as values are not supported yet
+    const _d = danger   // error[E0901]: unsafe functions as values are not supported yet
+    const _e = mutate   // error[E0901]: functions with `mut` or `move` parameters as values are not supported yet
+    const _g = first   // error[E0901]: functions returning a borrow as values are not supported yet
+    const owned: move fn(int) int = move (x: int) int => x
+    takeTwo(owned)   // error[E0300]: mismatched types: expected fn(int, int) int, found move fn(int) int
+    takeFloat(owned)   // error[E0300]: mismatched types: expected fn(float) int, found move fn(int) int
+    take(owned)
+}

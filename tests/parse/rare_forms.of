@@ -1,9 +1,9 @@
 // requires: stage1
-// Forms the AST printer writes rarely: a `Send` function type, interface
-// type parameters and embedding, interface assertions on a struct and an
-// enum, an `@` binding with `mut`, a unary attribute argument that is
-// not `-`, an interpolation with a format specifier, and a negative const
-// argument.
+// Forms the AST printer writes rarely: a `Send` function type, a C function
+// type, interface type parameters and embedding, interface assertions on a
+// struct and an enum, an `@` binding with `mut`, a unary attribute argument
+// that is not `-`, an interpolation with a format specifier, and a negative
+// const argument.
 
 interface Mapper<T> {
     fn map(self, value: T) T
@@ -27,6 +27,9 @@ fn old() {
 }
 
 fn spawnWith(_f: fn() + Send) {
+}
+
+fn callBack(_f: extern "C" fn(i32, *u8) i32) {
 }
 
 fn pick(n: int?) int {

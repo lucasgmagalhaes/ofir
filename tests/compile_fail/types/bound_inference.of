@@ -1,0 +1,25 @@
+
+// requires: stage1
+// Inference through bounds and unions: `T` of `S: Source<T>` comes from
+// the bound of a type parameter given for `S`, and a value that is no
+// member of `Option<T> | int` gives `T` nothing.
+
+interface Source<T> {
+    fn next(mut self) Option<T>
+}
+
+fn first<S: Source<T>, T>(s: mut S) Option<T> {
+    return s.next()
+}
+
+fn outer<Q: Source<int>>(q: mut Q) Option<int> {
+    const found = first(q)
+    return found
+}
+
+fn pick<T>(_x: Option<T> | int) {
+}
+
+fn main() {
+    pick(true)   // error[E0330]: cannot infer the type parameter `T`: write the type arguments, as in `f<int>(x)`   // error[E0300]: mismatched types: expected Option<{error}> | int, found bool
+}

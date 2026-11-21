@@ -1,0 +1,54 @@
+// requires: stage1
+// Comparison methods of the wrong shape, `?` into an error type without
+// `from`, and types whose fields have no debug representation (spec 9.9).
+
+struct Extra {
+    n: int
+
+    fn eq(self, other: Self, more: int) bool {
+        return true
+    }
+}
+
+struct Weird {
+    n: int
+
+    fn cmp(self, other: Self) int {
+        return 0
+    }
+}
+
+struct Pairs {
+    t: (int, int)
+}
+
+enum Shape {
+    Run(move fn())
+    Empty
+}
+
+struct Fail {
+    n: int
+}
+
+fn tryFail() Result<int, Fail> {
+    const r: Result<int, str> = Result.Ok(1)
+    return Result.Ok(r?)   // error[E0300]: mismatched types: `?` returns the error `str`, but the function returns errors of type `Fail`
+}
+
+fn show<T: Display>(_x: T) {
+}
+
+fn main() {
+    const e = Extra{n: 1}
+    const w = Weird{n: 1}
+    const p = Pairs{t: (1, 2)}
+    const s = Shape.Empty
+    const t = (1, main)
+    println("{e == e}")   // error[E0313]: operator cannot be applied to type `Extra`
+    println("{w < w}")   // error[E0313]: operator cannot be applied to type `Weird`
+    println("{p == p}")
+    println("{t:?}")   // error[E0314]: a value of type `(int, fn())` has no debug representation (`Debug`)
+    println("{s:?}")   // error[E0314]: a value of type `Shape` has no debug representation (`Debug`)
+    show(&5)
+}

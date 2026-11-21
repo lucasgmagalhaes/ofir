@@ -1,0 +1,34 @@
+// requires: stage1
+// Key operators and indexed access types: unknown types, own fields, and
+// bounds that combine keys (spec 16.1-16.3).
+
+struct Point {
+    x: int
+    y: int
+}
+
+struct Own {
+    a: int
+    b: Own[.a]   // error[E0901]: indexing a struct in its own fields is not supported yet
+}
+
+type A = .x & Nope   // error[E0200]: cannot find type `Nope` in this scope
+type B = Nope[.x]   // error[E0200]: cannot find type `Nope` in this scope
+
+fn param<T>(a: T[.x]) {   // error[E0901]: indexing a type parameter with a key literal is not supported yet
+}
+
+fn both<T, K: keyof T & keyof T>(a: &T, k: K) {
+    const _v = &a[k]
+}
+
+fn minus<T, K: keyof T - .x>(a: &T, k: K) {
+    const _v = &a[k]
+}
+
+fn take(a: A, b: B) {
+}
+
+fn main() {
+    take(panic("x"), panic("y"))
+}

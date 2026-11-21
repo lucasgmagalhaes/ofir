@@ -31,6 +31,9 @@ struct Bad: Point {             // error[E0333]: `Point` is not an interface
     x: int
 }
 
+fn deep<T: no.such.Shape>(_s: T) {   // error[E0333]: `no.such.Shape` is not an interface
+}
+
 fn measure<T: Shape>(s: T) float {
     return s.area()
 }

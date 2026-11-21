@@ -1,0 +1,4 @@
+@lang("list")   // error[E0806]: `@lang("list")` must declare `ptr: *mut T`, `len: int`, `cap: int`
+pub struct List<T> {
+    len: int
+}

@@ -1,0 +1,10 @@
+// A tuple struct has no field names: a struct literal or a method call
+// cannot name one.
+
+struct Meters(int)
+
+fn main() {
+    const m = Meters(1)
+    const _a = Meters{x: 1}   // error[E0310]: `Meters` is not a struct with named fields
+    const _b = m.x()   // error[E0301]: no method `x` on type `Meters`
+}

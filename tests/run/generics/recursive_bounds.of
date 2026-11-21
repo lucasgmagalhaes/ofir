@@ -1,0 +1,39 @@
+// requires: stage1
+// A field that names its own struct or enum as a bounded type argument: the
+// bound is decided once the type's fields are known, so `Node` is `Send`,
+// `Sync` and `Debug` through a `List<Node>`.
+
+struct Wrap<T: Send + Sync + Debug> {
+    items: List<T>,
+}
+
+struct Node {
+    name: str,
+    kids: Wrap<Node>,
+}
+
+enum Tree {
+    Leaf(int)
+    Branch(Wrap<Tree>)
+}
+
+fn size(t: Tree) int {
+    return match t {
+        Tree.Leaf(_) => 1
+        Tree.Branch(w) => {
+            let total = 0
+            for i in 0..w.items.len() {
+                total += size(w.items[i])
+            }
+            total
+        }
+    }
+}
+
+fn main() {
+    const leaf = Node{name: "leaf", kids: Wrap{items: []}}
+    const root = Node{name: "root", kids: Wrap{items: [leaf]}}
+    println("{root.name} {root.kids.items.len()} {root.kids.items[0].name}")
+    const t = Tree.Branch(Wrap{items: [Tree.Leaf(1), Tree.Leaf(2)]})
+    println("{size(t)}")
+}

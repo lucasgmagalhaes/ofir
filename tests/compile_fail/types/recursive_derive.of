@@ -1,0 +1,24 @@
+
+// requires: stage1
+// A struct that contains itself by value meets a derived bound: deciding
+// `Eq` or `Ord` stops at the type it is already deciding, so only E0318
+// is reported.
+
+struct Loop {
+    next: Loop   // error[E0318]: a type cannot contain itself by value; use Box<T> or a collection
+}
+
+fn needEq<T: Eq>(_x: &T) {
+}
+
+fn needOrd<T: Ord>(_x: &T) {
+}
+
+fn give(l: &Loop) {
+    needEq(l)
+    needOrd(l)
+    const _b = *l == *l
+}
+
+fn main() {
+}

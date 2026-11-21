@@ -155,6 +155,19 @@ pub fn adtSatisfies(c: mut Checker, p: Program, ty: int, bit: int) bool {
  */
 pub fn derives(c: mut Checker, p: Program, ty: int, bit: int) bool {
     const id = c.types.get(ty).data
+    if c.info[id].deriving {
+        return true   // a type that contains itself (E0318) reaches itself again
+    }
+    c.info[id].deriving = true
+    const ok = fieldsDerive(c, p, ty, bit)
+    c.info[id].deriving = false
+    return ok
+}
+
+// Whether every field of a struct or every payload of an enum satisfies
+// `bit`.
+fn fieldsDerive(c: mut Checker, p: Program, ty: int, bit: int) bool {
+    const id = c.types.get(ty).data
     if c.def(id).kind == DefKind.Struct {
         if !structFields(c, p, id) {
             return false

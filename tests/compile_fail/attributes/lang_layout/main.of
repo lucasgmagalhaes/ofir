@@ -1,0 +1,7 @@
+// std: std
+// `@lang` declarations of a standard library with the wrong layout (E0806):
+// the compiler reads their fields and variants directly.
+
+fn main() {
+    const _s = "x"
+}

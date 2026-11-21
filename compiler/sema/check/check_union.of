@@ -74,7 +74,7 @@ pub fn unionMembers(c: Checker, ty: int) List<int> {
 // E0351 for a type that cannot be the payload of a variant.
 fn memberAllowed(c: mut Checker, ty: int, span: Span) bool {
     if ty == ERROR {
-        return false
+        return false   // GCOVR_EXCL_LINE: keyOpType returns early for an error member
     }
     const kind = c.types.kind(ty)
     const unsized = kind == TyKind.Slice || kind == TyKind.Dyn
@@ -117,7 +117,7 @@ fn insertMember(c: mut Checker, members: mut List<int>, ty: int) {
 // type parameters.
 fn overlap(c: Checker, a: int, b: int) bool {
     if a == b {
-        return true
+        return true   // GCOVR_EXCL_LINE: addMembers drops repeated members
     }
     const ta = c.types.get(a)
     const tb = c.types.get(b)

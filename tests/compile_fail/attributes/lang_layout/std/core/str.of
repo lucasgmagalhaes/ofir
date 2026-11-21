@@ -1,0 +1,5 @@
+@lang("str")   // error[E0806]: `@lang("str")` must declare `ptr: *u8`, `len: int`, `cap: int`
+pub struct str {
+    ptr: *u8
+    len: int
+}

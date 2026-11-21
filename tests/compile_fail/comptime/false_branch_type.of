@@ -1,0 +1,10 @@
+
+// requires: stage1
+// `if comptime false` checks only its `else` branch, whose type is the
+// type of the whole `if` (spec 15.3).
+
+fn main() {
+    const n = if comptime false { 1 } else { 2 }
+    const m: str = if comptime false { 1 } else { n }   // error[E0300]: mismatched types: expected str, found int
+    print(m)
+}

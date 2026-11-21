@@ -18,6 +18,24 @@ fn bare<T>(x: T | int) {   // error[E0350]: the members `T` and `int` of a union
 fn lists<T>(x: List<T> | List<int>) {   // error[E0350]: the members `List<T>` and `List<int>` of a union can be the same type
 }
 
+type Pair<T> = [T; 2]
+type IntOrStr = int | str
+type IntOrBool = int | bool
+
+// Members whose type arguments, or array elements, never unify do not overlap.
+fn nested<T>(x: Option<Option<T>> | Option<List<T>>, y: Pair<Option<T>> | Pair<List<T>>) {
+}
+
+// Every member of `int | str` must be a member of the target to widen.
+fn widen(u: IntOrStr) IntOrBool {
+    return u   // error[E0300]: mismatched types: expected bool | int, found int | str
+}
+
+// A union has no methods: the message names the union.
+fn call(u: IntOrStr) {
+    u.foo()   // error[E0301]: no method `foo` on type `int | str`
+}
+
 fn aliases(a: A, b: B, d: D) {
 }
 

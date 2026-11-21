@@ -1,0 +1,20 @@
+// requires: stage1
+// `keyof` of tuples, tuple structs, unknown types and a struct in its own fields.
+
+struct Pair(int, int)
+
+struct Own {
+    a: int
+    b: keyof Own   // error[E0901]: `keyof` of a struct in its own fields is not supported yet
+}
+
+type A = keyof Nope   // error[E0200]: cannot find type `Nope` in this scope
+type B = keyof (int, float)
+type C = keyof Pair
+
+fn take(a: A, b: B, c: C) {
+}
+
+fn main() {
+    take(panic("x"), .1, .0)
+}

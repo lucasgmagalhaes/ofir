@@ -375,7 +375,8 @@ pub fn checkUserMethod(c: mut Checker, p: Program, call: &Expr, field: &Expr, ba
         return checkFieldCall(c, p, call, field, name, args, selfType)
     }
     if index < 0 {
-        const ty = c.types.adt(owner, [])
+        // A union's definition has no item: its name is that of the receiver.
+        const ty = if c.def(owner).item < 0 { selfType } else { c.types.adt(owner, []) }
         c.error("E0301", field.span, "no method `{c.text(name)}` on type `{c.typeName(ty)}`")
         suggestMethod(c, p, owner, name)
         return skipArgs(c, p, args)

@@ -1,0 +1,25 @@
+// requires: stage1
+// Conditional types over unknown types, and conditions on an `infer` name
+// of an enclosing conditional type (spec 16.5).
+
+struct Point {
+    x: int
+    y: int
+}
+
+type A = if Nope { int } else { str }   // error[E0200]: cannot find type `Nope` in this scope
+type B = if Nope is int { int } else { str }   // error[E0200]: cannot find type `Nope` in this scope
+type C = if int is Nope { int } else { str }   // error[E0200]: cannot find type `Nope` in this scope
+
+type Deep<T> = if T is Option<infer U> { if U is List<infer V> { V } else { int } } else { int }   // error[E0901]: conditional types on an `infer` name are not supported yet
+type Args<T> = if T is Option<infer U> { if (int, U) is (int, infer V) { V } else { int } } else { int }   // error[E0901]: conditional types on an `infer` name are not supported yet
+type Inner<T> = if T is Option<infer U> { if &U is &infer V { V } else { int } } else { int }   // error[E0901]: conditional types on an `infer` name are not supported yet
+
+fn take(a: A, b: B, c: C) {
+}
+
+fn deep<T>(a: Deep<T>, b: Args<T>, c: Inner<T>) {
+}
+
+fn main() {
+}

@@ -1,0 +1,4 @@
+@lang("option")   // error[E0806]: `@lang("option")` must declare `Some(T)` then `None`
+pub enum Option<T> {
+    Some(T)
+}

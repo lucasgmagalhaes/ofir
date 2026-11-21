@@ -1,0 +1,12 @@
+// requires: stage1
+// `meta.fieldsOf<T>()` is a list only a `comptime for` walks (spec 15.2).
+
+import std.meta
+
+struct Point {
+    x: int
+}
+
+fn main() {
+    const _f = meta.fieldsOf<Point>()   // error[E0901]: `meta.fieldsOf` outside of `comptime for` is not supported yet
+}
