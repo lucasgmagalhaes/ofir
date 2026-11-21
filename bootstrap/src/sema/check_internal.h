@@ -138,6 +138,7 @@ typedef struct {
     TypeId *args;        // args[i]: the argument of parameter i, once known
     bool *known;
     uint32_t count;
+    bool poisoned;       // an argument had the error type: E0330 would only cascade
 } Infer;
 
 Generics fn_generics(const Def *fn);

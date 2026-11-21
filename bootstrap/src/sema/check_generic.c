@@ -54,6 +54,9 @@ static bool has_inner(TyKind kind) {
 
 void infer_from(Checker *c, Infer *inf, TypeId pattern, TypeId actual) {
     const Ty *p = type_get(c->types, pattern);
+    if (p->has_param && actual.id == TID_ERROR) {
+        inf->poisoned = true;
+    }
     if (!p->has_param || actual.id == TID_ERROR || actual.id == TID_NEVER) {
         return;
     }
@@ -111,8 +114,10 @@ void infer_finish(Checker *c, Infer *inf, Span span) {
         }
         uint32_t owner = inf->params.owner.len;
         Symbol name = i < owner ? inf->params.owner.items[i] : inf->params.fn.items[i - owner];
-        check_error(c, "E0330", span, "cannot infer the type parameter `" SV_FMT "`: write the "
-                    "type arguments, as in `f<int>(x)`", SV_ARG(name_of(c, name)));
+        if (!inf->poisoned) {
+            check_error(c, "E0330", span, "cannot infer the type parameter `" SV_FMT "`: write the "
+                        "type arguments, as in `f<int>(x)`", SV_ARG(name_of(c, name)));
+        }
         inf->args[i] = type_id(TID_ERROR);
         inf->known[i] = true;
     }
