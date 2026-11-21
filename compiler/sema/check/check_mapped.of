@@ -209,7 +209,7 @@ fn aliasKeys(c: mut Checker, p: Program) {
 pub fn expandMapped(c: mut Checker, mapped: int) int {
     const known = c.types.expandedOf(mapped)
     if known != 0 {
-        return known
+        return if known < 0 { ERROR } else { known }
     }
     const alias = c.types.get(mapped).data
     let args = c.types.get(mapped).args.clone()
@@ -220,7 +220,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         }
     }
     if c.mappedTpls.get(alias).isNone() {
-        return ERROR
+        return failed(c, mapped)
     }
     const tpl = *c.mappedTpls.get(alias).unwrap()
     const cacheKey = (tpl.span.file.0, tpl.span.start, c.types.tuple(args.clone()))
@@ -231,7 +231,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
     }
     const keyType = c.types.subst(tpl.keys, args.clone())
     if c.types.kind(keyType) != TyKind.Key {
-        return ERROR
+        return failed(c, mapped)
     }
     let info = StructInfo{names: [], types: [], defaults: [], isTuple: false, isCopy: false}
     const names = c.types.keyNames(keyType)
@@ -243,7 +243,7 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
         if tpl.filter >= 0 {
             const test = c.types.get(c.types.subst(tpl.filter, fieldArgs.clone()))
             if test.kind != TyKind.Bool || test.data == 0 {
-                return ERROR
+                return failed(c, mapped)
             }
             if test.data == 2 {
                 continue
@@ -265,6 +265,13 @@ pub fn expandMapped(c: mut Checker, mapped: int) int {
     const ty = c.types.adt(id, [])
     c.types.setExpanded(mapped, ty)
     return ty
+}
+
+// Records that `mapped` has no struct, so `subst` gives ERROR for it from now
+// on instead of making it pending again.
+fn failed(c: mut Checker, mapped: int) int {
+    c.types.setExpanded(mapped, -1)
+    return ERROR
 }
 
 /**

@@ -184,7 +184,7 @@ pub struct TypeTable {
     slots: List<int>   // open addressing: type id + 1, 0 when empty
     fields: List<Option<KeyFields>>   // by `DefId`
     indexNames: List<int>   // the symbols of `0`, `1`, ...: tuple keys
-    expanded: List<int>   // by type id: the struct of a known `Mapped`, or 0
+    expanded: List<int>   // by type id: the struct of a known `Mapped`, 0, or -1: failed
     pending: List<int>   // the known `Mapped` types with no struct yet
     undecided: List<int>   // the non-`bool` conditions `subst` met
     badLengths: List<int>   // the out of range array lengths `subst` met
@@ -590,8 +590,9 @@ pub struct TypeTable {
             return self.reduceCond(result)
         }
         if kind == TyKind.Mapped && !self.types[result].hasParam {
-            if result < self.expanded.len() && self.expanded[result] != 0 {
-                return self.expanded[result]
+            const known = self.expandedOf(result)
+            if known != 0 {
+                return if known < 0 { ERROR } else { known }
             }
             self.pending.push(result)
         }
@@ -736,10 +737,11 @@ pub struct TypeTable {
     }
 
     /**
-     * The struct of a `Mapped` type, or 0 before `setExpanded`.
+     * The struct of a `Mapped` type, 0 before `setExpanded`, or -1 when its
+     * expansion failed.
      *
      * @param mapped the `Mapped` type
-     * @returns the struct type, or 0
+     * @returns the struct type, 0 or -1
      */
     pub fn expandedOf(self, mapped: int) int {
         return if mapped < self.expanded.len() { self.expanded[mapped] } else { 0 }
