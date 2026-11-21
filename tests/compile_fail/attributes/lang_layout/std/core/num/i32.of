@@ -1,0 +1,4 @@
+@lang("i32")   // error[E0806]: a `@lang` numeric type declares no fields
+pub struct i32 {
+    bits: int
+}
