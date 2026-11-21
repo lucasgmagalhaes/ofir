@@ -1,0 +1,3 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]},"hoverProvider":true,"referencesProvider":true,"renameProvider":true},"serverInfo":{"name":"ofir"}}}
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[{"range":{"start":{"line":7,"character":16},"end":{"line":7,"character":20}},"severity":1,"code":"E0602","source":"ofir","message":"cannot move out of `name`, which is borrowed: declare the parameter `move`, or call `.clone()`"}]}}
+{"jsonrpc":"2.0","id":2,"result":null}

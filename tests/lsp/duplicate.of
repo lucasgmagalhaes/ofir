@@ -1,0 +1,13 @@
+// The checker reports the move in the loop body once per pass over the
+// loop; the server publishes it once.
+fn consume(_s: move str) {
+}
+
+fn fromForVariable(names: List<str>) {
+    for name in names {
+        consume(name)
+    }
+}
+
+fn main() {
+}
