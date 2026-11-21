@@ -16,6 +16,11 @@ fn needSend<T: Send>(_: T) {
 fn needSync<T: Sync>(_: T) {
 }
 
+// The closure is checked before `t` gives `T`.
+fn runWith<T>(f: fn(T, int) int + Send, t: T) int {
+    return f(t, 1)
+}
+
 type IntOrStr = int | str
 
 unsafe fn raw() Raw {
@@ -39,6 +44,7 @@ fn main() {
     needSend(a)
     needSend((1, unsafe { raw() }))   // error[E0332]: the type `(int, Raw)` does not satisfy the bound `Send` of `T`
     needSend(Holder.Empty)   // error[E0332]: the type `Holder` does not satisfy the bound `Send` of `T`
+    runWith((x: str, y: str) int => 1, "a")   // error[E0300]: mismatched types: expected fn(str, int) int + Send, found fn(str, str) int
     const _ = f
     const _ = h
 }
