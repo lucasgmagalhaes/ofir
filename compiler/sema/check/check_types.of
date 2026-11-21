@@ -29,6 +29,7 @@ import sema.check.check_mapped.checkAliasBounds
 import sema.check.check_mapped.mappedType
 import sema.check.check_ref.checkInstanceStorable
 import sema.check.check_unsafe.cCompatible
+import sema.check.const_eval.ConstKind
 import sema.check.const_eval.byComptimeMessage
 import sema.check.expr_check.checkConst
 import sema.check.interfaces.dynIncompatible
@@ -304,7 +305,11 @@ fn constArg(c: mut Checker, p: Program, id: int, span: Span) int {
         return ERROR
     }
     return match c.info[id].value {
-        Option.Some(v) => c.types.value(v.bits.wrappingCast<i64>())
+        Option.Some(v) => if v.kind == ConstKind.Int {
+            c.types.value(v.bits.wrappingCast<i64>())
+        } else {
+            ERROR   // its value is not of its type: E0300, reported with it
+        }
         Option.None => ERROR
     }
 }
