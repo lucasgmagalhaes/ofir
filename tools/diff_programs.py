@@ -183,7 +183,9 @@ class Generator:
         fns: list[Function] = []
         for i in range(functions):
             fns.append(self.function(i, fns))
-        args = lambda: self.rng.choice([self.rng.randrange(-20, 20), int(self.rng.choice(LITERALS))])
+        def args() -> int:
+            return self.rng.choice([self.rng.randrange(-20, 20), int(self.rng.choice(LITERALS))])
+
         return Program(fns, [(self.rng.choice(fns).name, args(), args()) for _ in range(calls)])
 
 
@@ -280,7 +282,8 @@ def main() -> int:
     reference = Mode("stage0 dev", args.compiler)
     modes = [Mode("stage0 release", args.compiler, ["--release"])]
     if args.stage1:
-        modes += [Mode("stage1 dev", args.stage1), Mode("stage1 release", args.stage1, ["--release"]),
+        modes += [Mode("stage1 dev", args.stage1),
+                  Mode("stage1 release", args.stage1, ["--release"]),
                   Mode("stage1 comptime", args.stage1, comptime=True)]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
