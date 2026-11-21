@@ -1,5 +1,7 @@
 // requires: stage1
-// A key literal, `.x`, is not the target of a cast (spec 16.4).
+// A key literal, `.x`, and a type operator are not the target of a cast
+// (spec 16.4).
 fn main() {
     const _k = 1 as .x   // error[E0100]: expected a type, found `.`
+    const _t = 1 as true   // error[E0100]: expected a type, found `true`
 }
