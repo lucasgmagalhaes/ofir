@@ -1,0 +1,24 @@
+// requires: stage1
+// A key parameter bounded by a key operation (spec 16.2): `keyof T & keyof U`
+// and `keyof T - .y` take the keys they include.
+
+struct P {
+    x: int
+    y: int
+}
+
+struct Q {
+    x: int
+}
+
+fn both<T, U, K: keyof T & keyof U>(_a: &T, _b: &U, _key: K) int {
+    return 1
+}
+
+fn notY<T, K: keyof T - .y>(_a: &T, _key: K) int {
+    return 2
+}
+
+fn main() {
+    println("{both(&P{x: 2, y: 1}, &Q{x: 1}, .x)} {notY(&P{x: 1, y: 2}, .x)}")
+}
