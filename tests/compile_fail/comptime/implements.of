@@ -1,0 +1,24 @@
+// requires: stage1
+// `meta.implements<T, I>()` takes a type and an interface or bound (spec 15.2).
+
+import std.meta
+import std.meta.implements
+
+fn generic<T>() int {
+    comptime if meta.implements<T>() {   // error[E0302]: wrong number of type arguments: expected 2, found 1
+        return 1
+    }
+    comptime if implements<T, Eq, Eq>() {   // error[E0302]: wrong number of type arguments: expected 2, found 3
+        return 2
+    }
+    return 0
+}
+
+fn main() {
+    const a = meta.implements<int>()   // error[E0302]: wrong number of type arguments: expected 2, found 1
+    const b = meta.implements<int, Nope>()   // error[E0200]: expected an interface or a bound such as `Eq`
+    comptime if implements<int, Eq, Eq>() {   // error[E0302]: wrong number of type arguments: expected 2, found 3
+        println("a")
+    }
+    println("{generic<int>()}")
+}
