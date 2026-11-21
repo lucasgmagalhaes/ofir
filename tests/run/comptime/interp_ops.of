@@ -1,0 +1,67 @@
+// requires: stage1
+// The interpreter runs unary operators, casts, float functions and the
+// native `str` methods in `comptime` code (spec 15.5).
+
+comptime fn unary(n: int, b: bool, x: float, y: f32) str {
+    return "{-n} {!b} {-x} {-y} {!n} {!(n as u8)}"
+}
+
+comptime fn casts(x: float, n: int, u: u8) str {
+    const a = x as i32
+    const b = x as u16
+    const c = n as float
+    const d = u as f32
+    const e = (0.0 - x) as i64
+    const f = x as f32
+    const g = ((n - 150) as i8) as i64
+    return "{a} {b} {c} {d} {e} {f} {g}"
+}
+
+comptime fn saturating(n: int) str {
+    const c = n.saturatingCast<u8>()
+    const d = (0 - n).saturatingCast<i8>()
+    const e = (n / 100).saturatingCast<u8>()
+    const f = n.saturatingCast<i64>()
+    return "{c} {d} {e} {f}"
+}
+
+comptime fn checkedCasts(n: int) str {
+    const c = n.checkedCast<u8>()
+    const d = (n / 100).checkedCast<u8>()
+    return "{c:?} {d:?}"
+}
+
+comptime fn floats(x: float) str {
+    return "{x.sqrt()} {(0.0 - x).abs()} {x.floor()} {x.ceil()} {x.min(2.0)} {x.max(2.0)}"
+}
+
+comptime fn strings() str {
+    let s = str.new()
+    s.push("  Hello ")
+    s.pushChar(87)
+    let t = str.withCapacity(8)
+    t.push(s.trim())
+    const parts = "{s.len()} {s.isEmpty()} {t} [{s.trimStart()}] [{s.trimEnd()}]"
+    const more = "{t.startsWith("He")} {t.endsWith("W")} {t.contains("lo")}"
+    const cut = "{t.slice(1, 3)} {t.sliceFrom(4)} {"ab".repeat(3)}"
+    const cases = "{t.replace("l", "L")} {t.toLower()} {t.toUpper()} {t.clone()}"
+    let u = t.toOwned()
+    u.clear()
+    return "{parts} | {more} | {cut} | {cases} | [{u}]"
+}
+
+const UNARY: str = comptime unary(5, true, 1.5, 2.5)
+const CASTS: str = comptime casts(250.75, 200, 7)
+const SATURATING: str = comptime saturating(300)
+const CHECKED: str = comptime checkedCasts(300)
+const FLOATS: str = comptime floats(6.25)
+const STRINGS: str = comptime strings()
+
+fn main() {
+    println(UNARY)
+    println(CASTS)
+    println(SATURATING)
+    println(CHECKED)
+    println(FLOATS)
+    println(STRINGS)
+}
