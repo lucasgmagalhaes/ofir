@@ -48,7 +48,9 @@ pub fn formatFile(path: str, src: str) Result<str, str> {
     const forced = brokenBlocks(src, all)
     const text = layout(src, all, forced)
     if !sameTokens(src, text) {
+        // GCOVR_EXCL_START: the layout only changes the spaces and adds commas
         return Result.Err("error: internal: formatting would change the tokens of `{path}`\n")
+        // GCOVR_EXCL_STOP
     }
     return Result.Ok(sortImports(text))
 }
