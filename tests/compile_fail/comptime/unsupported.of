@@ -1,6 +1,7 @@
 // requires: stage1
-// Compile-time code does not make function values or closures yet
-// (spec 15.5, E0901); a slice of an array works.
+// Compile-time code does not make function values or closures, or format
+// with a precision or a radix, yet (spec 15.5, E0901); a slice of an array
+// works.
 
 fn one() int {
     return 1
@@ -25,9 +26,19 @@ fn slice() int {
     return s.len()
 }
 
+fn fixed(f: float) str {
+    return "{f:.2}"
+}
+
+fn radix(n: int) str {
+    return "{n:x}"
+}
+
 fn main() {
     const a = comptime fnValue()   // error[E0901]: stage 1 does not evaluate this operation at compile time yet
     const b = comptime closure(2)   // error[E0901]: stage 1 does not evaluate this operation at compile time yet
     const c = comptime slice()
-    println("{a} {b} {c}")
+    const d = comptime fixed(1.5)   // error[E0901]: stage 1 does not evaluate `ofir_str_push_fixed` at compile time yet
+    const e = comptime radix(255)   // error[E0901]: stage 1 does not evaluate a read of this value at compile time yet
+    println("{a} {b} {c} {d} {e}")
 }
