@@ -151,7 +151,7 @@ fn declare(h: mut Header, c: mut Checker, p: Program, ty: int, inner: str) str {
         if !c.types.isCFn(t.inner) && c.types.get(t.inner).kind != TyKind.Ptr {
             return if mutable { "void *{inner}" } else { "const void *{inner}" }
         }
-        return declare(h, c, p, t.inner, if mutable { "*{inner}" } else { "*const {inner}" })
+        return declare(h, c, p, t.inner, if mutable { "*{inner}" } else { "const *{inner}" })
     }
     if t.kind == TyKind.Array && t.data >= 0 {
         return declare(h, c, p, t.inner, "{inner}[{t.data}]")
