@@ -492,7 +492,7 @@ pub fn checkRangeIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, range:
             return c.types.subst(ret, selfArgs)
         }
         _ => {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: its callers pass a range
         }
     }
 }
