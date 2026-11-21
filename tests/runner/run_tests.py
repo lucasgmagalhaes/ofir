@@ -48,6 +48,9 @@ REQUIRES_RE = re.compile(r"^//\s*requires:\s*(\S+)", re.MULTILINE)
 FLAGS_RE = re.compile(r"^//\s*flags:\s*(.+)$", re.MULTILINE)
 # A test compiled without the standard library, `// std: none`.
 NO_STD_RE = re.compile(r"^//\s*std:\s*none\s*$", re.MULTILINE)
+# A project test compiled with a standard library of its own, a directory
+# next to its `main.of`, e.g. `// std: std`; its files carry annotations too.
+STD_DIR_RE = re.compile(r"^//\s*std:\s*(?!none\s*$)(\S+)\s*$", re.MULTILINE)
 # The exit status a run test expects instead of 0: a number, or `abort` for a
 # process ended by SIGABRT (on Windows status 3, or 0xC0000409 from the UCRT's
 # fast fail), e.g. `// status: 3`.
@@ -145,7 +148,17 @@ def test_env(cfg: Config, path: Path) -> dict[str, str]:
         empty = cfg.tmp / "no-std"   # `// std: none`: a standard library with no modules
         empty.mkdir(parents=True, exist_ok=True)
         env["OFIR_STD"] = str(empty)
+    elif std := fixture_std(path):
+        env["OFIR_STD"] = str(std)
     return env
+
+
+def fixture_std(path: Path) -> Path | None:
+    """The standard library of a `// std: <dir>` project test, or None."""
+    if path.name != "main.of":
+        return None
+    m = STD_DIR_RE.search(path.read_text(errors="replace"))
+    return path.parent / m.group(1) if m else None
 
 
 def c_tools() -> tuple[str, str]:
@@ -356,12 +369,16 @@ def parse_annotations(source: str, file: str = "") -> list[tuple[int, Diagnostic
     return annotations
 
 
-def parse_diagnostics(output: str) -> list[Diagnostic]:
+def parse_diagnostics(output: str, std: Path | None = None) -> list[Diagnostic]:
+    """The diagnostics of a compiler run; one in a file of the fixture
+    standard library `std` is keyed by its path from the test directory."""
     diagnostics = []
     for text in output.splitlines():
         m = DIAGNOSTIC_RE.match(text)
         if m:
             file = "ofir.json" if m.group(1).endswith("ofir.json") else ""
+            if std and Path(m.group(1)).resolve().is_relative_to(std.resolve()):
+                file = Path(m.group(1)).resolve().relative_to(std.parent.resolve()).as_posix()
             diagnostics.append(Diagnostic(int(m.group(2)), m.group(4), m.group(5), m.group(6),
                                           file))
     return diagnostics
@@ -508,13 +525,17 @@ def check_diagnostics(cfg: Config, path: Path, source: str) -> Result:
     manifest = path.parent / "ofir.json"
     if path.name == "main.of" and manifest.exists():
         annotations += parse_annotations(manifest.read_text(), "ofir.json")
+    std = fixture_std(path)
+    for module in sorted(std.rglob("*.of")) if std else []:
+        annotations += parse_annotations(module.read_text(),
+                                         module.relative_to(path.parent).as_posix())
     template = path.parent / "ofir.lock.in"
     if path.name == "main.of" and template.exists():
         write_lock(cfg, template)
     proc = run_process(compiler_cmd(cfg, "build", str(path), "--message-format=short",
                                     "-o", str(out_path(cfg, path)), *test_flags(source)),
                        env=test_env(cfg, path))
-    reported = parse_diagnostics(proc.stdout + proc.stderr)
+    reported = parse_diagnostics(proc.stdout + proc.stderr, std)
     expects_error = any(d.severity == "error" for _, d in annotations)
 
     if expects_error and proc.returncode == 0:
