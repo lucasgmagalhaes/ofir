@@ -1,0 +1,49 @@
+// requires: stage1
+// How a diagnostic writes the types of chapter 16: an indexed type, `keyof`,
+// key operations, a mapped type, conditional types, a type value and the
+// empty key type.
+
+struct P {
+    x: int
+}
+
+type Copy<T> = { [K in keyof T]: T[K] }
+type Pick<T> = if T is int { bool } else { str }
+type Empty = keyof P - .x
+type IsInt<T> = if T is int { true } else { false }
+type Flag<T> = if IsInt<T> { int } else { str }
+
+fn index<T, K: keyof T>(v: T[K]) {
+    const _: bool = v   // error[E0300]: mismatched types: expected bool, found T[K]
+}
+
+fn keys<T>(k: keyof T) {
+    const _: bool = k   // error[E0300]: mismatched types: expected bool, found keyof T
+}
+
+fn ops<T, K: keyof T>(k: K & (keyof T - .x)) {
+    const _: bool = k   // error[E0300]: mismatched types: expected bool, found K & (keyof T - .x)
+}
+
+fn mapped<T>(m: Copy<T>) {
+    const _: bool = m   // error[E0300]: mismatched types: expected bool, found Copy<T>
+}
+
+fn cond<T>(c: Pick<T>) {
+    const _: bool = c   // error[E0300]: mismatched types: expected bool, found if T is int { bool } else { str }
+}
+
+fn values<const N: int>(a: [int; (N + 1) * 2]) {
+    const _: bool = a   // error[E0300]: mismatched types: expected bool, found [int; (N + 1) * 2]
+}
+
+fn empty(e: Empty) {
+    const _: bool = e   // error[E0300]: mismatched types: expected bool, found keyof ()
+}
+
+fn flag<T>(f: Flag<T>) {
+    const _: bool = f   // error[E0300]: mismatched types: expected bool, found if if T is int { true } else { false } { int } else { str }
+}
+
+fn main() {
+}
