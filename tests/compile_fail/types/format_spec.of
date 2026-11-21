@@ -8,4 +8,5 @@ fn main() {
     const _c = "{s:05}" // error[E0357]: the format specifier `05` does not apply to a value of type `str`
     const _d = "{n:5q}" // error[E0357]: invalid format specifier `5q`
     const _e = "{n:<}" // error[E0357]: invalid format specifier `<`
+    const _f = "{x:.}" // error[E0357]: invalid format specifier `.`
 }
