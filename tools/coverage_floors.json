@@ -10,7 +10,7 @@
   },
   "stage1": {
     "compiler": 93.5,
-    "compiler/air": 94.1,
+    "compiler/air": 97.2,
     "compiler/base": 89.7,
     "compiler/cli": 84.5,
     "compiler/codegen": 97.7,
@@ -19,7 +19,7 @@
     "compiler/driver": 87.5,
     "compiler/fmt": 87.0,
     "compiler/lsp": 90.6,
-    "compiler/sema": 97.5,
+    "compiler/sema": 100.0,
     "compiler/syntax": 99.6
   },
   "runtime": {
