@@ -8,6 +8,7 @@ import base.intern.Symbol
 import base.span.Span
 import sema.check.BOUND_CONST
 import sema.check.Checker
+import sema.check.DeferredBound
 import sema.check.fnGenericsIn
 import sema.check.interfaceOf
 import sema.check.fnOf
@@ -61,6 +62,7 @@ import sema.resolve.resolve_import.memberOf
 import sema.resolve.resolve_import.missingMember
 import sema.resolve.suggest.SuggestScope
 import sema.resolve.suggest.suggestName
+import std.mem
 import syntax.ast.Expr
 import syntax.ast.ExprKind
 import syntax.ast.ItemKind
@@ -254,9 +256,70 @@ pub fn adtInstance(c: mut Checker, p: Program, id: int, args: [int], span: Span)
     for i in 0..args.len() {
         list.push(args[i])
     }
-    checkBounds(c, p, &generics, list, span)
+    if namesResolving(c, list) {
+        const owner = c.resolving[c.resolving.len() - 1]
+        c.deferredBounds.push(DeferredBound{owner, def: id, args: list, span})
+    } else {
+        checkBounds(c, p, &generics, list, span)
+    }
     checkInstanceStorable(c, p, ty, span)
     return ty
+}
+
+// Whether a type in `types` names a struct or enum whose fields are being
+// resolved: whether it has a bound can only be decided once they are known.
+fn namesResolving(c: Checker, types: List<int>) bool {
+    for i in 0..types.len() {
+        const t = c.types.get(types[i])
+        if t.kind == TyKind.Adt {
+            for r in 0..c.resolving.len() {
+                if c.resolving[r] == t.data {
+                    return true
+                }
+            }
+        }
+        const nested = t.kind == TyKind.Ref || t.kind == TyKind.Ptr || t.kind == TyKind.Slice ||
+                       t.kind == TyKind.Array || t.kind == TyKind.Fn
+        if (nested && namesResolving(c, [t.inner])) || namesResolving(c, t.args.clone()) {
+            return true
+        }
+    }
+    return false
+}
+
+/**
+ * Checks the bounds deferred by `adtInstance` whose types no longer name a
+ * struct or enum with fields being resolved, in the scope of the type whose
+ * field named them.
+ *
+ * @param c the checker
+ * @param p the program
+ */
+pub fn checkDeferredBounds(c: mut Checker, p: Program) {
+    const all = mem.replace(c.deferredBounds, [])
+    let ready: List<DeferredBound> = []
+    for d in all {
+        const kept = DeferredBound{owner: d.owner, def: d.def, args: d.args.clone(), span: d.span}
+        if namesResolving(c, d.args.clone()) {
+            c.deferredBounds.push(kept)
+        } else {
+            ready.push(kept)
+        }
+    }
+    for i in 0..ready.len() {
+        const d = &ready[i]
+        const saved = c.enter(c.def(d.owner).module)
+        const savedSelf = c.selfType
+        const outer = c.enterGenerics(typeGenericsOf(c, p, d.owner))
+        c.selfType = if c.def(d.owner).lang { c.def(d.owner).primitive } else {
+            ownerType(c, p, d.owner)
+        }
+        const generics = typeGenericsOf(c, p, d.def)
+        checkBounds(c, p, &generics, d.args.clone(), d.span)
+        c.enterGenerics(outer)
+        c.selfType = savedSelf
+        c.enter(saved)
+    }
 }
 
 /**
