@@ -162,6 +162,8 @@ void infer_explicit(Checker *c, Infer *inf, bool of_owner, TypeList list, Span s
 void infer_from_self(Infer *inf, const Ty *self, uint32_t count);
 // Binds the parameters in `pattern` by matching it against `actual`.
 void infer_from(Checker *c, Infer *inf, TypeId pattern, TypeId actual);
+// `infer_from` for the type `found` of an argument (or field) of type `param`.
+void infer_from_arg(Checker *c, Infer *inf, TypeId param, TypeId found);
 // `pattern` with the arguments substituted, or NO_TYPE if some are unknown.
 TypeId infer_hint(Checker *c, const Infer *inf, TypeId pattern);
 TypeId infer_apply(Checker *c, const Infer *inf, TypeId pattern);

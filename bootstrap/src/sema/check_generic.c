@@ -52,11 +52,15 @@ static bool has_inner(TyKind kind) {
            kind == TY_FN;
 }
 
+void infer_from_arg(Checker *c, Infer *inf, TypeId param, TypeId found) {
+    if (found.id == TID_ERROR && type_get(c->types, param)->has_param) {
+        inf->poisoned = true;   // the argument's error is reported already
+    }
+    infer_from(c, inf, param, found);
+}
+
 void infer_from(Checker *c, Infer *inf, TypeId pattern, TypeId actual) {
     const Ty *p = type_get(c->types, pattern);
-    if (p->has_param && actual.id == TID_ERROR) {
-        inf->poisoned = true;
-    }
     if (!p->has_param || actual.id == TID_ERROR || actual.id == TID_NEVER) {
         return;
     }
@@ -143,7 +147,7 @@ TypeId check_generic_args(Checker *c, Expr *call, const Ty *signature, Infer *in
         if (deref_arg(c, &args.items[i].value, param, true)) {
             found = args.items[i].value->type;
         }
-        infer_from(c, inf, param, found);
+        infer_from_arg(c, inf, param, found);
     }
     infer_finish(c, inf, call->span);
     for (uint32_t i = 0; i < args.len && i < sig.arg_count; i++) {
