@@ -1,0 +1,6 @@
+// panic: integer overflow
+// MIN / -1 of two literals: folding knows both halves of the check.
+fn main() {
+    const a: i8 = -128 / -1
+    println("{a}")
+}
