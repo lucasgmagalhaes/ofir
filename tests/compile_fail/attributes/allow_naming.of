@@ -1,0 +1,12 @@
+// requires: stage1
+// `@allow(naming)` names the category of W0007 (spec 12.1); it silences
+// that code only, so the unused variable below is still reported.
+
+@allow(naming)
+fn Shout() {
+    const loud = 1   // warning[W0001]: unused variable `loud`: use it, or start its name with `_`
+}
+
+fn main() {
+    Shout()
+}
