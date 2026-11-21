@@ -42,6 +42,16 @@ import std.testing.assert
  * assert(double(1) == 3)
  * ```
  *
+ * ```ofir
+ * ref struct View {
+ *     n: &int
+ * }
+ *
+ * const n = 2
+ * const v = View{n: &n}
+ * const _m = v.n
+ * ```
+ *
  * ```ofir no_run
  * import sample.double
  *
