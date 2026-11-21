@@ -275,8 +275,9 @@ def link_failures(c: Checker) -> None:
         fake = c.tmp / "compiles-only"
         fake.write_text(compiles.replace("{after}", after))
         fake.chmod(0o755)
-        result = subprocess.run([c.compiler, "build", "--no-cache", good, "-o",
-                                 str(c.tmp / "never")], capture_output=True, text=True,
+        # One clang at a time: one that removes itself must not race the others.
+        result = subprocess.run([c.compiler, "build", "--no-cache", "-j", "1", good,
+                                 "-o", str(c.tmp / "never")], capture_output=True, text=True,
                                 env=dict(c.env, OFIR_CLANG=str(fake)), cwd=c.tmp, timeout=300)
         c.expect(result.returncode == 1 and message in result.stderr, what,
                  f"{result.returncode}\n{result.stderr[-2000:]}")
