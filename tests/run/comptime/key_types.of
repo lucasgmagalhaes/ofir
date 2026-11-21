@@ -1,0 +1,42 @@
+// requires: stage1
+// `comptime for` over a key type (spec 16.6): a union of key literals, a
+// key parameter, and `meta.fieldsOf` of a struct named outside a generic.
+
+import std.meta
+
+struct Point {
+    x: int
+    y: int
+    z: int
+}
+
+type Ends = .z | .x
+
+fn sum(p: &Point) int {
+    let n = 0
+    comptime for key in Ends {
+        n += p[key]
+    }
+    return n
+}
+
+fn count<T, K: keyof T>(_value: &T) int {
+    let n = 0
+    comptime for _key in K {
+        n += 1
+    }
+    return n
+}
+
+fn names() {
+    comptime for field in meta.fieldsOf<Point>() {
+        print("{field.index}{field.name} ")
+    }
+    println("")
+}
+
+fn main() {
+    const p = Point{x: 1, y: 20, z: 300}
+    println("{sum(&p)} {count<Point, .y>(&p)}")
+    names()
+}
