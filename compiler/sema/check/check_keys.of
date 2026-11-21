@@ -457,8 +457,10 @@ pub fn checkKeyBound(c: mut Checker, p: Program, params: &Generics, i: int, args
 fn keyofBaseError(c: mut Checker, bound: int, args: List<int>, span: Span) {
     const t = c.types.get(bound)
     if t.kind == TyKind.KeyOp {
-        keyofBaseError(c, t.args[0], args.clone(), span)
-        keyofBaseError(c, t.args[1], args, span)
+        const left = t.args[0]
+        const right = t.args[1]
+        keyofBaseError(c, left, args.clone(), span)
+        keyofBaseError(c, right, args, span)
         return
     }
     if t.kind != TyKind.KeyOf {
