@@ -123,6 +123,15 @@ def run_process(cmd: list[str], cwd: Path | None = None, input_text: str | None 
     return subprocess.CompletedProcess(cmd, proc.returncode, out, err)
 
 
+def out_path(cfg: Config, path: Path) -> Path:
+    """The output of a test's build: tests in different directories with the
+    same file name, `main.of`, running at once, do not share one."""
+    rel = path.relative_to(cfg.tests_dir).with_suffix("").as_posix().replace("/", "_")
+    out = cfg.tmp / "out" / rel
+    out.mkdir(parents=True, exist_ok=True)
+    return out / path.stem
+
+
 def test_env(cfg: Config, path: Path) -> dict[str, str]:
     """The environment of a compiler run: each test has its own package
     cache (`$OFIR_HOME`), so that tests running at once do not share one."""
@@ -418,7 +427,7 @@ def missing_notes(cfg: Config, path: Path, source: str) -> list[str]:
     if not notes or cfg.stage == 0:
         return []
     proc = run_process(compiler_cmd(cfg, "build", str(path), "--message-format=json",
-                                    "-o", str(cfg.tmp / path.stem), *test_flags(source)),
+                                    "-o", str(out_path(cfg, path)), *test_flags(source)),
                        env=test_env(cfg, path))
     given = []
     for text in (proc.stdout + proc.stderr).splitlines():
@@ -453,7 +462,7 @@ def wrong_fixes(cfg: Config, path: Path, source: str) -> list[str]:
     if cfg.stage == 0 or not expected_path.exists():
         return []
     proc = run_process(compiler_cmd(cfg, "build", str(path), "--message-format=json",
-                                    "-o", str(cfg.tmp / path.stem), *test_flags(source)),
+                                    "-o", str(out_path(cfg, path)), *test_flags(source)),
                        env=test_env(cfg, path))
     data = path.read_bytes()
     edits = set()
@@ -495,7 +504,7 @@ def check_diagnostics(cfg: Config, path: Path, source: str) -> Result:
     if path.name == "main.of" and template.exists():
         write_lock(cfg, template)
     proc = run_process(compiler_cmd(cfg, "build", str(path), "--message-format=short",
-                                    "-o", str(cfg.tmp / path.stem), *test_flags(source)),
+                                    "-o", str(out_path(cfg, path)), *test_flags(source)),
                        env=test_env(cfg, path))
     reported = parse_diagnostics(proc.stdout + proc.stderr)
     expects_error = any(d.severity == "error" for _, d in annotations)
@@ -664,7 +673,7 @@ def check_emit(cfg: Config, path: Path, what: str, suffix: str) -> Result:
 
 
 def check_codegen(cfg: Config, path: Path, source: str) -> Result:
-    out = cfg.tmp / path.stem
+    out = out_path(cfg, path)
     proc = run_process(compiler_cmd(cfg, "build", str(path), "--emit=llvm", "-o", str(out),
                                     *test_flags(source)))
     if proc.returncode != 0:
