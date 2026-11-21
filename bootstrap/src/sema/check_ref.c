@@ -145,10 +145,30 @@ static bool returned_branches(Checker *c, const Expr *value) {
     return false;
 }
 
+// Whether `base[i]` reads a byte of a str, which the index copies out.
+static bool indexes_str(Checker *c, const Expr *base) {
+    TypeId type = base->type;
+    while (type_get(c->types, type)->kind == TY_REF) {
+        type = type_get(c->types, type)->inner;
+    }
+    return type.id == TID_STR;
+}
+
+// Whether `e` names a place: a binding, `self`, a dereference, or a field
+// or an element of one.
+static bool is_place_form(const Expr *e) {
+    bool deref = e->kind == EXPR_UNARY && e->as.unary.op == OP_DEREF;
+    return deref || e->kind == EXPR_IDENT || e->kind == EXPR_SELF || e->kind == EXPR_FIELD ||
+           e->kind == EXPR_TUPLE_FIELD || e->kind == EXPR_INDEX;
+}
+
 // Whether `&e` borrows a temporary, which ends with the statement: the
 // place reaches no binding, dereference or view (a reference, a pointer or
 // a `ref struct`) that outlives it.
 static bool borrows_temporary(Checker *c, const Expr *e) {
+    if (!is_place_form(e) || (e->kind == EXPR_INDEX && indexes_str(c, e->as.index.base))) {
+        return true;   // a new value, also a view or a byte of a str
+    }
     for (;;) {
         const Ty *ty = type_get(c->types, e->type);
         if (ty->kind == TY_PTR || ty->kind == TY_ERROR || holds_ref(c, e->type)) {
