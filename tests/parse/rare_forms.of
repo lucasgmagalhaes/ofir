@@ -2,7 +2,8 @@
 // Forms the AST printer writes rarely: a `Send` function type, interface
 // type parameters and embedding, interface assertions on a struct and an
 // enum, an `@` binding with `mut`, a unary attribute argument that is
-// not `-`, and an interpolation with a format specifier.
+// not `-`, an interpolation with a format specifier, and a negative const
+// argument.
 
 interface Mapper<T> {
     fn map(self, value: T) T
@@ -40,4 +41,12 @@ fn pick(n: int?) int {
 
 fn padded(n: int) string {
     return "{n:5}"
+}
+
+fn offset<const N: int>() int {
+    return N
+}
+
+fn back() int {
+    return offset<-1>()
 }

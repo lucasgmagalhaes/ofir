@@ -45,3 +45,16 @@ module
         interp
           ident n
           format 5
+  fn offset
+    type_params N
+    bound const N: int
+    returns int
+    body
+      return
+        ident N
+  fn back
+    returns int
+    body
+      return
+        call
+          generic offset<-1>
