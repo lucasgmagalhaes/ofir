@@ -1,0 +1,9 @@
+
+// A compound assignment to a literal: the literal is not a place, and
+// `x op y` checks with the other operand first, so its type differs from
+// the target's.
+
+fn main() {
+    const x: u8 = 2
+    1 += x   // error[E0300]: mismatched types: expected int, found u8   // error[E0901]: assigning to elements is not supported yet
+}
