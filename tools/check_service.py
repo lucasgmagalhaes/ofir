@@ -264,6 +264,33 @@ def cross_targets(c: Checker) -> None:
                  f"{result.returncode}\n{result.stderr[-2000:]}\n{' '.join(calls)[-2000:]}")
 
 
+def link_failures(c: Checker) -> None:
+    """A clang that compiles, then fails or is gone when it should link."""
+    good = c.write("link_good.of", GOOD)
+    compiles = ('#!/bin/sh\nout=""\nprev=""\nfor a in "$@"; do\n'
+                '    [ "$prev" = "-o" ] && out="$a"\n    prev="$a"\ndone\n'
+                'case " $* " in\n    *" -c "*) : > "$out"; {after}; exit 0 ;;\nesac\nexit 1\n')
+    for what, after, message in (("a link that fails", ":", "clang failed to compile"),
+                                 ("a clang gone before the link", 'rm -f "$0"', "cannot run")):
+        fake = c.tmp / "compiles-only"
+        fake.write_text(compiles.replace("{after}", after))
+        fake.chmod(0o755)
+        result = subprocess.run([c.compiler, "build", "--no-cache", good, "-o",
+                                 str(c.tmp / "never")], capture_output=True, text=True,
+                                env=dict(c.env, OFIR_CLANG=str(fake)), cwd=c.tmp, timeout=300)
+        c.expect(result.returncode == 1 and message in result.stderr, what,
+                 f"{result.returncode}\n{result.stderr[-2000:]}")
+    c.status(0, "a build with coverage named after its input", "build", good, "--coverage")
+    elsewhere = c.tmp / "elsewhere"
+    elsewhere.mkdir()
+    plain = {k: v for k, v in c.env.items() if not k.startswith("GCOV_PREFIX")}
+    ran = subprocess.run([str(c.tmp / "link_good")], capture_output=True, text=True,
+                         cwd=elsewhere, env=plain)
+    c.expect(ran.stdout == "hi" and any(c.tmp.glob("link_good*.gcda")),
+             "a build with coverage: its counters beside it, run from elsewhere",
+             f"{ran.stdout}\n{sorted(p.name for p in c.tmp.iterdir())}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compiler", required=True)
@@ -281,6 +308,7 @@ def main() -> int:
         records(c)
         native_failures(c)
         cross_targets(c)
+        link_failures(c)
         return 0 if c.ok else 1
 
 
