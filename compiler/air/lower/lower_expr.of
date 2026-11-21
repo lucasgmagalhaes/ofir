@@ -1337,8 +1337,10 @@ fn fieldCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr
         return cloneValue(l, c, p, value, concreteType(l, c, c.typeOf(e.id.0)))
     }
     if member > BUILTIN_BASE {
+        // GCOVR_EXCL_START: the checker resolves every method call it accepts
         l.fail("this method")
         return unit()
+        // GCOVR_EXCL_STOP
     }
     const ty = c.typeOf(e.id.0)
     const value = lowerExpr(l, c, p, base)
@@ -1548,7 +1550,7 @@ fn coercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         placeOperand(&lowerPlaceAt(l, c, p, e, derefCount(c, e)), OperandKind.Addr, viewType(c, e,
                                                                                              -1))
     } else {
-        lowerView(l, c, p, e, derefCount(c, e))
+        lowerView(l, c, p, e, derefCount(c, e))   // GCOVR_EXCL_LINE: asSlice is by address
     }
     c.setType(e.id.0, ty)
     const dest = newTemp(l, ty)
@@ -1596,7 +1598,7 @@ fn borrowedListCoercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
     const receiver = if byAddress(c, p, id, -1) {
         placeOperand(&place, OperandKind.Addr, c.types.ptr(list, false))
     } else {
-        placeOperand(&place, OperandKind.Copy, list)
+        placeOperand(&place, OperandKind.Copy, list)   // GCOVR_EXCL_LINE: asSlice is by address
     }
     emitCall(l, id, c.types.tuple([elem]), [receiver], dest)
     return opCopy(dest, ty)
@@ -2654,7 +2656,7 @@ fn castNeedsCheck(c: Checker, from: int, to: int) bool {
         return true
     }
     if f.kind != TyKind.Int || f.data == t.data {
-        return false
+        return false   // GCOVR_EXCL_LINE: E0313 and lowerCast leave only distinct ints
     }
     const sameSign = (f.data <= 3) == (t.data <= 3)
     const fromBits = intBits(f.data)
@@ -3296,7 +3298,7 @@ fn jumpTarget(l: Lowerer, stmt: &Stmt) int {
             }
         }
     }
-    return l.loops.len() - 1
+    return l.loops.len() - 1   // GCOVR_EXCL_LINE: the checker resolved the label
 }
 
 fn lowerStmt(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt) {
