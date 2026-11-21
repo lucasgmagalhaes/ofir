@@ -11,6 +11,7 @@
  */
 
 import base.intern.Symbol
+import base.span.Span
 import sema.check.BOUND_COPY
 import sema.check.COMPTIME_ATTRIBUTE
 import sema.check.COMPTIME_INDEX
@@ -388,6 +389,24 @@ pub fn jumpLeavesComptime(c: Checker) bool {
 }
 
 /**
+ * E0340 for a `comptime for` over `keyof T` in an instance where `T` is not
+ * a struct or tuple (spec 16.1), which has no keys to go over.
+ *
+ * @param c the checker
+ * @param span the loop
+ * @param info the loop
+ * @param targs the instance's type arguments
+ */
+pub fn checkComptimeBase(c: mut Checker, span: Span, info: ComptimeInfo, targs: List<int>) {
+    if info.variants || info.base == 0 || substType(c, info.bound, targs.clone()) != ERROR {
+        return
+    }
+    const base = substType(c, info.base, targs.clone())
+    c.error("E0340", span, "`keyof` needs a struct or tuple type, found "
+            + "`{c.typeName(base)}`")
+}
+
+/**
  * The keys a `comptime for` goes over in an instance, in declaration order.
  *
  * @param c the checker
@@ -405,7 +424,7 @@ pub fn comptimeKeys(c: mut Checker, p: Program, info: ComptimeInfo,
     }
     const bound = substType(c, info.bound, targs.clone())
     if c.types.kind(bound) != TyKind.Key {
-        return []   // GCOVR_EXCL_LINE: a key bound substitutes to a key type
+        return []   // `keyof int`: E0340 when lowered
     }
     let names = c.types.keyNames(bound)
     const base = if info.base == 0 { 0 } else { substType(c, info.base, targs.clone()) }

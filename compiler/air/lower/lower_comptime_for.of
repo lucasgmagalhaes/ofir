@@ -37,6 +37,7 @@ import sema.check.COMPTIME_MATCHES
 import sema.check.COMPTIME_NAME
 import sema.check.Checker
 import sema.check.ComptimeInfo
+import sema.check.check_comptime_for.checkComptimeBase
 import sema.check.check_comptime_for.comptimeAttribute
 import sema.check.check_comptime_for.comptimeIndex
 import sema.check.check_comptime_for.comptimeKey
@@ -91,6 +92,7 @@ pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt,
     const outer = l.body.targs
     let args = argsNow(l, c)
     const keys = comptimeKeys(c, p, info, args)
+    checkComptimeBase(c, stmt.span, info, args)
     const variable = info.local + 1
     for args.len() <= info.param {
         args.push(UNIT)
