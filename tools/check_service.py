@@ -33,6 +33,13 @@ FAILING_TEST = "@test\nfn wrong() {\n    assert(1 == 2)\n}\n"
 # A shorthand field that names a global: a shape the lowering does not take.
 UNLOWERED = ("struct S {\n    n: int\n}\n\nconst n: int = 4\n\n"
              "fn main() {\n    const s = S{n}\n    print(\"{s.n}\")\n}\n")
+# A borrowed binding of a smaller union with interior mutability.
+UNLOWERED_UNION = ("import std.mem.cell.Cell\n\nstruct A {\n    n: Cell<int>\n}\n\n"
+                   "struct B {\n    m: int\n}\n\ntype U = A | B | int\n\n"
+                   "fn peek(a: &(A | B)) int {\n    return 1\n}\n\n"
+                   "fn show(u: U) int {\n    return match u {\n"
+                   "        e: (A | B) => peek(&e)\n        _ => 0\n    }\n}\n\n"
+                   "fn main() {\n    print(\"{show(A{n: Cell.new(3)})}\")\n}\n")
 
 
 class Checker:
@@ -88,6 +95,11 @@ def exit_statuses(c: Checker) -> None:
                       c.write("unlowered.of", UNLOWERED), "-o", str(c.tmp / "unlowered"))
     c.expect("E0901" in result.stderr and "this shorthand field" in result.stderr,
              "build of an unlowered shape: E0901 names it", result.stderr)
+    result = c.status(1, "build of an unlowered union binding", "build",
+                      c.write("unlowered_union.of", UNLOWERED_UNION),
+                      "-o", str(c.tmp / "unlowered_union"))
+    c.expect("a type test that borrows a union of members" in result.stderr,
+             "build of an unlowered union binding: E0901 names it", result.stderr)
 
 
 def check_builds_nothing(c: Checker) -> None:
