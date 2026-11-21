@@ -532,8 +532,8 @@ fn cast(it: mut Interp, c: mut Checker, v: Value, from: int, to: int) Value {
     if target == TyKind.Int {
         if source == TyKind.Float {
             if floatCastFails(c, v.float, to) {
-                evalFailed(it, "a cast out of range")   // GCOVR_EXCL_LINE: a CastFails check runs first
-                return blank(ValueKind.Uninit)   // GCOVR_EXCL_LINE: a CastFails check runs first
+                evalFailed(it, "a cast out of range")   // GCOVR_EXCL_LINE: CastFails runs first
+                return blank(ValueKind.Uninit)   // GCOVR_EXCL_LINE: CastFails runs first
             }
             return intValue(floatToInt(c, v.float, to))
         }
