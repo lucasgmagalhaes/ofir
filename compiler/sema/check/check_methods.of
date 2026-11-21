@@ -23,7 +23,6 @@ import sema.check.check_list.arraySliceReceiver
 import sema.check.check_comptime_for.comptimeMember
 import sema.check.check_comptime_for.comptimeVariantGet
 import sema.check.check_keys.keyIndex
-import sema.check.check_keys.paramKey
 import sema.check.check_generic.checkGenericArgs
 import sema.check.check_generic.fnGenerics
 import sema.check.check_generic.inferExplicit
@@ -687,7 +686,7 @@ pub fn checkIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, index: &Exp
         if const Option.Some(field) = keyIndex(c, p, ty, index, key) {
             return field
         }
-        if paramKey(c, key) == ERROR {   // a `comptime for` that had an error
+        if key == ERROR || erroneousLoopKey(c, key) {
             return ERROR
         }
         requireType(c, index, key, I64)
@@ -705,6 +704,20 @@ pub fn checkIndex(c: mut Checker, p: Program, e: &Expr, base: &Expr, index: &Exp
         c.error("E0313", e.span, "type `{c.typeName(ty)}` cannot be indexed")
     }
     return ERROR
+}
+
+// Whether `key` is the variable of a `comptime for` whose keys had an error.
+fn erroneousLoopKey(c: Checker, key: int) bool {
+    const t = c.types.get(key)
+    if t.kind != TyKind.Param {
+        return false
+    }
+    for i in 0..c.comptimeLoops.len() {
+        if c.comptimeLoops[i].param == t.data && c.comptimeLoops[i].bound == ERROR {
+            return true
+        }
+    }
+    return false
 }
 
 // Whether `value[key]` can name a field of a value of type `ty`: a type
