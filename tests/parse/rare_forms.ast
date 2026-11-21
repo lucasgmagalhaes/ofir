@@ -37,3 +37,11 @@ module
               lit 0
           arm _
             lit 1
+  fn padded
+    param n: int
+    returns string
+    body
+      return
+        interp
+          ident n
+          format 5

@@ -1,8 +1,8 @@
 // requires: stage1
 // Forms the AST printer writes rarely: a `Send` function type, interface
 // type parameters and embedding, interface assertions on a struct and an
-// enum, an `@` binding with `mut`, and a unary attribute argument that is
-// not `-`.
+// enum, an `@` binding with `mut`, a unary attribute argument that is
+// not `-`, and an interpolation with a format specifier.
 
 interface Mapper<T> {
     fn map(self, value: T) T
@@ -36,4 +36,8 @@ fn pick(n: int?) int {
         }
         _ => 1
     }
+}
+
+fn padded(n: int) string {
+    return "{n:5}"
 }
