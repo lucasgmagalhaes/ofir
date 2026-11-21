@@ -114,7 +114,7 @@ pub fn ownerTypeOf(c: mut Checker, p: Program, m: int, index: int) int {
  */
 pub fn ownerType(c: mut Checker, p: Program, id: int) int {
     if c.def(id).item < 0 {   // a type the checker made: a union
-        return c.types.adt(id, [])
+        return c.types.adt(id, [])   // GCOVR_EXCL_LINE: a union has no methods or literals
     }
     return ownerTypeOf(c, p, c.def(id).module, c.def(id).item)
 }
@@ -440,7 +440,8 @@ fn namedType(c: mut Checker, p: Program, id: int, args: List<TypeExpr>, span: Sp
         DefKind.TypeAlias => resolveAlias(c, p, id, args, span)
         DefKind.Struct | DefKind.Enum => {
             if c.def(id).lang {
-                return c.def(id).primitive   // a `@lang` body names its primitive
+                // a `@lang` body names its primitive
+                return c.def(id).primitive   // GCOVR_EXCL_LINE: a @lang struct is no module member
             }
             let types: List<int> = []
             for i in 0..args.len() {
