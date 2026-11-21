@@ -340,7 +340,8 @@ containing one) that borrows from **one** parameter:
 With no such parameter, or with several candidates, returning a borrow is an
 error. A borrow of a local of the function, or of a temporary such as
 `&(a + b)` or `&make().field`, ends with the function and cannot be returned
-either (E0702).
+either (E0702). Indexing a `str` copies the byte out and a range index makes
+a new view, so `&s[0]` and `&xs[0..2]` borrow temporaries too.
 
 ```ofir
 // in List<T>:  fn first(self) Option<&T> { ... }

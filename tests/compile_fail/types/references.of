@@ -82,6 +82,14 @@ fn throughView(xs: List<int>) &int {
     return &xs.slice(0, 1)[0]
 }
 
+fn byteOfStr(s: &str) &u8 {
+    return &s[0]                 // error[E0702]: cannot return a reference to a temporary value, which ends with the function
+}
+
+fn newView(xs: &List<int>) & &[int] {
+    return &xs[0..2]             // error[E0702]: cannot return a reference to a temporary value, which ends with the function
+}
+
 fn main() {
     const n = 1
     const r = &mut n               // error[E0315]: this value cannot be modified: declare it with `let`

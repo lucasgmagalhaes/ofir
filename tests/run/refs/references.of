@@ -52,11 +52,6 @@ fn innerOf(r: & &int, first: bool) &int {
     return if first { *r } else { *r }
 }
 
-// A byte of a borrowed `str` lives with the caller's string.
-fn firstByte(s: &str) &u8 {
-    return &s[0]
-}
-
 fn main() {
     let n = 1
     const r = &n
@@ -91,5 +86,4 @@ fn main() {
     const seven = 7
     const rs = &seven
     println("{*inner(&rs)} {*innerOf(&rs, false)}")
-    println("{*firstByte("abc")}")
 }
