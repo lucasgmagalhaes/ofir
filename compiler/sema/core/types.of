@@ -188,6 +188,7 @@ pub struct TypeTable {
     pending: List<int>   // the known `Mapped` types with no struct yet
     undecided: List<int>   // the non-`bool` conditions `subst` met
     badLengths: List<int>   // the out of range array lengths `subst` met
+    longest: int   // the most elements of a tuple
 
     /**
      * A table with the built-in types, in the order of their ids.
@@ -197,7 +198,7 @@ pub struct TypeTable {
     pub fn new() TypeTable {
         let table = TypeTable{types: [], slots: List.filled(0, 256), fields: [],
                               indexNames: [], expanded: [], pending: [],
-                              undecided: [], badLengths: []}
+                              undecided: [], badLengths: [], longest: 0}
         table.intern(TyKind.Error, 0, 0, [])
         table.intern(TyKind.Unit, 0, 0, [])
         table.intern(TyKind.Never, 0, 0, [])
@@ -324,6 +325,9 @@ pub struct TypeTable {
      * @returns the tuple type
      */
     pub fn tuple(mut self, elems: [int]) int {
+        if elems.len() > self.longest {
+            self.longest = elems.len()
+        }
         return if elems.len() == 0 { UNIT } else { self.intern(TyKind.Tuple, 0, 0, elems) }
     }
 
@@ -809,6 +813,24 @@ pub struct TypeTable {
      */
     pub fn hasIndexNames(self) bool {
         return self.indexNames.len() > 0
+    }
+
+    /**
+     * How many tuple keys `setIndexNames` recorded.
+     *
+     * @returns their count
+     */
+    pub fn indexNameCount(self) int {
+        return self.indexNames.len()
+    }
+
+    /**
+     * The most elements of a tuple type in the table.
+     *
+     * @returns the count, 0 without tuples
+     */
+    pub fn longestTuple(self) int {
+        return self.longest
     }
 
     // The first `count` tuple keys, or ERROR.
