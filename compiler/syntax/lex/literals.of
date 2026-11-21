@@ -362,7 +362,8 @@ pub fn scanMultiline(cur: mut Cursor, src: str, diags: mut Diagnostics) Token {
 }
 
 fn skipBlanks(cur: mut Cursor, src: str) {
-    for !cur.atEnd(src) && (src[cur.pos] == b' ' || src[cur.pos] == b'\t') {
+    for !cur.atEnd(src) && (src[cur.pos] == b' ' || src[cur.pos] == b'\t'
+                            || src[cur.pos] == b'\r') {
         cur.pos += 1
     }
 }
