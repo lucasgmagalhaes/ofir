@@ -48,11 +48,11 @@ def main() -> None:
         tree = work / "tree"
         (tree / "sub").mkdir(parents=True)
         (tree / ".hidden").mkdir()
-        (tree / "messy.of").write_text(MESSY)
-        (tree / "tidy.of").write_text(TIDY)
-        (tree / "sub" / "deep.of").write_text(MESSY)
-        (tree / ".hidden" / "skipped.of").write_text(MESSY)
-        (tree / "notes.txt").write_text(MESSY)
+        (tree / "messy.of").write_text(MESSY, newline="\n")
+        (tree / "tidy.of").write_text(TIDY, newline="\n")
+        (tree / "sub" / "deep.of").write_text(MESSY, newline="\n")
+        (tree / ".hidden" / "skipped.of").write_text(MESSY, newline="\n")
+        (tree / "notes.txt").write_text(MESSY, newline="\n")
 
         listed = fmt("--check", status=1, where=tree).stdout.split()
         if sorted(listed) != ["./messy.of", "./sub/deep.of"]:
@@ -90,7 +90,7 @@ def main() -> None:
                 fail("a file that cannot be read is not reported")
         if hasattr(os, "geteuid") and os.geteuid() != 0:   # root writes a read-only file
             locked = work / "locked.of"
-            locked.write_text(MESSY)
+            locked.write_text(MESSY, newline="\n")
             locked.chmod(0o444)
             if "cannot write" not in fmt(str(locked), status=1).stderr:
                 fail("a file that cannot be written is not reported")
