@@ -70,7 +70,8 @@ def published(messages: list, uri: str) -> list:
 
 
 def framing(compiler: str, work: Path) -> None:
-    folder = os.open(work, os.O_RDONLY)   # reading a directory fails
+    # reading a write-only handle fails, on Windows as well (a directory cannot be opened there)
+    folder = os.open(work / "write-only", os.O_WRONLY | os.O_CREAT)
     try:
         if subprocess.run([compiler, "lsp"], stdin=folder, capture_output=True,
                           timeout=300).returncode != 1:
