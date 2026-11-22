@@ -65,8 +65,18 @@
       "std/meta": 50.0
     },
     "stage1": {
-      "compiler/diag": 66.8,
-      "compiler/sema": 76.3
+      "compiler": 83.6,
+      "compiler/air": 71.8,
+      "compiler/base": 67.0,
+      "compiler/cli": 66.2,
+      "compiler/codegen": 72.2,
+      "compiler/diag": 67.2,
+      "compiler/doc": 68.9,
+      "compiler/driver": 66.9,
+      "compiler/fmt": 74.9,
+      "compiler/lsp": 66.1,
+      "compiler/sema": 76.4,
+      "compiler/syntax": 77.8
     }
   }
 }
