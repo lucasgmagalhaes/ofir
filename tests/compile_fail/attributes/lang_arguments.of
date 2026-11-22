@@ -1,0 +1,12 @@
+// `@lang` outside std, without its one string argument (spec 12.1).
+
+@lang   // error[E0805]: `@lang` is reserved to the standard library   // error[E0809]: invalid arguments for `@lang`: write `@lang("type")`
+struct Bare {}
+
+@lang(1)   // error[E0805]: `@lang` is reserved to the standard library   // error[E0809]: invalid arguments for `@lang`: write `@lang("type")`
+struct Number {}
+
+@lang("a", "b")   // error[E0805]: `@lang` is reserved to the standard library   // error[E0809]: invalid arguments for `@lang`: write `@lang("type")`
+struct Two {}
+
+fn main() {}

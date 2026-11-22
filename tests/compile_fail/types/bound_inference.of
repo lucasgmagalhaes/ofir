@@ -21,5 +21,5 @@ fn pick<T>(_x: Option<T> | int) {
 }
 
 fn main() {
-    pick(true)   // error[E0330]: cannot infer the type parameter `T`: write the type arguments, as in `f<int>(x)`   // error[E0300]: mismatched types: expected Option<{error}> | int, found bool
+    pick(true)   // error[E0330]: cannot infer the type parameter `T`: write the type arguments, as in `f<int>(x)`
 }

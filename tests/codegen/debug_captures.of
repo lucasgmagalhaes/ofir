@@ -1,0 +1,11 @@
+// requires: stage1
+// flags: -g
+// With -g, a closure declares what it captures through the pointer its
+// environment holds (spec 10.3).
+// CHECK: metadata !DIExpression(DW_OP_deref))
+// CHECK: !DILocalVariable(name: "base",
+fn main() {
+    const base = 40
+    const add = (x: int) int => x + base
+    println("{add(2)}")
+}

@@ -16,6 +16,16 @@ extern "C" {
     fn ceil(x: f64) f64
 }
 
+@link("m!")   // error[E0809]: invalid arguments for `@link`: write `@link("name")`, name a library name
+extern "C" {
+    fn trunc(x: f64) f64
+}
+
+@export("a-b")   // error[E0809]: invalid arguments for `@export`: write `@export("name")`, name a C identifier
+extern "C" fn dashed(x: i32) i32 {
+    return x
+}
+
 @export("1st")   // error[E0809]: invalid arguments for `@export`: write `@export("name")`, name a C identifier
 extern "C" fn first(x: i32) i32 {
     return x

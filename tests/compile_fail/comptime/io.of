@@ -29,5 +29,13 @@ fn main() {
     const d = comptime c + 1   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
     const e = comptime shuffled()   // error[E0815]: compile-time code cannot call the extern function `ofir_random_u64`
     // note: `seeded` was called from `shuffled` at io.of:20:5
-    println("{a} {b} {d} {e}")
+    const g = comptime double(c)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
+    const h = comptime (!c)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
+    const i = comptime (c + 1)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
+    const j = comptime (c & 1)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
+    println("{a} {b} {d} {e} {g} {h} {i} {j}")
+}
+
+fn double(x: int) int {
+    return x * 2
 }

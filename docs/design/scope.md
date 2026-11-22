@@ -45,9 +45,6 @@ row, which must be done before this one starts. The API rows (6.11 to
 | 6.32f | G1 | @lucasgmagalhaes | - | next |
 | 6.32g | G1 | @lucasgmagalhaes | 6.32c | queued |
 | 6.32h | G1 | @lucasgmagalhaes | 6.32g | queued |
-| 6.33e | G0 | @lucasgmagalhaes | - | next |
-| 6.33f | G0 | @lucasgmagalhaes | - | queued |
-| 6.33g | G0 | @lucasgmagalhaes | - | queued |
 | 6.31c | G1 | @lucasgmagalhaes | - | queued |
 | 6.11 | G1 | @lucasgmagalhaes | - | queued |
 | 6.12 | G1 | @lucasgmagalhaes | 6.11 | queued |
@@ -74,8 +71,6 @@ listed. Each pull request is a few small commits (`CONTRIBUTING.md`).
 | 6.32b | Stage 1 suppresses cascades and takes `--error-limit=N` | M |
 | 6.32b | Stage 0 the same; compile-fail expectations updated | M |
 | 6.32f | `ofir check --fmt` warns about the files `ofir fmt` would change, both stages | S |
-| 6.33e | Stage 1 `sema/check` diagnostics: compile-fail cases for the uncovered paths | M |
-| 6.33e | Stage 1 `syntax`, `sema/core` and `diag`: the rest of the front end | M |
 
 ## Rejected and deferred
 

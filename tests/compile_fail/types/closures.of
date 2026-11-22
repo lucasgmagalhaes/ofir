@@ -1,6 +1,6 @@
 // requires: stage1
 // Closures (spec 10.3): parameters whose type nothing gives, and writes to
-// what a `move` closure captured.
+// what a `move` closure captured, and parameter modes stage 1 does not take.
 
 fn apply(f: fn(int) int, x: int) int {
     return f(x)
@@ -14,5 +14,6 @@ fn main() {
         total += 1                      // error[E0337]: `total` is captured by a `move` closure: captured values are immutable
     }
     bump()
+    println("{apply((x: mut int) => x, 4)}")   // error[E0901]: `mut` and `move` closure parameters are not supported yet
     double(1)
 }

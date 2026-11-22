@@ -1,0 +1,9 @@
+// requires: stage1
+// flags: --locked
+import shade
+import text
+
+fn main() {
+    const _ = shade.version()
+    const _ = text.version()
+}

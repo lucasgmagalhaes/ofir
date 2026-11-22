@@ -4,6 +4,7 @@
 #include "syntax/parser_internal.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 // ---------------------------------------------------------------------------
 // Literals
@@ -375,10 +376,11 @@ static Expr *member(Parser *p, Expr *base) {
     }
     if (t->kind == TOK_FLOAT) {
         const char *text = source_file(&p->session->sources, t->span.file)->text.ptr;
-        char *dot;
-        unsigned long first = strtoul(text + t->span.start, &dot, 10);
-        return tuple_field(p, tuple_field(p, base, (uint32_t)first),
-                           (uint32_t)strtoul(dot + 1, NULL, 10));
+        const char *start = text + t->span.start;
+        const char *dot = memchr(start, '.', t->span.end - t->span.start);
+        unsigned long first = strtoul(start, NULL, 10);
+        unsigned long second = dot ? strtoul(dot + 1, NULL, 10) : 0;
+        return tuple_field(p, tuple_field(p, base, (uint32_t)first), (uint32_t)second);
     }
     if (t->kind != TOK_IDENT) {
         p->pos--;

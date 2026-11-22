@@ -1,0 +1,7 @@
+// A completion after `t.` on a tuple offers nothing: a tuple has no methods.
+
+fn main() {
+    const t = (1, 2)
+    const m = t.x
+    print("{m}")
+}

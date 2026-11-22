@@ -19,6 +19,7 @@ fn main() {
     const _e: [int; nope + 1] = [1]   // error[E0200]: cannot find `nope` in this scope
     const _f: [int; 4294967295 * 2] = [1]   // error[E0366]: the array length `4294967295 * 2` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
     const _g: [int; BIG] = [1]   // error[E0366]: the array length `5000000000` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
+    const _k: [int; BIG + 1] = [1]   // error[E0366]: the array length `5000000000 + 1` is out of range: it must be from 0 to 4294967295, with no division by 0 (spec 8.7)
     const _h: [int; BAD] = [1]
     const _j: [int; UNTYPED] = [1]
     const _i: f.Thing = 1   // error[E0901]: nested module paths in types are not supported yet

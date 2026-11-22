@@ -7,7 +7,11 @@
 - `--format=spdx` gives an SPDX 2.3 document of the same packages;
 - the output is the same for the same lock, and dated only by
   `SOURCE_DATE_EPOCH`;
-- a missing lock is E0913 and an unknown argument exits with 2.
+- a missing lock is E0913, and an unknown argument or no manifest exits
+  with 2;
+- a git package has a generic package URL, its path escaped, and a root
+  with no name or version is `root`;
+- a package used under two names is one dependency.
 
     python3 tools/check_sbom.py --compiler build/stage1/ofir
 """
@@ -150,6 +154,33 @@ def main():
 
         if ofir(app, "sbom", "--format=xml", ok=False).returncode != 2:
             fail("an unknown format does not exit with 2")
+        if ofir(tmp, "sbom", ok=False).returncode != 2:
+            fail("`sbom` without a manifest does not exit with 2")
+
+        repo = tmp / "my repo"   # a git package, at a path its package URL escapes
+        write(repo / "ofir.json", '{"name": "local", "build": {"kind": "lib"}}\n')
+        write(repo / "src" / "index.of", LIB)
+        for words in (["init", "-q"], ["add", "-A"], ["commit", "-qm", "x"], ["tag", "v0.1.0"]):
+            subprocess.run(["git", "-C", str(repo), *words], env=env, check=True,
+                           capture_output=True)
+        bare = tmp / "bare"
+        write(bare / "ofir.json", '{"build": {"kind": "exe", "root": "main.of"}, '
+              f'"dependencies": {{"local": {{"git": "{repo.as_posix()}", "rev": "v0.1.0"}}, '
+              f'"again": {{"path": "{repo.as_posix()}"}}, '
+              f'"twice": {{"path": "{repo.as_posix()}"}}}}}}\n')
+        write(bare / "main.of", "fn main() {\n}\n")
+        ofir(bare, "fetch")
+        bom = json.loads(ofir(bare, "sbom", extra={"SOURCE_DATE_EPOCH": "soon"}).stdout)
+        local = bom["components"][0]
+        if bom["metadata"]["component"]["name"] != "root" or "timestamp" in bom["metadata"] \
+                or "my%20repo" not in local["purl"] or len(local["version"]) != 40:
+            fail(f"a root with no name and a git package are wrong: {bom}")
+        root = bom["dependencies"][0]["dependsOn"]
+        if len(root) != len(set(root)):
+            fail(f"a package used under two names is listed twice: {root}")
+        spdx = json.loads(ofir(bare, "sbom", "--format=spdx").stdout)
+        if spdx["name"] != "root":
+            fail(f"an SPDX document of a root with no version is named {spdx['name']}")
     print("sbom: ok")
 
 

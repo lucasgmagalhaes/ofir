@@ -1,0 +1,26 @@
+// requires: stage1
+// A compile-time str slice out of bounds or off a character boundary fails
+// the build (spec 15.5, E0816), as does pushing a char that is not a
+// Unicode scalar value; a float remainder is not evaluated yet (E0901).
+
+fn cut(s: str, lo: int, hi: int) str {
+    return s.slice(lo, hi)
+}
+
+fn rem(a: float, b: float) float {
+    return a % b
+}
+
+fn surrogate() str {
+    let s = str.new()
+    s.pushChar(0xD800)
+    return s
+}
+
+fn main() {
+    const a = comptime cut("abc", 2, 1)   // error[E0816]: compile-time evaluation failed: byte range 2..1 out of bounds for length 3
+    const b = comptime cut("é", 0, 1)   // error[E0816]: compile-time evaluation failed: byte range 0..1 is not on character boundaries
+    const c = comptime rem(7.5, 2.0)   // error[E0901]: stage 1 does not evaluate this float operation at compile time yet
+    const d = comptime surrogate()   // error[E0816]: compile-time evaluation failed: it panicked: pushChar: 55296 is not a Unicode scalar value
+    println("{a} {b} {c} {d}")
+}

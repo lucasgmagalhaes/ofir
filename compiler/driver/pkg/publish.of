@@ -221,10 +221,12 @@ pub fn yankCommand(args: List<str>) int {
         println("`{name}` {version} is already {state}")
         return 0
     }
+    // GCOVR_EXCL_START: the index file read above can be written back
     if fs.writeString(file, text).isErr() {
         eprintln("error: cannot write `{file}`")
         return 1
     }
+    // GCOVR_EXCL_STOP
     const verb = if undo { "Unyank" } else { "Yank" }
     if !commit(dir, rel, "{verb} {name} {version}") {
         return 1

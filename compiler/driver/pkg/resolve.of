@@ -1042,7 +1042,7 @@ fn firstNeed(needs: List<Need>, url: str) int {
             return i
         }
     }
-    return 0
+    return 0   // GCOVR_EXCL_LINE: every url comes from a need
 }
 
 fn contains(list: List<str>, text: str) bool {

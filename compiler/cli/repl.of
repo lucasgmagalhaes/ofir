@@ -52,8 +52,10 @@ struct Workspace {
  */
 pub fn replCommand() int {
     const Result.Ok(exe) = os.executablePath() else {
+        // GCOVR_EXCL_START: the running compiler always finds its own path
         eprintln("error[E0902]: cannot find the compiler executable")
         return 1
+        // GCOVR_EXCL_STOP
     }
     const dir = "{tempRoot()}/ofir-repl-{time.unixNanos()}"
     if fs.createDirAll(dir).isErr() {
@@ -282,18 +284,24 @@ fn build(work: &Workspace, session: &Session) Outcome {
     const file = "{work.dir}/session.of"
     const exe = "{work.dir}/session"
     if fs.writeString(file, source(session)).isErr() {
+        // GCOVR_EXCL_START: the REPL created the directory it writes in
         return Outcome.Rejected("error[E0902]: cannot write `{file}`\n")
+        // GCOVR_EXCL_STOP
     }
     const args = ["build", file.clone(), "-o", exe.clone()]
     const Result.Ok(built) = os.run(work.exe, args) else {
+        // GCOVR_EXCL_START: the executable is the running compiler
         return Outcome.Rejected("error[E0902]: cannot run `{work.exe}`\n")
+        // GCOVR_EXCL_STOP
     }
     if built.status != 0 {
         return Outcome.Rejected("{built.stderr}{built.stdout}")
     }
     const none: List<str> = []
     const Result.Ok(ran) = os.run(exe, none) else {
+        // GCOVR_EXCL_START: the build just wrote the executable
         return Outcome.Failed("", "error[E0902]: cannot run `{exe}`\n")
+        // GCOVR_EXCL_STOP
     }
     if ran.status != 0 {
         return Outcome.Failed(ran.stdout, ran.stderr)

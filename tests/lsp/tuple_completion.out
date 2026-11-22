@@ -1,0 +1,4 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]},"hoverProvider":true,"referencesProvider":true,"renameProvider":true},"serverInfo":{"name":"ofir"}}}
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[{"range":{"start":{"line":4,"character":14},"end":{"line":4,"character":17}},"severity":1,"code":"E0316","source":"ofir","message":"no field `x` on type `(int, int)`"}]}}
+{"jsonrpc":"2.0","id":2,"result":{"isIncomplete":false,"items":[]}}
+{"jsonrpc":"2.0","id":99,"result":null}

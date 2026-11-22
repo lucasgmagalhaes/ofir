@@ -1,0 +1,27 @@
+// The tests of `driver.pkg.metadata`.
+
+import base.json.parseJsonc
+import std.testing.assert
+
+// What `metadataError` says of `key` in the manifest `text`.
+fn wrong(text: str, key: str) str {
+    const Result.Ok(doc) = parseJsonc(text) else {
+        return "?".toOwned()
+    }
+    return metadataError(&doc, key)
+}
+
+@test
+fn keywordsAreFewDistinctWords() {
+    assert(wrong("\{\"keywords\": [\"json\", \"parse-2\"]\}", "keywords") == "")
+    assert(wrong("\{\"keywords\": \"json\"\}", "keywords").startsWith("`keywords` must be"))
+    assert(wrong("\{\"keywords\": [\"a\", \"a\"]\}", "keywords").len() > 0)
+    assert(wrong("\{\"keywords\": [\"\"]\}", "keywords").len() > 0)
+    assert(wrong("\{\"keywords\": [\"Json\"]\}", "keywords").len() > 0)
+}
+
+@test
+fn textsAreStrings() {
+    assert(wrong("\{\"description\": 1\}", "description") == "`description` must be a string")
+    assert(wrong("\{\}", "description") == "")
+}

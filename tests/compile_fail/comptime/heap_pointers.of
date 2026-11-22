@@ -1,0 +1,53 @@
+// requires: stage1
+// Compile-time code frees and copies only blocks of its own heap, and
+// does not compare bytes with `memcmp` yet (spec 15.5, E0901); a read
+// through a null pointer fails the build (E0816), and the arguments of a
+// heap call are compile-time values (E0815).
+
+fn nullRead() int {
+    const p = unsafe { 0 as *int }
+    return unsafe { *p }
+}
+
+fn freeStack() int {
+    let x: u8 = 5
+    unsafe {
+        ofir_free(&mut x as *mut u8)
+    }
+    return 1
+}
+
+fn copyStack() int {
+    let x: u8 = 5
+    unsafe {
+        const p = ofir_alloc(1)
+        memcpy(p, &x as *u8, 1)
+    }
+    return 1
+}
+
+fn compare() i32 {
+    unsafe {
+        const p = ofir_alloc(1)
+        return memcmp(p as *u8, p as *u8, 0)
+    }
+}
+
+extern "C" {
+    fn ofir_alloc(size: int) *mut u8
+    fn ofir_free(p: *mut u8)
+    fn memcpy(d: *mut u8, s: *u8, n: int) *mut u8
+    fn memcmp(a: *u8, b: *u8, n: int) i32
+}
+
+fn main() {
+    const n = comptime nullRead()   // error[E0816]: compile-time evaluation failed: a read through a null pointer
+    const a = comptime freeStack()   // error[E0901]: stage 1 does not evaluate this pointer at compile time yet
+    const b = comptime copyStack()   // error[E0901]: stage 1 does not evaluate this pointer at compile time yet
+    const c = comptime compare()   // error[E0901]: stage 1 does not evaluate `memcmp` at compile time yet
+    const q = unsafe { ofir_alloc(1) }
+    comptime (unsafe { ofir_free(q) })   // error[E0815]: compile-time code cannot read `q`: its value exists only at run time
+    const size = 1
+    const d = comptime (unsafe { memcpy(ofir_alloc(1), ofir_alloc(1), size) == ofir_alloc(1) })   // error[E0815]: compile-time code cannot read `size`: its value exists only at run time
+    println("{n} {a} {b} {c} {d}")
+}

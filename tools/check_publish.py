@@ -10,7 +10,9 @@
 - a package without a `license` is E0919 and one with an invalid SPDX
   expression is E0910; the license is recorded in the index (ADR 0081);
 - `ofir yank` keeps a yanked version out of `ofir update`, and `--undo`
-  brings it back.
+  brings it back;
+- an archive or index file that cannot be written, `git` or `tar` that
+  fails and a package that cannot be copied stop with 1.
 
     python3 tools/check_publish.py --compiler build/stage1/ofir
 """
@@ -145,6 +147,9 @@ def main():
 
         library("1.2.0", name="Greet")
         refused(["publish"], "package name")
+        for name in ("a_b", "a" * 65):
+            library("1.2.0", name=name)
+            refused(["publish"], "package name")
         library("1.2")
         refused(["publish"], "`X.Y.Z`")
         library("1.2.0", deps='{"other": {"path": "../other"}}')
@@ -155,6 +160,91 @@ def main():
         bad = ofir(lib, "publish", ok=False)
         if bad.returncode == 0 or "E0910" not in bad.stderr or "`Nope`" not in bad.stderr:
             fail(f"an invalid license is not E0910:\n{bad.stderr}")
+
+        # The command lines and the states that stop a command before it starts.
+        def usage(words, message, code=2, cwd=lib, environ=env):
+            result = subprocess.run([compiler, *words], cwd=cwd, env=environ,
+                                    capture_output=True, text=True, timeout=600)
+            if result.returncode != code or message not in result.stderr:
+                fail(f"{' '.join(words)}: not exit {code} with {message!r}:\n"
+                     f"{result.returncode} {result.stderr}")
+
+        library("1.3.0", deps='{"one": "^1", "two": "^2"}')
+        dry = ofir(lib, "publish", "--dry-run").stdout
+        if "would publish greet 1.3.0" not in dry:
+            fail(f"a dry run with registry dependencies: {dry}")
+        library("1.3.0")
+        usage(["package", "x"], "unexpected argument `x` for `package`")
+        usage(["publish", "--x"], "unexpected argument `--x` for `publish`")
+        usage(["yank", "--x"], "unexpected argument `--x` for `yank`")
+        usage(["yank"], "`yank` needs a version")
+        usage(["publish", "--index", str(tmp)], "is not a clone of an index")
+        usage(["yank", "1.3.0", f"--index={tmp}"], "is not a clone of an index")
+        usage(["publish"], "is a URL", environ=dict(env, OFIR_REGISTRY="https://example.com/i"))
+        local = {k: v for k, v in env.items() if k != "OFIR_REGISTRY"}
+        usage(["publish"], "give a clone of the index", environ=local)
+        empty = tmp / "empty"
+        empty.mkdir()
+        usage(["yank", "1.0.0"], "needs an `ofir.json` with a `name`", cwd=empty)
+        usage(["package"], "needs an `ofir.json` in the current directory", 1, empty)
+        write(empty / "ofir.json", "{\n")
+        usage(["publish"], "`ofir.json` is not valid JSONC", 1, empty)
+
+        # An index file with a line that is not JSON and no final newline,
+        # and an index whose downloads are not `file://` URLs.
+        entry.write_text(entry.read_text() + "not json")
+        write(index / "config.json", '{"download": "https://example.com/{name}"}\n')
+        git("commit", "-q", "-am", "remote downloads")
+        published = ofir(lib, "publish", f"--index={index}").stdout
+        if "upload " not in published:
+            fail(f"a publish to a remote download URL: {published}")
+        ofir(lib, "yank", "--index", str(index), "1.3.0")
+        if '"version": "1.3.0"' not in entry.read_text() or "not json" not in entry.read_text():
+            fail(f"the index after the yank:\n{entry.read_text()}")
+
+        # Failures while publishing: the archive, the index file, `git`, `tar`
+        # and the copy of the package.
+        write(tmp / "afile", "")
+        write(index / "config.json", f'{{"download": "file://{tmp}/afile/x/{{name}}.tar.gz"}}\n')
+        library("2.0.0")
+        usage(["publish"], "cannot copy the archive", 1)
+        write(index / "config.json", "{\n")
+        write(index / "ze", "")
+        library("2.0.0", name="zebra")
+        usage(["publish"], "cannot write", 1)
+        (index / "ze").unlink()
+        write(index / ".gitignore", "ze/\n")
+        usage(["publish"], "`git` failed", 1)
+        (index / ".gitignore").unlink()
+        hook = index / ".git" / "hooks" / "pre-commit"
+        write(hook, "#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        library("2.0.1", name="zebra")
+        usage(["publish"], "`git` failed", 1)
+        library("1.0.0")
+        usage(["yank", "1.0.0"], "`git` failed", 1)
+        hook.unlink()
+        tools = tmp / "tools"
+        tools.mkdir()
+        write(tools / "rm", "#!/bin/sh\nexit 0\n")   # `tar` is missing
+        (tools / "rm").chmod(0o755)
+        usage(["publish", "--dry-run"], "cannot run `tar`", 1,
+              environ=dict(env, PATH=str(tools)))
+        write(tools / "tar", "#!/bin/sh\necho boom >&2\nexit 1\n")
+        (tools / "tar").chmod(0o755)
+        usage(["publish", "--dry-run"], "`tar` failed: boom", 1,
+              environ=dict(env, PATH=str(tools)))
+        os.symlink(tmp / "nowhere", lib / "src" / "dangling")
+        usage(["publish", "--dry-run"], "cannot copy the package", 1)
+        (lib / "src" / "dangling").unlink()
+        (lib / "src" / "sub").mkdir()
+        os.symlink(tmp / "nowhere", lib / "src" / "sub" / "dangling")
+        usage(["publish", "--dry-run"], "cannot copy the package", 1)
+        shutil.rmtree(lib / "src" / "sub")
+        shutil.rmtree(lib / "build", ignore_errors=True)
+        write(lib / "build" / "package", "")
+        usage(["publish", "--dry-run"], "cannot copy the package", 1)
+        usage(["yank", "1.0.0"], "needs an `ofir.json` with a `name`", cwd=empty)
     print("publish: ok")
 
 

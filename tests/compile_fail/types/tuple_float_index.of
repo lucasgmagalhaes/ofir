@@ -1,0 +1,8 @@
+// `t.1e0` lexes as the float `1e0`: its digits up to `e` index the tuple and
+// the field after the dot is 0.
+
+fn main() {
+    const t = ((1, 2), 3)
+    println("{t.0_0.1}")
+    println("{t.1e0}")   // error[E0316]: no field `0` on type `int`
+}

@@ -1,0 +1,5 @@
+// URIs with percent escapes: the server decodes them into paths and encodes
+// the paths again in its answers; a method it does not know is an error.
+fn main() {
+    let x = 1
+}

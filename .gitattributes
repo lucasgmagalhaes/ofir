@@ -1,2 +1,5 @@
 # LF everywhere: the compiler, the tests and their expected output assume it.
 * text=auto eol=lf
+
+# A test of CRLF source files: kept as written.
+tests/run/strings/crlf_multiline.of -text

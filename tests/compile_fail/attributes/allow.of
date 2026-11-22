@@ -44,3 +44,7 @@ fn main() {
     c.bump()
     old()
 }
+
+@allow(unused, naming)   // error[E0809]: invalid arguments for `@allow`: write `@allow(category)`, category `unused`, `unreachable`, `deprecated` or `naming`
+fn twoCategories() {
+}

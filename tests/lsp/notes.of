@@ -1,0 +1,20 @@
+// A diagnostic with a note, and hover on declarations whose comments the
+// server has to look past: an attribute, and a comment that is not `/**`.
+/**
+ * Doubles.
+ */
+@cold
+fn twice(x: int) int {
+    return x * 2
+}
+
+/* not documentation */
+fn plain() int {
+    return 1
+}
+
+fn main() {
+    const s = "a".toOwned()
+    const t = s
+    print("{s}{t}{twice(1)}{plain()}")
+}

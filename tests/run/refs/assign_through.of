@@ -1,0 +1,33 @@
+// requires: stage1
+// Assigning a field through a reference, a box and a reference to an outer
+// struct drops the old value at its place.
+struct S {
+    name: str
+    n: int
+}
+
+struct Outer {
+    s: S
+}
+
+fn set(r: &mut S) {
+    r.name = "b".toOwned()
+}
+
+fn setBox(b: mut Box<S>) {
+    b.name = "c".toOwned()
+}
+
+fn main() {
+    let s = S{name: "a".toOwned(), n: 1}
+    set(&mut s)
+    println("{s.name}")
+    let b = Box.new(S{name: "a".toOwned(), n: 2})
+    setBox(b)
+    println("{b.name}")
+    let o = Outer{s: S{name: "x".toOwned(), n: 3}}
+    const r = &mut o
+    r.s.name = "y".toOwned()
+    const t = r.s.name.clone()
+    println("{t} {o.s.name}")
+}

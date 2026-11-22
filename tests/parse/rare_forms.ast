@@ -61,3 +61,13 @@ module
       return
         call
           generic offset<-1>
+  fn first
+    param n: int
+    body
+      label rows
+      for i in
+        range ..
+          lit 0
+          ident n
+        body
+          break rows

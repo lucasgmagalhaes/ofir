@@ -180,7 +180,7 @@ pub fn buildVariant(l: mut Lowerer, c: mut Checker, p: Program, ty: int, index: 
     enumVariants(c, p, id)
     let count = variantsOf(c, id).variants[index].types.len()
     if args.len() < count {
-        count = args.len()
+        count = args.len()   // GCOVR_EXCL_LINE: E0302 checks the count
     }
     let fields: List<Operand> = []
     for i in 0..count {
@@ -234,8 +234,10 @@ fn orPattern(l: mut Lowerer, c: mut Checker, p: Program, alternatives: List<Patt
 
 fn bind(l: mut Lowerer, c: mut Checker, local: int, place: &Place, ty: int) {
     if local < 0 {
+        // GCOVR_EXCL_START: the resolver gives every binding a local
         l.fail("this pattern")
         return
+        // GCOVR_EXCL_STOP
     }
     bindPlace(l, c, local + 1, place, ty)
 }
@@ -259,7 +261,9 @@ pub fn lowerPattern(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Patter
         PatternKind.Wildcard => {}
         PatternKind.Binding(_, _) => {
             if c.localAt(pattern.id.0) < 0 && isEnum(c, ty) {   // `None`: a unit variant
+                // GCOVR_EXCL_START: E0326 rejects a bare variant
                 variantTest(l, c, p, pattern, place, ty, [], fail)
+                // GCOVR_EXCL_STOP
             } else {
                 bind(l, c, c.localAt(pattern.id.0), place, ty)
             }
@@ -281,7 +285,9 @@ pub fn lowerPattern(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Patter
         PatternKind.Tuple(items) => lowerPatterns(l, c, p, items, place, fail)
         PatternKind.TupleStruct(_, args) => {
             if isEnum(c, ty) {   // `Some(x)`
+                // GCOVR_EXCL_START: E0326 rejects a bare variant
                 variantTest(l, c, p, pattern, place, ty, args, fail)
+                // GCOVR_EXCL_STOP
             } else {
                 lowerPatterns(l, c, p, args, place, fail)
             }
@@ -595,7 +601,9 @@ pub fn keepUnbound(l: mut Lowerer, c: mut Checker, p: Program, pattern: &Pattern
         PatternKind.Variant(_, _, args, _) => keepVariant(l, c, p, pattern, args, place)
         PatternKind.TupleStruct(_, args) => {
             if isEnum(c, ty) {
+                // GCOVR_EXCL_START: E0326 rejects a bare variant
                 keepVariant(l, c, p, pattern, args, place)
+                // GCOVR_EXCL_STOP
             } else {
                 keepList(l, c, p, args, place)
             }

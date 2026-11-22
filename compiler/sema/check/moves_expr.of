@@ -462,7 +462,7 @@ fn hasDrop(m: Moves, c: mut Checker, p: Program, e: &Expr, depth: int) bool {
         return false
     }
     const Option.Some(drop) = c.r.names.find("drop") else {
-        return false
+        return false   // GCOVR_EXCL_LINE: std/core declares `drop`
     }
     if !hasMethod(c, p, c.types.get(base).data, drop) {
         return false

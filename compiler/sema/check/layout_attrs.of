@@ -41,7 +41,7 @@ pub fn isPacked(c: Checker, p: Program, id: int) bool {
  */
 pub fn alignAttr(c: Checker, p: Program, id: int) int {
     if c.def(id).kind != DefKind.Struct || c.def(id).item < 0 {
-        return 0
+        return 0   // GCOVR_EXCL_LINE: code generation asks only about structs
     }
     const attributes = &itemOf(p, c.loc(id)).attributes
     const Option.Some(at) = findAttribute(c.r, attributes.clone(), "align") else {
@@ -65,7 +65,7 @@ pub fn alignAttr(c: Checker, p: Program, id: int) int {
  */
 pub fn fixedOrder(c: Checker, p: Program, id: int) bool {
     if c.def(id).kind != DefKind.Struct || c.def(id).item < 0 {
-        return true
+        return true   // GCOVR_EXCL_LINE: code generation asks only about structs
     }
     const attributes = &itemOf(p, c.loc(id)).attributes
     return findAttribute(c.r, attributes.clone(), "repr").isSome() ||

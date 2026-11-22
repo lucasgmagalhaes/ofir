@@ -12,7 +12,8 @@ with `--release --coverage` (ADR 0073), which writes gcov counters that
   and the frontend fuzzer;
 - programs: the run tests and std tests, built by stage 1 with
   `--coverage` and linked with a runtime built by clang with
-  `--coverage`, which measure `runtime/src` and `std/`.
+  `--coverage`, which measure `runtime/src` and `std/`; the compiler's
+  unit tests among the std tests count for stage 1 too.
 
 gcovr then writes a Cobertura report per stage, which CI uploads to
 Codecov with the flags `stage0`, `stage1`, `runtime` and `std` (codecov.yml), and a JSON
@@ -122,8 +123,12 @@ def stage1(work, env):
     frontends(compiler, "1", env, BUILD / "stage0" / f"ofir{EXE}")
     for command in tool_commands(compiler):
         run(command, env)
+    # The compiler's unit tests run with the programs, and their counters
+    # count too (as `make test` does for stage 0). Their functions are kept
+    # apart from those of the compiler, which instantiates others.
     return [("stage1", ["gcovr", "-r", ".", "--gcov-executable", GCOV, "--object-directory",
-                        build, "--filter", "compiler/", build], ROOT, "")]
+                        build, "--filter", "compiler/", "--exclude", r".*_test\.of$",
+                        "--merge-mode-functions=separate", build, units(work)], ROOT, "")]
 
 
 # The commands that link a program get `--coverage`; `--emit` output and
@@ -142,6 +147,12 @@ exec "{ofir}" "$@"
 """
 
 
+def units(work):
+    """Where the test programs, the compiler's unit tests among them, write
+    their counters."""
+    return work / "programs" / "tmp"
+
+
 def programs(work, env):
     """The runtime and std as the test programs run them: the runtime built
     by clang with `--coverage`, and each test program built by stage 1
@@ -149,7 +160,7 @@ def programs(work, env):
     where the compiler and the test runner put the programs."""
     build = work / "programs"
     shutil.rmtree(build, ignore_errors=True)
-    (build / "tmp").mkdir(parents=True)
+    units(work).mkdir(parents=True)
     clang = os.environ.get("OFIR_CLANG", "clang")
     cflags = ("-std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -Werror -O2 "
               "-Iinclude -fPIC --coverage")
@@ -157,7 +168,7 @@ def programs(work, env):
     wrapper = build / "ofir"
     wrapper.write_text(WRAPPER.format(ofir=BUILD / "stage1" / f"ofir{EXE}"))
     wrapper.chmod(0o755)
-    env = dict(env, TMPDIR=str(build / "tmp"), OFIR_RUNTIME=str(build / "libofir_rt.a"),
+    env = dict(env, TMPDIR=str(units(work)), OFIR_RUNTIME=str(build / "libofir_rt.a"),
                OFIR_TEST_LDFLAGS="--coverage")
     run([sys.executable, "tests/runner/run_tests.py", "--compiler", wrapper, "--stage", "1",
          "-j", JOBS], env)
@@ -167,7 +178,7 @@ def programs(work, env):
     # types share a name, so their functions are kept apart.
     runtime = ["gcovr", "-r", ".", "--gcov-executable", GCOV, build / "runtime"]
     std = ["gcovr", "-r", ".", "--gcov-executable", GCOV, "--filter", "std/",
-           "--merge-mode-functions=separate", build / "tmp"]
+           "--merge-mode-functions=separate", units(work)]
     return [("runtime", runtime, ROOT / "runtime", "runtime/"), ("std", std, ROOT, "")]
 
 
@@ -326,12 +337,14 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     work = BUILD / "cov"
     env = stage_env()
-    lines = []
+    # Reported after all measure, since the stage 1 report reads the
+    # counters of the programs.
+    measured = []
     for name, measure in (("stage0", stage0), ("stage1", stage1), ("programs", programs)):
         if opts.only in (None, name):
-            for measured in measure(work, env):
-                lines.append(report(*measured, out))
-    print("\n".join(lines))
+            measured.extend(measure(work, env))
+    units(work).mkdir(parents=True, exist_ok=True)
+    print("\n".join(report(*m, out) for m in measured))
 
 
 if __name__ == "__main__":

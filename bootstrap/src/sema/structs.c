@@ -248,7 +248,7 @@ static void check_literal_fields(Checker *c, Expr *e, const Def *def, bool *give
             continue;
         }
         TypeId found = check_expr(c, init->value, infer_hint(c, inf, info->types[index]));
-        infer_from(c, inf, info->types[index], found);
+        infer_from_arg(c, inf, info->types[index], found);
     }
 }
 

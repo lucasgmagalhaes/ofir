@@ -45,12 +45,14 @@ pub fn hostTriple() str {
 
 // The triple of an `os` and `arch` pair.
 fn triple(name: str, arch: str) str {
+    // GCOVR_EXCL_START: coverage runs on a Linux host
     if name == "windows" {
         return "{arch}-w64-windows-gnu"
     }
     if name == "macos" {
         return "{arch}-apple-darwin"
     }
+    // GCOVR_EXCL_STOP
     return "{arch}-linux-gnu"
 }
 

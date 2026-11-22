@@ -25,6 +25,11 @@ struct Block {
     a: u8
 }
 
+@align(8)
+struct Word {
+    a: u8
+}
+
 struct Holder {
     b: u8
     block: Block
@@ -65,4 +70,6 @@ fn main() {
         Slot.Empty => 0
     }
     println("{h.b} {h.block.a} {inner} {sizeOf<Color>()}")
+    const word = Word{a: 5}
+    println("{sizeOf<Word>()} {alignOf<Word>()} {word.a}")
 }

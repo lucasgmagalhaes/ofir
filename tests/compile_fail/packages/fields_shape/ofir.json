@@ -1,0 +1,12 @@
+// More errors of the root-only fields of `ofir.json`: their outer shape.
+{
+  "name": "fields_shape",
+  "build": {
+    "kind": "exe",
+    "root": "main.of",
+    "native": "x.c",   // error[E0918]: `build.native` must be a list of C files
+  },
+  "license": "MIT AND",       // error[E0910]: `license` is not an SPDX license expression
+  "audit": 1,                 // error[E0910]: `audit` must be an object
+  "trust": [],                // error[E0910]: `trust` must be an object
+}

@@ -50,4 +50,12 @@ fn main() {
     second(User{id: 7, name: "Ana", home: Address{city: "Rio", zip: 2}})
     names(&Address{city: "x", zip: 1})
     each((1, "two"))
+    tail()
+}
+
+struct Pair(int, str)
+
+fn tail() {
+    names(&(1, "a"))
+    names(&Pair(1, "b"))
 }

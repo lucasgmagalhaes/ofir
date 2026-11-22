@@ -138,7 +138,7 @@ pub fn checkCSignature(c: mut Checker, p: Program, id: int) {
 fn externAbi(c: Checker, p: Program, id: int) Option<str> {
     const def = c.def(id)
     if def.kind != DefKind.Fn || def.item < 0 {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: callers pass functions declared in source
     }
     return match itemOf(p, c.loc(id)).kind {
         ItemKind.Extern(abi, _) => Option.Some(abi.clone())

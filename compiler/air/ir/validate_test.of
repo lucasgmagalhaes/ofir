@@ -92,3 +92,26 @@ fn conditionsNameLocalsOfTheBody() {
     b.blocks[0].term = p
     assert(rejects(&b, "AIR of `fn1`, bb0: message refers to a missing local"))
 }
+
+@test
+fn statementsNameLocalsOfTheBody() {
+    let b = validBody()
+    b.blocks[0].stmts[0].dest = 9
+    assert(rejects(&b, "AIR of `fn1`, bb0: statement refers to a missing local"))
+    b = validBody()
+    b.blocks[0].stmts[0].kind = StmtKind.Call
+    b.blocks[0].stmts[0].args.push(opCopy(9, 0))
+    assert(rejects(&b, "AIR of `fn1`, bb0: statement refers to a missing local"))
+    b = validBody()
+    b.blocks[0].stmts[0].value.items.push(opCopy(9, 0))
+    assert(rejects(&b, "AIR of `fn1`, bb0: statement refers to a missing local"))
+}
+
+@test
+fn boundsChecksNameLocalsOfTheBody() {
+    let b = validBody()
+    let t = terminator(TermKind.Assert)
+    t.index = opCopy(5, 0)
+    b.blocks[0].term = t
+    assert(rejects(&b, "AIR of `fn1`, bb0: bounds check refers to a missing local"))
+}

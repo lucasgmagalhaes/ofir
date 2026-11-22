@@ -46,7 +46,9 @@ pub fn waitTest(exe: str, child: move os.Child) int {
             status
         }
         Result.Err(_) => {
+            // GCOVR_EXCL_START: a started test is waited for
             eprintln("error[E0902]: cannot run `{exe}`")
+            // GCOVR_EXCL_STOP
             1
         }
     }

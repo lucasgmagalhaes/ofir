@@ -19,6 +19,7 @@ import sema.check.check_generic.inferApply
 import sema.check.check_generic.inferExplicit
 import sema.check.check_generic.inferFinish
 import sema.check.check_generic.inferFrom
+import sema.check.check_generic.inferFromArg
 import sema.check.check_generic.inferHint
 import sema.check.check_generic.inferNew
 import sema.check.check_mapped.isMappedStruct
@@ -223,7 +224,7 @@ fn checkLiteralFields(c: mut Checker, p: Program, id: int, fields: List<FieldIni
         if generic {
             const hint = inferHint(c, &inf, types[index])
             const found = checkInit(c, p, init, hint)
-            inferFrom(c, inf, types[index], found)
+            inferFromArg(c, inf, types[index], found)
         } else {
             coerceInit(c, p, init, types[index])
         }
@@ -360,7 +361,7 @@ pub fn checkStructLiteral(c: mut Checker, p: Program, e: &Expr, expected: int) i
             return ty
         }
         _ => {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: callers pass struct literals
         }
     }
 }

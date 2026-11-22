@@ -36,7 +36,7 @@ import syntax.ast.Stmt
 import syntax.ast.StmtKind
 
 fn declareLocal(r: mut Resolver, name: Symbol, span: Span, mutable: bool) int {
-    if r.scope.inCurrentBlock(name) {
+    if r.text(name) != "_" && r.scope.inCurrentBlock(name) {   // `_` repeats
         r.error("E0201", span, "`{r.text(name)}` is defined more than once in this scope")
     }
     const id = r.locals.len()
@@ -133,7 +133,7 @@ fn preludeVariant(r: mut Resolver, p: &Pattern) int {
         PatternKind.Binding(name, _) => name
         PatternKind.TupleStruct(path, _) => {
             if path.len() != 1 {
-                return 0
+                return 0   // GCOVR_EXCL_LINE: the parser gives a tuple struct pattern one name
             }
             path[0]
         }

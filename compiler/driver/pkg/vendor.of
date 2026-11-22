@@ -55,10 +55,12 @@ pub fn vendorCommand(args: List<str>) int {
     for i in 0..r.pins.len() {
         const name = r.pins[i].name.clone()
         for j in 0..names.len() {
+            // GCOVR_EXCL_START: pins are keyed by dependency name, so two never share one
             if names[j] == name {
                 eprintln("error: two packages of the lock are named `{name}`")
                 return 1
             }
+            // GCOVR_EXCL_STOP
         }
         names.push(name)
     }

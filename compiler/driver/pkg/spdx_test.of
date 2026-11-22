@@ -23,3 +23,9 @@ fn expressionsCombineLicenses() {
     assert(!valid("(MIT OR Apache-2.0") && !valid("MIT)"))
     assert(!valid("MIT WITH") && !valid("MIT WITH Unknown-exception"))
 }
+
+@test
+fn referencesHoldFewCharacters() {
+    assert(checkLicense("LicenseRef-a_b") ==
+           "the license `LicenseRef-a_b` may only hold letters, digits, `-`, `.` and `:`")
+}

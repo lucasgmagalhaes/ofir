@@ -231,7 +231,7 @@ pub struct State {
         }
         for i in 0..self.parts.len() {
             if !self.parts[i].same(&other.parts[i]) {
-                return false
+                return false   // GCOVR_EXCL_LINE: a join only appends parts
             }
         }
         return sameLoans(&self, other)
@@ -600,7 +600,7 @@ fn jumpTarget(m: Moves, stmt: &Stmt) int {
             }
         }
     }
-    return -1
+    return -1   // GCOVR_EXCL_LINE: E0323 stops the move check of the function
 }
 
 fn isRange(stmt: &Stmt) bool {
@@ -657,7 +657,7 @@ fn iteration(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, entry: &Stat
                     }
                     exit = st.dup()
                 } else {
-                    exit = st.dup()
+                    exit = st.dup()   // GCOVR_EXCL_LINE: every `for in` declares a variable
                 }
             }
             movesBlock(m, c, p, &body, st, Use.Read)
@@ -754,7 +754,7 @@ fn loopBody(m: mut Moves, c: mut Checker, p: Program, stmt: &Stmt, st: mut State
 pub fn checkMoves(c: mut Checker, p: Program, id: int) {
     const decl = fnOf(p, c.loc(id))
     if decl.body.isNone() {
-        return
+        return   // GCOVR_EXCL_LINE: callers pass functions with a body
     }
     const count = c.locals.len()
     let refLocal = List.filled(false, count)

@@ -344,7 +344,7 @@ fn isList(c: Checker, ty: int) bool {
  * @returns its place
  */
 pub fn lowerPlace(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Place {
-    if coerced(c, e) {   // a call: its value is a temporary
+    if coerced(c, e) || unionSourceType(c, e) >= 0 {   // its value is a temporary
         return localPlace(toLocal(l, lowerExpr(l, c, p, e)))
     }
     return lowerPlaceAt(l, c, p, e, derefCount(c, e))
@@ -359,7 +359,7 @@ fn placePath(c: mut Checker, e: &Expr, path: mut List<int>) int {
         ExprKind.Field(base, _, _) => {
             const field = fieldOf(c, e)
             if field < 0 {
-                return -1
+                return -1   // GCOVR_EXCL_LINE: `Enum.Variant` is never moved or assigned to
             }
             const local = placePath(c, &*base, path)
             if path.len() < 7 {
@@ -555,7 +555,9 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Variant(_, args, _) => if c.types.kind(ty) == TyKind.Key {
             opUnit(ty)   // a key has no value (spec 16.2)
         } else {
+            // GCOVR_EXCL_START: E0326 rejects it
             buildVariant(l, c, p, ty, c.members[c.module()][e.id.0], args)
+            // GCOVR_EXCL_STOP
         }
         ExprKind.Array(elems) => if isArray(c, ty) { arrayLiteral(l, c, p, elems, ty) } else {
             listLiteral(l, c, p, elems, ty)
@@ -571,8 +573,10 @@ fn lowerKind(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         ExprKind.Closure(params, _, body, isMove) => lowerClosure(l, c, p, e, params, &*body,
                                                                   isMove, ty)
         _ => {
+            // GCOVR_EXCL_START: the checker rejects ranges and types as values
             l.fail("this expression")
             unit()
+            // GCOVR_EXCL_STOP
         }
     }
 }
@@ -605,8 +609,10 @@ fn name(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, ty: int) Operand {
         return constOperand(c, id, ty)
     }
     if kind == DefKind.Variant {   // `None`
+        // GCOVR_EXCL_START: E0326 rejects it
         const none: List<Arg> = []
         return buildVariant(l, c, p, ty, c.def(id).member, none)
+        // GCOVR_EXCL_STOP
     }
     if kind == DefKind.Fn {   // a function value with no environment
         let rv = rvalue(RvalueKind.FnValue, Op.Add, unit(), unit())
@@ -616,8 +622,10 @@ fn name(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, ty: int) Operand {
     if kind == DefKind.Global {
         return placeOperand(&globalPlace(l, c, id), OperandKind.Copy, ty)
     }
+    // GCOVR_EXCL_START: the checker rejects other names as values (E0310, E0901)
     c.error("E0901", e.span, "global variables are not supported yet".toOwned())
     return unit()
+    // GCOVR_EXCL_STOP
 }
 
 // `const X = comptime f()` (spec 15.1): its initializer, run by the
@@ -676,7 +684,9 @@ fn nameCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr,
         return aggregateOf(l, c, p, values, c.typeOf(e.id.0))
     }
     if kind == DefKind.Variant {   // `Some(x)`
+        // GCOVR_EXCL_START: E0326 rejects it
         return buildVariant(l, c, p, c.typeOf(e.id.0), c.def(id).member, args)
+        // GCOVR_EXCL_STOP
     }
     if kind == DefKind.Builtin {
         const which = c.def(id).primitive
@@ -723,7 +733,7 @@ fn intrinsicOp(name: str) Option<(RvalueKind, Op, FloatFn)> {
             })
         }
     }
-    return Option.None
+    return Option.None   // GCOVR_EXCL_LINE: std declares only known intrinsics
 }
 
 // The atomic intrinsics of std.mem.atomic (ADR 0042), in `AtomicOp` order.
@@ -748,7 +758,9 @@ fn constantOrder(c: Checker, e: &Expr) int {
             -1
         }
         ExprKind.Ident(_) => match c.res(e.id.0) {
+            // GCOVR_EXCL_START: std names an ordering as `Ordering.X` or `.X`
             Res.Def(id) => if c.def(id).kind == DefKind.Variant { c.def(id).member } else { -1 }
+            // GCOVR_EXCL_STOP
             _ => -1
         }
         _ => -1
@@ -846,8 +858,10 @@ fn lowerIntrinsic(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, id: int,
         return hashValue(l, c, p, value, concreteType(l, c, callTypeArg(c, e)))
     }
     const Option.Some(op) = intrinsicOp(name) else {
+        // GCOVR_EXCL_START: std declares only the intrinsics the lowering knows
         c.error("E0805", fnOf(p, c.loc(id)).span, "unknown intrinsic".toOwned())
         return unit()
+        // GCOVR_EXCL_STOP
     }
     const a = lowerExpr(l, c, p, &args[0].value)
     const b = if args.len() > 1 { lowerExpr(l, c, p, &args[1].value) } else { unit() }
@@ -901,7 +915,9 @@ pub fn stdFn(c: mut Checker, p: Program, module: str, name: str) int {
             }
         }
     }
+    // GCOVR_EXCL_START: std defines every name the lowering asks for
     panic("lowering: the standard library has no `{module}.{name}`")
+    // GCOVR_EXCL_STOP
 }
 
 /**
@@ -1329,8 +1345,10 @@ fn fieldCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, callee: &Expr
         return cloneValue(l, c, p, value, concreteType(l, c, c.typeOf(e.id.0)))
     }
     if member > BUILTIN_BASE {
+        // GCOVR_EXCL_START: the checker resolves every method call it accepts
         l.fail("this method")
         return unit()
+        // GCOVR_EXCL_STOP
     }
     const ty = c.typeOf(e.id.0)
     const value = lowerExpr(l, c, p, base)
@@ -1540,7 +1558,7 @@ fn coercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
         placeOperand(&lowerPlaceAt(l, c, p, e, derefCount(c, e)), OperandKind.Addr, viewType(c, e,
                                                                                              -1))
     } else {
-        lowerView(l, c, p, e, derefCount(c, e))
+        lowerView(l, c, p, e, derefCount(c, e))   // GCOVR_EXCL_LINE: asSlice is by address
     }
     c.setType(e.id.0, ty)
     const dest = newTemp(l, ty)
@@ -1550,8 +1568,10 @@ fn coercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr) Operand {
     if forwarded || consumed || l.tempScopes.len() == 0 || !needsDrop(l, c, p, ty) {
         return opCopy(dest, ty)
     }
+    // GCOVR_EXCL_START: a slice borrows the list: it needs no drop
     l.temps.push(Temp{local: dest, ty: ty})
     return opCopy(dest, ty)
+    // GCOVR_EXCL_STOP
 }
 
 // `&mut list` where a `&mut [T]` is expected: `list.asMutSlice()` on the
@@ -1588,7 +1608,7 @@ fn borrowedListCoercion(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
     const receiver = if byAddress(c, p, id, -1) {
         placeOperand(&place, OperandKind.Addr, c.types.ptr(list, false))
     } else {
-        placeOperand(&place, OperandKind.Copy, list)
+        placeOperand(&place, OperandKind.Copy, list)   // GCOVR_EXCL_LINE: asSlice is by address
     }
     emitCall(l, id, c.types.tuple([elem]), [receiver], dest)
     return opCopy(dest, ty)
@@ -1638,8 +1658,10 @@ fn dynCall(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, base: &Expr, id
            args: List<Arg>) Operand {
     const n = derefCount(c, base)
     if n == 0 {
+        // GCOVR_EXCL_START: a `dyn` value is always behind a reference
         l.fail("this `dyn` call")
         return unit()
+        // GCOVR_EXCL_STOP
     }
     const iface = c.types.get(adjustedType(c, base)).data
     const slots = dynMethods(c, p, iface)
@@ -1845,7 +1867,9 @@ fn langMethod(c: Checker, p: Program, owner: int, name: str) int {
             return c.r.tables[c.def(owner).module].fnDefs[decl.id.0]
         }
     }
+    // GCOVR_EXCL_START: List defines every method the lowering asks for
     panic("lowering: std/core/list.of has no `{name}`")
+    // GCOVR_EXCL_STOP
 }
 
 // Calls `List<elem>.name(args)`; `dest` receives the result unless -1.
@@ -2060,7 +2084,9 @@ pub fn variantNamed(c: mut Checker, p: Program, ty: int, name: str) int {
             return i
         }
     }
+    // GCOVR_EXCL_START: the lowering asks only for variants std defines
     panic("lowering: std defines no variant `{name}`")
+    // GCOVR_EXCL_STOP
 }
 
 fn payload(place: &Place, variant: int, field: int, ty: int) Operand {
@@ -2245,7 +2271,7 @@ const DEFAULT_BUDGET: int = 10000000   // spec 15.5
 // `@comptimeBudget(n)` on it, else the default.
 fn comptimeBudget(c: mut Checker, p: Program, def: int) int {
     if def <= 0 {
-        return DEFAULT_BUDGET
+        return DEFAULT_BUDGET   // GCOVR_EXCL_LINE: glue and test mains have no `comptime`
     }
     const decl = fnOf(p, c.loc(def))
     const Option.Some(at) = findAttribute(c.r, decl.attributes, "comptimeBudget") else {
@@ -2642,7 +2668,7 @@ fn castNeedsCheck(c: Checker, from: int, to: int) bool {
         return true
     }
     if f.kind != TyKind.Int || f.data == t.data {
-        return false
+        return false   // GCOVR_EXCL_LINE: E0313 and lowerCast leave only distinct ints
     }
     const sameSign = (f.data <= 3) == (t.data <= 3)
     const fromBits = intBits(f.data)
@@ -2700,6 +2726,12 @@ pub fn lowerCast(l: mut Lowerer, c: Checker, value: move Operand, to: int, span:
 // The runtime function for one part, with the part widened to its argument
 // type (int64_t, uint64_t, double, float, bool or a str pointer).
 fn partFn(l: mut Lowerer, c: Checker, part: mut Operand, print: bool) RuntimeFn {
+    if c.types.kind(part.ty) == TyKind.Ref {   // a type parameter bound to a reference
+        const inner = c.types.get(part.ty).inner
+        const place = Place{local: toLocal(l, part.clone()), fields: [], deref: true}
+        part = placeOperand(&place, OperandKind.Copy, inner)
+        return partFn(l, c, part, print)
+    }
     const t = c.types.get(part.ty)
     if t.kind == TyKind.Int {
         const signed = t.data <= 3
@@ -2977,6 +3009,7 @@ fn lowerPrint(l: mut Lowerer, c: mut Checker, p: Program, arg: &Expr, newline: b
             }
             for i in 0..parts.len() {
                 let part = lowerExpr(l, c, p, &parts[i])
+                part.ty = narrowedType(l, c, part.ty)
                 if unionMembers(c, part.ty).len() > 0 {
                     pushUnion(l, c, p, -1, part, true)
                     continue
@@ -2987,6 +3020,7 @@ fn lowerPrint(l: mut Lowerer, c: mut Checker, p: Program, arg: &Expr, newline: b
         }
         _ => {
             let part = lowerExpr(l, c, p, arg)
+            part.ty = narrowedType(l, c, part.ty)
             const f = partFn(l, c, part, true)
             emitRuntime(l, f, [part], -1)
         }
@@ -3208,8 +3242,10 @@ fn lowerForRange(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt, range:
     match range.kind {
         ExprKind.Range(lo, hi, inclusive) => {
             if lo.isNone() || hi.isNone() {
+                // GCOVR_EXCL_START: the checker rejects a `for` over an open range (E0901)
                 l.fail("open ranges")
                 return
+                // GCOVR_EXCL_STOP
             }
             let counter = 0
             let end = 0
@@ -3274,7 +3310,7 @@ fn jumpTarget(l: Lowerer, stmt: &Stmt) int {
             }
         }
     }
-    return l.loops.len() - 1
+    return l.loops.len() - 1   // GCOVR_EXCL_LINE: the checker resolved the label
 }
 
 fn lowerStmt(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt) {

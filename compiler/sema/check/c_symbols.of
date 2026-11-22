@@ -19,7 +19,7 @@ fn stringArg(r: Resolver, attributes: List<Attribute>, name: str) Option<str> {
         return Option.None
     }
     if attributes[at].args.len() != 1 {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: E0809 stops the build before checking
     }
     return match attributes[at].args[0].kind {
         ExprKind.Str(value) => Option.Some(value.clone())

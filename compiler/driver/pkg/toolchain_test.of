@@ -1,0 +1,48 @@
+// The tests of `driver.pkg.toolchain`.
+
+import base.span.SourceMap
+import diag.Diagnostics
+import diag.Format
+import std.fs
+import std.testing.TempDir
+import std.testing.assert
+
+// What `checkToolchain` reports of the manifest `text`; `ok` when it lets
+// the compiler go on, `none` with no manifest.
+fn checked(text: str) str {
+    const dir = TempDir.create("ofir-toolchain")
+    if text != "none" {
+        assert(fs.writeString(dir.join("ofir.json"), text).isOk())
+    }
+    let map = SourceMap.new()
+    let diags = Diagnostics.new()
+    const goesOn = checkToolchain(dir.path(), map, diags)
+    const out = if goesOn { "ok".toOwned() } else { diags.render(map, Format.Human) }
+    dir.remove()
+    return out
+}
+
+@test
+fn otherManifestsGoOn() {
+    assert(checked("none") == "ok")
+    assert(checked("\{") == "ok")
+    assert(checked("\{\"name\": \"app\"\}") == "ok")
+}
+
+@test
+fn rangesAreStrings() {
+    const out = checked("\{\"toolchain\": 1\}")
+    assert(out.contains("E0910") && out.contains("must be a string"))
+}
+
+@test
+fn anUnmetRangeNamesTheVersionToInstall() {
+    const out = checked("\{\"toolchain\": \">=999.0.0\"\}")
+    assert(out.contains("E0923") && out.contains("install a version in"))
+}
+
+@test
+fn aPathWithNoSlashIsHere() {
+    assert(parentOf("ofir") == ".")
+    assert(parentOf("a/b\\c") == "a/b")
+}

@@ -36,6 +36,12 @@ fn tryFail() Result<int, Fail> {
     return Result.Ok(r?)   // error[E0300]: mismatched types: `?` returns the error `str`, but the function returns errors of type `Fail`
 }
 
+// A union error type declares no `from`.
+fn tryUnion() Result<int, int | bool> {
+    const r: Result<int, str> = Result.Ok(1)
+    return Result.Ok(r?)   // error[E0300]: mismatched types: `?` returns the error `str`, but the function returns errors of type `bool | int`
+}
+
 fn show<T: Display>(_x: T) {
 }
 

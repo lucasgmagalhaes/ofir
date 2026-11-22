@@ -309,7 +309,7 @@ pub fn checkName(c: mut Checker, p: Program, res: Res, span: Span) int {
 // the instance unless `node` is -1.
 fn constParamValue(c: mut Checker, name: Symbol, node: int) int {
     const Option.Some(param) = typeParameter(c, name) else {
-        return ERROR
+        return ERROR   // GCOVR_EXCL_LINE: a resolved const parameter is in scope
     }
     if node >= 0 {
         c.constUses.insert(c.module() * 4294967296 + node, param)
@@ -812,10 +812,35 @@ pub fn requireType(c: mut Checker, e: &Expr, found: int, expected: int) {
  * @param expected the type expected
  */
 pub fn requireTypeAt(c: mut Checker, span: Span, found: int, expected: int) {
-    if !compatible(found, expected) && !weakensPointer(c, found, expected) {
+    const fits = compatible(found, expected) || weakensPointer(c, found, expected)
+    if !fits && !mentionsError(c, found) && !mentionsError(c, expected) {
         c.error("E0300", span, "mismatched types: expected {c.typeName(expected)}, "
                 + "found {c.typeName(found)}")
     }
+}
+
+// Whether an error type occurs in `ty`: a mismatch with it follows an error
+// already reported.
+fn mentionsError(c: Checker, ty: int) bool {
+    const t = c.types.get(ty)
+    const kind = t.kind
+    if kind == TyKind.Error {
+        return true
+    }
+    const elem = kind == TyKind.Ref || kind == TyKind.Ptr || kind == TyKind.Slice ||
+        kind == TyKind.Array || kind == TyKind.Fn
+    if elem && mentionsError(c, t.inner) {
+        return true
+    }
+    if kind != TyKind.Tuple && kind != TyKind.Adt && kind != TyKind.Fn {
+        return false
+    }
+    for arg in t.args {
+        if mentionsError(c, arg) {
+            return true
+        }
+    }
+    return false
 }
 
 /**

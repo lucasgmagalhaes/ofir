@@ -26,13 +26,19 @@ fn check(n: int) int {
     return n
 }
 
+fn toByte(x: float) u8 {
+    return x as u8
+}
+
 fn main() {
     const b = comptime add(200, 100)   // error[E0816]: compile-time evaluation failed: arithmetic overflow
     const c = comptime divide(1, 0)   // error[E0816]: compile-time evaluation failed: division by zero
     const d = comptime pick(3)   // error[E0816]: compile-time evaluation failed: index 3 out of bounds for length 3
     const e = comptime down(0)   // error[E0816]: compile-time evaluation failed: calls nested more than 128 deep
     const f = comptime check(5)   // error[E0816]: compile-time evaluation failed: it panicked: too big: 5
-    println("{b} {c} {d} {e} {f} {budgeted()}")
+    const g = comptime toByte(1000.0)   // error[E0816]: compile-time evaluation failed: a cast out of range
+    const h = comptime toByte(0.0 / 0.0)   // error[E0816]: compile-time evaluation failed: a cast out of range
+    println("{b} {c} {d} {e} {f} {g} {h} {budgeted()}")
 }
 
 @comptimeBudget(1000)

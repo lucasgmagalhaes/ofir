@@ -1,0 +1,27 @@
+// requires: stage1
+// A tuple built in a `comptime for` from a field (spec 15.3): each
+// iteration has its own copy, of its field's type.
+
+import std.meta
+
+struct Point {
+    x: int
+    y: bool
+}
+
+fn show<U>(item: U) {
+    println(meta.nameOf<U>())
+}
+
+fn pairs<T>(value: move T) {
+    comptime if meta.isStruct<T>() {
+        comptime for field in meta.fieldsOf<T>() {
+            const t = (field.get(value), field.index)
+            show(t.0)
+        }
+    }
+}
+
+fn main() {
+    pairs(Point{x: 1, y: true})
+}

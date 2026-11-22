@@ -81,11 +81,11 @@ fn stringEnd(tokens: List<Token>, i: int) int {
                 return j
             }
         } else if kind == TokenKind.Eof {
-            return j - 1
+            return j - 1   // GCOVR_EXCL_LINE: a file that parses closes its strings
         }
         j += 1
     }
-    return tokens.len() - 1
+    return tokens.len() - 1   // GCOVR_EXCL_LINE: the token list ends with `Eof`
 }
 
 // Whether `*/` starts at `pos`.

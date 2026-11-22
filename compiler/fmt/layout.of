@@ -108,7 +108,7 @@ struct Layout {
     // Adds the `,` that ends a multi-line list before its closing bracket.
     fn trailingComma(mut self) {
         const Option.Some(top) = self.stack.last() else {
-            return
+            return   // GCOVR_EXCL_LINE: a parsed `)` or `]` closes an open bracket
         }
         if !top.comma || self.last == TokenKind.Comma || isOpener(self.last) {
             return

@@ -189,6 +189,7 @@ pub struct TypeTable {
     undecided: List<int>   // the non-`bool` conditions `subst` met
     badLengths: List<int>   // the out of range array lengths `subst` met
     badKeys: List<int>   // the `Mapped` types whose keys are not a key type
+    badKeyofs: List<int>   // the types `keyof` met that are not a struct or tuple
     longest: int   // the most elements of a tuple or tuple struct
 
     /**
@@ -199,7 +200,8 @@ pub struct TypeTable {
     pub fn new() TypeTable {
         let table = TypeTable{types: [], slots: List.filled(0, 256), fields: [],
                               indexNames: [], expanded: [], pending: [],
-                              undecided: [], badLengths: [], badKeys: [], longest: 0}
+                              undecided: [], badLengths: [], badKeys: [], badKeyofs: [],
+                              longest: 0}
         table.intern(TyKind.Error, 0, 0, [])
         table.intern(TyKind.Unit, 0, 0, [])
         table.intern(TyKind.Never, 0, 0, [])
@@ -558,7 +560,11 @@ pub struct TypeTable {
             items.push(self.subst(arg, args))
         }
         if kind == TyKind.KeyOf && !self.types[inner].hasParam {
-            return self.keyofFields(inner, data)
+            const keys = self.keyofFields(inner, data)
+            if keys == ERROR && inner != ERROR {
+                self.badKeyofs.push(inner)   // E0340 at the use
+            }
+            return keys
         }
         if kind == TyKind.Index && !self.types[inner].hasParam && !self.types[items[0]].hasParam {
             return self.indexFields(inner, items[0])
@@ -817,6 +823,16 @@ pub struct TypeTable {
     }
 
     /**
+     * The types that `subst` met under `keyof` since the last call and that
+     * are not a struct or tuple, as `keyof Color`: E0340 at the use.
+     *
+     * @returns the types, in order
+     */
+    pub fn takeBadKeyofs(mut self) List<int> {
+        return mem.replace(self.badKeyofs, [])
+    }
+
+    /**
      * Records the fields of a struct, for `keyof T` and `T[K]` after
      * substitution.
      *
@@ -872,7 +888,7 @@ pub struct TypeTable {
     // The first `count` tuple keys, or ERROR.
     fn indexKeys(mut self, count: int) int {
         if count > self.indexNames.len() {
-            return ERROR
+            return ERROR   // GCOVR_EXCL_LINE: useIndexNames records the longest tuple
         }
         let names: List<int> = []
         for i in 0..count {
@@ -980,7 +996,7 @@ pub struct TypeTable {
         }
         const def = self.types[base].data
         if kind != TyKind.Adt || def >= self.fields.len() {
-            return -1
+            return -1   // GCOVR_EXCL_LINE: callers pass a resolved struct or tuple
         }
         return match self.fields[def] {
             Option.Some(f) => if f.isTuple {
@@ -999,7 +1015,7 @@ pub struct TypeTable {
                 return i
             }
         }
-        return -1
+        return -1   // GCOVR_EXCL_LINE: the key is in the bound `keyof T`
     }
 
     /**
@@ -1051,7 +1067,7 @@ fn position(names: List<int>, name: int) int {
             return i
         }
     }
-    return -1
+    return -1   // GCOVR_EXCL_LINE: the key is in the bound `keyof T`
 }
 
 /**

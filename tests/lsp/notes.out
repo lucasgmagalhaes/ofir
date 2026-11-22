@@ -1,0 +1,5 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]},"hoverProvider":true,"referencesProvider":true,"renameProvider":true},"serverInfo":{"name":"ofir"}}}
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[{"range":{"start":{"line":18,"character":12},"end":{"line":18,"character":13}},"severity":1,"code":"E0600","source":"ofir","message":"use of moved value `s`\nhelp: `s` was moved before: clone it there if both copies are needed"}]}}
+{"jsonrpc":"2.0","id":2,"result":{"contents":{"kind":"markdown","value":"```ofir\nfn twice(x: int) int\n```\n\nDoubles."},"range":{"start":{"line":18,"character":18},"end":{"line":18,"character":23}}}}
+{"jsonrpc":"2.0","id":3,"result":{"contents":{"kind":"markdown","value":"```ofir\nfn plain() int\n```"},"range":{"start":{"line":18,"character":28},"end":{"line":18,"character":33}}}}
+{"jsonrpc":"2.0","id":4,"result":null}
