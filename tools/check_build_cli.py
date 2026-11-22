@@ -123,7 +123,8 @@ def records(compiler: str, work: Path) -> None:
 def temps(compiler: str, work: Path) -> None:
     (work / "main.of").write_text(MAIN)
     env = {k: v for k, v in os.environ.items() if k not in ("TMPDIR", "TEMP")}
-    expect(ofir(compiler, work, "run", "main.of", status=0, env=env), "hi", "a run in /tmp")
+    if os.name != "nt":   # the `/tmp` fallback does not exist on Windows
+        expect(ofir(compiler, work, "run", "main.of", status=0, env=env), "hi", "a run in /tmp")
     (work / "t").mkdir()
     env["TMPDIR"] = str(work / "t")
     expect(ofir(compiler, work, "run", "main.of", status=0, env=env), "hi", "a run in TMPDIR")
