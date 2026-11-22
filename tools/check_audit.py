@@ -61,7 +61,7 @@ def main():
         print("audit: skipped (needs git and tar)")
         return
     with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
+        tmp = Path(tmp).resolve()   # the lock keeps real paths (macOS: /private/var)
         index = tmp / "index"
         archives = tmp / "archives"
         env = dict(os.environ, OFIR_HOME=str(tmp / "home"), OFIR_REGISTRY=str(index),
