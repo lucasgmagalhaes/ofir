@@ -62,8 +62,10 @@ def writes(compiler: str, work: Path) -> None:
     (work / "main.of").write_text(MAIN)
     expect(ofir(compiler, work, "build", "main.of", "--emit=llvm", "-o", "nope/out", status=1),
            "cannot write `nope/out.ll`", "one unit")
+    # Windows builds are one unit (compiler/cli/build.of)
+    several = "nope/out.ll" if os.name == "nt" else "nope/out.0.ll"
     expect(ofir(compiler, work, "build", "main.of", "-o", "nope/out", status=1),
-           "cannot write `nope/out.0.ll`", "several units")
+           f"cannot write `{several}`", "several units")
     expect(ofir(compiler, work, "build", "main.of", "-o", "nope/out", "--message-format=json",
                 status=1), '"code":"E0902"', "a JSON message")
     library = work / "library"
