@@ -65,7 +65,7 @@ fn isPath(text: str) bool {
 // tag before it is a `<pre`.
 fn inPre(html: str, at: int) bool {
     const Option.Some(open) = html.slice(0, at).rfind("<") else {
-        return false
+        return false   // GCOVR_EXCL_LINE: a page starts with `<!doctype html>`
     }
     return html.sliceFrom(open).startsWith("<pre")
 }
@@ -88,7 +88,7 @@ pub fn linkCode(html: str, module: str, targets: &Targets) str {
         const at = plain + found
         const start = at + 6
         const Option.Some(len) = html.sliceFrom(start).find("</code>") else {
-            break
+            break   // GCOVR_EXCL_LINE: the page closes each `<code>` it opens
         }
         const name = html.slice(start, start + len)
         const href = if isPath(name) && !inPre(html, at) { targets.href(module, name) } else { "" }

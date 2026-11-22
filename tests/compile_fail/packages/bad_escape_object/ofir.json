@@ -1,0 +1,6 @@
+{
+  "name": "bad_escape_object",
+  "build": {"kind": "exe", "root": "main.of"},
+  "description": "\q",   // error[E0910]: `ofir.json` is not valid JSONC
+  "version": "0.1.0",
+}

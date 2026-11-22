@@ -1,0 +1,14 @@
+// The errors of the root-only fields of `ofir.json`: `license`, `audit` and
+// `trust`, and a `dependencies` that is not an object.
+{
+  "name": "fields_bad",
+  "build": {
+    "kind": "exe",
+    "root": "main.of",
+    "native": ["a.h"],   // error[E0918]: a native file must be a `.c` path
+  },
+  "license": 3,               // error[E0910]: `license` must be a string
+  "audit": {"ignore": [1]},   // error[E0910]: `audit.ignore` must be a list of advisory ids
+  "trust": {"git": "x"},      // error[E0910]: `trust.git` must be a list of strings
+  "dependencies": [],         // error[E0910]: `dependencies` must be an object
+}

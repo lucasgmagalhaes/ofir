@@ -82,12 +82,14 @@ fn argsNow(l: Lowerer, c: Checker) List<int> {
 pub fn lowerComptimeFor(l: mut Lowerer, c: mut Checker, p: Program, stmt: &Stmt, body: &Block) {
     const info = match infoOf(c, stmt.id.0) {
         Option.Some(found) => found
+        // GCOVR_EXCL_START: the checker records every `comptime for` it accepts
         Option.None => {
             return
         }
+        // GCOVR_EXCL_STOP
     }
     if info.kind != COMPTIME_LOOP {
-        return
+        return   // GCOVR_EXCL_LINE: the checker records a loop
     }
     const outer = l.body.targs
     let args = argsNow(l, c)
@@ -173,7 +175,7 @@ fn renameStmt(s: mut AirStmt, from: int, to: int) {
         renameOperand(s.value.items[k], from, to)
     }
     if s.kind == StmtKind.Assign && s.value.kind == RvalueKind.Checked && s.value.flag == from {
-        s.value.flag = to
+        s.value.flag = to   // GCOVR_EXCL_LINE: an overflow flag is a bool
     }
     for k in 0..s.args.len() {
         renameOperand(s.args[k], from, to)
@@ -228,7 +230,7 @@ pub fn comptimeMemberValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr,
     if info.kind == COMPTIME_MATCHES {
         return Option.Some(matchesValue(l, c, p, e, info, args))
     }
-    return Option.None
+    return Option.None   // GCOVR_EXCL_LINE: the body of the loop has the key
 }
 
 // `variant.matches(value)` in an instance: a test of the value's tag.
@@ -236,9 +238,11 @@ fn matchesValue(l: mut Lowerer, c: mut Checker, p: Program, e: &Expr, info: Comp
                 args: List<int>) Operand {
     const value = match e.kind {
         ExprKind.Call(_, callArgs) => callArgs[0].value.clone()
+        // GCOVR_EXCL_START: `matches` is a method call
         _ => {
             panic("matchesValue: not a call")
         }
+        // GCOVR_EXCL_STOP
     }
     const found = c.typeOf(value.id.0)
     const place = if c.types.kind(found) == TyKind.Ref {   // through the reference

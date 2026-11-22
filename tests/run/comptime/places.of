@@ -1,0 +1,25 @@
+// requires: stage1
+// Compile-time code compares pointers to fields of one local, which differ
+// in their path only, and copies a unit value (spec 15.5).
+
+struct Point {
+    x: int
+    y: int
+}
+
+fn sameField() bool {
+    const p = Point{x: 1, y: 2}
+    return &p.x as *int == &p.y as *int
+}
+
+fn unitCopy() int {
+    let u: () = ()
+    const _v = u
+    return 1
+}
+
+fn main() {
+    const a = comptime sameField()
+    const b = comptime unitCopy()
+    println("{a} {b}")
+}

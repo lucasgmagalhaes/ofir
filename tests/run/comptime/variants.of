@@ -31,6 +31,18 @@ fn describe<T>(value: &T) str {
     }
 }
 
+// `matches` on a value held by the function, not through a reference.
+fn tag<T>(value: T) int {
+    comptime if meta.isEnum<T>() {
+        comptime for variant in meta.variantsOf<T>() {
+            if variant.matches(value) {
+                return variant.index
+            }
+        }
+    }
+    return -1
+}
+
 fn count<T>() int {
     let n = 0
     comptime if meta.isEnum<T>() {
@@ -60,4 +72,5 @@ fn main() {
     println(describe(&Shape.Circle(1.5)))
     println("{count<Color>()} {count<Shape<str>>()} {count<int>()}")
     names()
+    println("{tag(Color.Green)} {tag(Shape.Rect(1, 2))}")
 }

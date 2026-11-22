@@ -502,7 +502,7 @@ fn debugFields(l: mut Lowerer, c: mut Checker, p: Program, ty: int, variant: int
     const named = names.len() == count && count > 0
     if count == 0 {
         if isTuple {
-            pushText(l, out, "()")
+            pushText(l, out, "()")   // GCOVR_EXCL_LINE: `()` is the unit type
         } else if variant < 0 {
             pushText(l, out, " \{\}")
         }
@@ -577,7 +577,9 @@ pub fn lowerDebugGlue(l: mut Lowerer, c: mut Checker, p: Program, targs: int) {
         emitGoto(l, done)
         switchTo(l, done)
     } else {
+        // GCOVR_EXCL_START: only an ADT or a tuple gets the glue
         debugValue(l, c, p, opCopy(1, ty), ty, &out)
+        // GCOVR_EXCL_STOP
     }
     finishGlue(l, c, p)
 }

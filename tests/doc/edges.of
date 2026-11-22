@@ -1,0 +1,40 @@
+/**
+ * @module
+ * Edge cases of the documentation: an empty span ` ` and a fence with no
+ * language.
+ *
+ * ```
+ * plain code
+ * ```
+ */
+
+/**
+ * A length, a tuple struct.
+ *
+ * A paragraph that a list follows at once:
+ * - alone below
+ * -
+ * - an item, then a paragraph
+ * after the list.
+ *
+ * - an item with an indented fence:
+ *   ```ofir
+ *   const x = 1
+ *     const y = 2
+ *   ```
+ *
+ * @safety none needed
+ * @custom an unknown tag
+ */
+pub struct Meters(pub int)
+
+/**
+ * A signature with a trailing comma and a blank line.
+ */
+pub fn sum(
+    a: int,
+
+    b: int,
+) int {
+    return a + b
+}

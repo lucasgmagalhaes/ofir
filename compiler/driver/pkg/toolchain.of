@@ -78,7 +78,7 @@ pub fn checkToolchain(dir: str, map: mut SourceMap, diags: mut Diagnostics) bool
  */
 pub fn installPrefix() Option<str> {
     const Result.Ok(exe) = os.executablePath() else {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: the running compiler finds its own path
     }
     const bin = parentOf(exe)
     return Option.Some(parentOf(bin))
@@ -102,7 +102,7 @@ fn parentOf(path: str) str {
 // `<prefix>/toolchains`, that is in `range`.
 fn installedIn(range: str) Option<(str, str)> {
     const Option.Some(prefix) = installPrefix() else {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: the running compiler finds its own path
     }
     const Result.Ok(entries) = fs.readDir("{prefix}/toolchains") else {
         return Option.None

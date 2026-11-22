@@ -31,7 +31,9 @@ fn main() {
     // note: `seeded` was called from `shuffled` at io.of:20:5
     const g = comptime double(c)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
     const h = comptime (!c)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
-    println("{a} {b} {d} {e} {g} {h}")
+    const i = comptime (c + 1)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
+    const j = comptime (c & 1)   // error[E0815]: compile-time code cannot read `c`: its value exists only at run time
+    println("{a} {b} {d} {e} {g} {h} {i} {j}")
 }
 
 fn double(x: int) int {

@@ -1,8 +1,9 @@
 // requires: stage1
 // c: c_callbacks.c
 // C function pointers (spec 11.3, ADR 0063): `qsort` with an Ofir
-// comparator, a callback with a user-data pointer, a pointer called from
-// Ofir, a C function as a pointer, and a buffer C fills.
+// comparator, a callback with a user-data pointer, pointers called from
+// Ofir (one with no result), a closure in a C function, a C function as a
+// pointer, and a buffer C fills.
 
 @link("c_callbacks")
 extern "C" {
@@ -49,6 +50,12 @@ extern "C" fn pick(v: i32, flip: bool) i32 {
     return v
 }
 
+extern "C" fn shifted(v: i32) i32 {
+    const by = v
+    const f = (x: i32) i32 => x + by
+    return f(v)
+}
+
 fn main() {
     let xs: List<i64> = [5, -3, 9, 0, 2]
     unsafe {
@@ -59,7 +66,11 @@ fn main() {
     unsafe {
         c_each(4, add, &mut sum as *mut Sum as *mut u8)
     }
-    println("{sum.total} {sum.calls}")
+    const h: extern "C" fn(*mut u8, i32) = add
+    unsafe {
+        h(&mut sum as *mut Sum as *mut u8, 5)
+    }
+    println("{sum.total} {sum.calls} {shifted(4)}")
     const neg = unsafe { c_negate() }
     const r = unsafe { neg(21) }
     println("{r}")

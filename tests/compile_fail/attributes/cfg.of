@@ -14,6 +14,22 @@ fn b() {
 fn c() {
 }
 
+@cfg(1 == "linux")   // error[E0809]: invalid condition for `@cfg`: write `os == "linux"`, `arch == "x86_64"`, `debug` or `test`, combined with `&&`, `||` and `!`
+fn d() {
+}
+
+@cfg(arch == "riscv")   // error[E0809]: invalid condition for `@cfg`: write `os == "linux"`, `arch == "x86_64"`, `debug` or `test`, combined with `&&`, `||` and `!`
+fn e() {
+}
+
+@cfg(cpu == "x86_64")   // error[E0809]: invalid condition for `@cfg`: write `os == "linux"`, `arch == "x86_64"`, `debug` or `test`, combined with `&&`, `||` and `!`
+fn f() {
+}
+
+@cfg(release || debug)   // error[E0809]: invalid condition for `@cfg`: write `os == "linux"`, `arch == "x86_64"`, `debug` or `test`, combined with `&&`, `||` and `!`
+fn g() {
+}
+
 struct S {
     @cfg(os < "linux")   // error[E0809]: invalid condition for `@cfg`: write `os == "linux"`, `arch == "x86_64"`, `debug` or `test`, combined with `&&`, `||` and `!`
     x: int

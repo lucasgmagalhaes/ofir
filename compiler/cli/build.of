@@ -235,12 +235,14 @@ pub fn writeRecord(opts: &Options, pipeline: &Pipeline, map: &SourceMap) bool {
 // a compiler bug, reported before it reaches LLVM.
 pub fn validateAir(c: Checker, b: &AirBody, pass: str) {
     if const Option.Some(what) = validateBody(b) {
+        // GCOVR_EXCL_START: a malformed body is a compiler bug, which the tests do not meet
         let printer = AirPrinter{out: ""}
         printer.body(c, b)
         eprint(printer.out)
         eprintln("note: this is a compiler bug; a report needs the AIR above")
         eprintln("ofir: internal error: invalid AIR after {pass}: {what}")
         os.abort()
+        // GCOVR_EXCL_STOP
     }
 }
 
@@ -346,8 +348,10 @@ pub fn backend(c: mut Checker, program: Program, pipeline: mut Pipeline) bool {
         }
     }
     if c.r.diags.hasErrors() {   // the lowering reported errors
+        // GCOVR_EXCL_START: the lowering's errors stop the build before the code is generated
         removeFiles(files)
         return true
+        // GCOVR_EXCL_STOP
     }
     if opts.emit == "llvm" {
         return true

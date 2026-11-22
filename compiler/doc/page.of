@@ -131,8 +131,6 @@ fn oneLine(text: str) str {
         const first = line[0]
         if last != b'(' && last != b'[' && first != b')' && first != b']' {
             out.push(" ")
-        } else if last == b',' {
-            out.push(" ")
         }
         out.push(line)
     }

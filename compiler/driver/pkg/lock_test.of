@@ -1,5 +1,7 @@
 // The tests of `driver.pkg.lock`.
 
+import std.fs
+import std.testing.TempDir
 import std.testing.assert
 
 @test
@@ -39,4 +41,27 @@ fn indexesFollowThePackages() {
     assert(text.contains("\"indexes\": [\n    \{\"url\": \"/index\", \"commit\": \"c1\"\},"))
     assert(text.endsWith("\"commit\": \"c2\"\}\n  ]\n\}\n"))
     assert(!lockText(packages, []).contains("indexes"))
+}
+
+@test
+fn sameNamesSortBySource() {
+    const packages = [Locked{name: "a", git: "/z", registry: "", version: "", rev: "main",
+                             commit: "c1", checksum: ""},
+                      Locked{name: "a", git: "/y", registry: "", version: "", rev: "main",
+                             commit: "c2", checksum: ""}]
+    const text = lockText(packages, [])
+    assert(text.find("\"/y\"").expect("y") < text.find("\"/z\"").expect("z"))
+}
+
+@test
+fn invalidLocksHoldNothing() {
+    const dir = TempDir.create("ofir-lock")
+    const root = dir.path()
+    for text in ["\{", "\{\"packages\": 1\}", "\{\}"] {
+        fs.writeString(dir.join("ofir.lock"), text).expect("the directory is writable")
+        assert(readLock(root).isEmpty())
+        assert(readIndexes(root).isEmpty())
+    }
+    assert(checksum(dir.join("missing")) == checksum(dir.join("absent")))
+    dir.remove()
 }

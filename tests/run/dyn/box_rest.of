@@ -1,0 +1,31 @@
+// requires: stage1
+// A moved box taken by a binding arm, and a struct pattern whose unbound
+// field has a pattern of its own (spec 9.8, 9.4).
+
+struct Config {
+    name: str
+}
+
+struct Pair {
+    a: str
+    b: Option<str>
+}
+
+fn take(value: move Box<any>) str {
+    return match value {
+        c: Config => c.name
+        other => "a {other.typeName()}"
+    }
+}
+
+fn pick() Pair {
+    return Pair{a: "x".toOwned(), b: Option.Some("y".toOwned())}
+}
+
+fn main() {
+    println(take(Box.new(Config{name: "a".toOwned()})))
+    println(take(Box.new(3)))
+    if const Pair{a, b: Option.Some(_)} = pick() {
+        println(a)
+    }
+}

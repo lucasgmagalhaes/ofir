@@ -1,0 +1,28 @@
+fn empty() {}
+
+pub unsafe fn raw() int { return 1 }
+
+fn dup<T>(x: T) T
+where   // bounded
+    T: Clone,
+{
+    return x.clone()
+}
+
+fn arms(x: int) int {
+    const y = match x {
+        0 => { 1 }
+        _ => 2
+    }
+    let z = 8
+    const big = if x >= 0 { x >= 2 } else { false }
+    if big { z >>= 1 } else { z = 0 }
+    const v = pick(if big { 1 } else { 2 })
+    const w = pick(if big { return 0 } else { 2 })
+    const u = pick(if big { z = 3 } else { 4 })
+    return y + v + z + w + u
+}
+
+fn pick(x: int) int {
+    return x
+}

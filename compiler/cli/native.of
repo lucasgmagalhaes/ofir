@@ -151,7 +151,7 @@ pub fn runtimeLibrary() Option<str> {
         return Option.Some(path)
     }
     const Result.Ok(exe) = os.executablePath() else {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: the running compiler always finds its own path
     }
     let slash = -1
     for i in 0..exe.len() {
@@ -321,7 +321,9 @@ pub fn clangFlags(opts: &Options) List<str> {
             args.push("--sysroot={root}")
         }
     } else if onWindows() {
+        // GCOVR_EXCL_START: coverage runs on a Linux host
         args.push("--target=x86_64-w64-windows-gnu".toOwned())
+        // GCOVR_EXCL_STOP
     }
     if opts.lib == "shared" && !windowsTarget(opts) {
         args.push("-fPIC".toOwned())   // a shared library's code (ADR 0064)
@@ -444,7 +446,9 @@ pub fn finishClang(opts: &Options, clang: str, child: move os.Child, quiet: bool
             out.status == 0
         }
         Result.Err(_) => {
+            // GCOVR_EXCL_START: the clang it started always has a status
             driverError(opts.format, "E0902", "cannot run `{clang}`")
+            // GCOVR_EXCL_STOP
             false
         }
     }

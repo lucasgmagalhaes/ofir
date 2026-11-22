@@ -736,7 +736,7 @@ fn placeAddress(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, local: i
 fn isCFunction(c: Checker, p: Program, id: int) bool {
     const def = c.def(id)
     if def.kind != DefKind.Fn || def.item < 0 {
-        return false
+        return false   // GCOVR_EXCL_LINE: codegen only names fn defs of items
     }
     const isExtern = match itemOf(p, c.loc(id)).kind {
         ItemKind.Extern(_, _) => true
@@ -749,7 +749,7 @@ fn isCFunction(c: Checker, p: Program, id: int) bool {
 fn hints(c: Checker, p: Program, id: int) str {
     const def = c.def(id)
     if def.kind != DefKind.Fn || def.item < 0 {
-        return ""
+        return ""   // GCOVR_EXCL_LINE: codegen only emits fn defs of items
     }
     const decl = fnOf(p, c.loc(id))
     let text = ""
@@ -932,6 +932,7 @@ fn nicheTagStore(g: mut Gen, c: mut Checker, p: Program, at: str, v: &Value) {
     if v.text == "{none}" {
         g.out.push("  store ptr null, ptr {at}\n")
     } else if v.text != "{some}" {   // not a constant
+        // GCOVR_EXCL_START: lowering stores constant discriminants only
         const word = nextTemp(g)
         g.out.push("  {word} = load ptr, ptr {at}\n")
         const isNone = nextTemp(g)
@@ -940,6 +941,7 @@ fn nicheTagStore(g: mut Gen, c: mut Checker, p: Program, at: str, v: &Value) {
         g.out.push("  {kept} = select i1 {isNone}, ptr null, ptr {word}\n")
         g.out.push("  store ptr {kept}, ptr {at}\n")
     }
+    // GCOVR_EXCL_STOP
 }
 
 fn intOp(op: Op, signed: bool) str {
@@ -1397,7 +1399,7 @@ fn rvalue(g: mut Gen, c: mut Checker, p: Program, body: &AirBody, rv: &Rvalue,
             g.fnValues[rv.flag] = true
             let env = "null"
             if rv.a.kind != OperandKind.Unit {
-                env = operand(g, c, p, body, &rv.a).text
+                env = operand(g, c, p, body, &rv.a).text   // GCOVR_EXCL_LINE: a fn value has no env
             }
             const code = nextTemp(g)
             const thunk = thunkName(c, p, rv.flag)

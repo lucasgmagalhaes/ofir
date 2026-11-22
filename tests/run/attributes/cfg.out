@@ -2,3 +2,6 @@ unix
 true debug
 true
 /etc
+unix
+x
+3

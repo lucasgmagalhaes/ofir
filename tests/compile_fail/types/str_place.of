@@ -1,0 +1,8 @@
+// A byte of a `str` is not a place: it cannot be passed as `mut`.
+fn take(x: mut u8) {
+}
+
+fn main() {
+    let s = "ab".toOwned()
+    take(s[0])                   // error[E0315]: only variables and their fields can be modified
+}

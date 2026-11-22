@@ -1,0 +1,78 @@
+import driver.build.target.hostTriple
+import driver.build.target.runnerWords
+import std.testing.assert
+
+// The options of `ofir <words>`, after the program name.
+fn parsed(words: List<str>) Option<Options> {
+    let args: List<str> = List.new()
+    args.push("ofir".toOwned())
+    for word in words {
+        args.push(word.clone())
+    }
+    return parseOptions(args)
+}
+
+@test
+fn readsTheCounts() {
+    const Option.Some(opts) = parsed(["build", "a.of", "-j", "4", "--test-jobs", "2"]) else {
+        return assert(false)
+    }
+    assert(opts.jobs == 4 && opts.testJobs == 2)
+    assert(parsed(["build", "a.of", "--jobs", "0"]).isNone())
+    assert(parsed(["test", "a.of", "--test-jobs", "x"]).isNone())
+    assert(parseCount("1234567") == 0 && parseCount("") == 0 && parseCount("42") == 42)
+}
+
+@test
+fn readsTheFlags() {
+    const words = ["build", "a.of", "--no-cache", "--codegen-units=1", "--profile=fast", "-g",
+                   "--trim-paths", "--message-format=short", "--stop-after=check",
+                   "--time-passes", "--lib=static", "--record=r.json"]
+    const Option.Some(opts) = parsed(words) else {
+        return assert(false)
+    }
+    assert(opts.noCache && opts.oneUnit && opts.debugInfo && opts.trimPaths && opts.timePasses)
+    assert(opts.profile == "fast" && opts.stopAfter == "check" && opts.lib == "static")
+    assert(opts.record == "r.json")
+    const Option.Some(json) = parsed(["check", "a.of", "--message-format=json"]) else {
+        return assert(false)
+    }
+    assert(json.format == Format.Json)
+    const Option.Some(human) = parsed(["check", "a.of", "--message-format=human"]) else {
+        return assert(false)
+    }
+    assert(human.format == Format.Human)
+}
+
+@test
+fn refusesWhatDoesNotFit() {
+    assert(parsed(["build", "a.of", "b.of"]).isNone())
+    assert(parsed(["build"]).isNone())
+    assert(parsed(["build", "a.of", "--release", "--profile=dev"]).isNone())
+    assert(parsed(["run", "a.of", "--lib=shared"]).isNone())
+    assert(parsed(["build", "a.of", "--target=nowhere"]).isNone())
+    assert(parsed(["build", "a.of", "--stop-after=link"]).isNone())
+}
+
+@test
+fn benchmarksAreOptimized() {
+    const Option.Some(opts) = parsed(["bench", "a.of"]) else {
+        return assert(false)
+    }
+    assert(opts.release && opts.opt == 2 && opts.profile == "release")
+}
+
+@test
+fn crossRunsNeedARunner() {
+    const host = hostTriple()
+    const Option.Some(opts) = parsed(["build", "a.of", "--target={host}"]) else {
+        return assert(false)
+    }
+    assert(opts.target == "")
+    const other = if host == "aarch64-linux-gnu" { "x86_64-linux-gnu" } else {
+        "aarch64-linux-gnu"
+    }
+    if runnerWords().len() == 0 {
+        assert(parsed(["run", "a.of", "--target={other}"]).isNone())
+    }
+}

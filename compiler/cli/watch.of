@@ -37,8 +37,10 @@ pub fn wantsWatch(args: List<str>) bool {
  */
 pub fn watchCommand(args: List<str>) int {
     const Result.Ok(exe) = os.executablePath() else {
+        // GCOVR_EXCL_START: the running compiler always finds its own path
         eprintln("error[E0902]: cannot find the compiler executable")
         return 1
+        // GCOVR_EXCL_STOP
     }
     let rest: List<str> = []
     for i in 1..args.len() {
@@ -76,7 +78,7 @@ fn runLimit(text: str) int {
     let n = 0
     for b in text.bytes() {
         if b < 48 || b > 57 {
-            return 0
+            return 0   // GCOVR_EXCL_LINE: the watch then runs until killed: no counters
         }
         n = n * 10 + (b - 48) as int
     }
@@ -90,7 +92,7 @@ fn watchRoot(args: List<str>) str {
         if arg.endsWith(".of") {
             if const Option.Some(slash) = arg.rfind("/") {
                 if slash == 0 {
-                    return "/".toOwned()
+                    return "/".toOwned()   // GCOVR_EXCL_LINE: a test would walk all of `/`
                 }
                 return arg.slice(0, slash).toOwned()
             }
@@ -111,7 +113,7 @@ fn runOnce(exe: str, args: [str]) int {
             status
         }
         Result.Err(_) => {
-            eprintln("error[E0902]: cannot run `{exe}`")
+            eprintln("error[E0902]: cannot run `{exe}`")   // GCOVR_EXCL_LINE: the running compiler
             1
         }
     }

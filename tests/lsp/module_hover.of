@@ -1,0 +1,6 @@
+// Hover on a module name, and a rename of a name the standard library declares.
+import std.strings
+
+fn main() {
+    const _ = strings.fromUtf8([])
+}

@@ -151,7 +151,7 @@ fn declare(h: mut Header, c: mut Checker, p: Program, ty: int, inner: str) str {
         if !c.types.isCFn(t.inner) && c.types.get(t.inner).kind != TyKind.Ptr {
             return if mutable { "void *{inner}" } else { "const void *{inner}" }
         }
-        return declare(h, c, p, t.inner, if mutable { "*{inner}" } else { "*const {inner}" })
+        return declare(h, c, p, t.inner, if mutable { "*{inner}" } else { "const *{inner}" })
     }
     if t.kind == TyKind.Array && t.data >= 0 {
         return declare(h, c, p, t.inner, "{inner}[{t.data}]")
@@ -184,7 +184,7 @@ fn intName(kind: int) Option<str> {
     const names = ["int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t",
                    "uint32_t", "uint64_t"]
     if kind < 0 || kind >= names.len() {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: an integer kind is 0 to 7
     }
     return Option.Some(names[kind].clone())
 }
@@ -209,8 +209,10 @@ fn structName(h: mut Header, c: mut Checker, p: Program, def: int, args: int) Op
     }
     h.done.push(def)
     if !structFields(c, p, def) {
+        // GCOVR_EXCL_START: the checker computed the fields of every struct
         h.structs.push("{name};\n")
         return Option.Some(name)
+        // GCOVR_EXCL_STOP
     }
     const info = fieldsOf(c, def).clone()
     let body = ""

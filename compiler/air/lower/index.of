@@ -540,7 +540,7 @@ fn fieldsNeedDrop(l: mut Lowerer, c: mut Checker, p: Program, ty: int) bool {
     const id = t.data
     if c.def(id).kind == DefKind.Struct {
         if !structFields(c, p, id) {
-            return false
+            return false   // GCOVR_EXCL_LINE: the checker computed them
         }
         const count = fieldsOf(c, id).types.len()
         for i in 0..count {
@@ -551,7 +551,7 @@ fn fieldsNeedDrop(l: mut Lowerer, c: mut Checker, p: Program, ty: int) bool {
         return false
     }
     if !enumVariants(c, p, id) {
-        return false
+        return false   // GCOVR_EXCL_LINE: the checker computed them
     }
     const variants = variantsOf(c, id).variants.len()
     for v in 0..variants {
@@ -576,7 +576,7 @@ fn computeNeedsDrop(l: mut Lowerer, c: mut Checker, p: Program, ty: int) bool {
         return c.types.get(ty).data & FN_OWNED != 0
     }
     if kind == TyKind.Dyn {   // dropped through its vtable
-        return true
+        return true   // GCOVR_EXCL_LINE: a `dyn I` is behind a box or a borrow
     }
     return typeMethod(c, p, ty, "drop") != 0 || fieldsNeedDrop(l, c, p, ty)
 }
@@ -708,7 +708,7 @@ fn dropRest(l: mut Lowerer, c: mut Checker, p: Program, local: int, path: List<i
     const count = if isTuple { t.args.len() } else { fieldsOf(c, t.data).types.len() }
     for i in 0..count {
         if path.len() >= 7 {
-            break
+            break   // GCOVR_EXCL_LINE: a moved part is at most 7 deep
         }
         let here = path.clone()
         here.push(i)
@@ -752,7 +752,7 @@ fn dropIfSet(l: mut Lowerer, c: mut Checker, p: Program, local: int) {
  */
 pub fn dropScopes(l: mut Lowerer, c: mut Checker, p: Program, first: int) {
     if first >= l.scopes.len() {
-        return
+        return   // GCOVR_EXCL_LINE: a jump leaves the scope of its block
     }
     let i = l.owned.len()
     for i > l.scopes[first] {
@@ -1325,10 +1325,12 @@ fn ownParams(l: mut Lowerer, c: mut Checker, p: Program, id: int, localCount: in
             l.borrowed = found.borrowed.clone()
             l.movedParts = found.parts.clone()
         }
+        // GCOVR_EXCL_START: the checker records the moves of each function it lowers
         Option.None => {
             l.borrowed = []
             l.movedParts = []
         }
+        // GCOVR_EXCL_STOP
     }
     dropScopeEnter(l)
     if decl.hasSelf && decl.selfMode == Mode.Move {

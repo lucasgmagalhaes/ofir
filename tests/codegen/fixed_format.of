@@ -1,0 +1,9 @@
+// requires: stage1
+// A fixed-point format specifier calls the runtime, which the module
+// declares once.
+// CHECK: call void @ofir_str_push_fixed(ptr
+// CHECK: declare void @ofir_str_push_fixed(ptr, double, i64)
+fn main() {
+    const x = 2.5
+    println("{x:.2}")
+}

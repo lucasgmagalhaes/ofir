@@ -1,0 +1,4 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]},"hoverProvider":true,"referencesProvider":true,"renameProvider":true},"serverInfo":{"name":"ofir"}}}
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$DIR/a%20b%c3%A9%zz.of","diagnostics":[{"range":{"start":{"line":3,"character":4},"end":{"line":3,"character":13}},"severity":2,"code":"W0001","source":"ofir","message":"unused variable `x`: use it, or start its name with `_`"}]}}
+{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"`workspace/symbol` is not supported"}}
+{"jsonrpc":"2.0","id":3,"result":null}
