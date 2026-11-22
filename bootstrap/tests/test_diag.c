@@ -64,8 +64,35 @@ static void test_note_limits(void) {
     arena_free(&arena);
 }
 
+static void test_tabs_and_files(void) {
+    Arena arena;
+    arena_init(&arena);
+    SourceMap map;
+    source_map_init(&map, &arena);
+    Diagnostics diags;
+    diags_init(&diags, &arena);
+
+    FileId a = source_map_add(&map, SV("a.of"), SV("\tx $\n"));
+    FileId b = source_map_add(&map, SV("b.of"), SV("$\n"));
+    diag_error(&diags, "E0001", (Span){b, 0, 1}, "unexpected character");
+    diag_error(&diags, "E0001", (Span){a, 3, 4}, "unexpected character");
+    diag_error(&diags, "E0001", (Span){b, 0, 1}, "unexpected character");
+
+    char *short_form = render(&diags, &map, DIAG_FORMAT_SHORT);
+    CHECK(strcmp(short_form,
+                 "a.of:1:4: error[E0001]: unexpected character\n"
+                 "b.of:1:1: error[E0001]: unexpected character\n") == 0);
+    char *human = render(&diags, &map, DIAG_FORMAT_HUMAN);
+    CHECK(strstr(human, "1 | \tx $\n  | \t  ^\n") != NULL);   // a tab stays a tab
+
+    diags_free(&diags);
+    source_map_free(&map);
+    arena_free(&arena);
+}
+
 int main(void) {
     test_render();
     test_note_limits();
+    test_tabs_and_files();
     return test_report("diag");
 }
