@@ -129,7 +129,10 @@ def documents(compiler: str, work: Path) -> None:
     if not any("bad.of:" in d["message"] for d in published(got, uri)):
         fail(f"an error in an imported file is not named: {got}")
 
-    for dir_name, uri_dir in [("sp ace", "sp%20ace"), ("C:", "file:///C:")]:
+    # elsewhere `C:` is a folder of the work directory; on Windows it is a drive, and every
+    # URI of these tests already starts with one
+    folders = [("sp ace", "sp%20ace")] + ([] if os.name == "nt" else [("C:", "file:///C:")])
+    for dir_name, uri_dir in folders:
         folder = work / dir_name
         folder.mkdir()
         (folder / "util.of").write_text(UTIL)
