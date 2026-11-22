@@ -311,9 +311,10 @@ def main() -> int:
         metadata(c)
         interrupted_builds(c)
         records(c)
-        native_failures(c)
-        cross_targets(c)
-        link_failures(c)
+        if os.name != "nt":   # their stand-in tools are shell scripts
+            native_failures(c)
+            cross_targets(c)
+            link_failures(c)
         return 0 if c.ok else 1
 
 
