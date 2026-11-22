@@ -205,7 +205,9 @@ def native_failures(c: Checker) -> None:
     c.status(0, "a static library named after its input", "build", lib, "--lib=static")
     c.expect((c.tmp / "libnative_lib.a").exists(), "a static library: libnative_lib.a")
     c.status(0, "a shared library named after its input", "build", lib, "--lib=shared")
-    c.expect((c.tmp / "libnative_lib.so").exists(), "a shared library: libnative_lib.so")
+    shared = {"darwin": "libnative_lib.dylib", "win32": "libnative_lib.dll"}.get(
+        sys.platform, "libnative_lib.so")
+    c.expect((c.tmp / shared).exists(), f"a shared library: {shared}")
 
     def failing(what: str, message: str, env: dict[str, str], *args: str) -> None:
         result = subprocess.run([c.compiler, *args], capture_output=True, text=True, env=env,
@@ -220,8 +222,9 @@ def native_failures(c: Checker) -> None:
             dict(c.env, OFIR_CLANG="false"), "build", good, "-o", out)
     failing("a clang that cannot run", "cannot run",
             dict(c.env, OFIR_CLANG=str(c.tmp / "no-clang")), "build", good, "-o", out)
+    other = "x86_64-w64-windows-gnu" if sys.platform == "darwin" else "aarch64-apple-darwin"
     failing("a target without its runtime", "make runtime TARGET=",
-            c.env, "build", good, "--target=aarch64-apple-darwin", "-o", out)
+            c.env, "build", good, f"--target={other}", "-o", out)
     beside = Path(c.compiler).parent.parent
     if not any((beside / p / "libofir_rt.a").exists() for p in (".", "lib/ofir")):
         failing("no runtime library", "cannot find the runtime library",
@@ -245,6 +248,7 @@ def cross_targets(c: Checker) -> None:
     for target in ("x86_64-w64-windows-gnu", "aarch64-apple-darwin"):
         (runtimes / target).mkdir(parents=True)
         (runtimes / target / "libofir_rt.a").write_bytes(b"")
+    (runtimes / "libofir_rt.a").write_bytes(b"")   # the host's, when the target is the host
     env = dict(c.env, OFIR_CLANG=str(fake), OFIR_SYSROOT=str(c.tmp / "root"),
                OFIR_RUNTIME=str(runtimes / "libofir_rt.a"))
     cases = [(["--target=x86_64-w64-windows-gnu"], "linked",
