@@ -1,5 +1,7 @@
 # Ofir
 
+[![CI](https://github.com/lucasgmagalhaes/ofir/actions/workflows/ci.yml/badge.svg)](https://github.com/lucasgmagalhaes/ofir/actions/workflows/ci.yml)
+
 Ofir is a compiled, statically typed systems programming language with a
 lightweight, Go-like syntax and Rust-like memory safety — without a garbage
 collector.
