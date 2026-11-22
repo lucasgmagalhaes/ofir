@@ -1,0 +1,5 @@
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"textDocumentSync":{"openClose":true,"change":1},"definitionProvider":true,"completionProvider":{"triggerCharacters":["."]},"hoverProvider":true,"referencesProvider":true,"renameProvider":true},"serverInfo":{"name":"ofir"}}}
+{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"$URI","diagnostics":[]}}
+{"jsonrpc":"2.0","id":2,"result":{"contents":{"kind":"markdown","value":"```ofir\nimport strings\n```"},"range":{"start":{"line":4,"character":14},"end":{"line":4,"character":21}}}}
+{"jsonrpc":"2.0","id":3,"error":{"code":-32803,"message":"open the file that declares the name to rename it"}}
+{"jsonrpc":"2.0","id":4,"result":null}

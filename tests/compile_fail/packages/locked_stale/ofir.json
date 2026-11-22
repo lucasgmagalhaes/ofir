@@ -1,0 +1,13 @@
+// `--locked` with a lock that a fetch would change (ADR 0032): each
+// package that differs gets a note.
+{
+  "name": "app",
+  "build": {"kind": "exe", "root": "main.of"},
+  "dependencies": {   // error[E0913]: `ofir.lock` is out of date
+    // note: `shade` would move from 0.1.0 (23c8b58bb0a9) to 0.2.0
+    // note: `text` has no checksum in it
+    // note: `gone` is in it but no longer used
+    "shade": {"git": "../../../../build/git-fixtures/shade", "version": "^0.2"},
+    "text": {"git": "../../../../build/git-fixtures/text", "version": "^1.0"},
+  },
+}

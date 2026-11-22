@@ -7,7 +7,10 @@ that: the first build fills the cache, each object with its SHA-256 in
 runs; a cached object that is not an object file, that does not hash to
 its sum or that has no sum is replaced (ADR 0092); a cached object that
 breaks the link is recovered from; `--no-cache` leaves the cache alone;
-`OFIR_CACHE_LIMIT` bounds it; and a release build, one unit, is cached as one object.
+`OFIR_CACHE_LIMIT` bounds it, and one that is not a number is ignored; a
+release build, one unit, is cached as one object; and a clang whose
+`--version` fails, that writes no object or whose checksum cannot be
+written is handled.
 
 Then it edits a copy of the program and checks that the cache key, the
 unit's text, follows the dependencies: an edit that changes no code
@@ -77,6 +80,44 @@ def new_objects(compiler: str, env: dict[str, str], tmp: Path, last: str) -> int
     return len(set(objects(home)) - before)
 
 
+# Stands in for clang in `check_failures`: `$WRAP_MODE` says what it breaks.
+WRAPPER = """#!/bin/sh
+case "$WRAP_MODE:$1" in "version:--version") exit 1;; esac
+out=""; prev=""
+for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done
+case "$WRAP_MODE:$out" in
+  noobj:*.o.*.tmp) exit 0;;
+  nosum:*.o.*.tmp) mkdir -p "${out%.o.*}.sum.${out##*.o.}";;
+esac
+exec "$REAL_CLANG" "$@"
+"""
+
+
+def check_failures(compiler: str, env: dict[str, str], tmp: Path) -> None:
+    """A clang whose `--version` fails, that writes no object, or whose
+    object's checksum cannot be written, and a limit that is not a number."""
+    wrapper = tmp / "wrapclang"
+    wrapper.write_text(WRAPPER)
+    wrapper.chmod(0o755)
+    real = env.get("OFIR_CLANG") or shutil.which("clang") or "clang"
+    home = tmp / "failures"
+    wrapped = {**env, "OFIR_HOME": str(home), "OFIR_CLANG": str(wrapper), "REAL_CLANG": real}
+    exe = tmp / "failing-app"
+    build(compiler, {**wrapped, "WRAP_MODE": "version"}, exe)
+    check(not objects(home), "a clang whose --version fails caches nothing")
+    build(compiler, {**wrapped, "WRAP_MODE": "nosum"}, exe)
+    check(not objects(home), "an object whose checksum cannot be written is not cached")
+    cmd = [compiler, "build", PROGRAM.relative_to(ROOT).as_posix(), "-o", str(exe)]
+    result = subprocess.run(cmd, cwd=ROOT, env={**wrapped, "WRAP_MODE": "noobj"},
+                            capture_output=True, text=True)
+    check(result.returncode != 0, "a clang that writes no object fails the build")
+    result = subprocess.run(cmd, cwd=ROOT, env={**wrapped, "OFIR_CLANG": str(tmp / "no-clang")},
+                            capture_output=True, text=True)
+    check(result.returncode != 0 and not objects(home), "a clang that does not run fails")
+    build(compiler, {**env, "OFIR_HOME": str(home), "OFIR_CACHE_LIMIT": "12x"}, exe)
+    check(bool(objects(home)), "a limit that is not a number keeps the default")
+
+
 def check_invalidation(compiler: str, env: dict[str, str], tmp: Path) -> None:
     app = tmp / "edited" / "app"
     shutil.copytree(PROGRAM.parent, app)
@@ -142,11 +183,16 @@ def main() -> None:
         check(objects(home)[bad] == first[bad] and sum_of(bad).exists(),
               "an object without a sum is compiled again")
 
-        fake = b"\x7fELF" + b"\0" * 60
-        bad.write_bytes(fake)
-        sum_of(bad).write_text(hashlib.sha256(fake).hexdigest())
-        build(compiler, env, exe)
+        for fake in (b"\x7fELF" + b"\0" * 60, b"\xcf\xfa\xed\xfe" + b"\0" * 60):   # ELF, Mach-O
+            bad.write_bytes(fake)
+            sum_of(bad).write_text(hashlib.sha256(fake).hexdigest())
+            build(compiler, env, exe)
         check(True, "a link that fails with cached objects is retried without them")
+
+        bad.write_bytes(b"ab")
+        sum_of(bad).write_text(hashlib.sha256(b"ab").hexdigest())
+        build(compiler, env, exe)
+        check(objects(home)[bad] == first[bad], "an object shorter than a header is compiled again")
 
         shutil.rmtree(home / "cache" / "objects")
         build(compiler, env, exe, "--no-cache")
@@ -166,6 +212,8 @@ def main() -> None:
         check(set(objects(home)) - before == added, "a second release build reuses it")
 
         check_invalidation(compiler, env, tmp)
+        if os.name != "nt":
+            check_failures(compiler, env, tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

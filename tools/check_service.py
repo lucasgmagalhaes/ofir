@@ -12,6 +12,7 @@ by SIGINT at any point leaves a cache from which the next build succeeds.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import signal
@@ -166,6 +167,133 @@ def interrupted_builds(c: Checker) -> None:
     magic = (b"\x7fELF", b"\xcf\xfa\xed\xfe", b"MZ", b"\x64\x86", b"\x64\xaa")
     c.expect(len(objects) > 0 and all(p.read_bytes()[:4].startswith(magic) for p in objects),
              "every cached object is a whole object file")
+    for path in objects:   # an object with the right magic number that does not link
+        bad = b"\x7fELF" + b"\0" * 60
+        path.write_bytes(bad)
+        path.with_suffix(".sum").write_text(hashlib.sha256(bad).hexdigest())
+    rebuilt = c.run("build", str(APP), "-o", str(exe))
+    ran = subprocess.run([str(exe)], capture_output=True, text=True) \
+        if rebuilt.returncode == 0 else None
+    c.expect(ran is not None and ran.stdout == APP_OUT,
+             "bad cached objects: compiled again", rebuilt.stdout + rebuilt.stderr)
+
+
+LIB = "pub fn add(a: int, b: int) int {\n    return a + b\n}\n"
+
+
+def records(c: Checker) -> None:
+    good, lib = c.write("recorded.of", GOOD), c.write("recorded_lib.of", LIB)
+    c.status(0, "a record of LLVM IR", "build", good, "--emit=llvm", "--release",
+             "-o", str(c.tmp / "recorded"), "--record=llvm.json")
+    record = json.loads((c.tmp / "llvm.json").read_text())
+    c.expect(record["artifacts"][0]["path"] == "recorded.ll"
+             and record["flags"] == ["--release", "-O2", "--emit=llvm"],
+             "a record of LLVM IR: the .ll and the flags", json.dumps(record)[:2000])
+    c.status(0, "a record of a library", "build", lib, "--lib=shared", "--coverage",
+             "-o", str(c.tmp / "librecorded"), "--record=lib.json")
+    record = json.loads((c.tmp / "lib.json").read_text())
+    c.expect([a["path"] for a in record["artifacts"]] == ["librecorded", "recorded_lib.h"]
+             and "--lib=shared" in record["flags"] and "--coverage" in record["flags"],
+             "a record of a library: the library, its header and the flags",
+             json.dumps(record)[:2000])
+    c.status(1, "a record that cannot be written", "build", good, "-o",
+             str(c.tmp / "recorded"), f"--record={c.tmp / 'missing' / 'record.json'}")
+
+
+def native_failures(c: Checker) -> None:
+    lib, good = c.write("native_lib.of", LIB), c.write("native_good.of", GOOD)
+    c.status(0, "a static library named after its input", "build", lib, "--lib=static")
+    c.expect((c.tmp / "libnative_lib.a").exists(), "a static library: libnative_lib.a")
+    c.status(0, "a shared library named after its input", "build", lib, "--lib=shared")
+    shared = {"darwin": "libnative_lib.dylib", "win32": "libnative_lib.dll"}.get(
+        sys.platform, "libnative_lib.so")
+    c.expect((c.tmp / shared).exists(), f"a shared library: {shared}")
+
+    def failing(what: str, message: str, env: dict[str, str], *args: str) -> None:
+        result = subprocess.run([c.compiler, *args], capture_output=True, text=True, env=env,
+                                cwd=c.tmp, timeout=300)
+        c.expect(result.returncode == 1 and message in result.stderr, what,
+                 f"{result.returncode}\n{result.stderr[-2000:]}")
+
+    out = str(c.tmp / "native_out")
+    failing("an archiver that fails", "cannot archive the objects",
+            dict(c.env, OFIR_AR="false"), "build", lib, "--lib=static", "-o", out + ".a")
+    failing("a clang that fails", "clang failed to compile",
+            dict(c.env, OFIR_CLANG="false"), "build", good, "-o", out)
+    failing("a clang that cannot run", "cannot run",
+            dict(c.env, OFIR_CLANG=str(c.tmp / "no-clang")), "build", good, "-o", out)
+    other = "x86_64-w64-windows-gnu" if sys.platform == "darwin" else "aarch64-apple-darwin"
+    failing("a target without its runtime", "make runtime TARGET=",
+            c.env, "build", good, f"--target={other}", "-o", out)
+    beside = Path(c.compiler).parent.parent
+    if not any((beside / p / "libofir_rt.a").exists() for p in (".", "lib/ofir")):
+        failing("no runtime library", "cannot find the runtime library",
+                {k: v for k, v in c.env.items() if k != "OFIR_RUNTIME"},
+                "build", good, "-o", out)
+
+
+LINKED = ('@link("m")\nextern "C" {\n    fn cos(x: f64) f64\n}\n\n'
+          'fn main() {\n    const x = unsafe { cos(0.0) }\n    print("{x}")\n}\n')
+
+
+def cross_targets(c: Checker) -> None:
+    """The flags of other targets, seen through a clang that logs them."""
+    log, fake = c.tmp / "fake.log", c.tmp / "fake-clang"
+    fake.write_text(f'#!/bin/sh\necho "$@" >> "{log}"\nout=""\nprev=""\n'
+                    'for a in "$@"; do\n    [ "$prev" = "-o" ] && out="$a"\n'
+                    '    prev="$a"\ndone\n[ -n "$out" ] && : > "$out"\nexit 0\n')
+    fake.chmod(0o755)
+    linked = c.write("linked.of", LINKED)
+    runtimes = c.tmp / "runtimes"   # the clang never reads them
+    for target in ("x86_64-w64-windows-gnu", "aarch64-apple-darwin"):
+        (runtimes / target).mkdir(parents=True)
+        (runtimes / target / "libofir_rt.a").write_bytes(b"")
+    (runtimes / "libofir_rt.a").write_bytes(b"")   # the host's, when the target is the host
+    env = dict(c.env, OFIR_CLANG=str(fake), OFIR_SYSROOT=str(c.tmp / "root"),
+               OFIR_RUNTIME=str(runtimes / "libofir_rt.a"))
+    cases = [(["--target=x86_64-w64-windows-gnu"], "linked",
+              ["-lpthread", "-Wl,--no-insert-timestamp", f"--sysroot={c.tmp / 'root'}", "-lm"]),
+             (["--target=aarch64-apple-darwin", "--trim-paths"], "linked", ["-Wl,-S"]),
+             (["--target=x86_64-w64-windows-gnu", "--lib=shared"], "liblinked.dll", ["-shared"]),
+             (["--target=aarch64-apple-darwin", "--lib=shared"], "liblinked.dylib", ["-fPIC"])]
+    for flags, output, words in cases:
+        log.unlink(missing_ok=True)
+        result = subprocess.run([c.compiler, "build", "--no-cache", *flags, linked],
+                                capture_output=True, text=True, env=env, cwd=c.tmp,
+                                timeout=300)
+        calls = log.read_text().split() if log.exists() else []
+        c.expect(result.returncode == 0 and (c.tmp / output).exists()
+                 and all(w in calls for w in words),
+                 f"a build for {' '.join(flags)}: {output} and {' '.join(words)}",
+                 f"{result.returncode}\n{result.stderr[-2000:]}\n{' '.join(calls)[-2000:]}")
+
+
+def link_failures(c: Checker) -> None:
+    """A clang that compiles, then fails or is gone when it should link."""
+    good = c.write("link_good.of", GOOD)
+    compiles = ('#!/bin/sh\nout=""\nprev=""\nfor a in "$@"; do\n'
+                '    [ "$prev" = "-o" ] && out="$a"\n    prev="$a"\ndone\n'
+                'case " $* " in\n    *" -c "*) : > "$out"; {after}; exit 0 ;;\nesac\nexit 1\n')
+    for what, after, message in (("a link that fails", ":", "clang failed to compile"),
+                                 ("a clang gone before the link", 'rm -f "$0"', "cannot run")):
+        fake = c.tmp / "compiles-only"
+        fake.write_text(compiles.replace("{after}", after))
+        fake.chmod(0o755)
+        # One clang at a time: one that removes itself must not race the others.
+        result = subprocess.run([c.compiler, "build", "--no-cache", "-j", "1", good,
+                                 "-o", str(c.tmp / "never")], capture_output=True, text=True,
+                                env=dict(c.env, OFIR_CLANG=str(fake)), cwd=c.tmp, timeout=300)
+        c.expect(result.returncode == 1 and message in result.stderr, what,
+                 f"{result.returncode}\n{result.stderr[-2000:]}")
+    c.status(0, "a build with coverage named after its input", "build", good, "--coverage")
+    elsewhere = c.tmp / "elsewhere"
+    elsewhere.mkdir()
+    plain = {k: v for k, v in c.env.items() if not k.startswith("GCOV_PREFIX")}
+    ran = subprocess.run([str(c.tmp / "link_good")], capture_output=True, text=True,
+                         cwd=elsewhere, env=plain)
+    c.expect(ran.stdout == "hi" and any(c.tmp.glob("link_good*.gcda")),
+             "a build with coverage: its counters beside it, run from elsewhere",
+             f"{ran.stdout}\n{sorted(p.name for p in c.tmp.iterdir())}")
 
 
 def main() -> int:
@@ -182,6 +310,11 @@ def main() -> int:
         check_builds_nothing(c)
         metadata(c)
         interrupted_builds(c)
+        records(c)
+        if os.name != "nt":   # their stand-in tools are shell scripts
+            native_failures(c)
+            cross_targets(c)
+            link_failures(c)
         return 0 if c.ok else 1
 
 

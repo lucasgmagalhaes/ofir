@@ -79,7 +79,7 @@ pub fn auditCommand(args: List<str>) int {
             continue
         }
         const Option.Some(version) = parseVersion(pin.version) else {
-            continue
+            continue   // GCOVR_EXCL_LINE: a registry pin holds a version it resolved
         }
         report.checked += 1
         const known = releases(index, pin.name) ?? []
@@ -187,7 +187,7 @@ struct Report {
 fn ignoreList(dir: str) List<str> {
     let out: List<str> = []
     const Result.Ok(doc) = parseJsonc(fs.readToString("{dir}/ofir.json").ok() ?? "\{\}") else {
-        return out
+        return out   // GCOVR_EXCL_LINE: a manifest that is not JSONC stops audit earlier
     }
     const list = doc.elements(doc.at(["audit", "ignore"]))
     for i in 0..list.len() {

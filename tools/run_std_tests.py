@@ -34,7 +34,8 @@ TIMEOUT_SECONDS = 600
 # The parts of `compiler/` that compile so far; each port adds its directory
 # (roadmap phase 4: base, diag, syntax, ...).
 DIRS = ["std", "compiler/base", "compiler/diag", "compiler/syntax", "compiler/sema",
-        "compiler/air", "compiler/driver", "compiler/codegen", "compiler/lsp"]
+        "compiler/air", "compiler/driver", "compiler/codegen", "compiler/lsp",
+        "compiler/cli", "compiler/doc"]
 
 
 def executable(path: str) -> str:

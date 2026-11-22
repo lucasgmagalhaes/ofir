@@ -9,7 +9,9 @@
   profile, key or value is E0918;
 - the `build.native` C files of the root and of a dependency are
   compiled with the program's flags and linked into it, and a missing
-  one is E0918.
+  one is E0918;
+- a manifest that is not valid JSONC, or not a file, is left to the
+  package checks.
 
 The clang calls are seen through `OFIR_CLANG`, a script that logs its
 arguments and runs clang.
@@ -144,13 +146,18 @@ def main():
                ('"release": {"debugInfo": true}', '"release": {"inherits": "dev"}',
                 "cannot have `inherits`"),
                ('"debugInfo": true}', '"debugInfo": 1}', "`debugInfo` of `check`"),
-               ('"opt": 1,', '"lto": 1,', "unknown key `lto`")]
+               ('"opt": 1,', '"lto": 1,', "unknown key `lto`"),
+               ('"opt": 1,', '"trimPaths": 1, "opt": 1,', "`trimPaths` of `check`"),
+               ('{"opt": 1, "debugInfo": true}', '1', "the profile `check` must be"),
+               (profiles, "[]", "`profiles` must be an object")]
         for old, new, message in bad:
             write(work / "ofir.json", manifest.replace(old, new))
             result, _ = run(ok=False)
             if result.returncode == 0 or "E0918" not in result.stderr \
                     or message not in result.stderr:
                 fail(f"{new} is not E0918 ({message}):\n{result.stderr}")
+        write(work / "ofir.json", manifest.replace('"opt": 1,', '"trimPaths": true, "opt": 1,'))
+        expect(["--profile=check"], "debug 42", 1, True)
         write(work / "ofir.json", manifest)
 
         (mid / "native" / "mid.c").unlink()
@@ -158,6 +165,20 @@ def main():
         if missing.returncode == 0 or "E0918" not in missing.stderr \
                 or "mid.c" not in missing.stderr:
             fail(f"a missing native file is not E0918:\n{missing.stderr}")
+
+        # Profiles are read before the packages, from a manifest that may not be valid.
+        for name, broken in [("invalid", "text"), ("folder", "dir")]:
+            app = tmp / name
+            write(app / "main.of", "fn main() {\n}\n")
+            if broken == "dir":
+                (app / "ofir.json").mkdir()
+            else:
+                write(app / "ofir.json", "{\n")
+            result = subprocess.run([compiler, "build", "main.of"], cwd=app, env=env,
+                                    capture_output=True, text=True, timeout=600)
+            if (result.returncode == 0) != (broken == "dir"):
+                fail(f"a manifest that is a {broken} gives {result.returncode}:\n"
+                     f"{result.stderr[-2000:]}")
     print("profiles: ok")
 
 

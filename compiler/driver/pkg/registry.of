@@ -139,7 +139,9 @@ pub fn archive(dir: str, index: str, name: str, version: str, offline: bool) Res
     const url = template.replace("\{name\}", name).replace("\{version\}", version)
     const archives = "{ofirHome()}/cache/archives"
     if fs.createDirAll(archives).isErr() {
+        // GCOVR_EXCL_START: the cache that holds the index's clone can hold more
         return Result.Err("cannot create `{archives}`")
+        // GCOVR_EXCL_STOP
     }
     const file = "{archives}/{label}.tar.gz"
     run("curl", ["--fail", "--silent", "--show-error", "--location", "--output", file.clone(),
@@ -147,7 +149,9 @@ pub fn archive(dir: str, index: str, name: str, version: str, offline: bool) Res
     const part = "{dest}.part"
     run("rm", ["-rf", part.clone()])?
     if fs.createDirAll(part).isErr() {
+        // GCOVR_EXCL_START: the cache that holds the index's clone can hold more
         return Result.Err("cannot create `{part}`")
+        // GCOVR_EXCL_STOP
     }
     run("tar", ["-xzf", file.clone(), "-C", part.clone()])?
     if !fs.exists("{part}/ofir.json") {

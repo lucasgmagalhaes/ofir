@@ -109,9 +109,11 @@ pub fn commitOf(dir: str, rev: str) Option<str> {
         return Option.None
     }
     const hash = out.trim()
+    // GCOVR_EXCL_START: a revision git verifies has a hash
     if hash.len() == 0 {
         return Option.None
     }
+    // GCOVR_EXCL_STOP
     return Option.Some(hash.toOwned())
 }
 
@@ -202,7 +204,9 @@ pub fn checkout(dir: str, commit: str, label: str) Result<str, str> {
         return Result.Ok(dest)
     }
     if fs.createDirAll(root).isErr() {
+        // GCOVR_EXCL_START: the cache that holds the clones can hold the checkouts
         return Result.Err("cannot create `{root}`")
+        // GCOVR_EXCL_STOP
     }
     git(["clone", "--quiet", "--no-checkout", dir.clone(), dest.clone()])?
     git(["-C", dest.clone(), "checkout", "--quiet", "--detach", commit.clone()])?

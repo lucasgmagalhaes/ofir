@@ -1,0 +1,5 @@
+// A `.` must be followed by a field name or a tuple index.
+fn main() {
+    const x = 1
+    const _y = x.+               // error[E0100]: expected a field name after `.`, found `+`
+}

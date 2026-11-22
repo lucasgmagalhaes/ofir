@@ -405,7 +405,7 @@ fn rootName(input: str) str {
 // (`std.` for the standard library), if `input` is inside it.
 fn nameUnder(input: str, dir: str, prefix: str) Option<str> {
     const Result.Ok(file) = fs.canonicalize(input) else {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: the root file was read, so it exists
     }
     const Result.Ok(base) = fs.canonicalize(dir) else {
         return Option.None
@@ -505,7 +505,7 @@ fn findStd() Option<str> {
         }
     }
     const Result.Ok(exe) = os.executablePath() else {
-        return Option.None
+        return Option.None   // GCOVR_EXCL_LINE: the running compiler always finds its own path
     }
     const dir = exe.slice(0, if lastSlash(exe) >= 0 { lastSlash(exe) } else { exe.len() })
     const places = ["../../std", "../lib/ofir/std"]

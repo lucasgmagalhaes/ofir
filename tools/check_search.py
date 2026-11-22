@@ -9,7 +9,9 @@
   not yanked, an exact name first, marks a toolchain this compiler is not
   in, leaves out a package whose versions are all yanked, prints JSON
   lines with `--message-format=json` and exits with 1 when nothing
-  matches.
+  matches;
+- `--index` names another index, and one that cannot be read gives 1;
+  lines that are not packages are passed over.
 
     python3 tools/check_search.py --compiler build/stage1/ofir
 """
@@ -89,6 +91,8 @@ def main():
         publish("jsonc", "0.3.0", description="JSON with comments", keywords=["json"])
         publish("yaml", "2.0.0", description="Read YAML documents",
                 toolchain=">=9.0.0")
+        # Listed after `json` in the index, but before it by name.
+        publish("zip", "0.1.0", description="Zip JSON with comments")
         gone = publish("old-json", "0.1.0", description="An old JSON parser")
         ofir(gone, "yank", "0.1.0")
 
@@ -101,7 +105,8 @@ def main():
             return ofir(tmp, "search", *words, ok=ok)
 
         found = search("json").stdout.splitlines()
-        want = ["json 1.1.0: Parse and print JSON", "jsonc 0.3.0: JSON with comments"]
+        want = ["json 1.1.0: Parse and print JSON", "jsonc 0.3.0: JSON with comments",
+                "zip 0.1.0: Zip JSON with comments"]
         if found != want:
             fail(f"`search json` printed {found}, not {want}")
         found = search("YAML").stdout.splitlines()
@@ -112,11 +117,11 @@ def main():
         if found != ["json 1.1.0: Parse and print JSON"]:
             fail(f"`search parser json` printed {found}")
         found = search("comments").stdout.splitlines()
-        if found != ["jsonc 0.3.0: JSON with comments"]:
+        if found != ["jsonc 0.3.0: JSON with comments", "zip 0.1.0: Zip JSON with comments"]:
             fail(f"`search comments` printed {found}")
         rows = [json.loads(row) for row in
                 search("json", "--message-format=json").stdout.splitlines()]
-        if [row["name"] for row in rows] != ["json", "jsonc"] \
+        if [row["name"] for row in rows] != ["json", "jsonc", "zip"] \
                 or rows[0]["keywords"] != ["json", "parser"] \
                 or rows[0]["repository"] != "https://example.com/json" \
                 or rows[0]["license"] != "MIT":
@@ -126,6 +131,24 @@ def main():
             fail(f"`search toml` exited with {none.returncode}: {none.stdout}")
         if search(ok=False).returncode != 2:
             fail("`search` without words did not exit with 2")
+        if search("json", "--wide", ok=False).returncode != 2:
+            fail("`search` with an unknown option did not exit with 2")
+        for words in (["--offline", "--index", str(index)], [f"--index={index}"]):
+            if search("parser", *words).stdout != "json 1.1.0: Parse and print JSON\n":
+                fail(f"`search parser {' '.join(words)}` does not read that index")
+        for where in (tmp / "nowhere", tmp / "empty"):
+            if where.name == "empty":
+                (where / "x").mkdir(parents=True)
+                for words in (["init", "-q"], ["commit", "-q", "--allow-empty", "-m", "x"]):
+                    subprocess.run(["git", "-C", str(where), *words], env=env, check=True)
+            got = search("json", "--index", str(where), ok=False)
+            if got.returncode != 1 or "cannot read the index" not in got.stderr:
+                fail(f"`search` in {where.name} gave {got.returncode}: {got.stderr}")
+        write(index / "3" / "o" / "odd", 'not json\n{"version": "x"}\n')   # lines it passes over
+        git("add", ".")
+        git("commit", "-q", "-m", "odd")
+        if search("odd", ok=False).returncode != 1:
+            fail("`search odd` found lines that are not packages")
 
         bad = tmp / "bad"
         for meta, key in [({"keywords": ["Json"]}, "keywords"),

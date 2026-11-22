@@ -1,0 +1,13 @@
+// More errors of `ofir.json`: `lints` and `overrides` that are not objects,
+// and dependencies that point at something that is not a package.
+{
+  "name": "deps_bad",
+  "build": {"kind": "exe", "root": "main.of"},
+  "lints": 3,       // error[E0910]: `lints` must be an object
+  "overrides": 3,   // error[E0910]: `overrides` must be an object
+  "dependencies": {
+    "noroot": {"path": "deps/noroot"},   // error[E0911]: cannot find the root file of the dependency `noroot`
+    "nojson": {"path": "deps/nojson"},   // error[E0911]: cannot find the dependency `nojson`
+    "number": {"git": "x.git", "rev": 3},   // error[E0910]: `rev` must be a string
+  },
+}

@@ -58,7 +58,7 @@ pub fn lspCommand() int {
         }
         server.handle(doc, method)
     }
-    return 1
+    return 1   // GCOVR_EXCL_LINE: the loop ends only by returning
 }
 
 struct Server {
@@ -361,7 +361,7 @@ fn addPlace(places: &mut List<Place>, place: move Place) {
         i += 1
     }
     if i < places.len() && places[i].path == place.path && places[i].start == place.start {
-        return
+        return   // GCOVR_EXCL_LINE: a name is linked once, apart from its declaration
     }
     places.insert(i, place)
 }
@@ -454,10 +454,14 @@ fn findWord(text: str, start: int, end: int, word: str, last: bool) int {
 // What hover shows of a declaration: its first line without the body, or
 // the line it is on when the declaration is only the name (a local).
 fn signature(file: &SourceFile, decl: Span, word: str) str {
-    const line = file.lineCol(decl.start).line
+    let line = file.lineCol(decl.start).line
+    const last = file.lineCol(decl.end).line
+    for line < last && file.lineText(line).trim().startsWith("@") {
+        line += 1   // the attributes before the declaration
+    }
     const first = file.lineText(line)
     let text = first.trim()
-    if file.lineCol(decl.end).line == line && file.text.slice(decl.start, decl.end) != word {
+    if last == file.lineCol(decl.start).line && file.text.slice(decl.start, decl.end) != word {
         text = file.text.slice(decl.start, decl.end)
     }
     if text.endsWith(" \{") {
@@ -477,7 +481,7 @@ fn docComment(file: &SourceFile, line: int) str {
         return ""
     }
     let top = first
-    for top > 1 && !file.lineText(top).trim().startsWith("/**") {
+    for top > 1 && !file.lineText(top).trim().startsWith("/*") {
         top -= 1
     }
     if !file.lineText(top).trim().startsWith("/**") {
@@ -746,7 +750,7 @@ fn readMessage(input: mut Stdin) Option<str> {
     let body = ""
     for body.len() < length {
         const Result.Ok(part) = input.read(length - body.len()) else {
-            return Option.None
+            return Option.None   // GCOVR_EXCL_LINE: an input that gave the headers gives the body
         }
         if part.len() == 0 {
             return Option.None

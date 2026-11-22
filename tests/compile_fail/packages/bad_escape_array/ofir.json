@@ -1,0 +1,5 @@
+{
+  "name": "bad_escape_array",
+  "build": {"kind": "exe", "root": "main.of"},
+  "keywords": ["\q", "x"],   // error[E0910]: `ofir.json` is not valid JSONC
+}

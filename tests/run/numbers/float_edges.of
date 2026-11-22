@@ -20,4 +20,5 @@ fn main() {
     let ys = [3.0, inf, -inf, 0.5, -2.0]
     ys.sort()
     println("{ys[0]} {ys[1]} {ys[2]} {ys[3]} {ys[4]}")
+    println("{9.9999999}")   // `--emit=air` rounds it up to 10
 }

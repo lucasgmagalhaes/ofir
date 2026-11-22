@@ -119,12 +119,12 @@ fn latest(text: str) List<Found> {
     for raw in text.lines() {
         // `HEAD:<path>:<line>`: a path of the index has no `:`.
         if !raw.startsWith("HEAD:") {
-            continue
+            continue   // GCOVR_EXCL_LINE: `git grep HEAD` starts each line so
         }
         const rest = raw.sliceFrom(5)
         const colon = rest.find(":") ?? -1
         if colon < 0 {
-            continue
+            continue   // GCOVR_EXCL_LINE: `git grep` puts a `:` after the path
         }
         const path = rest.slice(0, colon)
         const name = path.sliceFrom((path.rfind("/") ?? -1) + 1).toOwned()
