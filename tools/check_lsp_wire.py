@@ -192,8 +192,9 @@ def main() -> None:
     args = parser.parse_args()
     compiler = str(Path(args.compiler).resolve())
     with tempfile.TemporaryDirectory() as tmp:
-        framing(compiler, Path(tmp))
-        documents(compiler, Path(tmp))
+        work = Path(tmp).resolve()   # the server answers with real paths (macOS: /private/var)
+        framing(compiler, work)
+        documents(compiler, work)
     print("lsp-wire: ok")
 
 
